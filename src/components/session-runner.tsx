@@ -329,12 +329,14 @@ export function SessionRunner({
         <div className="min-w-0">
           {ending ? (
             <section aria-labelledby="session-result-heading" className="rounded-lg border border-slate-200 bg-surface p-4 shadow-sm">
-              <h2 id="session-result-heading" className="flex flex-wrap items-baseline gap-2 text-sm font-semibold text-slate-900">
-                Finish exploring
-                <span className="text-xs font-normal text-slate-500 tabular-nums">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 id="session-result-heading" className="text-sm font-semibold text-slate-900">
+                  Finish exploring
+                </h2>
+                <span className="text-xs text-slate-500 tabular-nums">
                   {Math.round(elapsed / 60)} of {Math.round(limit / 60)} min used
                 </span>
-              </h2>
+              </div>
               <p className="mt-2 flex flex-wrap gap-1.5 text-xs">
                 {NOTE_KINDS.map((k) => (
                   <span key={k} className={cx("rounded-full bg-slate-100 px-2 py-0.5", KIND_STYLE[k])}>
