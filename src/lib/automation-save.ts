@@ -1,3 +1,5 @@
+import { splitBracketTitle } from "./tags";
+import { platformNamesFor } from "./tag-data";
 import { logActivity } from "@/lib/activity";
 import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
@@ -180,11 +182,13 @@ export async function saveAutomationRun(
           return id;
         };
         if (meta.makeCases) {
+          const platformNames = await platformNamesFor(home.id);
           for (const t of tests) {
             if (matches.has(t.id)) continue;
             const folderId = await folderFor(t.className);
             const { caseSeq } = await tx.project.update({ where: { id: home.id }, data: { caseSeq: { increment: 1 } } });
-            const title = titleFromTest(t.name).slice(0, 500);
+            const split = splitBracketTitle(titleFromTest(t.name).slice(0, 500), { platforms: platformNames });
+            const title = split.title;
             const folderPath = ["Automation", folderFromClass(t.className)].filter(Boolean).join(" / ");
             const created = await tx.testCase.create({
               data: {
@@ -194,7 +198,8 @@ export async function saveAutomationRun(
                 title,
                 type: "AUTOMATED",
                 automationId: t.id.slice(0, 200),
-                versions: { create: { version: 1, title, preconditions: "", priority: "MEDIUM", type: "AUTOMATED", automationId: t.id.slice(0, 200), tags: [], folderPath, steps: stepItems(t), authorId: actor.id, authorName: by, changeNote: "Made from automation results" } },
+                tags: split.tags,
+                versions: { create: { version: 1, title, preconditions: "", priority: "MEDIUM", type: "AUTOMATED", automationId: t.id.slice(0, 200), tags: split.tags, folderPath, steps: stepItems(t), authorId: actor.id, authorName: by, changeNote: "Made from automation results" } },
               },
             });
             matches.set(t.id, { caseId: created.id, by: "id" });

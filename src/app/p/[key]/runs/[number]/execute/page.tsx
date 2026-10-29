@@ -1,3 +1,6 @@
+import { titleWithTags } from "@/lib/tags";
+import { tagColorsFor } from "@/lib/tag-data";
+import { TagPills } from "@/components/tag-pill";
 import { sentryConnected } from "@/lib/sentry-config";
 import { resultSteps } from "@/lib/result-steps";
 import { CrumbName } from "@/components/crumb-name";
@@ -50,9 +53,10 @@ export default async function ExecutePage({
   const { key, number } = await params;
   const sp = await searchParams;
   const { project, user, who } = await projectAccess(key);
+  const tagColors = await tagColorsFor(project.id);
   const run = await db.testRun.findUnique({
     where: { projectId_number: { projectId: project.id, number: Number(number) || 0 } },
-    include: { entries: { orderBy: { position: "asc" }, select: { id: true, caseId: true, title: true, status: true, priority: true, assigneeId: true, draft: true, draftAt: true, draftByName: true, draftById: true, results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true, testerName: true, testerId: true, createdAt: true } }, testCase: { select: { number: true, flag: true, project: { select: { key: true } } } } } } },
+    include: { entries: { orderBy: { position: "asc" }, select: { id: true, caseId: true, title: true, status: true, priority: true, assigneeId: true, draft: true, draftAt: true, draftByName: true, draftById: true, results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true, testerName: true, testerId: true, createdAt: true } }, testCase: { select: { number: true, flag: true, tags: true, project: { select: { key: true } } } } } } },
   });
   if (!run) notFound();
   if (!run.entries.length) redirect(`/p/${project.key}/runs/${run.number}`);
@@ -88,7 +92,7 @@ export default async function ExecutePage({
     : (after.find((e) => e.status === "UNTESTED" && (!e.assigneeId || e.assigneeId === user.id)) ?? after.find((e) => e.status === "UNTESTED") ?? null);
 
   const [entry, last, jira, runLinks, members] = await Promise.all([
-    db.runEntry.findUniqueOrThrow({ where: { id: pick.id }, include: { testCase: { select: { id: true, number: true, flag: true, flagNote: true, flaggedBy: true, flaggedAt: true, flagRunNumber: true, jiraStories: true, project: { select: { key: true } } } } } }),
+    db.runEntry.findUniqueOrThrow({ where: { id: pick.id }, include: { testCase: { select: { id: true, number: true, tags: true, flag: true, flagNote: true, flaggedBy: true, flaggedAt: true, flagRunNumber: true, jiraStories: true, project: { select: { key: true } } } } } }),
     db.testResult.findFirst({
       where: { entryId: pick.id },
       orderBy: { createdAt: "desc" },
@@ -237,7 +241,9 @@ export default async function ExecutePage({
                   >
                     <span className={cx("st-pip mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full", STATUS_STYLE[e.status as ResultStatus].bar)} />
                     <span className="min-w-0 flex-1">
-                      <span className="line-clamp-2 leading-snug font-medium">{e.title}</span>
+                      <span className="line-clamp-2 leading-snug font-medium">
+                        <TagPills tags={titleWithTags(e.title, e.testCase.tags).tags} colors={tagColors} /> {titleWithTags(e.title).title}
+                      </span>
                       <span className="mt-1 flex items-center gap-2">
                         <span className="font-mono text-xs text-slate-500">{caseKey(e.testCase.project.key, e.testCase.number)}</span>
                         <PriorityBadge priority={e.priority} />
@@ -336,6 +342,7 @@ export default async function ExecutePage({
           nextEntryId={next?.id ?? null}
           keepQuery={keep}
           takeBar={takeBar}
+          tagColors={tagColors}
           entry={{
             id: entry.id,
             caseKey: caseKey(entry.testCase.project.key, entry.testCase.number),
@@ -344,7 +351,7 @@ export default async function ExecutePage({
             caseId: entry.testCase.id,
             flag: flagInfo(entry.testCase, relativeTime),
             caseVersion: entry.caseVersion,
-            title: entry.title,
+            ...titleWithTags(entry.title, entry.testCase.tags),
             preconditions: entry.preconditions,
             folderPath: entry.folderPath,
             steps: (Array.isArray(entry.steps) ? entry.steps : []) as unknown as ExpandedStep[],

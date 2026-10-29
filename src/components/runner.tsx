@@ -1,5 +1,7 @@
 "use client";
 
+import { TagPills } from "./tag-pill";
+import type { TagColors } from "@/lib/tags";
 import { dateTime } from "@/lib/spelling";
 import { useSpelling } from "@/components/spelling";
 import type { ResultStatus } from "@prisma/client";
@@ -46,6 +48,7 @@ export type RunnerEntry = {
   flag: CaseFlagInfo | null;
   caseVersion: number;
   title: string;
+  tags: string[];
   preconditions: string;
   folderPath: string;
   steps: ExpandedStep[];
@@ -98,9 +101,11 @@ export function Runner({
   takeBar = null,
   regression = null,
   sentryOn = false,
+  tagColors,
 }: {
   /** Sentry is connected (ver_96): Failed and Blocked steps show the errors it caught. */
   sentryOn?: boolean;
+  tagColors?: TagColors;
   regression?: RunnerRegression | null;
   /** The "You're on this case" bar. It sits above the title and scrolls with it, so it never covers Flag or the timer (ver_87). */
   takeBar?: ReactNode;
@@ -650,7 +655,14 @@ export function Runner({
               · version {entry.caseVersion}
               {entry.folderPath && ` · ${entry.folderPath}`}
             </p>
-            <h1 className="text-xl font-semibold tracking-tight text-slate-900">{entry.title}</h1>
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900">
+              {entry.tags.length > 0 && (
+                <span className="mr-1.5 inline-flex gap-1 align-[3px]">
+                  <TagPills tags={entry.tags} colors={tagColors} />
+                </span>
+              )}
+              {entry.title}
+            </h1>
             {!!entry.stories?.length && (
               <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                 Tests

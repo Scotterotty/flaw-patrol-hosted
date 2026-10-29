@@ -59,3 +59,11 @@ export const tagQuery = (q: string) => q.trim().replace(/^\[(.*)\]$/, "$1").trim
 
 /** Jira bug titles put the tags back in front: "[WEB][UNITY] Sign in fails". */
 export const withBracketTags = (tags: string[], title: string) => (tags.length ? `${tags.map((t) => `[${t.toUpperCase()}]`).join("")} ${title}` : title);
+
+/** For showing an older snapshot (a run started before the brackets were turned into tags): the clean title and every tag once. */
+export function titleWithTags(title: string, tags: string[] = []) {
+  const s = splitBracketTitle(title);
+  const all = [...tags];
+  for (const t of s.tags) if (!all.some((x) => x.toLowerCase() === t.toLowerCase())) all.push(t);
+  return { title: s.title, tags: all };
+}

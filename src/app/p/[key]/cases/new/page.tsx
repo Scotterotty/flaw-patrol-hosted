@@ -1,3 +1,4 @@
+import { platformNamesFor, tagColorsFor } from "@/lib/tag-data";
 import { notFound } from "next/navigation";
 import { CaseEditor } from "@/components/case-editor";
 import { hubGroupId } from "@/lib/umbrella";
@@ -21,6 +22,8 @@ export default async function NewCasePage({ params, searchParams }: { params: Pr
   const tpl = isCharter && template ? templateById(template, await teamTemplates((await charterHome(project)).id)) : null;
   return (
     <CaseEditor
+      tagColors={await tagColorsFor(project.id)}
+      platformNames={await platformNamesFor(project.id)}
       inLibrary={!!(await hubGroupId(project.id))}
       projectId={project.id}
       projectKey={project.key}

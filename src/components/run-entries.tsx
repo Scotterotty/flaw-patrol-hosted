@@ -15,12 +15,15 @@ import { PriorityBadge, TypeBadge, FlakyBadge, RegressionBadge } from "./badges"
 import { CaseSortToggle } from "./case-sort-toggle";
 import { StatusChip } from "./status";
 import { buttonClass, cx, Input, Select } from "./ui";
+import { TagPills } from "./tag-pill";
+import type { TagColors } from "@/lib/tags";
 
 export type EntryRow = {
   id: string;
   caseKey: string;
   caseNumber: number;
   title: string;
+  tags: string[];
   folderPath: string;
   priority: Priority;
   /** Charters run as exploratory sessions. */
@@ -51,6 +54,7 @@ export function RunEntries({
   canRun,
   meId,
   sort,
+  tagColors,
 }: {
   projectId: string;
   projectKey: string;
@@ -63,6 +67,7 @@ export function RunEntries({
   canRun: boolean;
   meId: string;
   sort: CaseSort;
+  tagColors?: TagColors;
 }) {
   const spelling = useSpelling();
   const [status, setStatus] = useState("");
@@ -84,7 +89,7 @@ export function RunEntries({
       (!status || r.status === status) &&
       (!onlyReg || !!r.regression) &&
       (!who || (who === "none" ? !r.assigneeId : who === "me" ? r.assigneeId === meId : r.assigneeId === who)) &&
-      words.every((w) => `${r.caseKey} ${r.title} ${r.folderPath}`.toLowerCase().includes(w)),
+      words.every((w) => `${r.caseKey} ${r.title} ${r.folderPath} ${r.tags.map((t) => `${t} [${t}]`).join(" ")}`.toLowerCase().includes(w)),
   );
   const shownIds = new Set(shown.map((r) => r.id));
   const hiddenPicks = [...selected].filter((id) => !shownIds.has(id)).length;
@@ -230,7 +235,7 @@ export function RunEntries({
                 )}
                 <td className="px-3 py-2">
                   <Link href={`/p/${projectKey}/runs/${runNumber}/execute?entry=${r.id}`} className="hover:underline">
-                    <span className="font-mono text-xs text-slate-500">{r.caseKey}</span> <span className="font-medium text-slate-900">{r.title}</span>
+                    <span className="font-mono text-xs text-slate-500">{r.caseKey}</span> <TagPills tags={r.tags} colors={tagColors} /> <span className="font-medium text-slate-900">{r.title}</span>
                   </Link>
                   {r.regression ? <span className="ml-1.5 align-middle"><RegressionBadge tip={r.regression} /></span> : null}
                   {r.flaky ? <span className="ml-1.5 align-middle"><FlakyBadge flips={r.flaky} /></span> : null}

@@ -1,5 +1,7 @@
 "use server";
 
+import { splitBracketTitle } from "@/lib/tags";
+import { platformNamesFor } from "@/lib/tag-data";
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -119,10 +121,14 @@ export async function importCases(projectId: string, folderId: string | null, ra
           }
         }
 
-        for (const c of cases) {
+        // "[WEB] - Sign in" comes in as the tag Web and the title "Sign in" (ver_96).
+        const platformNames = await platformNamesFor(projectId);
+        for (const raw of cases) {
+          const split = splitBracketTitle(raw.title, { platforms: platformNames });
+          const c = { ...raw, title: split.title };
           number += 1;
           const folderId = await ensurePath(c.folderPath);
-          const tags = normalizeTags(c.tags);
+          const tags = normalizeTags([...split.tags, ...c.tags]);
           const steps = (c.items ?? c.steps.map((s) => ({ kind: "step" as const, ...s }))).map((item) => {
             if (item.kind === "step") return { kind: "step" as const, action: item.action, expected: item.expected };
             const sharedStepId = sharedIds.get(item.key);

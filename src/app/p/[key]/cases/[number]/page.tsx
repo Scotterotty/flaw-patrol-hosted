@@ -1,9 +1,11 @@
+import { TagPills } from "@/components/tag-pill";
+import { tagColorsFor } from "@/lib/tag-data";
 import type { Metadata } from "next";
 import { runFieldsFor } from "@/lib/run-fields-server";
 import Link from "next/link";
 import { badgeOf } from "@/lib/game";
 import { Avatar } from "@/components/avatar";
-import { PriorityBadge, TagList, TypeBadge } from "@/components/badges";
+import { PriorityBadge, TypeBadge } from "@/components/badges";
 import { AddToSuite, CaseActions } from "@/components/case-actions";
 import { SaveAsTemplate } from "@/components/charters";
 import { MoreMenu } from "@/components/more-menu";
@@ -106,7 +108,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
             <PriorityBadge priority={c.priority} />
             <TypeBadge type={c.type} />
             {c.persona && <PersonaChip persona={c.persona} />}
-            <TagList tags={c.tags} />
+            <TagPills tags={c.tags} colors={await tagColorsFor(project.id)} />
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">

@@ -1,3 +1,5 @@
+import { titleWithTags } from "@/lib/tags";
+import { tagColorsFor } from "@/lib/tag-data";
 import { sentryConnected } from "@/lib/sentry-config";
 import { SentryCard } from "@/components/sentry-card";
 import { resultSteps } from "@/lib/result-steps";
@@ -54,7 +56,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
       entries: {
         orderBy: { position: "asc" },
         include: {
-          testCase: { select: { number: true, project: { select: { key: true } } } },
+          testCase: { select: { number: true, tags: true, project: { select: { key: true } } } },
           // The last saved result's steps, so finished cases keep their pips.
           results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true, testerName: true, testerId: true, createdAt: true } },
         },
@@ -304,11 +306,12 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         canRun={run.state === "ACTIVE" && can(who, "run:execute")}
         meId={user.id}
         sort={sort}
+        tagColors={await tagColorsFor(project.id)}
         rows={sortCases(run.entries, sort, (e) => e.priority, (e) => e.status).map((e) => ({
           id: e.id,
           caseKey: caseKey(e.testCase.project.key, e.testCase.number),
           caseNumber: e.testCase.number,
-          title: e.title,
+          ...titleWithTags(e.title, e.testCase.tags),
           folderPath: e.folderPath,
           priority: e.priority,
           charter: e.kind === "EXPLORATORY",

@@ -1,5 +1,7 @@
 "use client";
 
+import { TagPills } from "./tag-pill";
+import { tagQuery } from "@/lib/tags";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { PRIORITIES, PRIORITY_LABEL } from "@/lib/format";
@@ -143,7 +145,7 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
         (!folderIds || (c.folderId && folderIds.has(c.folderId))) &&
         (!tag || c.tags.includes(tag)) &&
         (!priority || c.priority === priority) &&
-        (!s || c.title.toLowerCase().includes(s) || c.key.toLowerCase().includes(s)),
+        (!s || c.title.toLowerCase().includes(s) || c.key.toLowerCase().includes(s) || c.tags.some((t) => t.toLowerCase() === tagQuery(s))),
     );
   }, [opts, folder, tag, priority, q]);
   const pickedSet = new Set(picked);
@@ -324,7 +326,7 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
                 <label className="flex cursor-pointer items-start gap-2 px-3 py-1.5 text-sm hover:bg-slate-50">
                   <input type="checkbox" className="mt-1" checked={pickedSet.has(c.id)} onChange={() => setPicked((p) => (p.includes(c.id) ? p.filter((x) => x !== c.id) : [...p, c.id]))} />
                   <span className="min-w-0 flex-1">
-                    <span className="font-mono text-xs text-slate-500">{c.key}</span> {c.title}
+                    <span className="font-mono text-xs text-slate-500">{c.key}</span> <TagPills tags={c.tags} colors={opts.tagColors} /> {c.title}
                     {c.folderPath && <span className="text-xs text-slate-500"> · {c.folderPath}</span>}
                   </span>
                 </label>

@@ -1,3 +1,4 @@
+import { platformNamesFor, tagColorsFor } from "@/lib/tag-data";
 import { notFound } from "next/navigation";
 import { CaseEditor } from "@/components/case-editor";
 import { hubGroupId } from "@/lib/umbrella";
@@ -22,6 +23,8 @@ export default async function EditCasePage({ params }: { params: Promise<{ key: 
   const ctx = await editorContext(project.id, sharedStepIdsIn(steps), c.personaId, c.type === "EXPLORATORY");
   return (
     <CaseEditor
+      tagColors={await tagColorsFor(project.id)}
+      platformNames={await platformNamesFor(project.id)}
       inLibrary={!!(await hubGroupId(project.id))}
       projectId={project.id}
       projectKey={project.key}

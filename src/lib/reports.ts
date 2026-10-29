@@ -1,3 +1,4 @@
+import { titleWithTags } from "./tags";
 import "server-only";
 import type { Prisma, Priority, ResultStatus } from "@prisma/client";
 import { db } from "./db";
@@ -296,14 +297,14 @@ export async function defectReport(scope: ReportScope, f: ReportFilters): Promis
   }));
 }
 
-export type CaseHealthRow = { caseKey: string; caseProjectKey: string; number: number; title: string; runs: number; passRate: number | null; failStreak: number; flips: number; last: ResultStatus; lastAt: Date };
+export type CaseHealthRow = { caseKey: string; caseProjectKey: string; number: number; title: string; tags: string[]; runs: number; passRate: number | null; failStreak: number; flips: number; last: ResultStatus; lastAt: Date };
 
 /** Per-case execution health in the period: most failing, flaky, long-failing. */
 export async function caseHealth(scope: ReportScope, f: ReportFilters): Promise<CaseHealthRow[]> {
   const results = await db.testResult.findMany({
     where: { run: runWhere(scope, f) },
     orderBy: { createdAt: "asc" },
-    select: { caseId: true, status: true, createdAt: true, entry: { select: { title: true, testCase: { select: { number: true, project: { select: { key: true } } } } } } },
+    select: { caseId: true, status: true, createdAt: true, entry: { select: { title: true, testCase: { select: { number: true, tags: true, project: { select: { key: true } } } } } } },
     take: 50000,
   });
   const by = new Map<string, typeof results>();
@@ -318,7 +319,7 @@ export async function caseHealth(scope: ReportScope, f: ReportFilters): Promise<
       caseKey: caseKey(last.entry.testCase.project.key, last.entry.testCase.number),
       caseProjectKey: last.entry.testCase.project.key,
       number: last.entry.testCase.number,
-      title: last.entry.title,
+      ...titleWithTags(last.entry.title, last.entry.testCase.tags),
       runs: rs.length,
       passRate: totals(countStatuses(statuses)).passRate,
       failStreak: streak,

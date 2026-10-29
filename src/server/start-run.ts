@@ -1,5 +1,6 @@
 "use server";
 
+import { tagColorsFor } from "@/lib/tag-data";
 import { CSP_FIELD, parseRunFields } from "@/lib/run-fields";
 import { kindIdFor, parseRunKinds } from "@/lib/run-kinds";
 import { logActivity } from "@/lib/activity";
@@ -97,6 +98,7 @@ export async function runBoxOptions(scope: RunBoxScope) {
       runFields: umbrella ? parseRunFields(umbrella.group.runFields) : [CSP_FIELD],
       cycles: cycles.map((c, i): RunBoxCycle => ({ id: c.id, key: c.key, name: c.name, color: colorOf(c.platform), current: c.current, rcName: c.rcName, members: members[i].map((m) => ({ id: m.id, name: m.name })) })),
       allCount,
+      tagColors: await tagColorsFor(library.id),
       suites: suites.map((s) => ({ id: s.id, name: s.name, cases: s._count.cases, ownerId: s.projectId, shared: !!umbrella && s.projectId !== here?.id })),
       ...picker,
     };

@@ -147,8 +147,8 @@ export async function reportTable(ctx: ExportCtx, view: ExportTab, f: ReportFilt
     return {
       label,
       rows: [
-        ["Case", "Title", "Executions", "Pass rate", "Latest result", "Latest at", "Failed in a row", "Pass/fail flips"],
-        ...c.map((x) => [x.caseKey, x.title, x.runs, pct(x.passRate), STATUS_LABEL[x.last], x.lastAt.toISOString(), x.failStreak, x.flips]),
+        ["Case", "Title", "Tags", "Executions", "Pass rate", "Latest result", "Latest at", "Failed in a row", "Pass/fail flips"],
+        ...c.map((x) => [x.caseKey, x.title, x.tags.join(", "), x.runs, pct(x.passRate), STATUS_LABEL[x.last], x.lastAt.toISOString(), x.failStreak, x.flips]),
       ],
     };
   }

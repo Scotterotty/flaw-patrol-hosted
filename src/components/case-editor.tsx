@@ -1,5 +1,7 @@
 "use client";
 
+import { TagPill, TagPills } from "./tag-pill";
+import { tagColor, type TagColors } from "@/lib/tags";
 import type { CaseType, Priority } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import {
@@ -70,6 +72,9 @@ export type CaseEditorProps = {
   inLibrary?: boolean;
   /** Shown under the tags, e.g. the Jira stories field (which saves on its own). */
   extra?: React.ReactNode;
+  /** Tag pill colors and the umbrella's platform names, so [WEB] becomes Web (ver_96). */
+  tagColors?: TagColors;
+  platformNames?: string[];
 };
 
 let uidCounter = 0;
@@ -87,6 +92,7 @@ export function CaseEditor(props: CaseEditorProps) {
   const { projectId, projectKey, caseId, number, initial } = props;
   const router = useRouter();
   const [title, setTitle] = useState(initial.title);
+  const justTagged = useRef(false);
   const [preconditions, setPreconditions] = useState(initial.preconditions);
   const [priority, setPriority] = useState<Priority>(initial.priority);
   const [type, setType] = useState<CaseType>(initial.type);
@@ -309,22 +315,52 @@ export function CaseEditor(props: CaseEditorProps) {
 
       <div className="mt-3 space-y-4 rounded-lg border border-slate-200 bg-surface p-5 shadow-sm">
         <Field label="Title" htmlFor="title">
-          <Input
-            id="title"
-            required
-            autoFocus={!caseId}
-            value={title}
-            onChange={(e) => {
-              setTitle(e.target.value);
-              touch();
-            }}
-            placeholder={
-              isCharter
-                ? "Explore checkout with a flaky connection"
-                : "Checkout succeeds with a saved card"
-            }
-            className="text-base font-medium"
-          />
+          {/* Type [WEB] at the start and it turns into a tag pill (ver_96); Backspace at the start turns the last pill back into text. */}
+          <div className="flex min-h-10 flex-wrap items-center gap-1 rounded-md border border-slate-300 bg-surface px-2 shadow-sm focus-within:border-accent-500 focus-within:ring-2 focus-within:ring-accent-500/20">
+            <TagPills tags={tags} colors={props.tagColors} />
+            <input
+              id="title"
+              required
+              autoFocus={!caseId}
+              value={title}
+              onChange={(e) => {
+                const v = e.target.value;
+                const at = e.target.selectionStart ?? v.length;
+                const m = v.length > title.length && v[at - 1] === "]" ? v.match(/^\s*\[([^\][]{1,24})\]\s*(?:[-–—:|]\s*)?/) : null;
+                if (m && m[1].trim()) {
+                  const word = m[1].trim();
+                  const named = [...(props.platformNames ?? []), ...props.knownTags].find((p) => p.toLowerCase() === word.toLowerCase()) ?? word;
+                  if (!tags.some((t) => t.toLowerCase() === named.toLowerCase())) setTags([...tags, named]);
+                  setTitle(v.slice(m[0].length));
+                  justTagged.current = true;
+                } else if (justTagged.current && /^\s*(?:[-–—:|]\s*)?$/.test(v)) {
+                  // The " - " typed after [WEB] isn't part of the title.
+                  setTitle("");
+                } else {
+                  justTagged.current = false;
+                  setTitle(v);
+                }
+                touch();
+              }}
+              onKeyDown={(e) => {
+                const el = e.currentTarget;
+                if (e.key === "Backspace" && tags.length && el.selectionStart === 0 && el.selectionEnd === 0) {
+                  e.preventDefault();
+                  const last = tags[tags.length - 1];
+                  setTags(tags.slice(0, -1));
+                  setTitle(`[${last}]${title ? ` ${title}` : ""}`);
+                  touch();
+                  requestAnimationFrame(() => el.setSelectionRange(last.length + 2, last.length + 2));
+                }
+              }}
+              placeholder={
+                isCharter
+                  ? "Explore checkout with a flaky connection"
+                  : tags.length ? "Checkout succeeds with a saved card" : "Checkout succeeds with a saved card (start with [WEB] to tag it)"
+              }
+              className="min-w-40 flex-1 border-0 bg-transparent py-1.5 text-base font-medium outline-none"
+            />
+          </div>
         </Field>
         <div
           className={cx(
@@ -467,6 +503,7 @@ export function CaseEditor(props: CaseEditorProps) {
           </button>
         )}
         <TagInput
+          colors={props.tagColors}
           tags={tags}
           known={props.knownTags}
           onChange={(t) => {
@@ -1149,7 +1186,9 @@ function TagInput({
   tags,
   known,
   onChange,
+  colors,
 }: {
+  colors?: TagColors;
   tags: string[];
   known: string[];
   onChange: (t: string[]) => void;
@@ -1168,20 +1207,16 @@ function TagInput({
       <Label htmlFor="tags">Tags</Label>
       <div className="flex min-h-9 flex-wrap items-center gap-1 rounded-md border border-slate-300 bg-surface px-1.5 py-1 shadow-sm focus-within:border-accent-500 focus-within:ring-2 focus-within:ring-accent-500/20">
         {tags.map((t) => (
-          <span
-            key={t}
-            className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700"
-          >
-            {t}
+          <TagPill key={t} tag={t} color={tagColor(t, colors)}>
             <button
               type="button"
               aria-label={`Remove tag ${t}`}
-              className="text-slate-400 hover:text-slate-800"
+              className="opacity-60 hover:opacity-100"
               onClick={() => onChange(tags.filter((x) => x !== t))}
             >
               ×
             </button>
-          </span>
+          </TagPill>
         ))}
         <input
           id="tags"
