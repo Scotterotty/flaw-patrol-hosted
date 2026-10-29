@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { parseCharter, parseSessionLog, noteCounts } from "./charter";
 import { teamTemplate } from "./charter-templates";
 import { db } from "./db";
+import { forgivingFilter } from "./fuzzy";
 import { umbrellaOf } from "./umbrella";
 
 /** Where a project's charters and team templates live: the umbrella's hub, or the project itself. */
@@ -20,7 +21,7 @@ export async function teamTemplates(homeId: string) {
 export async function charterRows(projectId: string, opts: { archived?: boolean; q?: string } = {}) {
   const q = opts.q?.trim();
   const cases = await db.testCase.findMany({
-    where: { projectId, type: "EXPLORATORY", archived: !!opts.archived, ...(q && { title: { contains: q, mode: "insensitive" } }) },
+    where: { projectId, type: "EXPLORATORY", archived: !!opts.archived },
     orderBy: { number: "asc" },
     select: {
       id: true,
@@ -38,7 +39,7 @@ export async function charterRows(projectId: string, opts: { archived?: boolean;
     select: { caseId: true, createdAt: true, sessionLog: true, testerName: true },
   });
   const lastOf = new Map(last.map((r) => [r.caseId, r]));
-  return cases.map((c) => {
+  const rows = cases.map((c) => {
     const charter = parseCharter(c.versions[0]?.charter);
     const r = lastOf.get(c.id);
     const counts = r ? noteCounts(parseSessionLog(r.sessionLog)) : null;
@@ -51,6 +52,10 @@ export async function charterRows(projectId: string, opts: { archived?: boolean;
       minutes: charter.minutes,
       prompts: charter.prompts.length,
       last: r ? { at: r.createdAt, by: r.testerName, bugs: counts!.bug, questions: counts!.question } : null,
+      close: false,
     };
   });
+  // Forgiving search (ver_96): exact matches, then close ones marked `close`.
+  const found = forgivingFilter(rows, q ?? "", (c) => `${c.title} ${c.persona?.name ?? ""}`);
+  return [...found.exact, ...found.close.map((c) => ({ ...c, close: true }))];
 }

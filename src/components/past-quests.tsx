@@ -3,17 +3,18 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Input } from "./ui";
+import { CloseMatchesLabel } from "./close-matches";
+import { forgivingFilter } from "@/lib/fuzzy";
 
 export type PastQuestRow = { number: number; name: string; release: string; from: string; to: string; steps: number; position: number; found: number };
 
 /** Older finished quests as a compact list, collapsed until opened, with a search box. */
 export function PastQuests({ projectKey, rows }: { projectKey: string; rows: PastQuestRow[] }) {
   const [query, setQuery] = useState("");
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const shown = rows.filter((r) => {
-    const hay = `r${r.number} ${r.name} ${r.release} ${r.from} ${r.to}`.toLowerCase();
-    return words.every((w) => hay.includes(w));
-  });
+  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  const found = forgivingFilter(rows, query, (r) => `r${r.number} ${r.name} ${r.release} ${r.from} ${r.to}`);
+  const shown = [...found.exact, ...found.close];
+  const closeStart = found.close.length ? found.exact.length : -1;
   return (
     <details className="group rounded-lg border border-slate-200 bg-surface">
       <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-slate-700 hover:text-slate-900">
@@ -35,8 +36,14 @@ export function PastQuests({ projectKey, rows }: { projectKey: string; rows: Pas
           <p className="px-1 py-2 text-sm text-slate-500">No older quests match.</p>
         ) : (
           <ul className="max-h-96 divide-y divide-slate-100 overflow-auto text-sm">
-            {shown.map((r) => (
+            {shown.map((r, i) => (
               <li key={r.number}>
+                {i === closeStart && (
+                  <>
+                    {closeStart === 0 && <p className="px-1 pt-1.5 text-xs text-slate-500">No exact matches.</p>}
+                    <CloseMatchesLabel className="px-0" />
+                  </>
+                )}
                 <Link href={`/p/${projectKey}/quests/${r.number}`} className="flex items-baseline gap-3 rounded px-1 py-2 hover:bg-slate-50">
                   <span className="w-12 shrink-0 font-mono text-xs text-slate-500">R{r.number}</span>
                   <span className="min-w-0 flex-1 truncate text-slate-800">

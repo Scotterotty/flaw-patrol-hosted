@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, useTransition, type ReactNode } from "reac
 import { autoTagColor, TAG_COLORS, tagColor, type TagColors } from "@/lib/tags";
 import { renameTag, setTagColor } from "@/server/tags";
 import { Button, cx, ErrorText, Input } from "./ui";
+import { useSpell } from "./spelling";
 
 /** A colored case tag (ver_96), shown before case titles. `hit` outlines it when a search matched it. */
 export function TagPill({ tag, color, hit = false, className, children }: { tag: string; color?: string; hit?: boolean; className?: string; children?: ReactNode }) {
@@ -46,6 +47,7 @@ export function TagsRow({ projectId, tags, colors, picked, query, canEdit }: { p
     if (next.length) u.set("tag", next.join(","));
     return `?${u.toString()}`;
   };
+  const sp = useSpell();
   const [menu, setMenu] = useState<{ tag: string; x: number; y: number } | null>(null);
   const hold = useRef<ReturnType<typeof setTimeout> | null>(null);
   if (!tags.length) return null;
@@ -62,7 +64,7 @@ export function TagsRow({ projectId, tags, colors, picked, query, canEdit }: { p
             key={tag}
             href={hrefFor(next)}
             aria-pressed={isOn}
-            title={canEdit ? `${isOn ? "Stop showing only" : "Show only"} ${tag} cases. Right-click to change its color or rename it.` : undefined}
+            title={canEdit ? `${isOn ? "Stop showing only" : "Show only"} ${tag} cases. ${sp("Right-click to change its color or rename it.")}` : undefined}
             onContextMenu={(e) => {
               if (!canEdit) return;
               e.preventDefault();
@@ -94,6 +96,7 @@ export function TagsRow({ projectId, tags, colors, picked, query, canEdit }: { p
 function TagMenu({ projectId, tag, x, y, current, onClose }: { projectId: string; tag: string; x: number; y: number; current: string; onClose: () => void }) {
   const router = useRouter();
   const ref = useRef<HTMLDivElement>(null);
+  const sp = useSpell();
   const [name, setName] = useState(tag);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -110,13 +113,13 @@ function TagMenu({ projectId, tag, x, y, current, onClose }: { projectId: string
   const left = typeof window !== "undefined" ? Math.min(x, window.innerWidth - 260) : x;
   return (
     <div ref={ref} role="menu" aria-label={`${tag} tag`} className="fixed z-50 w-60 rounded-lg border border-slate-200 bg-surface p-3 shadow-lg" style={{ left, top: y + 6 }}>
-      <p className="mb-1.5 text-xs font-semibold text-slate-700">Color</p>
+      <p className="mb-1.5 text-xs font-semibold text-slate-700">{sp("Color")}</p>
       <div className="mb-3 flex flex-wrap gap-1.5">
         {TAG_COLORS.map((c) => (
           <button
             key={c}
             type="button"
-            aria-label={`Color ${c}`}
+            aria-label={`${sp("Color")} ${c}`}
             aria-pressed={c === current}
             disabled={pending}
             onClick={() =>

@@ -1,3 +1,6 @@
+import { Fragment } from "react";
+import { forgivingFilter } from "@/lib/fuzzy";
+import { CloseMatchesLabel } from "@/components/close-matches";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Severity } from "@prisma/client";
@@ -66,13 +69,18 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
     }
     rows.set(k, row);
   }
-  const words = (sp.q ?? "").toLowerCase().split(/\s+/).filter(Boolean);
-  const list = [...rows.values()]
-    .filter((r) => !sp.platform || r.platforms.some((p) => p.toLowerCase() === sp.platform!.toLowerCase()))
-    .filter((r) => !sp.rc || r.rcs.includes(sp.rc))
-    .filter((r) => sp.sev !== "critical" || isSevere(r.first.severity, scale))
-    .filter((r) => words.every((w) => `${r.first.title} ${r.first.externalKey ?? ""} ${r.cases.join(" ")}`.toLowerCase().includes(w)))
-    .sort((a, b) => severityRank(a.first.severity) - severityRank(b.first.severity) || b.first.createdAt.getTime() - a.first.createdAt.getTime());
+  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  const bySeverity = (a: Row, b: Row) => severityRank(a.first.severity) - severityRank(b.first.severity) || b.first.createdAt.getTime() - a.first.createdAt.getTime();
+  const found = forgivingFilter(
+    [...rows.values()]
+      .filter((r) => !sp.platform || r.platforms.some((p) => p.toLowerCase() === sp.platform!.toLowerCase()))
+      .filter((r) => !sp.rc || r.rcs.includes(sp.rc))
+      .filter((r) => sp.sev !== "critical" || isSevere(r.first.severity, scale)),
+    sp.q ?? "",
+    (r) => `${r.first.title} ${r.first.externalKey ?? ""} ${r.cases.join(" ")}`,
+  );
+  const list = [...found.exact.sort(bySeverity), ...found.close.sort(bySeverity)];
+  const closeStart = found.close.length ? found.exact.length : -1;
   const openRows = [...rows.values()].filter((r) => r.first.status === "OPEN");
   const critical = openRows.filter((r) => isSevere(r.first.severity, scale)).length;
   const projectCount = new Set(defects.map((d) => d.projectId)).size;
@@ -138,13 +146,22 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {list.map((r) => {
+              {list.map((r, i) => {
                 const d = r.first;
                 const firstRc = r.rcs[0] ?? "";
                 const old = d.status === "OPEN" && latestRc && firstRc && firstRc !== latestRc && rcOrder.indexOf(firstRc) < rcOrder.indexOf(latestRc);
                 const home = byId.get(d.projectId);
                 return (
-                  <tr key={r.key} className="hover:bg-slate-50">
+                  <Fragment key={r.key}>
+                  {i === closeStart && (
+                    <tr>
+                      <td colSpan={6} className="px-0 py-1">
+                        {closeStart === 0 && <p className="px-4 pb-1 text-xs text-slate-500">No exact matches.</p>}
+                        <CloseMatchesLabel className="px-4" />
+                      </td>
+                    </tr>
+                  )}
+                  <tr className="hover:bg-slate-50">
                     <td className="px-4 py-2.5">
                       <span title={scale.labels[d.severity]} className="grid size-6 place-items-center rounded text-xs font-bold text-white" style={{ background: SEV_BG[d.severity] }}>
                         {scale.labels[d.severity][0]}
@@ -187,6 +204,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
                       )}
                     </td>
                   </tr>
+                  </Fragment>
                 );
               })}
             </tbody>

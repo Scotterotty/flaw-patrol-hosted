@@ -17,7 +17,7 @@ import { attempt, UserError } from "./result";
 export async function setTagColor(projectId: string, tag: string, color: string) {
   return attempt(async () => {
     const { project } = await requireProjectAction(projectId, "case:edit");
-    if (!TAG_COLORS.includes(color)) throw new UserError("Pick one of the colors.");
+    if (!TAG_COLORS.includes(color)) throw new UserError("Pick one of the swatches.");
     const colors = { ...parseTagColors(project.tagColors), [tag.toLowerCase()]: color };
     await db.project.update({ where: { id: projectId }, data: { tagColors: colors } });
     revalidatePath(`/p/${project.key}`, "layout");

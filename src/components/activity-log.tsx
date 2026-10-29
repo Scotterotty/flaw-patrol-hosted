@@ -1,3 +1,6 @@
+import { Fragment } from "react";
+import { cleanQuery, ENOUGH_EXACT, forgivingFilter } from "@/lib/fuzzy";
+import { CloseMatchesLabel } from "./close-matches";
 import Link from "next/link";
 import { ACTIVITY_KINDS, KEEP_CHOICES } from "@/lib/activity";
 import { activityWhere, DAY_CHOICES, pageSize, type ActivityFilters } from "@/lib/activity-query";
@@ -20,6 +23,14 @@ export async function ActivityLog({ filters, spelling }: { filters: ActivityFilt
     db.projectGroup.findMany({ where: { hubProjectId: { not: null } }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     db.workspace.findUnique({ where: { id: 1 }, select: { activityKeepDays: true } }),
   ]);
+  // Close matches (ver_96): "pasword" finds password changes, under their own label.
+  const q = filters.q?.trim() ?? "";
+  const close =
+    q && total < ENOUGH_EXACT && cleanQuery(q).length > 1
+      ? forgivingFilter(await db.activityEntry.findMany({ where: activityWhere({ ...filters, q: "" }), orderBy: { at: "desc" }, take: 3000 }), q, (e) => `${e.action} ${e.detail} ${e.actorLabel} ${e.where}`, (e) => `${e.action} ${e.actorLabel} ${e.where}`).close.filter((e) => !entries.some((x) => x.id === e.id)).slice(0, 20)
+      : [];
+  const closeStart = close.length ? entries.length : -1;
+  const shown = [...entries, ...close];
   const query = new URLSearchParams(Object.entries(filters).filter(([k, v]) => v && k !== "limit") as [string, string][]).toString();
 
   return (
@@ -79,8 +90,17 @@ export async function ActivityLog({ filters, spelling }: { filters: ActivityFilt
             </tr>
           </thead>
           <tbody>
-            {entries.map((e) => (
-              <tr key={e.id} className="border-b border-slate-100 align-top">
+            {shown.map((e, i) => (
+              <Fragment key={e.id}>
+              {i === closeStart && (
+                <tr>
+                  <td colSpan={5} className="py-1">
+                    {closeStart === 0 && <p className="pb-1 text-xs text-slate-500">No exact matches.</p>}
+                    <CloseMatchesLabel className="px-0" />
+                  </td>
+                </tr>
+              )}
+              <tr className="border-b border-slate-100 align-top">
                 <td className="py-1.5 pr-2 whitespace-nowrap text-slate-500 tabular-nums">
                   {shortDate(e.at, spelling)}, {clockTime(e.at, spelling)}
                 </td>
@@ -97,8 +117,9 @@ export async function ActivityLog({ filters, spelling }: { filters: ActivityFilt
                   {e.ip && e.kind === "signin" && <span className="text-slate-400">{e.detail ? " · " : ""}From {e.ip}</span>}
                 </td>
               </tr>
+              </Fragment>
             ))}
-            {!entries.length && (
+            {!shown.length && (
               <tr>
                 <td colSpan={5} className="py-6 text-center text-slate-500">
                   Nothing logged for these filters yet.

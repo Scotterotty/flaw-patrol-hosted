@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { checkSentry, disconnectSentry, saveSentry, sentryProjects } from "@/server/sentry";
 import { Button, cx, ErrorText, Field, InfoTip, Input, Select } from "./ui";
+import { useSpell } from "./spelling";
 
 export type SentrySaved = {
   baseUrl: string;
@@ -22,6 +23,7 @@ export type SentrySaved = {
  */
 export function SentryPanel({ projectId, saved, fields, canManage }: { projectId: string; saved: SentrySaved | null; fields: { id: string; name: string }[]; canManage: boolean }) {
   const router = useRouter();
+  const sp = useSpell();
   const [step, setStep] = useState<0 | 1 | 2 | 3>(saved ? 0 : 1);
   const [baseUrl, setBaseUrl] = useState(saved?.baseUrl ?? "https://sentry.io");
   const [token, setToken] = useState("");
@@ -91,13 +93,13 @@ export function SentryPanel({ projectId, saved, fields, canManage }: { projectId
           <div>
             <label htmlFor="sentry-token" className="mb-1 flex items-center gap-1 text-sm font-medium text-slate-700">
               Sentry token
-              <InfoTip text="In Sentry: Settings → Developer Settings → Personal Tokens (or an internal integration). Give it Project, Issue & Event and Organization read." />
+              <InfoTip text={sp("In Sentry: Settings → Developer Settings → Personal Tokens (or an internal integration). Give it Project, Issue & Event and Organization read.")} />
             </label>
             <Input id="sentry-token" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder={saved ? "Leave blank to keep the saved token" : "sntrys_…"} />
             <p className="mt-1 text-xs text-slate-500">Read-only is enough. Stored locked, like the Jira token.</p>
           </div>
           {orgs.length > 0 && (
-            <Field label="Organization" htmlFor="sentry-org">
+            <Field label={sp("Organization")} htmlFor="sentry-org">
               <Select id="sentry-org" value={org} onChange={(e) => setOrg(e.target.value)} className="w-64">
                 {orgs.map((o) => (
                   <option key={o.slug} value={o.slug}>

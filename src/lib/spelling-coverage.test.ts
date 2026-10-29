@@ -7,7 +7,9 @@ import { spell } from "./spelling";
 // Files whose American spellings are not app text: Jira field values, Apps Script code, CSS in the
 // Confluence copy, a server check nobody can trigger from the app, and search keywords. The CI
 // upload files hold the HTTP "Authorization" header, which must stay as it is; the role summary
-// in permissions.ts is shown through useSpell in roles-card.tsx.
+// in permissions.ts is shown through useSpell in roles-card.tsx, and the color vision choices in
+// vision.ts through <Sp> in accessibility.tsx. Sentry's own words (Organization, its token scopes)
+// stay as Sentry writes them.
 const NOT_APP_TEXT = [
   "src/components/bug-template-form.tsx",
   "src/server/sheet-sync.ts",
@@ -16,6 +18,9 @@ const NOT_APP_TEXT = [
   "src/app/api/ci/results/route.ts",
   "src/components/ci-uploads.tsx",
   "src/lib/permissions.ts",
+  "src/lib/vision.ts",
+  "src/lib/sentry.ts",
+  "src/server/sentry.ts",
 ];
 const SKIP_ATTRS = new Set(["className", "style", "stroke", "fill", "tone", "key", "href", "id", "name", "type", "d", "textAnchor"]);
 

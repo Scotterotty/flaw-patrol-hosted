@@ -1,3 +1,5 @@
+import { Fragment } from "react";
+import { CloseMatchesLabel } from "@/components/close-matches";
 import Link from "next/link";
 import { NewCharterMenu } from "@/components/charters";
 import { Card, EmptyState, Input, PageHeader } from "@/components/ui";
@@ -69,8 +71,17 @@ export default async function ChartersPage({ params, searchParams }: { params: P
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((r) => (
-                <tr key={r.id}>
+              {rows.map((r, i) => (
+                <Fragment key={r.id}>
+                {r.close && !rows[i - 1]?.close && (
+                  <tr>
+                    <td colSpan={4} className="px-0 py-1">
+                      {i === 0 && <p className="px-4 pb-1 text-xs text-slate-500">No exact matches.</p>}
+                      <CloseMatchesLabel className="px-4" />
+                    </td>
+                  </tr>
+                )}
+                <tr>
                   <td className="px-4 py-2">
                     <Link href={`/p/${r.key}/cases/${r.number}`} className="hover:underline">
                       <span className="font-mono text-xs text-slate-500">{caseKey(r.key, r.number)}</span> <span className="font-medium text-slate-900">{r.title}</span>
@@ -89,6 +100,7 @@ export default async function ChartersPage({ params, searchParams }: { params: P
                     )}
                   </td>
                 </tr>
+                </Fragment>
               ))}
             </tbody>
           </table>

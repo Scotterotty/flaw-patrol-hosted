@@ -7,6 +7,7 @@ import { tagColor, type TagColors } from "@/lib/tags";
 import { TagPill } from "./tag-pill";
 import { Modal } from "./modal";
 import { Button, ErrorText } from "./ui";
+import { Sp } from "./spelling";
 
 type Preview = { count: number; tags: { tag: string; count: number }[]; example: { before: string; after: string; tags: string[] } | null };
 type Undo = { id: string; title: string; tags: string[] }[];
@@ -129,7 +130,7 @@ export function BracketBanner({ projectId, count, colors, platforms }: { project
                       load({ dropDash, matchPlatforms: e.target.checked });
                     }}
                   />
-                  Spell tags like their platform ([WEB] becomes Web, in its color)
+                  <Sp>Spell tags like their platform ([WEB] becomes Web, in its color)</Sp>
                 </label>
               )}
             </div>

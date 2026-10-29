@@ -1,3 +1,6 @@
+import { Fragment } from "react";
+import { forgivingFilter } from "@/lib/fuzzy";
+import { CloseMatchesLabel } from "@/components/close-matches";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AutoFilterForm } from "@/components/auto-filter-form";
@@ -194,17 +197,20 @@ export default async function GroupPage({
 
 async function Suites({ projectIds, q }: { projectIds: string[]; q: string }) {
   const spelling = await mySpelling();
-  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
-  const suites = await db.testSuite.findMany({
-    where: { projectId: { in: projectIds }, archived: false, AND: words.map((w) => ({ name: { contains: w, mode: "insensitive" as const } })) },
+  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  const all = await db.testSuite.findMany({
+    where: { projectId: { in: projectIds }, archived: false },
     include: {
       project: { select: { key: true, name: true, archivedAt: true } },
       _count: { select: { cases: true } },
       runs: { orderBy: { createdAt: "desc" }, take: 1, select: { number: true, release: true, createdAt: true } },
     },
     orderBy: [{ name: "asc" }],
-    take: 500,
+    take: 2000,
   });
+  const found = forgivingFilter(all, q, (s) => s.name);
+  const suites = [...found.exact, ...found.close].slice(0, 500);
+  const closeStart = found.close.length ? found.exact.length : -1;
   if (suites.length === 0) return <EmptyState title={q ? `No suites match “${q}”` : "No suites yet"}>{q ? "Try fewer words." : "Suites made in these test cycles show up here."}</EmptyState>;
   return (
     <Card className="overflow-x-auto">
@@ -219,10 +225,19 @@ async function Suites({ projectIds, q }: { projectIds: string[]; q: string }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {suites.map((s) => {
+          {suites.map((s, i) => {
             const last = s.runs[0];
             return (
-              <tr key={s.id} className={cx("hover:bg-slate-50", s.project.archivedAt && "opacity-60")}>
+              <Fragment key={s.id}>
+              {i === closeStart && (
+                <tr>
+                  <td colSpan={8} className="px-0 py-1">
+                    {closeStart === 0 && <p className="px-4 pb-1 text-xs text-slate-500">No exact matches.</p>}
+                    <CloseMatchesLabel className="px-4" />
+                  </td>
+                </tr>
+              )}
+              <tr className={cx("hover:bg-slate-50", s.project.archivedAt && "opacity-60")}>
                 <td className="px-4 py-2">
                   <Link href={`/p/${s.project.key}/suites/${s.id}`} className="font-medium text-accent-700 hover:underline">
                     {s.name}
@@ -246,6 +261,7 @@ async function Suites({ projectIds, q }: { projectIds: string[]; q: string }) {
                   )}
                 </td>
               </tr>
+              </Fragment>
             );
           })}
         </tbody>
