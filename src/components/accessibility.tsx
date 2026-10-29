@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type { ResultStatus } from "@prisma/client";
 import { STATUS_LABEL } from "@/lib/status";
@@ -22,6 +23,7 @@ const AIDS = [
 
 /** Text size and display aids. Applies instantly and saves to your account. */
 export function AccessibilitySettings({ initial }: { initial: Settings }) {
+  const router = useRouter();
   const [a, setA] = useState(initial);
   const [shapesTouched, setShapesTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +47,8 @@ export function AccessibilitySettings({ initial }: { initial: Settings }) {
     start(async () => {
       const res = await updateMyAccessibility(next);
       setError(res.ok ? null : res.error);
+      // The folded card's one-line summary follows (ver_96).
+      if (res.ok) router.refresh();
     });
   };
 
