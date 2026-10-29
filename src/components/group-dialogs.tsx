@@ -83,7 +83,7 @@ export function GroupDialog({ group, choices, onClose }: { group: GroupInfo; cho
               <label
                 key={c.id}
                 className={cx("flex items-center gap-2 rounded px-2 py-1.5 text-sm", c.canMove ? "cursor-pointer hover:bg-slate-100" : "cursor-not-allowed opacity-60")}
-                title={c.canMove ? undefined : "Only that test cycle's admins and leads can move it"}
+                title={c.canMove ? undefined : "Viewers can't move test cycles"}
               >
                 <input type="checkbox" checked={ticked.has(c.id)} disabled={!c.canMove} onChange={() => toggle(c.id)} className="accent-accent-600" />
                 <span className="font-mono text-xs font-semibold text-accent-700">{c.key}</span>

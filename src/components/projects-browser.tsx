@@ -1006,7 +1006,7 @@ function OrganizeCard({
   const { over, dropProps, handle, moveTo } = useDrag(p, section, ref);
   // No new groups are made; projects can still move between the ones that exist.
   const canGroup =
-    (p.role === "ADMIN" || p.role === "LEAD") && actions.groups.length > 0;
+    (p.role === "ADMIN" || p.role === "LEAD" || p.role === "TESTER") && actions.groups.length > 0;
   const canShelter =
     p.role === "ADMIN" &&
     actions.umbrellas.length > 0 &&

@@ -7,6 +7,7 @@ import { OpenOnLoad } from "@/components/open-on-load";
 import { TopBar } from "@/components/top-bar";
 import { Badge, Card, cx, EmptyState, Input, PageHeader, Select } from "@/components/ui";
 import { db } from "@/lib/db";
+import { can } from "@/lib/permissions";
 import { relativeTime } from "@/lib/format";
 import { canManageGroups } from "@/lib/groups";
 import { requireUser, mySpelling } from "@/lib/session";
@@ -79,7 +80,7 @@ export default async function GroupPage({
       archived: p.archivedAt !== null,
       groupId: p.groupId,
       groupName: p.group?.name ?? null,
-      canMove: user.isAdmin || p.members[0]?.role === "ADMIN" || p.members[0]?.role === "LEAD",
+      canMove: user.isAdmin || can(p.members[0]?.role ?? null, "project:group"),
     }));
   }
 

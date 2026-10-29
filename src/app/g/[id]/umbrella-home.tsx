@@ -57,6 +57,10 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
       href: `${g}?start=run`,
       action: "Start a run",
     },
+    // Admins choose what roles can do before inviting (ver_96); saving it once, or Keep everyone open, ticks it.
+    ...(can(u.who, "members:manage")
+      ? [{ done: !!u.group.rolesChosenAt, label: "Choose what roles can do", note: "", href: `${g}/settings#roles`, action: "Review", tip: "Everyone can use everything except archive, delete and connections. Tighten it before you invite." }]
+      : []),
     { done: memberCount > 1, label: "Invite your team", note: plural(memberCount, "person").replace("persons", "people"), href: `${g}/settings#members`, action: "Invite" },
     { done: !!jira, label: "Connect Jira (optional)", note: "", href: `${g}/settings#jira`, action: "Connect" },
     { done: slackCount > 0, label: "Send alerts to Slack (optional)", note: plural(slackCount, "channel"), href: `${g}/settings#slack`, action: "Add channels", tip: "Post regressions, serious bugs and finished runs to Slack channels. Every test cycle follows them." },
@@ -109,6 +113,15 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
             <h2 className="font-semibold text-slate-900">Get {u.group.name} set up</h2>
             <span className="text-xs text-slate-500">{setup.filter((s) => s.done).length} of {setup.length} done · hides when finished</span>
           </div>
+          {/* The first-time welcome on a new umbrella (ver_96), for admins until roles are chosen. */}
+          {can(u.who, "members:manage") && !u.group.rolesChosenAt && memberCount <= 1 && (
+            <p className="mb-2 text-sm text-slate-600" data-testid="umbrella-welcome">
+              Your umbrella is ready. Everyone you invite can use every feature, and only admins can archive, delete or change connections.{" "}
+              <Link className="text-accent-700 hover:underline" href={`${g}/settings#roles`}>
+                Change what roles can do
+              </Link>
+            </p>
+          )}
           <ol className="space-y-1.5">
             {setup.map((s, i) => (
               <li key={s.label} className="flex items-center gap-2.5 text-sm">

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import type { Role } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -14,7 +15,7 @@ import { Button, Card, ErrorText, Field, InfoTip, Input, Select, Textarea } from
 type Member = { userId: string; email: string; name: string | null; role: Role; signedIn: boolean; hasPassword: boolean; avatarAt: Date | null; inviteSentAt?: Date | null; title: string | null; frame: string | null };
 
 
-export function MembersPanel({ projectId, members, canManage, me, canEmail = false }: { projectId: string; members: Member[]; canManage: boolean; me: string; canEmail?: boolean }) {
+export function MembersPanel({ projectId, members, canManage, me, canEmail = false, nudge }: { projectId: string; members: Member[]; canManage: boolean; me: string; canEmail?: boolean; nudge?: ReactNode }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -186,6 +187,7 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
           </li>
         ))}
       </ul>
+      {canManage && nudge}
       {canManage && (
         <form
           className="mt-4 flex flex-wrap items-end gap-2 border-t border-slate-100 pt-4"

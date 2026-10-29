@@ -21,7 +21,7 @@ const groupSchema = z.object({
 
 async function requireManager() {
   const user = await requireUser();
-  if (!(await canManageGroups(user))) throw new UserError("Only admins and leads can change groups.");
+  if (!(await canManageGroups(user))) throw new UserError("Viewers can't change groups.");
   return user;
 }
 

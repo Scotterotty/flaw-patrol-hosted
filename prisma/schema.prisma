@@ -81,6 +81,14 @@ model User {
   searchRecent     Json            @default("[]")
   // Arrange menu order (ver_93): this person's own left menu order (src/lib/nav-order.ts); {} is the default.
   navOrder         Json            @default("{}")
+  // Color vision (ver_96): "standard" | "redgreen" | "blueyellow" | "none" status colors, and
+  // shapes and patterns on statuses (always on for "none"). See src/lib/vision.ts.
+  colorVision      String          @default("standard")
+  visionShapes     Boolean         @default(false)
+  // Folding cards (ver_96): ids of the Account cards and Mini game sections this person keeps open.
+  openCards        String[]        @default([])
+  // Mini game crowns (ver_96): crowns this person held when last told, so take/lose toasts show once.
+  crownsSeen       String[]        @default([])
   // Activity log entries this person made (ver_92).
   activity         ActivityEntry[]
 }
@@ -227,6 +235,8 @@ model Project {
   archivedWithUmbrella Boolean         @default(false)
   /// Roles card (ver_82) for a test cycle that isn't in an umbrella; see src/lib/permissions.ts.
   roleRules            Json?
+  /// When an admin last saved "What can they do" or pressed Keep everyone open (ver_96); null shows the before-invite nudge.
+  rolesChosenAt        DateTime?
   /// Slack alerts (ver_82): "umbrella" follows the umbrella's channels, "choose" uses
   /// slackChannelIds (ticked umbrella channels) plus its own, "off" sends nothing.
   slackMode            String          @default("umbrella")
@@ -262,6 +272,8 @@ model ProjectGroup {
   archivedAt    DateTime?
   /// Roles card (ver_82): what each role can do in the umbrella and all its test cycles.
   roleRules     Json?
+  /// When an admin last saved "What can they do" or pressed Keep everyone open (ver_96); null shows the before-invite nudge.
+  rolesChosenAt DateTime?
   /// Run fields (ver_89): extra details runs ask for, beyond Release, Build and Environment. See src/lib/run-fields.ts.
   runFields     Json           @default("[]")
   /// Umbrellas made before ver_89 keep the OKO bug layout choice in Jira settings.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 import type { Role } from "@prisma/client";
 import { ROLE_LABEL, ROLES_PICK } from "@/lib/permissions";
 import { setQuestMap } from "@/server/account";
@@ -15,7 +15,10 @@ export function InviteTeam({
   umbrella,
   canEmail = false,
   alone = true,
+  nudge,
 }: {
+  /** The before-invite reminder (ver_96), for admins until they choose what roles can do. */
+  nudge?: ReactNode;
   /** Only one person is on it. After an invite the card stays (showing who joined) until Done (ver_94). */
   alone?: boolean;
   projectId: string;
@@ -72,6 +75,7 @@ export function InviteTeam({
           ×
         </button>
       </div>
+      {nudge}
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <form
         className="mt-3 flex flex-wrap items-center gap-2"

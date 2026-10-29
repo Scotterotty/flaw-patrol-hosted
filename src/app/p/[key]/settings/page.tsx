@@ -15,6 +15,7 @@ import { db } from "@/lib/db";
 import { memberInviteInfo } from "@/lib/invites";
 import { can } from "@/lib/permissions";
 import { RolesCard } from "@/components/roles-card";
+import { RolesNudge } from "@/components/roles-nudge";
 import { projectAccess } from "@/lib/session";
 import { APP_VERSION } from "@/lib/version";
 import { KeepSeparateSwitch } from "@/components/umbrella-ui";
@@ -79,7 +80,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
               {umbrella.name} settings
             </Link>
           </p>
-          <KeepSeparateSwitch projectId={project.id} on={project.keepMembersSeparate} umbrella={umbrella.name} disabled={!canManage} />
+          <KeepSeparateSwitch projectId={project.id} on={project.keepMembersSeparate} umbrella={umbrella.name} disabled={!can(who, "project:separate")} />
           {!project.keepMembersSeparate && fromUmbrella > 0 && <p className="text-xs text-slate-500">{fromUmbrella} of the members below come from {umbrella.name}&apos;s team and follow it.</p>}
         </Card>
       )}
@@ -89,6 +90,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
         me={user.id}
         canManage={canMembers}
         canEmail={invites.canEmail}
+        nudge={!project.groupId && !project.rolesChosenAt && <RolesNudge target={{ projectId: project.id }} href={`/p/${project.key}/settings#roles`} />}
                 members={members.map((m) => ({ userId: m.userId, email: m.user.email, name: m.user.name, role: m.role, signedIn: !!m.user.lastLoginAt, hasPassword: !!m.user.passwordSetAt, avatarAt: m.user.avatarAt, inviteSentAt: invites.sent.get(m.userId) ?? null, ...badgeOf(m.user) }))}
       />
       {/* Under an umbrella with no Jira of its own, one line says whose Jira it uses; the full form is the override. */}
@@ -130,9 +132,9 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
       {canMembers &&
         (umbrella ? (
           <Card id="roles" className="space-y-1 p-5">
-            <h2 className="text-sm font-semibold text-slate-800">Roles</h2>
+            <h2 className="text-sm font-semibold text-slate-800">What can they do</h2>
             <p className="text-sm text-slate-600">
-              This test cycle follows {umbrella.name}: {{ standard: "standard roles", open: "testers do everything except archive and delete", custom: "custom roles" }[who.rules?.preset ?? "standard"]}.{" "}
+              This test cycle follows {umbrella.name}: {{ everyone: "everyone can use every feature except archive, delete and connections", tighter: "the Tighter preset", custom: "custom roles" }[who.rules?.preset ?? "everyone"]}.{" "}
               <Link href={`/g/${umbrella.id}/settings#roles`} className="font-medium text-accent-700 hover:underline">
                 Change in {umbrella.name} settings
               </Link>

@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { can } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import { cleanReportQuery } from "@/lib/report-query";
 import { requireProjectAction } from "@/lib/session";
@@ -28,13 +27,13 @@ export async function saveReportView(projectId: string, input: z.input<typeof sa
   });
 }
 
-/** Whoever saved a view can delete it; leads and admins can delete shared ones too. */
+/** Whoever saved a view can delete it; admins can delete shared ones too (ver_96: deleting stays with admins). */
 export async function deleteReportView(projectId: string, id: string) {
   return attempt(async () => {
     const { user, project, role } = await requireProjectAction(projectId, "run:execute");
     const view = await db.savedReport.findFirst({ where: { id, projectId } });
     if (!view) throw new UserError("That view was already deleted.");
-    if (view.createdById !== user.id && !(view.shared && can(role, "run:manage"))) throw new UserError("Only the person who saved this view, or a lead, can delete it.");
+    if (view.createdById !== user.id && !(view.shared && role === "ADMIN")) throw new UserError("Only the person who saved this view, or an admin, can delete it.");
     await db.savedReport.delete({ where: { id } });
     revalidatePath(`/p/${project.key}/reports`);
     return {};

@@ -270,7 +270,7 @@ export async function addUmbrellaProject(groupId: string, input: { name: string;
 /** A private project under the umbrella keeps its own team instead of getting the umbrella's. */
 export async function setKeepMembersSeparate(projectId: string, on: boolean) {
   return attempt(async () => {
-    const { project, user } = await requireProjectAction(projectId, "project:manage");
+    const { project, user } = await requireProjectAction(projectId, "project:separate");
     if (!project.groupId) throw new UserError("This test cycle isn't in an umbrella.");
     await db.$transaction(async (tx) => {
       await tx.project.update({ where: { id: projectId }, data: { keepMembersSeparate: on } });
@@ -448,7 +448,7 @@ export async function startNextRc(groupId: string, input: z.input<typeof rcSchem
         if (!ids.length) throw new UserError(`The suites picked for ${p.name} are gone. Reload and pick again.`);
         platforms.push({ name: p.name, suiteIds: ids });
       } else {
-        if (!can(role, "suite:manage")) throw new UserError("Only leads and admins can make suites.");
+        if (!can(role, "suite:manage")) throw new UserError("You can't make suites here.");
         const suite = await db.$transaction(async (tx) => {
           const made = await tx.testSuite.create({ data: { projectId: hub.id, name: c.name, description: `Made for ${p.name} in ${data.rc}` } });
           await tx.suiteVersion.create({ data: { suiteId: made.id, version: 1, name: c.name, caseIds: [], changeNote: "Created", authorId: user.id, authorName: user.name ?? user.email } });

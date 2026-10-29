@@ -62,7 +62,7 @@ export async function runBoxOptions(scope: RunBoxScope) {
     const roles = await db.projectMember.findMany({ where: { userId: user.id, projectId: { in: cycles.map((c) => c.id) } }, select: { projectId: true, role: true } });
     const roleOf = new Map<string, Role>(roles.map((r) => [r.projectId, r.role]));
     cycles = cycles.filter((c) => can({ role: user.isAdmin ? "ADMIN" : (roleOf.get(c.id) ?? null), rules }, "run:create"));
-    if (!cycles.length && !empty && !newCycle?.canCreate) throw new UserError(umbrella ? `You can't start runs in any ${umbrella.group.name} test cycle yet. Ask a lead to add you to one.` : "You can't start runs here.");
+    if (!cycles.length && !empty && !newCycle?.canCreate) throw new UserError(umbrella ? `You can't start runs in any ${umbrella.group.name} test cycle yet. Ask an admin to add you to one.` : "You can't start runs here.");
 
     const libIds = await libraryProjectIds(library);
     const [picker, suites, members, allCount] = await Promise.all([

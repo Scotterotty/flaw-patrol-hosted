@@ -11,6 +11,7 @@ import { buttonClass, Card, InfoTip, PageHeader } from "@/components/ui";
 import { AddUmbrellaProject } from "@/components/umbrella-ui";
 import { ArchiveCard } from "@/components/archive-project";
 import { RolesCard } from "@/components/roles-card";
+import { RolesNudge } from "@/components/roles-nudge";
 import { SlackCard } from "@/components/slack-card";
 import { RegressionPanel } from "@/components/regression-settings";
 import { COMPARE_MODES, parseRegressionSettings } from "@/lib/regression";
@@ -129,7 +130,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
       archived: p.archivedAt !== null,
       groupId: p.groupId,
       groupName: p.group?.name ?? null,
-      canMove: user.isAdmin || p.members[0]?.role === "ADMIN" || p.members[0]?.role === "LEAD",
+      canMove: user.isAdmin || can(p.members[0]?.role ?? null, "project:group"),
     }));
   }
 
@@ -308,6 +309,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                 me={user.id}
                 canManage={can(u.who, "members:manage")}
                 canEmail={invites.canEmail}
+                nudge={!u.group.rolesChosenAt && <RolesNudge target={{ groupId: u.group.id }} href={`/g/${u.group.id}/settings#roles`} />}
                 members={members.map((m) => ({ userId: m.userId, email: m.user.email, name: m.user.name, role: m.role, signedIn: !!m.user.lastLoginAt, hasPassword: !!m.user.passwordSetAt, avatarAt: m.user.avatarAt, inviteSentAt: invites.sent.get(m.userId) ?? null, ...badgeOf(m.user) }))}
               />
             </ExpandRow>

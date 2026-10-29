@@ -487,7 +487,7 @@ export function ShortcutsEditor({
           </h4>
           <p className="text-sm text-slate-500">
             Pin up to 6 pages from anywhere in {name} or its test cycles. Everyone
-            sees the same ones. Only admins and leads can change them.
+            sees the same ones. Anyone on the team can change them, unless an admin has limited it.
           </p>
         </div>
         <Button size="sm" onClick={onDone}>

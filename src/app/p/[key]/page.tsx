@@ -15,6 +15,7 @@ import { countStatuses, isOpen, pct, totals } from "@/lib/status";
 import { redirect } from "next/navigation";
 import { hubGroupId, umbrellaOf } from "@/lib/umbrella";
 import { InviteTeam, QuestMapOnButton } from "@/components/overview-extras";
+import { RolesNudge } from "@/components/roles-nudge";
 import { MoveCasesButton } from "@/components/umbrella-ui";
 import { CloseRunButton } from "@/components/run-actions";
 
@@ -102,8 +103,9 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
         </div>
       )}
 
-      {can(who, "project:manage") && (
+      {can(who, "members:manage") && (
         <InviteTeam
+          nudge={(umbrella ? !umbrella.group.rolesChosenAt : !project.rolesChosenAt) && <RolesNudge target={umbrella ? { groupId: umbrella.group.id } : { projectId: project.id }} href={umbrella ? `/g/${umbrella.group.id}/settings#roles` : `/p/${project.key}/settings#roles`} />}
           alone={memberCount === 1}
           projectId={project.id}
           projectName={project.name}

@@ -122,10 +122,7 @@ export default async function HomePage() {
     archived: p.archivedAt !== null,
     groupId: p.groupId,
     groupName: p.groupId ? (groupName.get(p.groupId) ?? null) : null,
-    canMove:
-      user.isAdmin ||
-      p.members[0]?.role === "ADMIN" ||
-      p.members[0]?.role === "LEAD",
+    canMove: user.isAdmin || can(p.members[0]?.role ?? null, "project:group"),
     cases: p._count.cases,
     suites: p._count.suites,
     inUmbrella: !!p.groupId && umbrellaIds.has(p.groupId),

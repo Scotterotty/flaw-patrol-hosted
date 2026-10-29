@@ -3,17 +3,17 @@ import { db } from "./db";
 
 type Viewer = { id: string; isAdmin: boolean };
 
-/** Admins, and anyone who leads at least one project, may make and change project groups. */
+/** Admins, and anyone who is a member (not a Viewer) of at least one project, may make and change project groups. */
 export async function canManageGroups(user: Viewer) {
   if (user.isAdmin) return true;
-  return (await db.projectMember.count({ where: { userId: user.id, role: { in: ["ADMIN", "LEAD"] } } })) > 0;
+  return (await db.projectMember.count({ where: { userId: user.id, role: { in: ["ADMIN", "LEAD", "TESTER"] } } })) > 0;
 }
 
-/** The ones among these projects the viewer may move in or out of a group: those they lead or admin. */
+/** The ones among these projects the viewer may move in or out of a group: those where they are more than a Viewer (ver_96). */
 export async function groupableProjectIds(user: Viewer, ids: string[]) {
   if (!ids.length) return [];
   const rows = await db.project.findMany({
-    where: { id: { in: ids }, ...(user.isAdmin ? {} : { members: { some: { userId: user.id, role: { in: ["ADMIN", "LEAD"] } } } }) },
+    where: { id: { in: ids }, ...(user.isAdmin ? {} : { members: { some: { userId: user.id, role: { in: ["ADMIN", "LEAD", "TESTER"] } } } }) },
     select: { id: true },
   });
   return rows.map((r) => r.id);
