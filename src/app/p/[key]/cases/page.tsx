@@ -6,6 +6,10 @@ import { FlagIcon } from "@/components/case-flag";
 import { CaseTable } from "@/components/case-table";
 import { FolderTree } from "@/components/folder-tree";
 import { ViewTabs } from "@/components/view-tabs";
+import { TagsRow } from "@/components/tag-pill";
+import { BracketBanner } from "@/components/bracket-convert";
+import { hasBracketTitle, tagQuery } from "@/lib/tags";
+import { tagColorsFor } from "@/lib/tag-data";
 import { EmptyState, InfoTip, Input, LinkButton, PageHeader, Select } from "@/components/ui";
 import { db } from "@/lib/db";
 import { charterOnlyFolderIds } from "@/lib/case-data";
@@ -62,6 +66,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
   else if (folder) where.folderId = { in: subtreeIds(folders, folder.id) };
 
   const q = sp.q?.trim();
+  const tagHits = q ? (await db.$queryRaw<{ tag: string }[]>`SELECT DISTINCT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ${project.id}`).map((r) => r.tag).filter((t) => t.toLowerCase() === tagQuery(q).toLowerCase()) : [];
   if (q) {
     const keyMatch = q.toUpperCase().match(new RegExp(`^(?:${project.key}-)?(\\d+)$`));
     where.OR = [
@@ -71,9 +76,16 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
       { jiraStories: { has: q.toUpperCase() } },
       { preconditions: { contains: q, mode: "insensitive" } },
       ...(keyMatch ? [{ number: Number(keyMatch[1]) }] : []),
+      ...(tagHits.length ? [{ tags: { hasSome: tagHits } }] : []),
     ];
   }
-  if (sp.tag) where.tags = { has: sp.tag };
+  // Tags (ver_96): ?tag=Web,Login shows cases with all of them. A search for "web" or "[WEB]" also finds the tag.
+  const pickedTags = (sp.tag ?? "").split(",").map((t) => t.trim()).filter(Boolean);
+  if (pickedTags.length) {
+    const all = await db.$queryRaw<{ tag: string }[]>`SELECT DISTINCT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ${project.id}`;
+    const real = pickedTags.map((t) => all.find((x) => x.tag.toLowerCase() === t.toLowerCase())?.tag ?? t);
+    where.tags = { hasEvery: real };
+  }
   if (sp.priority && (PRIORITIES as string[]).includes(sp.priority)) where.priority = sp.priority as Prisma.TestCaseWhereInput["priority"];
   if (sp.type === "EXPLORATORY") redirect(`/p/${project.key}/charters`);
   // Old links (?type=) still work; the filter is "Who runs it" since ver_95.
@@ -128,7 +140,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
       },
     }),
     db.testCase.count({ where }),
-    db.$queryRaw<{ tag: string }[]>`SELECT DISTINCT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ${project.id} AND archived = false ORDER BY tag`,
+    db.$queryRaw<{ tag: string; count: number }[]>`SELECT tag, COUNT(*)::int AS count FROM (SELECT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ${project.id} AND archived = false AND type <> 'EXPLORATORY') t GROUP BY tag ORDER BY count DESC, tag`,
     db.testCase.count({ where: { ...where, archived: false } }),
     db.testCase.count({ where: { ...where, archived: true } }),
   ]);
@@ -175,6 +187,8 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
   const folderLabel = (id: string | null) => (id ? pathOf(folders, id).join(" / ") : "");
   const heading = sp.folder === "unfiled" ? "Unfiled" : folder ? folder.name : u ? `${u.group.name} case library` : "All test cases";
   const filtered = Boolean(q || sp.tag || sp.priority || runsBy || sp.flagged || sp.persona || platform);
+  const tagColors = await tagColorsFor(project.id);
+  const bracketCount = (await db.testCase.findMany({ where: { projectId: project.id, archived: false, title: { startsWith: "[" } }, select: { title: true } })).filter((c) => hasBracketTitle(c.title)).length;
   const keep = (extra: Record<string, string | undefined>) => {
     const u = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...sp, ...extra })) if (v) u.set(k, v);
@@ -254,6 +268,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
             {sharedBy === 1 ? "The 1" : `All ${sharedBy}`} {u.group.name} {sharedBy === 1 ? "test cycle runs" : "test cycles run"} these cases. Edits here show up in the next run each test cycle starts; runs already started keep what they had.
           </p>
         )}
+        {sp.archived !== "1" && can(who, "case:edit") && <BracketBanner projectId={project.id} count={bracketCount} colors={tagColors} platforms={!!u?.platforms.length} />}
         <ViewTabs
           label="Case state"
           tabs={[
@@ -267,6 +282,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
         <AutoFilterForm className="mb-4 flex flex-wrap items-center gap-2" role="search">
           {sp.folder && <input type="hidden" name="folder" value={sp.folder} />}
           {sp.archived && <input type="hidden" name="archived" value={sp.archived} />}
+          {sp.tag && <input type="hidden" name="tag" value={sp.tag} />}
           {platform && <input type="hidden" name="platform" value={platform.name} />}
           <Input name="q" defaultValue={q} placeholder="Search title, ID or automation ID" className="w-full sm:w-72" />
           <Select name="priority" defaultValue={sp.priority ?? ""} className="w-auto" aria-label="Priority">
@@ -300,14 +316,6 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
             <option value="1">Flagged only</option>
             <option value="flaky">Flaky only</option>
             <option value="regression">Regression only</option>
-          </Select>
-          <Select name="tag" defaultValue={sp.tag ?? ""} className="w-auto" aria-label="Tag">
-            <option value="">Any tag</option>
-            {tagRows.map((t) => (
-              <option key={t.tag} value={t.tag}>
-                {t.tag}
-              </option>
-            ))}
           </Select>
           {filtered && (
             <Link className="text-sm text-slate-500 hover:underline" href={keep({ q: undefined, tag: undefined, priority: undefined, type: undefined, runs: undefined, flagged: undefined, persona: undefined, platform: undefined, page: undefined })}>
@@ -343,6 +351,16 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
             </Link>
           )}
         </AutoFilterForm>
+        )}
+        {sp.archived !== "1" && (
+          <TagsRow
+            projectId={project.id}
+            tags={tagRows}
+            colors={tagColors}
+            picked={pickedTags}
+            query={keep({ tag: undefined, page: undefined }).slice(1)}
+            canEdit={can(who, "case:edit")}
+          />
         )}
         {splitHand + splitAuto + splitBoth > 0 && splitAuto + splitBoth > 0 && (
           <p className="mb-2 text-xs text-slate-500" data-testid="who-runs-count">
@@ -417,6 +435,8 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
               auto: c.type === "AUTOMATED" || c.automationId ? (autoOf.get(c.id) ?? { status: null, at: null }) : undefined,
             }))}
             platforms={!!u && u.platforms.length > 0}
+            tagColors={tagColors}
+            tagHits={tagHits}
             bulk={{ personas: personas.filter((p) => !p.archived), tags: tagRows.map((t) => t.tag) }}
           />
         )}

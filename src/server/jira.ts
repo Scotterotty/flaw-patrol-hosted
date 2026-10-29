@@ -1,5 +1,6 @@
 "use server";
 
+import { parsePlatforms } from "@/lib/umbrella";
 import { parseSentryRefs, sentryAdf } from "@/lib/sentry";
 import { sentryFrames } from "./sentry";
 import { logActivity } from "@/lib/activity";
@@ -269,9 +270,12 @@ const bugSchema = z.object({
 async function bugContext(projectId: string, entryId: string, stepIndex: number | null, actual: string) {
   const entry = await db.runEntry.findFirst({
     where: { id: entryId, run: { projectId } },
-    include: { run: { include: { project: true } }, testCase: { select: { number: true, project: { select: { key: true } } } } },
+    include: { run: { include: { project: true } }, testCase: { select: { number: true, tags: true, project: { select: { key: true, groupId: true, hubOf: { select: { platforms: true } } } } } } },
   });
   if (!entry) throw new UserError("This case is no longer in the run.");
+  // Bracket tags (ver_96): platform tags and ALL-CAPS ones like ANDROID go back in front of the bug's title.
+  const platformNames = parsePlatforms(entry.testCase.project.hubOf?.platforms).map((p) => p.name.toLowerCase());
+  const titleTags = entry.testCase.tags.filter((t) => platformNames.includes(t.toLowerCase()) || (/[A-Z]/.test(t) && t === t.toUpperCase()));
   const steps = (Array.isArray(entry.steps) ? entry.steps : []) as unknown as ExpandedStep[];
   if (stepIndex !== null && !steps[stepIndex]) throw new UserError("That step no longer exists.");
   const h = await headers();
@@ -293,6 +297,7 @@ async function bugContext(projectId: string, entryId: string, stepIndex: number 
     failedIndex: stepIndex,
     actual,
     link: origin ? `${origin}/p/${key}/runs/${entry.run.number}/execute?entry=${entry.id}` : null,
+    titleTags,
   };
   return { ctx, entry };
 }

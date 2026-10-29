@@ -14,7 +14,9 @@ import { addCasesToSuite } from "@/server/suites";
 import { NewRunButton, type Member } from "./new-run";
 import type { RunField } from "@/lib/run-fields";
 import { StartRunBox } from "./start-run-box";
-import { FlakyBadge, PriorityBadge, TagList, TypeBadge } from "./badges";
+import { FlakyBadge, PriorityBadge, TypeBadge } from "./badges";
+import { TagPills } from "./tag-pill";
+import type { TagColors } from "@/lib/tags";
 import { BulkEditButton, type BulkPersona } from "./bulk-edit";
 import { LinkStoryButton } from "./story-links";
 import { FlagMark } from "./case-flag";
@@ -57,6 +59,8 @@ export function CaseTable({
   platforms = false,
   bulk,
   storyLinks = false,
+  tagColors,
+  tagHits,
 }: {
   projectId: string;
   projectKey: string;
@@ -73,6 +77,9 @@ export function CaseTable({
   bulk?: { personas: BulkPersona[]; tags: string[] };
   /** Jira is connected: offer Link to story… on ticked cases. */
   storyLinks?: boolean;
+  /** Tag pill colors (ver_96); tags a search matched get an outline. */
+  tagColors?: TagColors;
+  tagHits?: string[];
 }) {
   const spelling = useSpelling();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -265,6 +272,11 @@ export function CaseTable({
                 <td className="px-3 py-2 font-mono text-xs whitespace-nowrap text-slate-500">{caseKey(projectKey, r.number)}</td>
                 <td className="px-3 py-2">
                   <span className="flex items-start gap-1.5">
+                    {r.tags.length > 0 && (
+                      <span className="flex flex-none gap-1 pt-0.5">
+                        <TagPills tags={r.tags} colors={tagColors} hits={tagHits} />
+                      </span>
+                    )}
                     <Link href={`/p/${projectKey}/cases/${r.number}`} draggable={false} className="font-medium text-slate-900 hover:text-accent-700 hover:underline">
                       {r.title}
                     </Link>
@@ -273,7 +285,6 @@ export function CaseTable({
                   </span>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
                     {r.folder && <span>{r.folder}</span>}
-                    <TagList tags={r.tags} />
                     {r.usesShared && <span title="Uses shared steps">⧉ shared steps</span>}
                     {r.auto && (
                       <span className="text-teal-700" data-testid="auto-line">

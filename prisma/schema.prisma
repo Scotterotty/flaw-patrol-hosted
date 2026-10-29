@@ -240,6 +240,8 @@ model Project {
   roleRules            Json?
   /// When an admin last saved "What can they do" or pressed Keep everyone open (ver_96); null shows the before-invite nudge.
   rolesChosenAt        DateTime?
+  /// Bracket tags (ver_96): colors picked for this library's tags, { "web": "#2563eb" }. See src/lib/tags.ts.
+  tagColors            Json            @default("{}")
   /// Slack alerts (ver_82): "umbrella" follows the umbrella's channels, "choose" uses
   /// slackChannelIds (ticked umbrella channels) plus its own, "off" sends nothing.
   slackMode            String            @default("umbrella")

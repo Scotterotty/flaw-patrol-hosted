@@ -1,6 +1,7 @@
 // Builds the Jira bug body (Atlassian Document Format) from a failed test.
 // Pure so it's unit tested and previewed in the browser before filing.
 
+import { withBracketTags } from "./tags";
 import { isDxdiag, orderFiles, type TemplateBug } from "./bug-template";
 
 export type BugContext = {
@@ -21,6 +22,8 @@ export type BugContext = {
   link: string | null;
   // Set when Jira can't show the tester as the bug's Reporter, so their name is in the text instead.
   reportedBy?: string | null;
+  /** Bracket tags (ver_96) the summary puts back in front, like [WEB]. */
+  titleTags?: string[];
 };
 
 /** The first line of a step or note, trimmed to a readable length. */
@@ -47,9 +50,9 @@ export function bugTitle(caseTitle: string, step: { action: string; expected: st
   return [caseTitle.trim(), step && short(step.action, 60), what].filter(Boolean).join(": ").slice(0, 250);
 }
 
-export function defaultSummary(ctx: Pick<BugContext, "caseTitle" | "steps" | "failedIndex" | "actual">): string {
+export function defaultSummary(ctx: Pick<BugContext, "caseTitle" | "steps" | "failedIndex" | "actual" | "titleTags">): string {
   const step = ctx.failedIndex === null ? null : (ctx.steps[ctx.failedIndex] ?? null);
-  return bugTitle(ctx.caseTitle, step, ctx.actual ?? "");
+  return withBracketTags(ctx.titleTags ?? [], bugTitle(ctx.caseTitle, step, ctx.actual ?? "")).slice(0, 250);
 }
 
 /** Plain-text version, shown as the preview in the dialog. */

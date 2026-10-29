@@ -1,5 +1,7 @@
 "use server";
 
+import { splitBracketTitle } from "@/lib/tags";
+import { platformNamesFor } from "@/lib/tag-data";
 import { logActivity } from "@/lib/activity";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -50,6 +52,12 @@ export async function saveCase(projectId: string, caseId: string | null, input: 
   return attempt(async () => {
     const { project, user } = await requireProjectAction(projectId, "case:edit");
     const data = caseInputSchema.parse(input);
+    // Bracket tags (ver_96): a title typed as "[WEB] - Sign in" saves as the tag Web and "Sign in".
+    const split = splitBracketTitle(data.title, { platforms: await platformNamesFor(projectId) });
+    if (split.tags.length) {
+      data.title = split.title;
+      data.tags = [...split.tags, ...data.tags.filter((t) => !split.tags.some((x) => x.toLowerCase() === t.toLowerCase()))];
+    }
     const isCharter = data.type === "EXPLORATORY";
     if (isCharter && !data.charter) throw new UserError("A charter needs its mission.");
     const steps = isCharter ? [] : cleanSteps(data.steps);
