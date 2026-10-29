@@ -141,7 +141,10 @@ export async function removeSpotifyLink(id: string) {
 export async function updateMyGame(g: { enabled: boolean; title: string | null; frame: string | null }) {
   return attempt(async () => {
     const user = await requireUser();
-    if (g.title || g.frame) {
+    // A crown (ver_96) is worn through wearCrown, which checks you still hold it.
+    if (g.title?.startsWith("crown|")) {
+      if (g.title !== user.gameTitle) throw new UserError("Pick the crown in Crowns you hold.");
+    } else if (g.title || g.frame) {
       const stats = await gameStats(user.id);
       const { level } = levelFor(totalXp(stats));
       const title = TITLES.find((t) => t.id === g.title);
@@ -151,9 +154,33 @@ export async function updateMyGame(g: { enabled: boolean; title: string | null; 
     }
     // Joining for the first time wears your first title, so it shows next to your name straight away.
     const autoTitle = g.enabled && !user.gameEnabled && !g.title && !user.gameTitle ? "rookie" : null;
-    await db.user.update({ where: { id: user.id }, data: { gameEnabled: g.enabled, gameTitle: autoTitle ?? g.title, gameFrame: g.frame } });
+    const title = autoTitle ?? g.title;
+    await db.user.update({ where: { id: user.id }, data: { gameEnabled: g.enabled, gameTitle: title, gameFrame: g.frame, ...(!title?.startsWith("crown|") && { gameTitleBefore: null }) } });
     revalidatePath("/", "layout");
     return { autoTitle: autoTitle && titleLabel(autoTitle) };
+  });
+}
+
+/** Wear a crown you hold (ver_96). Losing it later puts back the title you wore before. */
+export async function wearCrown(titleId: string) {
+  return attempt(async () => {
+    const user = await requireUser();
+    const [, groupId, key] = titleId.split("|");
+    const held = await db.crown.findFirst({ where: { groupId, key, userId: user.id } });
+    if (!held) throw new UserError("Someone else holds that crown now.");
+    const before = user.gameTitle?.startsWith("crown|") ? user.gameTitleBefore : user.gameTitle;
+    await db.user.update({ where: { id: user.id }, data: { gameEnabled: true, gameTitle: titleId, gameTitleBefore: before ?? null } });
+    revalidatePath("/", "layout");
+    return {};
+  });
+}
+
+/** The crown toasts showed (ver_96): remember what you hold now, so they don't show again. */
+export async function ackCrowns(held: string[]) {
+  return attempt(async () => {
+    const user = await requireUser();
+    await db.user.update({ where: { id: user.id }, data: { crownsSeen: held.slice(0, 200) } });
+    return {};
   });
 }
 
@@ -257,6 +284,16 @@ export async function saveMyNavOrder(order: unknown) {
     if (!parsed.success) throw new UserError("That menu order couldn't be saved.");
     await db.user.update({ where: { id: user.id }, data: { navOrder: parsed.data as Prisma.InputJsonValue } });
     revalidatePath("/", "layout");
+    return {};
+  });
+}
+
+/** Which folding cards on Your account and Mini game sections stay open (ver_96). */
+export async function setOpenCards(ids: string[]) {
+  return attempt(async () => {
+    const user = await requireUser();
+    const clean = [...new Set(ids.filter((x) => typeof x === "string" && /^[a-z]+:[a-z-]+$/.test(x)))].slice(0, 40);
+    await db.user.update({ where: { id: user.id }, data: { openCards: clean } });
     return {};
   });
 }

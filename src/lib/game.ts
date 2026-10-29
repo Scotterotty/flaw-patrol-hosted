@@ -156,7 +156,8 @@ export function isUnlocked(u: Unlock, stats: GameStats, level: number) {
   return stats[u.stat!] >= u.atLeast!;
 }
 
-export const titleLabel = (id: string | null | undefined) => TITLES.find((t) => t.id === id)?.label ?? null;
+/** A title's words; a crown (ver_96, "crown|group|key|label|umbrella") reads "👑 Ruler of the Web". */
+export const titleLabel = (id: string | null | undefined) => (id?.startsWith("crown|") ? `👑 ${id.split("|")[3] ?? "Crown"}` : (TITLES.find((t) => t.id === id)?.label ?? null));
 export const isFrame = (id: string | null | undefined): id is FrameId => FRAMES.some((f) => f.id === id);
 
 /** What others see next to someone's name: only when they play and picked one. */

@@ -91,6 +91,8 @@ import "@fontsource/bagnard/400.css";
 import "@fontsource/lexend/600.css";
 import "./globals.css";
 import { QuestToaster } from "@/components/quest-toast";
+import { CrownToaster } from "@/components/crown-toast";
+import { crownChanges } from "@/lib/crowns";
 import { SkipLink } from "@/components/skip-link";
 import { WhatsNewWindow } from "@/components/whats-new";
 import { BUILD, unseenFor } from "@/lib/whats-new";
@@ -107,6 +109,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const spelling = await mySpelling();
   // What's new after sign-in (ver_88): versions this person hasn't closed yet.
   const whatsNew = user && (user.whatsNewSeen ?? 0) < BUILD ? unseenFor(user.whatsNewSeen, await viewerOf(user)) : [];
+  // Mini game crowns (ver_96): tell players once when they take or lose one.
+  const crowns = user?.gameEnabled ? await crownChanges(user).catch(() => null) : null;
   return (
     <html
       // en-GB also switches the browser's spell checker to British English.
@@ -137,6 +141,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             children
           )}
           {user?.gameEnabled && user.questMap && <QuestToaster />}
+          {crowns && crowns.changes.length > 0 && <CrownToaster changes={crowns.changes} held={crowns.held} />}
           {whatsNew.length > 0 && <WhatsNewWindow entries={whatsNew} />}
           </NavOrderProvider>
         </SpellingProvider>

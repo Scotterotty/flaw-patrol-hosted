@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { setQuestMap, updateMyGame } from "@/server/account";
 import { Avatar, type AvatarPerson } from "./avatar";
 import type { UnlockDetail } from "@/lib/game";
 import { Button, cx, ErrorText } from "./ui";
+import { FoldHeader } from "./fold-card";
+import { OpenAllButton, useOpenCard } from "./open-cards";
+import { wearCrown } from "@/server/account";
 
 export type GameOption = UnlockDetail & { id: string; label: string };
 
@@ -24,7 +27,27 @@ type Progress = {
   }[];
   titles: GameOption[];
   frames: GameOption[];
+  crowns?: CrownOption[];
 };
+
+/** A crown in one of your umbrellas (ver_96), with the number to beat. */
+export type CrownOption = {
+  id: string;
+  label: string;
+  umbrella: string;
+  mine: boolean;
+  holder: string | null;
+  since: string;
+  you: number;
+  top: number;
+  nextBest: number;
+  unit: [string, string];
+  need: number;
+  toTake: number;
+  verb: string;
+};
+
+const SECTIONS = ["game:xp", "game:titles", "game:frames"];
 
 const option = (selected: boolean, unlocked: boolean) =>
   cx(
@@ -141,6 +164,8 @@ export function GamePanel({
   const [quests, setQuests] = useState(questMap);
   // The title worn for you when you join, so you can undo it or pick another.
   const [autoTitle, setAutoTitle] = useState<string | null>(null);
+  // "Pick another" opens the Titles section.
+  const [openTitles, setOpenTitles] = useState(false);
   // Titles unlocked since you last looked, so you can wear one in a click. Remembered in this browser.
   const [fresh, setFresh] = useState<GameOption[]>([]);
   useEffect(() => {
@@ -168,8 +193,16 @@ export function GamePanel({
     });
   };
 
+  const best = progress && [...progress.breakdown].sort((a, b) => b.count * b.each - a.count * a.each)[0];
+  const earnedTitles = progress ? progress.titles.filter((t) => t.unlocked).length : 0;
+  const held = progress?.crowns?.filter((c) => c.mine) ?? [];
   return (
     <div className="space-y-5 text-sm">
+      {on && progress && (
+        <div className="-mt-2 flex justify-end">
+          <OpenAllButton ids={SECTIONS} className="text-xs text-accent-700 hover:underline" />
+        </div>
+      )}
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <div>
         <label className="flex items-start gap-3">
@@ -203,7 +236,7 @@ export function GamePanel({
           <button type="button" className="text-accent-700 hover:underline" onClick={() => (setAutoTitle(null), save({ enabled: true, title: null, frame: pick.frame }))}>
             Undo
           </button>
-          <a href="#game-titles" className="text-accent-700 hover:underline" onClick={() => setAutoTitle(null)}>
+          <a href="#game-titles" className="text-accent-700 hover:underline" onClick={() => (setAutoTitle(null), setOpenTitles(true))}>
             Pick another
           </a>
         </p>
@@ -286,7 +319,14 @@ export function GamePanel({
             </p>
           </div>
 
-          <table className="w-full text-xs">
+          <div className="divide-y divide-slate-100 border-y border-slate-100">
+          <Section
+            id="game:xp"
+            title="How you earned XP"
+            summary={`${progress.xp} XP in all${best ? ` · most from ${best.label.toLowerCase()}` : ""}`}
+            pill={`${progress.breakdown.length} kinds`}
+          >
+            <table className="w-full text-xs">
             <thead>
               <tr className="text-left text-slate-500">
                 <th className="pb-1 font-medium">How you earned it</th>
@@ -310,8 +350,18 @@ export function GamePanel({
             </tbody>
           </table>
 
+          </Section>
+
+          <Section
+            id="game:titles"
+            title="Title next to your name"
+            summary={`Wearing ${pick.title?.startsWith("crown|") ? pick.title.split("|")[3] : (worn(progress.titles, pick.title)?.label ?? "no title")} · ${earnedTitles} of ${progress.titles.length} earned${held.length ? ` · ${held.length} ${held.length === 1 ? "crown" : "crowns"} held` : ""}`}
+            pill={fresh.length ? <span className="rounded-full bg-accent-600 px-1.5 text-[11px] font-semibold text-white">New</span> : `${earnedTitles} / ${progress.titles.length}`}
+            forceOpen={fresh.length > 0 || openTitles}
+          >
+          {progress.crowns && progress.crowns.length > 0 && <Crowns crowns={progress.crowns} worn={pick.title} onWear={(id) => setPick((p) => ({ ...p, title: id }))} />}
           <fieldset id="game-titles" className="scroll-mt-28">
-            <legend className="mb-2 text-xs font-semibold text-slate-800">Title next to your name</legend>
+            <legend className="mb-2 text-xs font-semibold text-slate-800">{progress.crowns?.length ? "Earned titles · yours for good" : "Titles"}</legend>
             {(
               [
                 ["xp", "Earned with XP", "Level up by earning XP from any testing work"],
@@ -353,9 +403,21 @@ export function GamePanel({
             ))}
             {worn(progress.titles, pick.title) && <UnlockDetailBox o={worn(progress.titles, pick.title)!} what="title" />}
           </fieldset>
+          </Section>
 
+          <Section
+            id="game:frames"
+            title="Picture frame"
+            summary={
+              <span className="inline-flex items-center gap-1.5">
+                <Avatar person={{ ...person, frame: pick.frame }} size={18} />
+                Wearing {worn(progress.frames, pick.frame)?.label ?? "no frame"} · {progress.frames.filter((f) => f.unlocked).length} of {progress.frames.length} earned
+              </span>
+            }
+            pill={`${progress.frames.filter((f) => f.unlocked).length} / ${progress.frames.length}`}
+          >
           <fieldset>
-            <legend className="mb-2 text-xs font-semibold text-slate-800">Picture frame</legend>
+            <legend className="sr-only">Picture frame</legend>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {[NO_FRAME, ...progress.frames].map((f) => (
                 <label key={f.id} className={cx(option((pick.frame ?? "") === f.id, f.unlocked), "grid-cols-[auto_1fr] items-start gap-x-2.5")}>
@@ -389,7 +451,144 @@ export function GamePanel({
             </div>
             {worn(progress.frames, pick.frame) && <UnlockDetailBox o={worn(progress.frames, pick.frame)!} what="frame" />}
           </fieldset>
+          </Section>
+          </div>
         </>
+      )}
+    </div>
+  );
+}
+
+/** One folding section of the Mini game card (ver_96); open state saved on your account. */
+function Section({ id, title, summary, pill, forceOpen = false, children }: { id: string; title: string; summary: ReactNode; pill: ReactNode; forceOpen?: boolean; children: ReactNode }) {
+  const { open, toggle, set } = useOpenCard(id);
+  // A new unlock opens its section by itself.
+  useEffect(() => {
+    if (forceOpen) set(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forceOpen]);
+  return (
+    <section>
+      <FoldHeader
+        title={title}
+        summary={summary}
+        open={open}
+        onToggle={toggle}
+        pill={typeof pill === "string" ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 tabular-nums">{pill}</span> : pill}
+      />
+      {open && <div className="pt-1 pb-4">{children}</div>}
+    </section>
+  );
+}
+
+const plural = (n: number, unit: [string, string]) => `${n} ${n === 1 ? unit[0] : unit[1]}`;
+
+/**
+ * Crowns (ver_96): the ones you hold, the three you're closest to (only you vs the holder,
+ * never a ranking), and a small list of every crown and who holds it.
+ */
+function Crowns({ crowns, worn: wearing, onWear }: { crowns: CrownOption[]; worn: string | null; onWear: (id: string) => void }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [all, setAll] = useState(false);
+  const mine = crowns.filter((c) => c.mine);
+  const close = crowns
+    .filter((c) => !c.mine)
+    .sort((a, b) => a.toTake - b.toTake || a.label.localeCompare(b.label))
+    .slice(0, 3);
+  const umbrellas = [...new Set(crowns.map((c) => c.umbrella))];
+  const day = (iso: string) => {
+    const d = new Date(iso);
+    return d.toDateString() === new Date().toDateString() ? "today" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+  return (
+    <div className="mb-4 space-y-3" data-testid="crowns">
+      <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+      <div>
+        <p className="mb-1.5 flex flex-wrap items-baseline gap-x-2 text-xs">
+          <span className="font-semibold text-slate-800">👑 Crowns you hold</span>
+          <span className="text-slate-500">Kept while you&apos;re still doing the most in the last 30 days.</span>
+        </p>
+        {mine.length ? (
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {mine.map((c) => (
+              <div key={c.id} className={option(wearing === c.id, true)}>
+                <span className="flex justify-between gap-1.5">
+                  <span className="text-sm font-semibold text-slate-900">👑 {c.label}</span>
+                  <span className="rounded-full bg-amber-100 px-1.5 py-px text-[11px] font-semibold text-amber-800">{c.umbrella}</span>
+                </span>
+                <span className="text-slate-700">
+                  You: {plural(c.you, c.unit)} · next best: {c.nextBest}
+                </span>
+                <span className="flex items-center justify-between gap-2 text-slate-500">
+                  Held since {day(c.since)}
+                  {wearing === c.id ? (
+                    <span className="font-semibold text-accent-700">Wearing it</span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      className="font-semibold text-accent-700 hover:underline"
+                      onClick={() =>
+                        start(async () => {
+                          const r = await wearCrown(c.id);
+                          if (!r.ok) return setError(r.error);
+                          onWear(c.id);
+                          router.refresh();
+                        })
+                      }
+                    >
+                      Wear it
+                    </button>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500">None yet. Do the most of something in an umbrella to take its crown.</p>
+        )}
+      </div>
+      {close.length > 0 && (
+        <div>
+          <p className="mb-1.5 flex flex-wrap items-baseline gap-x-2 text-xs">
+            <span className="font-semibold text-slate-800">Crowns you could take</span>
+            <span className="text-slate-500">The {close.length} you&apos;re closest to. You see the number to beat, never a ranking.</span>
+          </p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {close.map((c) => (
+              <div key={c.id} className={option(false, false)}>
+                <span className="flex justify-between gap-1.5">
+                  <span className="text-sm font-semibold text-slate-900">{c.label}</span>
+                  <span className="text-[11px] text-slate-500">{c.umbrella}</span>
+                </span>
+                <span className="flex items-center gap-2 text-slate-700 tabular-nums">
+                  You {c.you} <span className="text-slate-400">·</span> {c.holder ? `${c.holder.split(/[ @]/)[0]} ${c.top}` : "Nobody yet"}
+                </span>
+                <span className="text-slate-500">
+                  {c.holder ? `${c.toTake} more ${c.verb} to take it` : `${c.toTake} more ${c.verb} to claim it`}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <button type="button" aria-expanded={all} className="text-xs text-accent-700 hover:underline" onClick={() => setAll((a) => !a)}>
+        {all ? "Hide the crown list" : `See every crown in ${umbrellas.length === 1 ? umbrellas[0] : "your umbrellas"}`}
+      </button>
+      {all && (
+        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 text-xs" data-testid="crown-list">
+          {crowns.map((c) => (
+            <li key={c.id} className="flex items-center justify-between gap-2 px-3 py-1.5">
+              <span className="text-slate-800">
+                👑 {c.label}
+                {umbrellas.length > 1 && <span className="text-slate-500"> · {c.umbrella}</span>}
+              </span>
+              <span className="text-slate-600">{c.holder ?? "Nobody yet"}</span>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

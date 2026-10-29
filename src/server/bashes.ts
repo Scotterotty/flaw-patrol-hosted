@@ -1,5 +1,7 @@
 "use server";
 
+import { after } from "next/server";
+import { refreshCrownsFor } from "@/lib/crowns";
 import { Prisma, type Severity } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -196,6 +198,7 @@ export async function logBashItem(bashId: string, input: z.input<typeof logSchem
     let filed: string | null = null;
     if (!bash.collectFirst && data.kind === "bug") filed = await fileItem(bash, item.id).catch((e) => (e instanceof UserError ? `Logged here, but filing failed: ${e.message}` : null));
     refresh(bash.project.key);
+    if (data.kind === "bug") after(() => refreshCrownsFor(bash.projectId));
     return { id: item.id, filed };
   });
 }

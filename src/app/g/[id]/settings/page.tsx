@@ -11,6 +11,7 @@ import { buttonClass, Card, InfoTip, PageHeader } from "@/components/ui";
 import { AddUmbrellaProject } from "@/components/umbrella-ui";
 import { ArchiveCard } from "@/components/archive-project";
 import { RolesCard } from "@/components/roles-card";
+import { CrownNamesPanel } from "@/components/crown-names";
 import { RolesNudge } from "@/components/roles-nudge";
 import { SlackCard } from "@/components/slack-card";
 import { RegressionPanel } from "@/components/regression-settings";
@@ -235,6 +236,15 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               label={can(u.who, "umbrella:fields") ? "Change" : "View"}
             >
               <RunKindsPanel groupId={u.group.id} umbrella={name} kinds={runKinds} suites={kindSuites} canEdit={can(u.who, "umbrella:fields") && !u.group.archivedAt} />
+            </ExpandRow>
+            <ExpandRow
+              id="crowns"
+              hashes={["crowns"]}
+              title="Mini game crowns"
+              text={u.platforms.length ? u.platforms.map((p) => p.crownName || `Ruler of ${p.name}`).join(", ") : "One crown per platform, for whoever runs the most there"}
+              label={can(u.who, "umbrella:manage") ? "Change" : "View"}
+            >
+              <CrownNamesPanel groupId={u.group.id} platforms={u.platforms} canEdit={can(u.who, "umbrella:manage") && !u.group.archivedAt} />
             </ExpandRow>
             <ExpandRow
               id="slack"

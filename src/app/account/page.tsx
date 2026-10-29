@@ -1,4 +1,3 @@
-import { AccountTabs } from "@/components/account-tabs";
 import { ProfileSettings } from "@/components/profile-settings";
 import { ProjectMenu } from "@/components/project-menu";
 import { TopBar } from "@/components/top-bar";
@@ -23,21 +22,8 @@ export default async function AccountPage() {
         {last && <ProjectMenu project={last.project} user={user} />}
         <main className="mx-auto max-w-xl min-w-0 flex-1 px-4 py-8 pb-16 md:pb-8">
           <PageHeader title="Your account" subtitle={user.email} />
-          <AccountTabs
-            tabs={[
-              ["profile", "Profile"],
-              ["appearance", "Appearance"],
-              ["language", "Language"],
-              ["jira", "Jira"],
-              ["accessibility", "Accessibility"],
-              ["game", "Mini game"],
-              ["radio", "Radio"],
-              ["password", "Password"],
-            ]}
-          />
-          <div className="space-y-5">
-            <ProfileSettings user={user} />
-          </div>
+          {/* Every card folds to one line (ver_96), so the section tabs went: Open all / Close all instead. */}
+          <ProfileSettings user={user} />
         </main>
       </div>
     </>

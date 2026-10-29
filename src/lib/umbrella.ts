@@ -91,7 +91,7 @@ export function parseShortcuts(v: unknown): Shortcut[] {
  * A platform the umbrella tests on, with the hub suites each new release project runs, or
  * the cases picked from folders for it (ver_91), remembered for its next release.
  */
-export type Platform = { name: string; suiteIds: string[]; caseIds?: string[] };
+export type Platform = { name: string; suiteIds: string[]; caseIds?: string[]; crownName?: string };
 export function parsePlatforms(v: unknown): Platform[] {
   if (!Array.isArray(v)) return [];
   const ids = (x: unknown) => (Array.isArray(x) ? x.filter((s): s is string => typeof s === "string") : []);
@@ -99,7 +99,9 @@ export function parsePlatforms(v: unknown): Platform[] {
     .filter((p): p is Platform => !!p && typeof p.name === "string" && p.name.trim() !== "")
     .map((p) => {
       const caseIds = ids(p.caseIds);
-      return { name: p.name.trim(), suiteIds: ids(p.suiteIds), ...(caseIds.length ? { caseIds } : {}) };
+      // Mini game crowns (ver_96): an optional name for the platform's crown, e.g. "Ruler of the Web".
+      const crownName = typeof p.crownName === "string" ? p.crownName.trim().slice(0, 40) : "";
+      return { name: p.name.trim(), suiteIds: ids(p.suiteIds), ...(caseIds.length ? { caseIds } : {}), ...(crownName ? { crownName } : {}) };
     });
 }
 

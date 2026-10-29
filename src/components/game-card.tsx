@@ -1,4 +1,5 @@
-import { FRAMES, levelFor, TITLES, totalXp, unlockDetail, XP_RULES, type XpRule } from "@/lib/game";
+import { FRAMES, levelFor, TITLES, totalXp, unlockDetail, XP_RULES, type GameStats, type XpRule } from "@/lib/game";
+import { crownsFor, toTake } from "@/lib/crowns";
 import { gameStats } from "@/lib/xp";
 import { db } from "@/lib/db";
 import { GamePanel, type GameOption } from "./game-panel";
@@ -15,10 +16,12 @@ type Player = {
 };
 
 /** The mini game: off until you join, then your level, how you earned XP, and what you've unlocked. */
-export async function GameCard({ user }: { user: Player }) {
+export async function GameCard({ user, stats: given }: { user: Player; stats?: GameStats | null }) {
   if (!user.gameEnabled) return <GamePanel enabled={false} person={user} title={null} frame={null} />;
 
-  const stats = await gameStats(user.id);
+  const stats = given ?? (await gameStats(user.id));
+  // Crowns (ver_96): counted fresh for every umbrella you're in.
+  const crowns = await crownsFor(user.id);
   // Pawn gear is picked on a Quest map; send people to the one in the project they used last.
   const lastProject = user.questMap
     ? await db.projectPin.findFirst({ where: { userId: user.id, visitedAt: { not: null }, project: { hubOf: null, archivedAt: null } }, orderBy: { visitedAt: "desc" }, select: { project: { select: { key: true } } } })
@@ -63,6 +66,21 @@ export async function GameCard({ user }: { user: Player }) {
         })),
         titles: options(TITLES),
         frames: options(FRAMES),
+        crowns: crowns.map((c) => ({
+          id: c.titleId,
+          label: c.label,
+          umbrella: c.umbrella,
+          mine: c.holderId === user.id,
+          holder: c.holderName,
+          since: c.since.toISOString(),
+          you: c.mine,
+          top: c.top,
+          nextBest: c.nextBest,
+          unit: c.unit,
+          need: c.need,
+          toTake: toTake(c),
+          verb: c.verb,
+        })),
       }}
     />
   );

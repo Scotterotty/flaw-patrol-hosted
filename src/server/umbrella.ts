@@ -1,5 +1,6 @@
 "use server";
 
+import { refreshCrowns } from "@/lib/crowns";
 import { suiteForCases } from "@/lib/suite-match";
 import { logActivity } from "@/lib/activity";
 import type { Prisma, Role } from "@prisma/client";
@@ -206,12 +207,29 @@ export async function setPlatforms(groupId: string, input: { name: string; suite
       where: { id: group.id },
       data: {
         platforms: list.map((p) => {
-          const caseIds = before.find((b) => b.name === p.name)?.caseIds;
-          return { name: p.name, suiteIds: p.suiteIds.filter((id) => ok.has(id)), ...(caseIds ? { caseIds } : {}) };
+          const was = before.find((b) => b.name === p.name);
+          return { name: p.name, suiteIds: p.suiteIds.filter((id) => ok.has(id)), ...(was?.caseIds ? { caseIds: was.caseIds } : {}), ...(was?.crownName ? { crownName: was.crownName } : {}) };
         }),
       },
     });
     await logActivity({ actor: user, kind: "settings", action: "Changed platforms", group, detail: list.map((p) => p.name).join(", ") });
+    refresh(group.id, hub.key);
+    return {};
+  });
+}
+
+/** Mini game crowns (ver_96): each platform's optional crown name, e.g. "Ruler of the Web". */
+export async function setCrownNames(groupId: string, names: Record<string, string>) {
+  return attempt(async () => {
+    const { group, hub } = await requireUmbrella(groupId, "umbrella:manage");
+    const platforms = parsePlatforms(group.platforms).map((p) => {
+      const n = (names[p.name] ?? p.crownName ?? "").trim().slice(0, 40);
+      const { crownName: _old, ...rest } = p;
+      void _old;
+      return n ? { ...rest, crownName: n } : rest;
+    });
+    await db.projectGroup.update({ where: { id: group.id }, data: { platforms } });
+    await refreshCrowns(group.id).catch(() => {});
     refresh(group.id, hub.key);
     return {};
   });
@@ -463,7 +481,8 @@ export async function startNextRc(groupId: string, input: z.input<typeof rcSchem
         const c = data.choices[p.name];
         const now = platforms.find((x) => x.name === p.name);
         if (!c || c.kind === "empty" || !now) return p;
-        return now.caseIds ? { name: p.name, suiteIds: [], caseIds: now.caseIds } : { name: p.name, suiteIds: now.suiteIds };
+        const crown = p.crownName ? { crownName: p.crownName } : {};
+        return now.caseIds ? { name: p.name, suiteIds: [], caseIds: now.caseIds, ...crown } : { name: p.name, suiteIds: now.suiteIds, ...crown };
       });
       await db.projectGroup.update({ where: { id: group.id }, data: { platforms: changed } });
     }

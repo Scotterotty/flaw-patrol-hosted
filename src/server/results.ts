@@ -1,5 +1,7 @@
 "use server";
 
+import { after } from "next/server";
+import { refreshCrownsFor } from "@/lib/crowns";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -130,6 +132,8 @@ export async function submitResult(projectId: string, entryId: string, input: Re
     // Every case now has a result: the runner offers to close the run.
     const runDone = entry.run.state === "ACTIVE" && (await db.runEntry.count({ where: { runId: entry.runId, status: { in: OPEN } } })) === 0;
     await alertsForResult({ cycle: project, resultId: result.id, status: data.status, comment: data.comment, tester: user.name ?? user.email, entryId, wasOpen: OPEN.includes(entry.status), runDone }).catch((e) => console.warn("Slack alerts failed", e));
+    // Mini game crowns (ver_96) are counted again after the response goes out.
+    after(() => refreshCrownsFor(projectId));
     return { resultId: result.id, runId: entry.runId, runDone, quest: quests ? await questMoments(entry.runId, entryId, result.createdAt) : [] };
   });
 }

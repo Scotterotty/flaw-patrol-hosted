@@ -89,6 +89,8 @@ model User {
   openCards        String[]        @default([])
   // Mini game crowns (ver_96): crowns this person held when last told, so take/lose toasts show once.
   crownsSeen       String[]        @default([])
+  // The title worn before putting on a crown, so losing the crown puts it back.
+  gameTitleBefore  String?
   // Activity log entries this person made (ver_92).
   activity         ActivityEntry[]
 }
@@ -1018,4 +1020,24 @@ model RiskRating {
   movedAt    DateTime @default(now())
 
   @@unique([projectId, release, issueKey])
+}
+
+/**
+ * Mini game crowns (ver_96): who holds each crown in an umbrella right now, worked out from
+ * the last 30 days of work by src/lib/crowns.ts. `key` is "platform:<name>", "folder:<id>",
+ * "bash", "trail" or "sharp". `counts` keeps every player's count ({ userId: n }) so the
+ * Account page can show the number to beat without counting again.
+ */
+model Crown {
+  id        String   @id @default(cuid())
+  groupId   String
+  key       String
+  label     String
+  userId    String?
+  since     DateTime @default(now())
+  counts    Json     @default("{}")
+  updatedAt DateTime @updatedAt
+
+  @@unique([groupId, key])
+  @@index([userId])
 }
