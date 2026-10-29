@@ -26,6 +26,13 @@ const ICON: Record<ResultStatus, ReactNode> = {
       <path d="M8 2.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor" stroke="none" />
     </>
   ),
+  // A compass needle, for exploring (ver_96).
+  EXPLORED: (
+    <>
+      <circle cx="8" cy="8" r="5.6" />
+      <path d="M10.2 5.8l-1.3 3.1-3.1 1.3 1.3-3.1z" />
+    </>
+  ),
   UNTESTED: <circle cx="8" cy="8" r="5.6" strokeDasharray="2.2 2" />,
 };
 

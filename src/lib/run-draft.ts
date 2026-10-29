@@ -2,7 +2,7 @@ import { z } from "zod";
 import { MAX_REMINDERS, reminderSchema, sessionLogSchema } from "./charter";
 
 // Kept apart from the server actions so the execute page can read drafts too.
-const statusEnum = z.enum(["UNTESTED", "PASSED", "FAILED", "BLOCKED", "RETEST", "SKIPPED"]);
+const statusEnum = z.enum(["UNTESTED", "PASSED", "FAILED", "BLOCKED", "RETEST", "SKIPPED", "EXPLORED"]);
 
 // What the runner autosaves while a case is being tested: everything on screen
 // that isn't a saved result yet. Defects are kept as shown so chips come back as they were.

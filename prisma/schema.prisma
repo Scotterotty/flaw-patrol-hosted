@@ -627,6 +627,9 @@ enum ResultStatus {
   // Some steps have results saved but the case isn't finished. Only set by
   // autosave, never chosen as a result.
   IN_PROGRESS
+  // An exploring session or bug bash area that finished (ver_96). Not a pass or a
+  // fail, so it never counts in pass rates.
+  EXPLORED
 }
 
 // One execution of a suite (or a hand-picked set of cases) against a build.

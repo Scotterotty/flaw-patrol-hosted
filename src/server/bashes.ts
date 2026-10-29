@@ -401,7 +401,7 @@ export async function wrapUpBash(bashId: string, anyway = false) {
               runId: bash.run.id,
               caseId: entry.caseId,
               caseVersion: entry.caseVersion,
-              status: bugs ? "FAILED" : "PASSED",
+              status: "EXPLORED",
               stepResults: [],
               comment: `Bug bash ${bash.name}: ${bugs} ${bugs === 1 ? "bug" : "bugs"} in ${area.name}.`,
               elapsedSec: Math.round((ended.getTime() - bash.startsAt.getTime()) / 1000),
@@ -414,8 +414,7 @@ export async function wrapUpBash(bashId: string, anyway = false) {
           for (const n of log) if (n.defect) await tx.defectLink.upsert({ where: { defectId_resultId: { defectId: n.defect.id, resultId: result.id } }, create: { defectId: n.defect.id, resultId: result.id, stepIndex: null }, update: {} });
           const ids = mine.flatMap((i) => i.attachments.map((a) => a.id));
           if (ids.length) await tx.attachment.updateMany({ where: { id: { in: ids } }, data: { resultId: result.id } });
-          const areaBugs = items.some((i) => i.areaId === p.areaId && i.kind === "bug" && !i.mergedIntoId);
-          await tx.runEntry.update({ where: { id: entry.id }, data: { status: areaBugs ? "FAILED" : "PASSED", lastTestedAt: now } });
+          await tx.runEntry.update({ where: { id: entry.id }, data: { status: "EXPLORED", lastTestedAt: now } });
         }
         // Areas nobody explored stay Untested; the run closes either way.
         await tx.testRun.update({ where: { id: bash.run.id }, data: { state: "COMPLETED", completedAt: now } });

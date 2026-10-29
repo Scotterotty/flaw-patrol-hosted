@@ -36,7 +36,7 @@ const source = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("rerun"),
     runId: z.string(),
-    statuses: z.array(z.enum(["UNTESTED", "PASSED", "FAILED", "BLOCKED", "RETEST", "SKIPPED", "IN_PROGRESS"])).min(1),
+    statuses: z.array(z.enum(["UNTESTED", "PASSED", "FAILED", "BLOCKED", "RETEST", "SKIPPED", "IN_PROGRESS", "EXPLORED"])).min(1),
   }),
 ]);
 

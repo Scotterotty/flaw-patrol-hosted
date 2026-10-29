@@ -1013,6 +1013,7 @@ main:focus {
   --st-retest: #0369a1;
   --st-skipped: #a78bfa;
   --st-progress: #a1a1aa;
+  --st-explored: #0d9488;
   --st-untested: var(--color-slate-200);
   --st-passed-on: #fff;
   --st-failed-on: #fff;
@@ -1020,6 +1021,7 @@ main:focus {
   --st-retest-on: #fff;
   --st-skipped-on: #fff;
   --st-progress-on: #09090b;
+  --st-explored-on: #fff;
   --st-untested-on: var(--color-slate-800);
   /* Soft chips: the light tint, the text and the ring. Standard keeps the Tailwind shades used before. */
   --st-passed-soft: var(--color-emerald-50);
@@ -1040,6 +1042,9 @@ main:focus {
   --st-progress-soft: var(--color-zinc-50);
   --st-progress-ink: var(--color-zinc-700);
   --st-progress-ring: var(--color-zinc-300);
+  --st-explored-soft: var(--color-teal-50);
+  --st-explored-ink: var(--color-teal-700);
+  --st-explored-ring: var(--color-teal-200);
   --st-untested-soft: var(--color-surface);
   --st-untested-ink: var(--color-slate-500);
   --st-untested-ring: var(--color-slate-200);
@@ -1072,8 +1077,12 @@ main:focus {
   --st-progress-soft: color-mix(in oklab, var(--st-progress) 15%, var(--color-surface));
   --st-progress-ink: color-mix(in oklab, var(--st-progress) var(--st-mix-ink), var(--st-mix-base));
   --st-progress-ring: color-mix(in oklab, var(--st-progress) 45%, var(--color-surface));
+  --st-explored-soft: color-mix(in oklab, var(--st-explored) 15%, var(--color-surface));
+  --st-explored-ink: color-mix(in oklab, var(--st-explored) var(--st-mix-ink), var(--st-mix-base));
+  --st-explored-ring: color-mix(in oklab, var(--st-explored) 45%, var(--color-surface));
 }
 :root[data-vision="redgreen"] {
+  --st-explored: #7b61c9;
   --st-passed: #1f6fd1;
   --st-failed: #c94a00;
   --st-blocked: #2e2e38;
@@ -1083,6 +1092,7 @@ main:focus {
   --st-skipped-on: #141414;
 }
 :root[data-vision="blueyellow"] {
+  --st-explored: #4f6bd8;
   --st-passed: #0f8f8a;
   --st-failed: #d7263d;
   --st-blocked: #2e2e38;
@@ -1092,6 +1102,7 @@ main:focus {
   --st-skipped-on: #141414;
 }
 :root[data-vision="none"] {
+  --st-explored: #858585;
   --st-passed: #3f3f3f;
   --st-failed: #0d0d0d;
   --st-blocked: #6e6e6e;
@@ -1164,6 +1175,7 @@ main:focus {
   --color-st-retest: var(--st-retest);
   --color-st-skipped: var(--st-skipped);
   --color-st-progress: var(--st-progress);
+  --color-st-explored: var(--st-explored);
   --color-st-untested: var(--st-untested);
   --color-st-passed-on: var(--st-passed-on);
   --color-st-failed-on: var(--st-failed-on);
@@ -1171,6 +1183,7 @@ main:focus {
   --color-st-retest-on: var(--st-retest-on);
   --color-st-skipped-on: var(--st-skipped-on);
   --color-st-progress-on: var(--st-progress-on);
+  --color-st-explored-on: var(--st-explored-on);
   --color-st-untested-on: var(--st-untested-on);
   --color-st-passed-soft: var(--st-passed-soft);
   --color-st-failed-soft: var(--st-failed-soft);
@@ -1178,6 +1191,7 @@ main:focus {
   --color-st-retest-soft: var(--st-retest-soft);
   --color-st-skipped-soft: var(--st-skipped-soft);
   --color-st-progress-soft: var(--st-progress-soft);
+  --color-st-explored-soft: var(--st-explored-soft);
   --color-st-untested-soft: var(--st-untested-soft);
   --color-st-passed-ink: var(--st-passed-ink);
   --color-st-failed-ink: var(--st-failed-ink);
@@ -1185,6 +1199,7 @@ main:focus {
   --color-st-retest-ink: var(--st-retest-ink);
   --color-st-skipped-ink: var(--st-skipped-ink);
   --color-st-progress-ink: var(--st-progress-ink);
+  --color-st-explored-ink: var(--st-explored-ink);
   --color-st-untested-ink: var(--st-untested-ink);
   --color-st-passed-ring: var(--st-passed-ring);
   --color-st-failed-ring: var(--st-failed-ring);
@@ -1192,6 +1207,7 @@ main:focus {
   --color-st-retest-ring: var(--st-retest-ring);
   --color-st-skipped-ring: var(--st-skipped-ring);
   --color-st-progress-ring: var(--st-progress-ring);
+  --color-st-explored-ring: var(--st-explored-ring);
   --color-st-untested-ring: var(--st-untested-ring);
 }
 
@@ -1219,6 +1235,9 @@ main:focus {
 }
 :root[data-shapes] .st-bar-SKIPPED {
   background-image: repeating-linear-gradient(0deg, var(--st-ov-dark) 0 1.5px, transparent 1.5px 5px);
+}
+:root[data-shapes] .st-bar-EXPLORED {
+  background-image: repeating-linear-gradient(-45deg, var(--st-ov-light) 0 1.5px, transparent 1.5px 4px);
 }
 :root[data-shapes] .st-bar-IN_PROGRESS {
   background-image: repeating-linear-gradient(90deg, var(--st-ov-dark) 0 1.5px, transparent 1.5px 5px);
@@ -1257,4 +1276,11 @@ main:focus {
   border-radius: 999px !important;
   background: transparent !important;
   box-shadow: inset 0 0 0 1.4px var(--color-slate-400);
+}
+/* Explored (ver_96): a ring, like a compass. */
+:root[data-shapes] .st-pip.st-bar-EXPLORED {
+  background-image: none;
+  border-radius: 999px !important;
+  background: transparent !important;
+  box-shadow: inset 0 0 0 2.5px var(--st-explored);
 }

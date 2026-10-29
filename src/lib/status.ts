@@ -2,7 +2,7 @@ import type { ResultStatus } from "@prisma/client";
 
 // Execution statuses, shared by the runner, run pages and reports.
 
-export const STATUSES: ResultStatus[] = ["PASSED", "FAILED", "BLOCKED", "RETEST", "SKIPPED", "IN_PROGRESS", "UNTESTED"];
+export const STATUSES: ResultStatus[] = ["PASSED", "FAILED", "BLOCKED", "RETEST", "SKIPPED", "EXPLORED", "IN_PROGRESS", "UNTESTED"];
 
 /** Statuses a tester can set on a step or a case, with their keyboard key. */
 export const SETTABLE: { status: ResultStatus; key: string }[] = [
@@ -21,6 +21,7 @@ export const STATUS_LABEL: Record<ResultStatus, string> = {
   RETEST: "Retest",
   SKIPPED: "Skipped",
   IN_PROGRESS: "In progress",
+  EXPLORED: "Explored",
 };
 
 export const STATUS_HELP: Record<ResultStatus, string> = {
@@ -31,6 +32,7 @@ export const STATUS_HELP: Record<ResultStatus, string> = {
   RETEST: "Needs running again, for example after a fix",
   SKIPPED: "Deliberately not run this time",
   IN_PROGRESS: "Some steps have results, but the case isn't finished",
+  EXPLORED: "Exploring finished. Not a pass or a fail, so it isn't counted in pass rates",
 };
 
 /**
@@ -49,11 +51,12 @@ export const STATUS_STYLE: Record<ResultStatus, { solid: string; soft: string; b
   RETEST: { solid: "bg-st-retest text-st-retest-on", soft: "bg-st-retest-soft text-st-retest-ink ring-st-retest-ring", bar: "bg-st-retest st-bar-RETEST", ink: "text-st-retest-ink", hex: "#0369a1", fill: "var(--st-retest)" },
   SKIPPED: { solid: "bg-st-skipped text-st-skipped-on", soft: "bg-st-skipped-soft text-st-skipped-ink ring-st-skipped-ring", bar: "bg-st-skipped st-bar-SKIPPED", ink: "text-st-skipped-ink", hex: "#a78bfa", fill: "var(--st-skipped)" },
   IN_PROGRESS: { solid: "bg-st-progress text-st-progress-on", soft: "bg-st-progress-soft text-st-progress-ink ring-st-progress-ring", bar: "bg-st-progress st-bar-IN_PROGRESS", ink: "text-st-progress-ink", hex: "#a1a1aa", fill: "var(--st-progress)" },
+  EXPLORED: { solid: "bg-st-explored text-st-explored-on", soft: "bg-st-explored-soft text-st-explored-ink ring-st-explored-ring", bar: "bg-st-explored st-bar-EXPLORED", ink: "text-st-explored-ink", hex: "#0d9488", fill: "var(--st-explored)" },
   UNTESTED: { solid: "bg-st-untested text-st-untested-on", soft: "bg-st-untested-soft text-st-untested-ink ring-st-untested-ring", bar: "bg-st-untested st-bar-UNTESTED", ink: "text-st-untested-ink", hex: "#e2e8f0", fill: "var(--st-untested)" },
 };
 
 // Worst first: the case result is the most serious step outcome.
-const SEVERITY: ResultStatus[] = ["FAILED", "BLOCKED", "RETEST", "PASSED", "SKIPPED", "IN_PROGRESS", "UNTESTED"];
+const SEVERITY: ResultStatus[] = ["FAILED", "BLOCKED", "RETEST", "PASSED", "EXPLORED", "SKIPPED", "IN_PROGRESS", "UNTESTED"];
 
 /**
  * Suggested case status from its step statuses. Any failed step fails the case;
@@ -90,8 +93,8 @@ export function totals(c: StatusCounts) {
     total,
     tested,
     progress: total ? tested / total : 0,
-    // Pass rate over cases that got a verdict; skipped ones don't count either way.
-    passRate: tested - c.SKIPPED > 0 ? c.PASSED / (tested - c.SKIPPED) : null,
+    // Pass rate over cases that got a verdict; skipped ones and exploring (ver_96) don't count either way.
+    passRate: tested - c.SKIPPED - c.EXPLORED > 0 ? c.PASSED / (tested - c.SKIPPED - c.EXPLORED) : null,
   };
 }
 

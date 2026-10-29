@@ -5,7 +5,7 @@ import { parseSessionLog } from "./charter";
 import { SESSION_BUG_CAP, streaks, type GameStats } from "./game";
 import { questRecordFor } from "./quest-data";
 
-const VERDICTS: ResultStatus[] = ["PASSED", "FAILED", "BLOCKED"];
+const VERDICTS: ResultStatus[] = ["PASSED", "FAILED", "BLOCKED", "EXPLORED"];
 
 /** Everything one person's XP is made of, across all projects. */
 export async function gameStats(userId: string): Promise<GameStats> {

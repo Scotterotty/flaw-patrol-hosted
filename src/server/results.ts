@@ -18,7 +18,7 @@ import { queueSheetSync } from "./sheet-sync";
 import { questMoments } from "@/lib/quest-data";
 import { parseGear } from "@/lib/quest-gear";
 
-const statusEnum = z.enum(["UNTESTED", "PASSED", "FAILED", "BLOCKED", "RETEST", "SKIPPED"]);
+const statusEnum = z.enum(["UNTESTED", "PASSED", "FAILED", "BLOCKED", "RETEST", "SKIPPED", "EXPLORED"]);
 
 const resultSchema = z.object({
   status: statusEnum.exclude(["UNTESTED"]),

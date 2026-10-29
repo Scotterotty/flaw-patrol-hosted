@@ -9,7 +9,7 @@ import type { CaseFlagInfo } from "@/lib/case-flag";
 import { clock, NOTE_KINDS, NOTE_LABEL, noteCounts, type Charter, type LogKind, type NoteKind, type PersonaInfo, type Reminder, type SessionNote } from "@/lib/charter";
 import { holdLive } from "@/lib/live-hold";
 import type { Draft } from "@/lib/run-draft";
-import { STATUS_LABEL, STATUS_STYLE } from "@/lib/status";
+import { STATUS_LABEL } from "@/lib/status";
 import type { LinkedDefect } from "@/server/jira";
 import { saveDraft, submitResult, uploadAttachment } from "@/server/results";
 import { showQuestMoments } from "./quest-toast";
@@ -45,11 +45,6 @@ export type SessionEntry = {
 
 export type PreviousSession = { status: ResultStatus; testerName: string; createdAt: string; comment: string; elapsedSec: number | null; notes: SessionNote[] };
 
-const OUTCOMES: { status: ResultStatus; label: string; help: string }[] = [
-  { status: "PASSED", label: "Passed", help: "Nothing worrying turned up" },
-  { status: "FAILED", label: "Failed (found issues)", help: "You found bugs or problems" },
-  { status: "BLOCKED", label: "Blocked", help: "Something stopped the session" },
-];
 
 const KIND_STYLE: Record<LogKind, string> = {
   covered: "text-accent-700",
@@ -255,11 +250,11 @@ export function SessionRunner({
   const end = () => {
     pause();
     setEnding(true);
-    if (!outcome && counts.bug > 0) setOutcome("FAILED");
   };
 
+  // Finish exploring (ver_96): no pass or fail. Explored, or Blocked when something stopped you.
+  const blocked = outcome === "BLOCKED";
   const save = (goNext: boolean) => {
-    if (!outcome) return setError("Pick how the session went.");
     setError(null);
     const base = `/p/${projectKey}/runs/${runNumber}`;
     start(async () => {
@@ -268,7 +263,7 @@ export function SessionRunner({
       finished.current = true;
       await inflight.current;
       const res = await submitResult(projectId, entry.id, {
-        status: outcome as Exclude<Draft["override"], null>,
+        status: blocked ? "BLOCKED" : "EXPLORED",
         stepResults: [],
         comment: summary,
         elapsedSec: now(),
@@ -307,7 +302,7 @@ export function SessionRunner({
         </div>
       </div>
 
-      {runClosed && <p className="mb-3 rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700">This run is closed. Reopen it to record sessions.</p>}
+      {runClosed && <p className="mb-3 rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700">This run is closed. Reopen it to keep exploring.</p>}
       {resumed && draft && entry.draftBy && !ending && (
         <p className="mb-3 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
           Picked up where {entry.draftBy.mine ? "you" : entry.draftBy.name} left off {entry.draftBy.ago}. The timer is paused at {clock(draft.elapsedSec)}.
@@ -334,58 +329,45 @@ export function SessionRunner({
         <div className="min-w-0">
           {ending ? (
             <section aria-labelledby="session-result-heading" className="rounded-lg border border-slate-200 bg-surface p-4 shadow-sm">
-              <h2 id="session-result-heading" className="text-sm font-semibold text-slate-900">
-                How did it go?
+              <h2 id="session-result-heading" className="flex flex-wrap items-baseline gap-2 text-sm font-semibold text-slate-900">
+                Finish exploring
+                <span className="text-xs font-normal text-slate-500 tabular-nums">
+                  {Math.round(elapsed / 60)} of {Math.round(limit / 60)} min used
+                </span>
               </h2>
-              <p className="text-xs text-slate-500">
-                {clock(elapsed)} of {clock(limit)} used
-              </p>
-              <div role="group" aria-label="Session outcome" className="mt-3 flex flex-wrap gap-2">
-                {OUTCOMES.map((o) => (
-                  <button
-                    key={o.status}
-                    type="button"
-                    title={o.help}
-                    aria-pressed={outcome === o.status}
-                    onClick={() => setOutcome(o.status)}
-                    className={cx(
-                      "h-9 rounded-md px-3 text-sm font-medium ring-1 ring-inset",
-                      outcome === o.status ? cx(STATUS_STYLE[o.status].solid, "ring-transparent") : "bg-surface text-slate-700 ring-slate-200 hover:bg-slate-50",
-                    )}
-                  >
-                    {o.label}
-                  </button>
-                ))}
-              </div>
-              <label htmlFor="session-summary" className="mt-4 block text-sm font-medium text-slate-700">
-                Summary
-              </label>
-              <Textarea id="session-summary" rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="What you covered, what you found, and what's worth a closer look next time" />
-              <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              <p className="mt-2 flex flex-wrap gap-1.5 text-xs">
                 {NOTE_KINDS.map((k) => (
-                  <span key={k} className={KIND_STYLE[k]}>
+                  <span key={k} className={cx("rounded-full bg-slate-100 px-2 py-0.5", KIND_STYLE[k])}>
                     <b className="tabular-nums">{counts[k]}</b> {NOTE_LABEL[k].toLowerCase()}
                     {counts[k] === 1 ? "" : "s"}
                   </span>
                 ))}
-                <span className="text-slate-500">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">
                   <b className="tabular-nums">{notes.reduce((n, x) => n + x.attachments.length, 0)}</b> files
                 </span>
                 {entry.charter.prompts.length > 0 && (
-                  <span className="text-accent-700">
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-accent-700">
                     <b className="tabular-nums">{entry.charter.prompts.filter((p) => notes.some((n) => n.kind === "covered" && n.text === p)).length}</b> of {entry.charter.prompts.length} prompts covered
                   </span>
                 )}
               </p>
-              <p className="mt-2 text-xs text-slate-500">Saved to the run like a case result, so it counts in the run&apos;s progress, reports and this charter&apos;s history.</p>
+              <label htmlFor="session-summary" className="mt-4 block text-sm font-medium text-slate-700">
+                What did you cover?
+              </label>
+              <Textarea id="session-summary" rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="What you tried, what you found, and what you didn't get to" />
+              <label className="mt-3 flex items-start gap-2 text-sm text-slate-700">
+                <input type="checkbox" className="mt-1 accent-accent-600" checked={blocked} onChange={(e) => setOutcome(e.target.checked ? "BLOCKED" : null)} />
+                <span>
+                  Something stopped me
+                  <span className="block text-xs text-slate-500">Like a broken build or no test account. It&apos;s marked Blocked so someone can pick it up.</span>
+                </span>
+              </label>
+              <p className="mt-2 text-xs text-slate-500">Saved to the run and this charter&apos;s history. Exploring isn&apos;t a pass or a fail, so it never counts in pass rates.</p>
               <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
                 <SaveState state={saveState} />
-                <Button onClick={() => setEnding(false)}>Back to session</Button>
-                <Button disabled={pending || runClosed} onClick={() => save(false)}>
-                  Save
-                </Button>
+                <Button onClick={() => setEnding(false)}>Back to exploring</Button>
                 <Button variant="primary" disabled={pending || runClosed} onClick={() => save(true)}>
-                  {pending ? "Saving…" : nextEntryId ? "Save and next" : "Save result"}
+                  {pending ? "Saving…" : "Finish"}
                 </Button>
               </div>
             </section>
@@ -457,7 +439,7 @@ export function SessionRunner({
 
               {notes.length === 0 ? (
                 <p className="mt-4 rounded-md border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">
-                  {started ? "Nothing logged yet." : "Start the session, then log what you try and find as you go."}
+                  {started ? "Nothing logged yet." : "Press Start exploring, then log what you try and find as you go."}
                 </p>
               ) : (
                 <ol aria-label="Log" className="mt-3 divide-y divide-slate-100">
@@ -530,12 +512,12 @@ export function SessionRunner({
                   </Button>
                 ) : (
                   <Button size="sm" variant={started ? "secondary" : "primary"} disabled={runClosed} onClick={play}>
-                    {started ? "Resume" : "Start session"}
+                    {started ? "Keep exploring" : "Start exploring"}
                   </Button>
                 )}
                 {started && (
                   <Button size="sm" variant="primary" disabled={runClosed} onClick={end}>
-                    End session
+                    Finish exploring
                   </Button>
                 )}
               </div>
@@ -612,7 +594,7 @@ function PreviousSessionNote({ previous }: { previous: PreviousSession }) {
   const spelling = useSpelling();
   return (
     <div className="mb-4 rounded-md border border-slate-200 bg-surface px-3 py-2 text-sm text-slate-600">
-      Last session in this run: <StatusChip status={previous.status} /> by {previous.testerName}{" "}
+      Last explored in this run: <StatusChip status={previous.status} /> by {previous.testerName}{" "}
       <span suppressHydrationWarning>{dateTime(new Date(previous.createdAt), spelling)}</span>
       {previous.elapsedSec !== null && ` · ${clock(previous.elapsedSec)}`}
       <span className="block text-xs text-slate-500">
@@ -631,7 +613,7 @@ export function PromptsCard({ prompts, covered, disabled, onToggle }: { prompts:
     <section aria-label="Prompts" className="rounded-lg border border-slate-200 bg-surface p-4 shadow-sm">
       <h2 className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
         Prompts · {done} of {prompts.length}
-        <InfoTip text="Things worth trying, from the charter. Ticking one adds a Covered line to the log. They're optional: the session can end with some unticked." />
+        <InfoTip text="Things worth trying, from the charter. Ticking one adds a Covered line to the log. They're optional: you can finish with some unticked." />
       </h2>
       <ul className="mt-2 space-y-1">
         {prompts.map((p) => (

@@ -43,7 +43,7 @@ export const SHEET_LOOK = {
   wrapped: [1, 2, 3, 4, 6, 7, 11, 13],
 };
 /** The sheet's own words for each status ("In Progress", "Not Run"). */
-export const SHEET_STATUS: Record<ResultStatus, string> = { ...STATUS_LABEL, IN_PROGRESS: "In Progress", SKIPPED: "Not Run" };
+export const SHEET_STATUS: Record<ResultStatus, string> = { ...STATUS_LABEL, IN_PROGRESS: "In Progress", SKIPPED: "Not Run", EXPLORED: "Explored" };
 /** The case status dropdown, in the sheet's order. */
 export const SHEET_CASE_STATUSES = ["Untested", "In Progress", "Passed", "Failed", "Blocked", "Not Run"];
 // Statuses that count as run in the header's percentage, the same rule as the app (Skipped is "Not Run" here).
