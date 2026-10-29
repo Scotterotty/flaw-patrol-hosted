@@ -1,3 +1,5 @@
+import { AttachWrapUps, WrapUpsSection } from "@/components/wrap-ups";
+import { attachedWrapUps, releaseStart, reportsWrapKey, wrapPickOf } from "@/lib/wrap-ups";
 import { KindSelect } from "@/components/kind-select";
 import { parseRunKinds } from "@/lib/run-kinds";
 import { dateRange } from "@/lib/spelling";
@@ -72,6 +74,10 @@ export default async function UmbrellaReportsPage({ params, searchParams }: { pa
   const where = platform ? platforms.find((p) => p.toLowerCase() === platform) : "every platform";
   const when = f.release ? `Release ${f.release}` : f.allTime ? "All time" : dateRange(f.from, f.to, await mySpelling());
 
+  // Attach wrap-ups (ver_96): bug bashes and exploring carried on this report, outside its pass rates.
+  const wrapKey = reportsWrapKey(`/g/${u.group.id}/reports`);
+  const wrapPick = wrapPickOf(user.rcReport, wrapKey);
+  const wrapUps = await attachedWrapUps(all, wrapPick, wrapPick.auto ? (f.release ? await releaseStart(all, f.release) : f.from) : null);
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader
@@ -106,6 +112,9 @@ export default async function UmbrellaReportsPage({ params, searchParams }: { pa
         current={cleanReportQuery({ ...sp, view })}
         views={saved.map((v) => ({ id: v.id, name: v.name, query: v.query, shared: v.shared, createdByName: v.createdByName, canDelete: v.createdById === user.id || (v.shared && can(u.who, "run:manage")) }))}
       />
+      <div className="mb-3 flex justify-end">
+        <AttachWrapUps scope={{ groupId: u.group.id }} prefKey={wrapKey} pick={wrapPick} count={wrapUps.length} release={f.release ?? undefined} />
+      </div>
 
       <AutoFilterForm className="mb-4 flex flex-wrap items-end gap-2">
         <input type="hidden" name="view" value={view} />
@@ -194,6 +203,7 @@ export default async function UmbrellaReportsPage({ params, searchParams }: { pa
       ) : (
         <TestersView rows={await testerReport(scope, f)} />
       )}
+      <WrapUpsSection items={wrapUps} />
       </div>
     </div>
   );

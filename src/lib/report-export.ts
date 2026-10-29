@@ -1,3 +1,5 @@
+import type { WrapUp } from "./wrap-ups";
+import { WRAP_HEADING, WRAP_NOTE, wrapLine, wrapUpsRows } from "./wrap-up-text";
 import "server-only";
 import ExcelJS from "exceljs";
 import { readFile } from "node:fs/promises";
@@ -56,6 +58,8 @@ export type ExportCtx = {
   /** Session findings are a test cycle's own tab. */
   projectKey?: string;
   query: Record<string, string | undefined>;
+  /** Wrap-ups attached to the report (ver_96): their own sheet and section, outside pass rates. */
+  wrapUps?: WrapUp[];
 };
 
 const RUN_TYPE = { manual: "Manual", upload: "Automated (uploaded)", github: "Automated (GitHub)" } as const;
@@ -296,6 +300,14 @@ export async function reportWorkbook(ctx: ExportCtx, f: ReportFilters, tabs: Exp
       c.width = w;
     });
     ws.views = [{ state: "frozen", ySplit: t.note ? 2 : 1 }];
+  }
+  if (ctx.wrapUps?.length) {
+    const ws = wb.addWorksheet("Exploring and bug bashes");
+    wrapUpsRows(ctx.wrapUps).forEach((r, i) => {
+      const row = ws.addRow(r);
+      if (i === 0) row.font = { bold: true };
+    });
+    ws.columns.forEach((c) => (c.width = 18));
   }
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
@@ -558,6 +570,14 @@ export async function reportPdf(ctx: ExportCtx, f: ReportFilters, tabs: ExportTa
       }
     }
     pdf.table(table.rows, PDF_COLS[id]);
+  }
+  if (ctx.wrapUps?.length) {
+    pdf.heading(`${WRAP_HEADING} · ${WRAP_NOTE}`);
+    for (const w of ctx.wrapUps) {
+      pdf.text(safe(`${w.title} (${w.type === "bash" ? "Bug bash" : "Exploratory"})`), 10);
+      pdf.text(safe(wrapLine(w).replace(/[^\x20-\x7E·]/g, "").trim()), 9, { color: MUTED });
+      if (w.summary) pdf.text(safe(`"${w.summary}"`), 9, { color: MUTED });
+    }
   }
   return doc.save();
 }

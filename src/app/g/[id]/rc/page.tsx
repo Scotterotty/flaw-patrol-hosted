@@ -31,6 +31,7 @@ export default async function UmbrellaRcPage({ params, searchParams }: { params:
         scope={{ projectIds: [u.hub.id, ...u.projects.map((p) => p.id)], addAnywhere: false }}
         scopeNote={`${u.group.name}'s runs of this release.`}
         exportUrl={`/g/${u.group.id}/reports/export`}
+        wrapScope={{ groupId: u.group.id }}
       />
     </div>
   );

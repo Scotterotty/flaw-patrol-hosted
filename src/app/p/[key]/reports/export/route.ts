@@ -1,3 +1,5 @@
+import { attachedWrapUps, rcWrapKey, releaseStart, reportsWrapKey, wrapPickOf } from "@/lib/wrap-ups";
+import type { ReportFilters } from "@/lib/reports";
 import { NextResponse, type NextRequest } from "next/server";
 import { exportResponse } from "@/lib/report-export-route";
 import { parseFilters } from "@/lib/reports";
@@ -24,10 +26,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ key:
       coverage: { libraryIds: await libraryProjectIds(project), columns: [{ id: project.id, key: project.key, name: project.name }], rcNames: await newestRcNames([project]) },
       projectKey: project.key,
       query: sp,
+      // Attached wrap-ups (ver_96): Release status's for its release, else the Run reports'.
+      wrapUps: await exportWrapUps(user.rcReport, [project.id], sp.view === "rc" && f.release ? rcWrapKey(`/p/${project.key}/reports/rc`, f.release) : reportsWrapKey(`/p/${project.key}/reports`), f),
     },
     f,
     sp,
     { fileBase: project.key, preparedBy: user.name ?? user.email },
   );
   return res ?? NextResponse.json({ error: "Unknown export." }, { status: 400 });
+}
+
+async function exportWrapUps(prefs: unknown, projectIds: string[], key: string, f: ReportFilters) {
+  const pick = wrapPickOf(prefs, key);
+  return attachedWrapUps(projectIds, pick, pick.auto ? (f.release ? await releaseStart(projectIds, f.release) : f.from) : null);
 }

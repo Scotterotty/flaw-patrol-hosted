@@ -1,3 +1,5 @@
+import { AttachWrapUps, WrapUpsSection } from "@/components/wrap-ups";
+import { attachedWrapUps, releaseStart, reportsWrapKey, wrapPickOf } from "@/lib/wrap-ups";
 import { KindSelect } from "@/components/kind-select";
 import { parseRunKinds } from "@/lib/run-kinds";
 import { umbrellaOf } from "@/lib/umbrella";
@@ -67,6 +69,10 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
   const stepCounts = sum(runs.map((r) => r.steps));
   const scope = f.runNumber ? `Run R${f.runNumber}` : f.release ? `Release ${f.release}` : f.allTime ? "All time" : dateRange(f.from, f.to, await mySpelling());
 
+  // Attach wrap-ups (ver_96): bug bashes and exploring carried on this report, outside its pass rates.
+  const wrapKey = reportsWrapKey(`/p/${project.key}/reports`);
+  const wrapPick = wrapPickOf(user.rcReport, wrapKey);
+  const wrapUps = await attachedWrapUps([project.id], wrapPick, wrapPick.auto ? (f.release ? await releaseStart([project.id], f.release) : f.from) : null);
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader
@@ -108,6 +114,9 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
           canDelete: v.createdById === user.id || (v.shared && can(who, "run:manage")),
         }))}
       />
+      <div className="mb-3 flex justify-end">
+        <AttachWrapUps scope={{ projectKey: project.key }} prefKey={wrapKey} pick={wrapPick} count={wrapUps.length} release={f.release ?? undefined} />
+      </div>
 
       <AutoFilterForm className="mb-4 flex flex-wrap items-end gap-2">
         <input type="hidden" name="view" value={view} />
@@ -260,6 +269,7 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
       ) : (
         <TestersView rows={await testerReport(project.id, f)} />
       )}
+      <WrapUpsSection items={wrapUps} />
       </div>
     </div>
   );

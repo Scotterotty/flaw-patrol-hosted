@@ -1,5 +1,8 @@
 "use client";
 
+import type { WrapUp } from "@/lib/wrap-ups";
+import { wrapUpsHtml, wrapUpsRows, wrapUpsText } from "@/lib/wrap-up-text";
+import { WrapUpsSection } from "./wrap-ups";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
@@ -50,12 +53,15 @@ type Props = {
   scale?: SeverityScale;
   /** One Export menu, as on Run reports (ver_91). Without it, Share stays. */
   exportTo?: { url: string; cycle: boolean; preparedBy: string };
-  /** Bug bashes that ran during this release (ver_94), for the Include bug bashes switch. */
+  /** Bug bashes that ran during this release (ver_94). */
   bashCount?: number;
+  /** Attached wrap-ups (ver_96), shown as their own section and copied with the report. */
+  wrapUps?: WrapUp[];
+  attach?: React.ReactNode;
 };
 
 /** A quick view of how each platform's run of a release is going. Sharing it is under Share. */
-export function RcStatusView({ releases, release, pick, columns, bugs, choices, others, base = "/rc", scopeNote, scale = AE_SCALE, exportTo, bashCount = 0 }: Props) {
+export function RcStatusView({ releases, release, pick, columns, bugs, choices, others, base = "/rc", scopeNote, scale = AE_SCALE, exportTo, wrapUps = [], attach }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -93,8 +99,8 @@ export function RcStatusView({ releases, release, pick, columns, bugs, choices, 
 
   const copy = async () => {
     const at = new Date();
-    const html = confluenceHtml(release, columns, bugs, at, spelling, scale);
-    const text = plainText(release, columns, bugs, at, spelling, scale);
+    const html = confluenceHtml(release, columns, bugs, at, spelling, scale) + wrapUpsHtml(wrapUps, location.origin);
+    const text = [plainText(release, columns, bugs, at, spelling, scale), wrapUpsText(wrapUps)].filter(Boolean).join("\n\n");
     try {
       await navigator.clipboard.write([
         new ClipboardItem({ "text/html": new Blob([html], { type: "text/html" }), "text/plain": new Blob([text], { type: "text/plain" }) }),
@@ -182,12 +188,7 @@ export function RcStatusView({ releases, release, pick, columns, bugs, choices, 
             </div>
           )}
         </div>
-        {bashCount > 0 && (
-          <label className="flex items-center gap-1.5 text-sm text-slate-700" title="Off: bug bashes stay out of the columns and counts. Their serious bugs still show in the bug list, tagged from bug bash.">
-            <input type="checkbox" className="size-4 accent-accent-600" checked={!!pick.bashes} disabled={pending} onChange={(e) => save({ release, hide: pick.hide, add: pick.add, bashes: e.target.checked })} />
-            Include bug bashes
-          </label>
-        )}
+        {attach}
         <span className="flex-1" />
         {columns.length > 0 && exportTo && (
           <ExportMenu
@@ -208,6 +209,7 @@ export function RcStatusView({ releases, release, pick, columns, bugs, choices, 
                 [],
                 ["Critical and blocking bugs", "Title", "Severity", "Priority", "Jira status", "Platforms", "Cases"],
                 ...bugs.map((b) => [b.key, b.title, scale.labels[b.severity], b.priority, b.status, b.clients.join(", "), b.cases.length]),
+                ...(wrapUps.length ? [[], ...wrapUpsRows(wrapUps)] : []),
               ];
               const q = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
               const url = URL.createObjectURL(new Blob(["\ufeff" + rows.map((r) => r.map(q).join(",")).join("\n")], { type: "text/csv" }));
@@ -289,6 +291,7 @@ export function RcStatusView({ releases, release, pick, columns, bugs, choices, 
           )}
         </Card>
       )}
+      <WrapUpsSection items={wrapUps} />
     </div>
   );
 }

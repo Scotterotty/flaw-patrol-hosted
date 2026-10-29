@@ -28,6 +28,7 @@ export default async function ProjectRcPage({ params, searchParams }: { params: 
         scope={{ projectIds: [project.id], addAnywhere: true }}
         scopeNote={`${project.name}'s runs of this release, plus any you added.`}
         exportUrl={`/p/${project.key}/reports/export`}
+        wrapScope={{ projectKey: project.key }}
         cycle
       />
     </div>

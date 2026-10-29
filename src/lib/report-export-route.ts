@@ -1,6 +1,7 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { toCsv } from "./csv";
+import { wrapUpsRows } from "./wrap-up-text";
 import { EXPORT_TABS, reportPdf, reportTable, reportWorkbook, type ExportCtx, type ExportTab } from "./report-export";
 import type { ReportFilters } from "./reports";
 
@@ -16,8 +17,9 @@ export async function exportResponse(ctx: ExportCtx, f: ReportFilters, sp: Recor
     const t = await reportTable(ctx, view, f);
     if (!t) return null;
     // Copy for Confluence or email reads the same table as JSON.
-    if (format === "json") return NextResponse.json({ label: t.label, title: ctx.title, filters: ctx.filters, rows: t.rows });
-    return new NextResponse("﻿" + toCsv(t.rows), {
+    const rows = ctx.wrapUps?.length ? [...t.rows, [], ...wrapUpsRows(ctx.wrapUps)] : t.rows;
+    if (format === "json") return NextResponse.json({ label: t.label, title: ctx.title, filters: ctx.filters, rows });
+    return new NextResponse("﻿" + toCsv(rows), {
       headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${base}-${view}-report-${day}.csv"` },
     });
   }

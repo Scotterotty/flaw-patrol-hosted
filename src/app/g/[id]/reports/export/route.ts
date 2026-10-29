@@ -1,3 +1,5 @@
+import { attachedWrapUps, rcWrapKey, releaseStart, reportsWrapKey, wrapPickOf } from "@/lib/wrap-ups";
+import type { ReportFilters } from "@/lib/reports";
 import { NextResponse, type NextRequest } from "next/server";
 import { exportResponse } from "@/lib/report-export-route";
 import { parseFilters } from "@/lib/reports";
@@ -29,10 +31,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       viewer: { id: user.id, isAdmin: user.isAdmin },
       coverage: { libraryIds: [u.hub.id], columns: u.current.map((p) => ({ id: p.id, key: p.key, name: p.name })), rcNames: await newestRcNames(u.current) },
       query: sp,
+      // Attached wrap-ups (ver_96): Release status's for its release, else the Run reports'.
+      wrapUps: await exportWrapUps(user.rcReport, all, sp.view === "rc" && f.release ? rcWrapKey(`/g/${u.group.id}/rc`, f.release) : reportsWrapKey(`/g/${u.group.id}/reports`), f),
     },
     f,
     sp,
     { fileBase: u.hub.key, preparedBy: user.name ?? user.email },
   );
   return res ?? NextResponse.json({ error: "Unknown export." }, { status: 400 });
+}
+
+async function exportWrapUps(prefs: unknown, projectIds: string[], key: string, f: ReportFilters) {
+  const pick = wrapPickOf(prefs, key);
+  return attachedWrapUps(projectIds, pick, pick.auto ? (f.release ? await releaseStart(projectIds, f.release) : f.from) : null);
 }

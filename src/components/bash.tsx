@@ -747,7 +747,7 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 px-4 py-3">
           <p className="mr-auto flex items-center gap-1.5 text-xs text-slate-500">
             Everyone&apos;s notes, questions and ideas are saved as their session on the area&apos;s charter.
-            <InfoTip text="Under the hood the bash is a test run. It shows on Test runs and Reports, and stays out of release status unless someone turns on Include bug bashes there." />
+            <InfoTip text="Under the hood the bash is a test run. It shows on Test runs, stays out of every pass rate, and joins a report through + Attach wrap-ups." />
           </p>
           {failed.length > 0 ? (
             <Button variant="primary" disabled={pending} onClick={() => wrap(true)}>
