@@ -20,7 +20,7 @@ import { showQuestMoments } from "./quest-toast";
 import { BugDialog } from "./bug-dialog";
 import { CaseFlagButton } from "./case-flag";
 import { StepText } from "./step-text";
-import { StatusChip } from "./status";
+import { StatusChip, StatusIcon } from "./status";
 import { Button, buttonClass, cx, ErrorText, Textarea } from "./ui";
 import { RecordingBar, RecordingPreview, takeScreenshot, useCaptureSupport, useScreenRecorder, type Finished } from "./screen-capture";
 import { CloseRunButton } from "./run-actions";
@@ -779,10 +779,11 @@ export function Runner({
                             setStep(i, status);
                           }}
                           className={cx(
-                            "h-7 rounded px-2 text-xs font-medium ring-1 ring-inset transition",
+                            "inline-flex h-7 items-center gap-1 rounded px-2 text-xs font-medium ring-1 ring-inset transition",
                             s === status ? cx(STATUS_STYLE[status].solid, "ring-transparent") : "bg-surface text-slate-600 ring-slate-200 hover:bg-slate-50",
                           )}
                         >
+                          <StatusIcon status={status} />
                           {STATUS_LABEL[status]}
                         </button>
                       ))}
@@ -901,10 +902,11 @@ export function Runner({
               disabled={runClosed}
               onClick={() => setOverride(override === status ? null : status)}
               className={cx(
-                "h-8 rounded-md px-2.5 text-xs font-medium ring-1 ring-inset",
+                "inline-flex h-8 items-center gap-1 rounded-md px-2.5 text-xs font-medium ring-1 ring-inset",
                 caseStatus === status ? cx(STATUS_STYLE[status].solid, "ring-transparent") : "bg-surface text-slate-600 ring-slate-200 hover:bg-slate-50",
               )}
             >
+              <StatusIcon status={status} />
               {STATUS_LABEL[status]}
             </button>
           ))}

@@ -219,7 +219,7 @@ export function PawnMark({
   if (part === "tag")
     return (
       <g transform={`translate(${x.toFixed(1)} ${y.toFixed(1)})`} aria-hidden>
-        <rect x={-w / 2} y={tagY} width={w} height={17} rx={8.5} fill={mine ? "var(--color-accent-600)" : "var(--color-surface)"} stroke={hurt ? "var(--color-red-600)" : "var(--color-slate-200)"} />
+        <rect x={-w / 2} y={tagY} width={w} height={17} rx={8.5} fill={mine ? "var(--color-accent-600)" : "var(--color-surface)"} stroke={hurt ? "var(--st-failed)" : "var(--color-slate-200)"} />
         <text x={0} y={tagY + 12.5} textAnchor="middle" fontSize={11} fontWeight={600} fill={mine ? "#fff" : "var(--color-slate-900)"}>
           {label}
         </text>

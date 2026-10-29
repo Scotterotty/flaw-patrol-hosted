@@ -300,7 +300,7 @@ export function StepProgress({ steps, lastChange, compact = false }: { steps: Re
         {steps.length <= 24 && (
           <span className="flex shrink-0 gap-0.5">
             {steps.map((s, i) => (
-              <span key={i} title={`Step ${i + 1}: ${STATUS_LABEL[s]}`} className={cx("h-1.5 w-2.5 rounded-sm", STATUS_STYLE[s].bar)} />
+              <span key={i} title={`Step ${i + 1}: ${STATUS_LABEL[s]}`} className={cx("st-pip h-1.5 w-2.5 rounded-sm", STATUS_STYLE[s].bar)} />
             ))}
           </span>
         )}

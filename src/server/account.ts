@@ -1,5 +1,6 @@
 "use server";
 
+import { isVision } from "@/lib/vision";
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -61,13 +62,21 @@ export async function updateMySpelling(spelling: string) {
 }
 
 /** Text size and display aids. */
-export async function updateMyAccessibility(a: { textSize: string; reduceMotion: boolean; strongContrast: boolean; underlineLinks: boolean }) {
+export async function updateMyAccessibility(a: { textSize: string; reduceMotion: boolean; strongContrast: boolean; underlineLinks: boolean; colorVision?: string; visionShapes?: boolean }) {
   return attempt(async () => {
     const user = await requireUser();
     if (!isTextSize(a.textSize)) throw new UserError("Unknown text size.");
+    if (a.colorVision !== undefined && !isVision(a.colorVision)) throw new UserError("Unknown color vision choice.");
     await db.user.update({
       where: { id: user.id },
-      data: { textSize: a.textSize, reduceMotion: !!a.reduceMotion, strongContrast: !!a.strongContrast, underlineLinks: !!a.underlineLinks },
+      data: {
+        textSize: a.textSize,
+        reduceMotion: !!a.reduceMotion,
+        strongContrast: !!a.strongContrast,
+        underlineLinks: !!a.underlineLinks,
+        ...(a.colorVision !== undefined ? { colorVision: a.colorVision } : {}),
+        ...(a.visionShapes !== undefined ? { visionShapes: !!a.visionShapes } : {}),
+      },
     });
     return {};
   });

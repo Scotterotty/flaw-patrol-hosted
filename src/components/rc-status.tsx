@@ -25,7 +25,7 @@ import {
 } from "@/lib/rc-status";
 import { AE_SCALE, type SeverityScale } from "@/lib/severity";
 import type { Spelling } from "@/lib/spelling";
-import { STATUS_LABEL } from "@/lib/status";
+import { STATUS_LABEL, STATUS_STYLE } from "@/lib/status";
 import { saveRcReport } from "@/server/rc-report";
 import { useMenuPlace } from "./menu-place";
 import { MoreMenu } from "./more-menu";
@@ -330,7 +330,7 @@ function Column({ c, now, auto, scale }: { c: RcColumn; now: Date | null; auto: 
       )}
       <div className="my-2 flex h-2 gap-0.5 overflow-hidden rounded bg-slate-200" role="img" aria-label={resultLine(c)}>
         {BAR.map((s) =>
-          c.counts[s] ? <div key={s} title={`${STATUS_LABEL[s]}: ${c.counts[s]}`} style={{ width: `${(c.counts[s]! / Math.max(1, c.total)) * 100}%`, background: barColor(s) }} /> : null,
+          c.counts[s] ? <div key={s} title={`${STATUS_LABEL[s]}: ${c.counts[s]}`} style={{ width: `${(c.counts[s]! / Math.max(1, c.total)) * 100}%`, background: STATUS_STYLE[s].fill }} /> : null,
         )}
       </div>
       <div className="text-xs text-slate-700">{resultLine(c)}</div>

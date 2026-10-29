@@ -33,18 +33,23 @@ export const STATUS_HELP: Record<ResultStatus, string> = {
   IN_PROGRESS: "Some steps have results, but the case isn't finished",
 };
 
-/** Tailwind classes per status: solid chip, soft chip, and bar segment color. */
-export const STATUS_STYLE: Record<ResultStatus, { solid: string; soft: string; bar: string; hex: string }> = {
-  // Bar colors are checked for color-blind separation between neighbors. Statuses
-  // use fixed hues, not slate (which leans toward each person's accent color), and
-  // every use also carries the status name (chip text, legend or tooltip).
-  PASSED: { solid: "bg-emerald-600 text-white", soft: "bg-emerald-50 text-emerald-700 ring-emerald-200", bar: "bg-emerald-600", hex: "#059669" },
-  FAILED: { solid: "bg-red-600 text-white", soft: "bg-red-50 text-red-700 ring-red-200", bar: "bg-red-600", hex: "#dc2626" },
-  BLOCKED: { solid: "bg-status-blocked text-white", soft: "bg-zinc-100 text-zinc-700 ring-zinc-300", bar: "bg-status-blocked", hex: "#334155" },
-  RETEST: { solid: "bg-sky-700 text-white", soft: "bg-sky-50 text-sky-700 ring-sky-200", bar: "bg-sky-700", hex: "#0369a1" },
-  SKIPPED: { solid: "bg-violet-400 text-white", soft: "bg-violet-50 text-violet-700 ring-violet-200", bar: "bg-violet-400", hex: "#a78bfa" },
-  IN_PROGRESS: { solid: "bg-zinc-400 text-zinc-950", soft: "bg-zinc-50 text-zinc-700 ring-zinc-300", bar: "bg-zinc-400", hex: "#a1a1aa" },
-  UNTESTED: { solid: "bg-slate-200 text-slate-800", soft: "bg-surface text-slate-500 ring-slate-200", bar: "bg-slate-200", hex: "#e2e8f0" },
+/**
+ * Classes per status: solid chip, soft chip, and bar segment. They read the --st-* CSS
+ * variables (ver_96), so Account → Color vision can swap them for one person; bar
+ * segments also carry st-bar-<STATUS> for the stripes and dots of Shapes and patterns.
+ * `hex` is the standard color, for shared files (exports, Download image, Confluence)
+ * that everyone sees the same; `fill` is the on-screen color for SVG and inline styles.
+ */
+export const STATUS_STYLE: Record<ResultStatus, { solid: string; soft: string; bar: string; ink: string; hex: string; fill: string }> = {
+  // Statuses use fixed hues, not slate (which leans toward each person's accent color),
+  // and every use also carries the status name (chip text, legend or tooltip).
+  PASSED: { solid: "bg-st-passed text-st-passed-on", soft: "bg-st-passed-soft text-st-passed-ink ring-st-passed-ring", bar: "bg-st-passed st-bar-PASSED", ink: "text-st-passed-ink", hex: "#059669", fill: "var(--st-passed)" },
+  FAILED: { solid: "bg-st-failed text-st-failed-on", soft: "bg-st-failed-soft text-st-failed-ink ring-st-failed-ring", bar: "bg-st-failed st-bar-FAILED", ink: "text-st-failed-ink", hex: "#dc2626", fill: "var(--st-failed)" },
+  BLOCKED: { solid: "bg-st-blocked text-st-blocked-on", soft: "bg-st-blocked-soft text-st-blocked-ink ring-st-blocked-ring", bar: "bg-st-blocked st-bar-BLOCKED", ink: "text-st-blocked-ink", hex: "#334155", fill: "var(--st-blocked)" },
+  RETEST: { solid: "bg-st-retest text-st-retest-on", soft: "bg-st-retest-soft text-st-retest-ink ring-st-retest-ring", bar: "bg-st-retest st-bar-RETEST", ink: "text-st-retest-ink", hex: "#0369a1", fill: "var(--st-retest)" },
+  SKIPPED: { solid: "bg-st-skipped text-st-skipped-on", soft: "bg-st-skipped-soft text-st-skipped-ink ring-st-skipped-ring", bar: "bg-st-skipped st-bar-SKIPPED", ink: "text-st-skipped-ink", hex: "#a78bfa", fill: "var(--st-skipped)" },
+  IN_PROGRESS: { solid: "bg-st-progress text-st-progress-on", soft: "bg-st-progress-soft text-st-progress-ink ring-st-progress-ring", bar: "bg-st-progress st-bar-IN_PROGRESS", ink: "text-st-progress-ink", hex: "#a1a1aa", fill: "var(--st-progress)" },
+  UNTESTED: { solid: "bg-st-untested text-st-untested-on", soft: "bg-st-untested-soft text-st-untested-ink ring-st-untested-ring", bar: "bg-st-untested st-bar-UNTESTED", ink: "text-st-untested-ink", hex: "#e2e8f0", fill: "var(--st-untested)" },
 };
 
 // Worst first: the case result is the most serious step outcome.

@@ -999,3 +999,262 @@ main:focus {
     display: none;
   }
 }
+
+/*
+ * Status colors (ver_96). Every Passed/Failed/... chip, button, dot and bar reads these,
+ * so Account → Appearance → Color vision (data-vision on <html>) can swap them for one
+ * person. Standard is the colors from before. Shared files (exports, Confluence, Jira,
+ * Download image) keep the standard hexes in src/lib/status.ts.
+ */
+:root {
+  --st-passed: #059669;
+  --st-failed: #dc2626;
+  --st-blocked: var(--color-status-blocked);
+  --st-retest: #0369a1;
+  --st-skipped: #a78bfa;
+  --st-progress: #a1a1aa;
+  --st-untested: var(--color-slate-200);
+  --st-passed-on: #fff;
+  --st-failed-on: #fff;
+  --st-blocked-on: #fff;
+  --st-retest-on: #fff;
+  --st-skipped-on: #fff;
+  --st-progress-on: #09090b;
+  --st-untested-on: var(--color-slate-800);
+  /* Soft chips: the light tint, the text and the ring. Standard keeps the Tailwind shades used before. */
+  --st-passed-soft: var(--color-emerald-50);
+  --st-passed-ink: var(--color-emerald-700);
+  --st-passed-ring: var(--color-emerald-200);
+  --st-failed-soft: var(--color-red-50);
+  --st-failed-ink: var(--color-red-700);
+  --st-failed-ring: var(--color-red-200);
+  --st-blocked-soft: var(--color-zinc-100);
+  --st-blocked-ink: var(--color-zinc-700);
+  --st-blocked-ring: var(--color-zinc-300);
+  --st-retest-soft: var(--color-sky-50);
+  --st-retest-ink: var(--color-sky-700);
+  --st-retest-ring: var(--color-sky-200);
+  --st-skipped-soft: var(--color-violet-50);
+  --st-skipped-ink: var(--color-violet-700);
+  --st-skipped-ring: var(--color-violet-200);
+  --st-progress-soft: var(--color-zinc-50);
+  --st-progress-ink: var(--color-zinc-700);
+  --st-progress-ring: var(--color-zinc-300);
+  --st-untested-soft: var(--color-surface);
+  --st-untested-ink: var(--color-slate-500);
+  --st-untested-ring: var(--color-slate-200);
+  /* Stripes and dots drawn over bars when shapes are on. */
+  --st-ov-light: rgb(255 255 255 / 0.45);
+  --st-ov-dark: rgb(0 0 0 / 0.3);
+}
+
+/* The other palettes: soft chips are mixed from the solid color, so they follow it. */
+:root[data-vision="redgreen"],
+:root[data-vision="blueyellow"],
+:root[data-vision="none"] {
+  --st-mix-base: #000;
+  --st-mix-ink: 72%;
+  --st-passed-soft: color-mix(in oklab, var(--st-passed) 15%, var(--color-surface));
+  --st-passed-ink: color-mix(in oklab, var(--st-passed) var(--st-mix-ink), var(--st-mix-base));
+  --st-passed-ring: color-mix(in oklab, var(--st-passed) 45%, var(--color-surface));
+  --st-failed-soft: color-mix(in oklab, var(--st-failed) 15%, var(--color-surface));
+  --st-failed-ink: color-mix(in oklab, var(--st-failed) var(--st-mix-ink), var(--st-mix-base));
+  --st-failed-ring: color-mix(in oklab, var(--st-failed) 45%, var(--color-surface));
+  --st-blocked-soft: color-mix(in oklab, var(--st-blocked) 15%, var(--color-surface));
+  --st-blocked-ink: color-mix(in oklab, var(--st-blocked) var(--st-mix-ink), var(--st-mix-base));
+  --st-blocked-ring: color-mix(in oklab, var(--st-blocked) 45%, var(--color-surface));
+  --st-retest-soft: color-mix(in oklab, var(--st-retest) 15%, var(--color-surface));
+  --st-retest-ink: color-mix(in oklab, var(--st-retest) var(--st-mix-ink), var(--st-mix-base));
+  --st-retest-ring: color-mix(in oklab, var(--st-retest) 45%, var(--color-surface));
+  --st-skipped-soft: color-mix(in oklab, var(--st-skipped) 15%, var(--color-surface));
+  --st-skipped-ink: color-mix(in oklab, var(--st-skipped) var(--st-mix-ink), var(--st-mix-base));
+  --st-skipped-ring: color-mix(in oklab, var(--st-skipped) 45%, var(--color-surface));
+  --st-progress-soft: color-mix(in oklab, var(--st-progress) 15%, var(--color-surface));
+  --st-progress-ink: color-mix(in oklab, var(--st-progress) var(--st-mix-ink), var(--st-mix-base));
+  --st-progress-ring: color-mix(in oklab, var(--st-progress) 45%, var(--color-surface));
+}
+:root[data-vision="redgreen"] {
+  --st-passed: #1f6fd1;
+  --st-failed: #c94a00;
+  --st-blocked: #2e2e38;
+  --st-retest: #f2c94c;
+  --st-skipped: #9fb4c7;
+  --st-retest-on: #141414;
+  --st-skipped-on: #141414;
+}
+:root[data-vision="blueyellow"] {
+  --st-passed: #0f8f8a;
+  --st-failed: #d7263d;
+  --st-blocked: #2e2e38;
+  --st-retest: #8a5cf5;
+  --st-skipped: #b8b8b8;
+  --st-progress: #d9d2c3;
+  --st-skipped-on: #141414;
+}
+:root[data-vision="none"] {
+  --st-passed: #3f3f3f;
+  --st-failed: #0d0d0d;
+  --st-blocked: #6e6e6e;
+  --st-retest: #9c9c9c;
+  --st-skipped: #cfcfcf;
+  --st-progress: #bdbdbd;
+  --st-retest-on: #141414;
+  --st-skipped-on: #141414;
+}
+/* Dark mode lightens the colors that would vanish on a dark panel. */
+:root[data-theme="dark"][data-vision] {
+  --st-mix-base: #fff;
+  --st-mix-ink: 62%;
+}
+:root[data-theme="dark"][data-vision="redgreen"] {
+  --st-passed: #3b82e0;
+  --st-failed: #d65a10;
+  --st-blocked: #6b6b7a;
+}
+:root[data-theme="dark"][data-vision="blueyellow"] {
+  --st-passed: #14a39d;
+  --st-failed: #e0384e;
+  --st-blocked: #6b6b7a;
+  --st-retest: #9b74f7;
+}
+:root[data-theme="dark"][data-vision="none"] {
+  --st-passed: #a0a0a0;
+  --st-failed: #f5f5f5;
+  --st-blocked: #787878;
+  --st-retest: #c8c8c8;
+  --st-skipped: #555555;
+  --st-progress: #8a8a8a;
+  --st-passed-on: #141414;
+  --st-failed-on: #141414;
+  --st-skipped-on: #fff;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"][data-vision] {
+    --st-mix-base: #fff;
+    --st-mix-ink: 62%;
+  }
+  :root[data-theme="system"][data-vision="redgreen"] {
+    --st-passed: #3b82e0;
+    --st-failed: #d65a10;
+    --st-blocked: #6b6b7a;
+  }
+  :root[data-theme="system"][data-vision="blueyellow"] {
+    --st-passed: #14a39d;
+    --st-failed: #e0384e;
+    --st-blocked: #6b6b7a;
+    --st-retest: #9b74f7;
+  }
+  :root[data-theme="system"][data-vision="none"] {
+    --st-passed: #a0a0a0;
+    --st-failed: #f5f5f5;
+    --st-blocked: #787878;
+    --st-retest: #c8c8c8;
+    --st-skipped: #555555;
+    --st-progress: #8a8a8a;
+    --st-passed-on: #141414;
+    --st-failed-on: #141414;
+    --st-skipped-on: #fff;
+  }
+}
+
+@theme inline {
+  --color-st-passed: var(--st-passed);
+  --color-st-failed: var(--st-failed);
+  --color-st-blocked: var(--st-blocked);
+  --color-st-retest: var(--st-retest);
+  --color-st-skipped: var(--st-skipped);
+  --color-st-progress: var(--st-progress);
+  --color-st-untested: var(--st-untested);
+  --color-st-passed-on: var(--st-passed-on);
+  --color-st-failed-on: var(--st-failed-on);
+  --color-st-blocked-on: var(--st-blocked-on);
+  --color-st-retest-on: var(--st-retest-on);
+  --color-st-skipped-on: var(--st-skipped-on);
+  --color-st-progress-on: var(--st-progress-on);
+  --color-st-untested-on: var(--st-untested-on);
+  --color-st-passed-soft: var(--st-passed-soft);
+  --color-st-failed-soft: var(--st-failed-soft);
+  --color-st-blocked-soft: var(--st-blocked-soft);
+  --color-st-retest-soft: var(--st-retest-soft);
+  --color-st-skipped-soft: var(--st-skipped-soft);
+  --color-st-progress-soft: var(--st-progress-soft);
+  --color-st-untested-soft: var(--st-untested-soft);
+  --color-st-passed-ink: var(--st-passed-ink);
+  --color-st-failed-ink: var(--st-failed-ink);
+  --color-st-blocked-ink: var(--st-blocked-ink);
+  --color-st-retest-ink: var(--st-retest-ink);
+  --color-st-skipped-ink: var(--st-skipped-ink);
+  --color-st-progress-ink: var(--st-progress-ink);
+  --color-st-untested-ink: var(--st-untested-ink);
+  --color-st-passed-ring: var(--st-passed-ring);
+  --color-st-failed-ring: var(--st-failed-ring);
+  --color-st-blocked-ring: var(--st-blocked-ring);
+  --color-st-retest-ring: var(--st-retest-ring);
+  --color-st-skipped-ring: var(--st-skipped-ring);
+  --color-st-progress-ring: var(--st-progress-ring);
+  --color-st-untested-ring: var(--st-untested-ring);
+}
+
+/*
+ * Shapes and patterns (ver_96, data-shapes on <html>): status icons show (.st-shape),
+ * bars get stripes or dots, and step dots (.st-pip) take a shape per status.
+ */
+.st-shape {
+  display: none;
+}
+:root[data-shapes] .st-shape {
+  display: inline-block;
+}
+:root[data-shapes] .st-bar-FAILED {
+  background-image: repeating-linear-gradient(45deg, var(--st-ov-light) 0 2px, transparent 2px 6px);
+}
+:root[data-shapes] .st-bar-BLOCKED {
+  background-image:
+    repeating-linear-gradient(45deg, var(--st-ov-light) 0 1.5px, transparent 1.5px 6px),
+    repeating-linear-gradient(-45deg, var(--st-ov-light) 0 1.5px, transparent 1.5px 6px);
+}
+:root[data-shapes] .st-bar-RETEST {
+  background-image: radial-gradient(var(--st-ov-dark) 1.3px, transparent 1.7px);
+  background-size: 5px 5px;
+}
+:root[data-shapes] .st-bar-SKIPPED {
+  background-image: repeating-linear-gradient(0deg, var(--st-ov-dark) 0 1.5px, transparent 1.5px 5px);
+}
+:root[data-shapes] .st-bar-IN_PROGRESS {
+  background-image: repeating-linear-gradient(90deg, var(--st-ov-dark) 0 1.5px, transparent 1.5px 5px);
+}
+:root[data-shapes] .st-pip {
+  width: 9px !important;
+  height: 9px !important;
+  border-radius: 0 !important;
+}
+:root[data-shapes] .st-pip.st-bar-PASSED {
+  border-radius: 999px !important;
+}
+:root[data-shapes] .st-pip.st-bar-FAILED {
+  background-image: none;
+  clip-path: polygon(20% 0, 50% 30%, 80% 0, 100% 20%, 70% 50%, 100% 80%, 80% 100%, 50% 70%, 20% 100%, 0 80%, 30% 50%, 0 20%);
+}
+:root[data-shapes] .st-pip.st-bar-BLOCKED {
+  background-image: none;
+  border-radius: 1px !important;
+}
+:root[data-shapes] .st-pip.st-bar-RETEST {
+  background-image: none;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+:root[data-shapes] .st-pip.st-bar-SKIPPED {
+  background-image: none;
+  clip-path: inset(32% 0 32% 0 round 1px);
+}
+:root[data-shapes] .st-pip.st-bar-IN_PROGRESS {
+  background-image: none;
+  border-radius: 999px !important;
+  background: linear-gradient(90deg, transparent 50%, var(--st-progress) 50%) !important;
+  box-shadow: inset 0 0 0 1.4px var(--st-progress);
+}
+:root[data-shapes] .st-pip.st-bar-UNTESTED {
+  border-radius: 999px !important;
+  background: transparent !important;
+  box-shadow: inset 0 0 0 1.4px var(--color-slate-400);
+}

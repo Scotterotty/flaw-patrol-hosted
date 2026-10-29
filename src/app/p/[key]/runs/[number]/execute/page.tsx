@@ -234,7 +234,7 @@ export default async function ExecutePage({
                     )}
                     title={`${e.title} · ${STATUS_LABEL[e.status as ResultStatus]}`}
                   >
-                    <span className={cx("mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full", STATUS_STYLE[e.status as ResultStatus].bar)} />
+                    <span className={cx("st-pip mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full", STATUS_STYLE[e.status as ResultStatus].bar)} />
                     <span className="min-w-0 flex-1">
                       <span className="line-clamp-2 leading-snug font-medium">{e.title}</span>
                       <span className="mt-1 flex items-center gap-2">

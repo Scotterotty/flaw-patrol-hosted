@@ -102,7 +102,7 @@ export function RunnerHistory({
                     setSelectedId(r.id === selectedId && open ? null : r.id);
                   }}
                   className={cx(
-                    "h-4 w-2.5 rounded-[3px] transition hover:scale-y-125",
+                    "st-pip h-4 w-2.5 rounded-[3px] transition hover:scale-y-125",
                     STATUS_STYLE[r.status].bar,
                     open && r.id === selectedId && "ring-2 ring-accent-500 ring-offset-1 ring-offset-surface",
                   )}

@@ -287,7 +287,7 @@ function Media({ row, projectKey, runNumber, picked, onPick }: { row: AutoRow; p
             <ol className="space-y-0.5 text-xs" aria-label="What the test did">
               {row.steps.map((s, i) => (
                 <li key={i} className="flex items-center gap-2">
-                  <span aria-label={s.ok ? "passed" : "failed"} className={s.ok ? "text-emerald-600" : "font-bold text-red-600"}>
+                  <span aria-label={s.ok ? "passed" : "failed"} className={s.ok ? "text-st-passed-ink" : "font-bold text-st-failed-ink"}>
                     {s.ok ? "✓" : "✕"}
                   </span>
                   <span className={s.ok ? "text-slate-700" : "font-medium text-red-800"}>{s.title}</span>

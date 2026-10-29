@@ -1,12 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import type { ResultStatus } from "@prisma/client";
+import { STATUS_LABEL } from "@/lib/status";
 import { TEXT_SIZES, type TextSize } from "@/lib/theme";
+import { shapesOn, VISIONS, type Vision } from "@/lib/vision";
+import { StatusChip, StatusIcon } from "./status";
 import { updateMyAccessibility } from "@/server/account";
 import { Sp } from "./spelling";
 import { cx, ErrorText } from "./ui";
 
-type Settings = { textSize: TextSize; reduceMotion: boolean; strongContrast: boolean; underlineLinks: boolean };
+type Settings = { textSize: TextSize; reduceMotion: boolean; strongContrast: boolean; underlineLinks: boolean; colorVision: Vision; visionShapes: boolean };
+
+const SWATCH_STATUS: ResultStatus[] = ["PASSED", "FAILED", "BLOCKED", "RETEST", "SKIPPED"];
 
 const AIDS = [
   { key: "strongContrast", label: "Stronger contrast", help: "Darker secondary text and clearer borders." },
@@ -17,6 +23,7 @@ const AIDS = [
 /** Text size and display aids. Applies instantly and saves to your account. */
 export function AccessibilitySettings({ initial }: { initial: Settings }) {
   const [a, setA] = useState(initial);
+  const [shapesTouched, setShapesTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [, start] = useTransition();
 
@@ -31,6 +38,10 @@ export function AccessibilitySettings({ initial }: { initial: Settings }) {
     else delete root.contrast;
     if (next.underlineLinks) root.links = "underline";
     else delete root.links;
+    if (next.colorVision !== "standard") root.vision = next.colorVision;
+    else delete root.vision;
+    if (shapesOn(next.colorVision, next.visionShapes)) root.shapes = "on";
+    else delete root.shapes;
     start(async () => {
       const res = await updateMyAccessibility(next);
       setError(res.ok ? null : res.error);
@@ -60,6 +71,69 @@ export function AccessibilitySettings({ initial }: { initial: Settings }) {
           ))}
         </div>
         <p className="mt-1.5 text-xs text-slate-500">Makes all text and controls bigger or smaller, like zooming the page.</p>
+      </fieldset>
+      <fieldset data-testid="color-vision">
+        <legend className="mb-0.5 text-sm font-semibold text-slate-900">
+          <Sp>Color vision</Sp>
+        </legend>
+        <p className="mb-2 text-xs text-slate-500">
+          <Sp>Changes the colors for Passed, Failed and the other statuses, only for you. Your theme stays the same.</Sp>
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {VISIONS.map((v) => (
+            <label
+              key={v.id}
+              className={cx("flex cursor-pointer gap-2.5 rounded-lg border p-2.5", a.colorVision === v.id ? "border-accent-600 ring-2 ring-accent-500/30" : "border-slate-200 hover:border-slate-300")}
+            >
+              <input
+                type="radio"
+                name="color-vision"
+                value={v.id}
+                checked={a.colorVision === v.id}
+                // Any choice but Standard turns shapes on, unless the person set the box themselves.
+                onChange={() => save({ colorVision: v.id, visionShapes: v.id !== "standard" ? true : shapesTouched ? a.visionShapes : false })}
+                className="mt-0.5 accent-accent-600"
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-slate-900">
+                  <Sp>{v.label}</Sp>
+                </span>
+                <span className="block text-xs text-slate-500">
+                  <Sp>{v.help}</Sp>
+                </span>
+                <span className="mt-1.5 flex gap-1" aria-hidden>
+                  {v.swatch.map((c, i) => (
+                    <span key={i} className="grid size-5 place-items-center rounded" style={{ background: c, color: i >= 3 && v.id !== "standard" && v.id !== "blueyellow" ? "#141414" : "#fff" }} title={STATUS_LABEL[SWATCH_STATUS[i]]}>
+                      {(a.visionShapes || v.id !== "standard") && <StatusIcon status={SWATCH_STATUS[i]} always className="size-3" />}
+                    </span>
+                  ))}
+                </span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <label className="mt-3 flex items-center gap-2 text-sm text-slate-800">
+          <input
+            type="checkbox"
+            checked={shapesOn(a.colorVision, a.visionShapes)}
+            disabled={a.colorVision === "none"}
+            onChange={(e) => {
+              setShapesTouched(true);
+              save({ visionShapes: e.target.checked });
+            }}
+            aria-describedby="a11y-shapes"
+            className="size-4 accent-accent-600"
+          />
+          Shapes and patterns
+        </label>
+        <p id="a11y-shapes" className="mt-0.5 ml-6 text-xs text-slate-500">
+          <Sp>{a.colorVision === "none" ? "Always on with No color, since shapes and patterns are how statuses differ." : "Adds a shape to every status and stripes or dots to bars, so color is never the only clue."}</Sp>
+        </p>
+        <div className="mt-2 ml-6 flex flex-wrap gap-1.5" aria-label="How statuses look now">
+          {(["PASSED", "FAILED", "BLOCKED", "RETEST", "SKIPPED", "IN_PROGRESS", "UNTESTED"] as ResultStatus[]).map((st) => (
+            <StatusChip key={st} status={st} />
+          ))}
+        </div>
       </fieldset>
       <div className="grid gap-3 sm:grid-cols-3">
         {AIDS.map((o) => (

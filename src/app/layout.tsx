@@ -1,3 +1,4 @@
+import { shapesOn } from "@/lib/vision";
 import type { Metadata } from "next";
 import { RadioProvider } from "@/components/radio-player";
 import { SpellingProvider } from "@/components/spelling";
@@ -118,6 +119,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       data-motion={user?.reduceMotion ? "reduce" : undefined}
       data-contrast={user?.strongContrast ? "more" : undefined}
       data-links={user?.underlineLinks ? "underline" : undefined}
+      // Color vision (ver_96): another status palette, and shapes and patterns on statuses.
+      data-vision={user && user.colorVision !== "standard" ? user.colorVision : undefined}
+      data-shapes={user && shapesOn(user.colorVision, user.visionShapes) ? "on" : undefined}
       style={fontVars(user?.fontBody ?? "poppins", user?.fontHeading ?? "bungee")}
     >
       <body className="min-h-screen font-sans antialiased">

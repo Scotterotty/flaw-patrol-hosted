@@ -2,6 +2,7 @@ import { parseSpotifyLinks, validStation } from "@/lib/spotify";
 import { isSpelling } from "@/lib/spelling";
 import { isAccent, isBodyFont, isHeadingFont, isTextSize, isThemeMode } from "@/lib/theme";
 import { AccessibilitySettings } from "./accessibility";
+import { isVision } from "@/lib/vision";
 import { AccountForm } from "./account-form";
 import { AppearancePicker } from "./appearance";
 import { AvatarUpload } from "./avatar-upload";
@@ -24,6 +25,8 @@ type Me = {
   accent: string;
   fontBody: string;
   fontHeading: string;
+  colorVision: string;
+  visionShapes: boolean;
   radioEnabled: boolean;
   radioStation: string;
   spotifyLinks: unknown;
@@ -81,6 +84,8 @@ export function ProfileSettings({ user }: { user: Me }) {
             reduceMotion: user.reduceMotion,
             strongContrast: user.strongContrast,
             underlineLinks: user.underlineLinks,
+            colorVision: isVision(user.colorVision) ? user.colorVision : "standard",
+            visionShapes: user.visionShapes,
           }}
         />
       </Card>

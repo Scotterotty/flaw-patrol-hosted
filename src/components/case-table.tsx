@@ -292,7 +292,7 @@ export function CaseTable({
                     <span className="flex flex-wrap gap-x-2.5 gap-y-1 text-xs whitespace-nowrap text-slate-600">
                       {r.platforms?.map((p) => (
                         <span key={p.name} className="inline-flex items-center gap-1" title={`${p.name}: ${p.status ? STATUS_LABEL[p.status] : "not run yet"}`}>
-                          <span aria-hidden className="size-2 rounded-sm" style={{ background: p.status ? STATUS_STYLE[p.status].hex : "#e2e8f0" }} />
+                          <span aria-hidden className="size-2 rounded-sm" style={{ background: p.status ? STATUS_STYLE[p.status].fill : "var(--st-untested)" }} />
                           {p.name}
                         </span>
                       ))}
