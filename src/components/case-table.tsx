@@ -5,7 +5,8 @@ import type { CaseFlagInfo } from "@/lib/case-flag";
 import type { CaseType, Priority, ResultStatus } from "@prisma/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
+import { CloseMatchesLabel } from "./close-matches";
 import { CASES_MIME, dragChip, type DraggedCases } from "@/lib/case-drag";
 import { caseKey, relativeTime } from "@/lib/format";
 import { STATUS_LABEL, STATUS_STYLE } from "@/lib/status";
@@ -61,6 +62,7 @@ export function CaseTable({
   storyLinks = false,
   tagColors,
   tagHits,
+  closeStart,
 }: {
   projectId: string;
   projectKey: string;
@@ -80,6 +82,8 @@ export function CaseTable({
   /** Tag pill colors (ver_96); tags a search matched get an outline. */
   tagColors?: TagColors;
   tagHits?: string[];
+  /** Rows from here on are close matches for the search (ver_96), under their own label. */
+  closeStart?: number;
 }) {
   const spelling = useSpelling();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -238,7 +242,16 @@ export function CaseTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {rows.map((r) => (
+            {rows.map((r, rowIndex) => (
+              <Fragment key={r.id}>
+              {rowIndex === closeStart && (
+                <tr>
+                  <td colSpan={20} className="bg-amber-50/40 px-0 py-1">
+                    {closeStart === 0 && <p className="px-3 pb-1 text-xs text-slate-500">No exact matches.</p>}
+                    <CloseMatchesLabel />
+                  </td>
+                </tr>
+              )}
               <tr
                 key={r.id}
                 className={cx("hover:bg-slate-50", canDrag && "cursor-grab active:cursor-grabbing")}
@@ -325,6 +338,7 @@ export function CaseTable({
                   {relativeTime(new Date(r.updatedAt), spelling)} · v{r.version}
                 </td>
               </tr>
+              </Fragment>
             ))}
           </tbody>
         </table>

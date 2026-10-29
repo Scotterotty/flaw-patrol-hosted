@@ -10,6 +10,7 @@ import { TagsRow } from "@/components/tag-pill";
 import { BracketBanner } from "@/components/bracket-convert";
 import { hasBracketTitle, tagQuery } from "@/lib/tags";
 import { tagColorsFor } from "@/lib/tag-data";
+import { cleanQuery, ENOUGH_EXACT, matchCount, matchKind, tagHits as tagHitsOf } from "@/lib/fuzzy";
 import { EmptyState, InfoTip, Input, LinkButton, PageHeader, Select } from "@/components/ui";
 import { db } from "@/lib/db";
 import { charterOnlyFolderIds } from "@/lib/case-data";
@@ -112,38 +113,53 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
   ]);
 
   const page = Math.max(1, Number(sp.page) || 1);
+  const caseSelect = {
+      id: true,
+      number: true,
+      title: true,
+      priority: true,
+      type: true,
+      tags: true,
+      jiraStories: true,
+      folderId: true,
+      currentVersion: true,
+      automationId: true,
+      updatedAt: true,
+      flag: true,
+      flagNote: true,
+      flaggedBy: true,
+      flaggedAt: true,
+      flagRunNumber: true,
+      personaId: true,
+      _count: { select: { sharedUsages: true } },
+    } satisfies Prisma.TestCaseSelect;
   const [cases, total, tagRows, activeCount, archivedCount] = await Promise.all([
     db.testCase.findMany({
       where,
       orderBy: { number: "asc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
-      select: {
-        id: true,
-        number: true,
-        title: true,
-        priority: true,
-        type: true,
-        tags: true,
-        jiraStories: true,
-        folderId: true,
-        currentVersion: true,
-        automationId: true,
-        updatedAt: true,
-        flag: true,
-        flagNote: true,
-        flaggedBy: true,
-        flaggedAt: true,
-        flagRunNumber: true,
-        personaId: true,
-        _count: { select: { sharedUsages: true } },
-      },
+      select: caseSelect,
     }),
     db.testCase.count({ where }),
     db.$queryRaw<{ tag: string; count: number }[]>`SELECT tag, COUNT(*)::int AS count FROM (SELECT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ${project.id} AND archived = false AND type <> 'EXPLORATORY') t GROUP BY tag ORDER BY count DESC, tag`,
     db.testCase.count({ where: { ...where, archived: false } }),
     db.testCase.count({ where: { ...where, archived: true } }),
   ]);
+  // Close matches (ver_96): "chekout" finds Checkout cases, under their own label after the exact ones.
+  const closeStart = cases.length;
+  if (q && page === 1 && total < ENOUGH_EXACT && cleanQuery(q).length > 1) {
+    const rest: Prisma.TestCaseWhereInput = { ...where, OR: undefined };
+    const exactIds = new Set(cases.map((c) => c.id));
+    const cands = await db.testCase.findMany({ where: rest, select: { id: true, title: true, tags: true, folder: { select: { name: true } } }, take: 5000 });
+    const found = cands
+      .filter((c) => !exactIds.has(c.id) && matchKind(q, `${c.title} ${c.tags.join(" ")} ${c.folder?.name ?? ""}`) === "close")
+      .sort((a, b) => Number(!!matchKind(q, `${b.title} ${b.tags.join(" ")}`)) - Number(!!matchKind(q, `${a.title} ${a.tags.join(" ")}`)))
+      .slice(0, 20);
+    const more = await db.testCase.findMany({ where: { id: { in: found.map((c) => c.id) } }, select: caseSelect });
+    const order = new Map(found.map((c, n) => [c.id, n]));
+    cases.push(...more.sort((a, b) => order.get(a.id)! - order.get(b.id)!));
+  }
 
   const [members, suites, flaggedCount, personas] = await Promise.all([
     projectMembers(project.id),
@@ -222,7 +238,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
               heading
             )
           }
-          subtitle={folder ? pathOf(folders, folder.id).join(" / ") : `${total} ${total === 1 ? "case" : "cases"}`}
+          subtitle={folder ? pathOf(folders, folder.id).join(" / ") : q ? matchCount(total, cases.length - closeStart) : `${total} ${total === 1 ? "case" : "cases"}`}
           actions={
             <>
               {can(who, "import") && (
@@ -278,7 +294,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
         />
 
         {/* Search and filters only once there's something to search. */}
-        {activeCount + archivedCount > 0 && (
+        {(activeCount + archivedCount > 0 || filtered) && (
         <AutoFilterForm className="mb-4 flex flex-wrap items-center gap-2" role="search">
           {sp.folder && <input type="hidden" name="folder" value={sp.folder} />}
           {sp.archived && <input type="hidden" name="archived" value={sp.archived} />}
@@ -436,7 +452,8 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
             }))}
             platforms={!!u && u.platforms.length > 0}
             tagColors={tagColors}
-            tagHits={tagHits}
+            tagHits={q ? [...tagHits, ...tagHitsOf(q, tagRows.map((t) => t.tag))] : []}
+            closeStart={cases.length > closeStart ? closeStart : undefined}
             bulk={{ personas: personas.filter((p) => !p.archived), tags: tagRows.map((t) => t.tag) }}
           />
         )}
