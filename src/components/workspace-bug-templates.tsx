@@ -231,7 +231,7 @@ function EditForm({ item, onClose }: { item: SharedListItem; onClose: () => void
         <Input id="tpl-edit-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} autoFocus />
       </Field>
       <DomainsField value={domains} onChange={setDomains} />
-      <p className="text-xs text-slate-500">Places already using it keep it, even if their people's emails no longer match.</p>
+      <p className="text-xs text-slate-500">Places already using it keep it, even if their people&apos;s emails no longer match.</p>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <div className="flex justify-end gap-2">
         <Button onClick={onClose}>Cancel</Button>

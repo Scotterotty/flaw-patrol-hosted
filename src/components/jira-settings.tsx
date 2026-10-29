@@ -16,7 +16,7 @@ import {
   setPlainLayout,
 } from "@/server/jira";
 import type { SharedView } from "@/lib/shared-template-data";
-import { useSharedTemplate } from "@/server/shared-templates";
+import { pickSharedTemplate } from "@/server/shared-templates";
 import { PLAIN_SCALE, SEVERITIES, type SeverityConfig } from "@/lib/severity";
 import { loadIssueTypes, saveStoriesConfig } from "@/server/stories";
 import { DEFAULT_STORIES, STORY_TYPES, type StoriesConfig } from "@/lib/stories-config";
@@ -275,9 +275,9 @@ function BugTemplateSettings({ projectId, saved, jiraProjectKey, standalone = fa
   // The company templates this email may pick, plus the one in use even when it isn't theirs.
   const sharedList = [...shared.choices.map((t) => ({ ...t, mine: true })), ...(inUse && !shared.choices.some((t) => t.id === inUse.id) ? [{ ...inUse, mine: false }] : [])];
   const picked = choice.startsWith("shared:") ? sharedList.find((t) => `shared:${t.id}` === choice) : undefined;
-  const useShared = (id: string | null) =>
+  const pickShared = (id: string | null) =>
     start(async () => {
-      const res = await useSharedTemplate(projectId, id);
+      const res = await pickSharedTemplate(projectId, id);
       if (!res.ok) return setError(res.error);
       // The detailed layout fills a client tag and defaults from this place: set them next.
       done(id ? `Saved. New bugs from here use ${picked?.name ?? "the shared template"}.${picked?.kind === "detailed" ? " Check this place's defaults below." : ""}` : "Saved.", picked?.kind === "detailed" ? "detailed" : "saved");
@@ -334,7 +334,7 @@ function BugTemplateSettings({ projectId, saved, jiraProjectKey, standalone = fa
             <p className="text-xs text-slate-500">
               {picked.source}. Title: <span className="font-mono">{picked.title}</span>. Fields are matched to this Jira project by name; any it doesn&apos;t have go into the description.
             </p>
-            <Button variant="primary" size="sm" disabled={pending} onClick={() => useShared(picked.id)}>
+            <Button variant="primary" size="sm" disabled={pending} onClick={() => pickShared(picked.id)}>
               {pending ? "Saving…" : `Use ${picked.name}`}
             </Button>
           </div>

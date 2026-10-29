@@ -109,7 +109,7 @@ export async function stopSharing(id: string) {
  * Settings → Bug template → Shared with you: use a company template here (or stop, with null).
  * Only someone whose email matches can pick it; every bug from here then uses it, whoever files it.
  */
-export async function useSharedTemplate(projectId: string, templateId: string | null) {
+export async function pickSharedTemplate(projectId: string, templateId: string | null) {
   return attempt(async () => {
     const { project, user } = await requireProjectAction(projectId, "jira:manage");
     const row = await db.jiraConfig.findUnique({ where: { projectId }, select: { projectId: true } });
