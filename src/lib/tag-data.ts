@@ -23,3 +23,9 @@ export async function tagColorsFor(projectId: string): Promise<TagColors> {
   const own = parseTagColors(p.hubOf ? p.tagColors : (p.group?.hub?.tagColors ?? p.tagColors));
   return { ...fromPlatforms, ...own };
 }
+
+/** Names a new [bracket] tag should be spelled like: the platforms, then tags the library already has. */
+export async function knownTagNamesFor(projectId: string, opts: { platforms?: boolean } = {}) {
+  const tags = await db.$queryRaw<{ tag: string }[]>`SELECT DISTINCT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ${projectId}`;
+  return [...(opts.platforms === false ? [] : await platformNamesFor(projectId)), ...tags.map((t) => t.tag)];
+}

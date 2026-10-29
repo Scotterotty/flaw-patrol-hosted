@@ -1,5 +1,5 @@
 import { splitBracketTitle } from "./tags";
-import { platformNamesFor } from "./tag-data";
+import { knownTagNamesFor } from "./tag-data";
 import { logActivity } from "@/lib/activity";
 import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
@@ -182,7 +182,7 @@ export async function saveAutomationRun(
           return id;
         };
         if (meta.makeCases) {
-          const platformNames = await platformNamesFor(home.id);
+          const platformNames = await knownTagNamesFor(home.id);
           for (const t of tests) {
             if (matches.has(t.id)) continue;
             const folderId = await folderFor(t.className);

@@ -6,7 +6,7 @@ import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
 import { normalizeTags } from "@/lib/format";
 import { requireProjectAction } from "@/lib/session";
-import { platformNamesFor } from "@/lib/tag-data";
+import { knownTagNamesFor } from "@/lib/tag-data";
 import { parseTagColors, splitBracketTitle, TAG_COLORS } from "@/lib/tags";
 import { attempt, UserError } from "./result";
 
@@ -49,7 +49,7 @@ export async function renameTag(projectId: string, from: string, to: string) {
 export async function previewBracketTitles(projectId: string, opts: { dropDash: boolean; matchPlatforms: boolean }) {
   return attempt(async () => {
     await requireProjectAction(projectId, "case:edit");
-    const platforms = opts.matchPlatforms ? await platformNamesFor(projectId) : [];
+    const platforms = await knownTagNamesFor(projectId, { platforms: opts.matchPlatforms });
     const cases = await db.testCase.findMany({ where: { projectId, archived: false, title: { startsWith: "[" } }, select: { id: true, title: true }, orderBy: { number: "asc" } });
     const counts = new Map<string, number>();
     let example: { before: string; after: string; tags: string[] } | null = null;
@@ -72,7 +72,7 @@ export async function previewBracketTitles(projectId: string, opts: { dropDash: 
 export async function convertBracketTitles(projectId: string, opts: { dropDash: boolean; matchPlatforms: boolean }) {
   return attempt(async () => {
     const { project, user } = await requireProjectAction(projectId, "case:edit");
-    const platforms = opts.matchPlatforms ? await platformNamesFor(projectId) : [];
+    const platforms = await knownTagNamesFor(projectId, { platforms: opts.matchPlatforms });
     const cases = await db.testCase.findMany({ where: { projectId, archived: false, title: { startsWith: "[" } }, include: { versions: { orderBy: { version: "desc" }, take: 1 } } });
     const undo: { id: string; title: string; tags: string[] }[] = [];
     const author = { authorId: user.id, authorName: user.name ?? user.email };

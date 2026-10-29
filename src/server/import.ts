@@ -1,7 +1,7 @@
 "use server";
 
 import { splitBracketTitle } from "@/lib/tags";
-import { platformNamesFor } from "@/lib/tag-data";
+import { knownTagNamesFor } from "@/lib/tag-data";
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -122,7 +122,7 @@ export async function importCases(projectId: string, folderId: string | null, ra
         }
 
         // "[WEB] - Sign in" comes in as the tag Web and the title "Sign in" (ver_96).
-        const platformNames = await platformNamesFor(projectId);
+        const platformNames = await knownTagNamesFor(projectId);
         for (const raw of cases) {
           const split = splitBracketTitle(raw.title, { platforms: platformNames });
           const c = { ...raw, title: split.title };
