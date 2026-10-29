@@ -6,13 +6,25 @@ import { db } from "@/lib/db";
 import { caseKey } from "@/lib/format";
 import { requireUser } from "@/lib/session";
 import { attempt } from "./result";
+import { cleanQuery, ENOUGH_EXACT, matchKind } from "@/lib/fuzzy";
+
+const CLOSE_MAX = 5;
+/** Close matches among candidates the exact search didn't find. */
+function closeOnes<T>(q: string, list: T[], name: (x: T) => string, skip: (x: T) => boolean, exactTotal: number, primary?: (x: T) => string) {
+  if (exactTotal >= ENOUGH_EXACT) return [];
+  const found = list.filter((x) => !skip(x) && matchKind(q, name(x)) === "close");
+  // Ones whose title is close come before ones found by tag or folder.
+  if (primary) found.sort((a, b) => Number(!!matchKind(q, primary(b))) - Number(!!matchKind(q, primary(a))));
+  return found.slice(0, CLOSE_MAX);
+}
 
 // Ctrl+K search (ver_82): find and open cases, runs, bugs, umbrellas and test cycles,
 // suites and shared steps, and pages. Find only: it never creates or changes anything.
 
 export type SearchKind = "cases" | "runs" | "bugs" | "cycles" | "suites" | "pages";
 export type SearchHit = { href: string; label: string; key?: string; sub: string; archived?: boolean; best?: boolean };
-export type SearchGroup = { kind: SearchKind; total: number; hits: SearchHit[]; seeAll?: string };
+/** `close`: spelled a bit differently (ver_96), shown under their own label after the exact hits. */
+export type SearchGroup = { kind: SearchKind; total: number; hits: SearchHit[]; close: SearchHit[]; seeAll?: string };
 export type RecentItem = { href: string; label: string; kind: SearchKind; sub: string };
 
 const PER_GROUP = 4;
@@ -70,9 +82,9 @@ const UMBRELLA_PAGES: { label: string; path: (g: string, hub: string) => string;
 ];
 
 /** `umbrella`: the one you're in. `everywhere`: on the Umbrellas page, every umbrella you can see (ver_89). */
-function pageHits(q: string, umbrella: { id: string; name: string; hubKey: string } | null, everywhere: { id: string; name: string; hubKey: string }[] = []): SearchHit[] {
+function pageHits(q: string, umbrella: { id: string; name: string; hubKey: string } | null, everywhere: { id: string; name: string; hubKey: string }[] = [], close = false): SearchHit[] {
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
-  const matches = (text: string) => words.every((w) => text.toLowerCase().includes(w));
+  const matches = close ? (text: string) => matchKind(q, text) === "close" : (text: string) => words.every((w) => text.toLowerCase().includes(w));
   const hits: SearchHit[] = [];
   if (umbrella) for (const p of UMBRELLA_PAGES) if (matches(`${p.label} ${p.words}`)) hits.push({ href: p.path(umbrella.id, umbrella.hubKey), label: p.label, sub: umbrella.name });
   for (const u of everywhere)
@@ -112,7 +124,8 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
   return attempt(async () => {
     const user = await requireUser();
     const { q: raw, groupId, archived } = searchSchema.parse(input);
-    const q = raw.trim();
+    // [WEB] looks for the tag WEB (ver_96).
+    const q = raw.replace(/[[\]]/g, " ").replace(/\s+/g, " ").trim();
     const { group, projects } = await scopeOf(user, groupId, archived);
     const hub = group ? projects.find((p) => p.id === group.hubProjectId) : null;
     const umbrella = group && hub ? { id: group.id, name: group.name, hubKey: hub.key } : null;
@@ -148,7 +161,21 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
                    (c.title ILIKE ${pat}) DESC, c."updatedAt" DESC
           LIMIT ${PER_GROUP}`
       : [];
-    if (caseRows.length) {
+    // Close matches on case titles, tags and folders, never step text.
+    const caseTotal = caseRows.length ? Number(caseRows[0].total) : 0;
+    const caseCands =
+      ids.length && caseTotal < ENOUGH_EXACT && cleanQuery(q).length > 1
+        ? await db.testCase.findMany({ where: { projectId: { in: ids }, ...(archived ? {} : { archived: false }) }, select: { id: true, title: true, tags: true, number: true, archived: true, projectId: true, folder: { select: { name: true } }, project: { select: { key: true } } }, orderBy: { updatedAt: "desc" }, take: 5000 })
+        : [];
+    const exactCaseIds = new Set(caseRows.map((r) => r.id));
+    const caseClose = closeOnes(q, caseCands, (c) => `${c.title} ${c.tags.join(" ")} ${c.folder?.name ?? ""}`, (c) => exactCaseIds.has(c.id), caseTotal, (c) => `${c.title} ${c.tags.join(" ")}`).map((c) => ({
+      href: `/p/${c.project.key}/cases/${c.number}`,
+      key: caseKey(c.project.key, c.number),
+      label: c.title,
+      sub: [c.tags.length ? c.tags.join(", ") : c.folder?.name, placeOf(c.projectId)].filter(Boolean).join(" · "),
+      archived: c.archived,
+    }));
+    if (caseRows.length || caseClose.length) {
       const cases = await db.testCase.findMany({
         where: { id: { in: caseRows.map((r) => r.id) } },
         include: { project: { select: { key: true } }, versions: { orderBy: { version: "desc" }, take: 1, select: { steps: true, folderPath: true } } },
@@ -158,7 +185,8 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
       const seeAllProject = hub ?? (projects.length === 1 ? projects[0] : null);
       groups.push({
         kind: "cases",
-        total: Number(caseRows[0].total),
+        total: caseTotal,
+        close: caseClose,
         seeAll: seeAllProject ? `/p/${seeAllProject.key}/cases?q=${encodeURIComponent(q)}` : undefined,
         hits: cases.map((c) => {
           const key = caseKey(c.project.key, c.number);
@@ -188,10 +216,19 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
       db.testRun.count({ where: runWhere }),
       db.testRun.findMany({ where: runWhere, orderBy: { createdAt: "desc" }, take: PER_GROUP, include: { project: { select: { key: true } }, entries: { select: { status: true } } } }),
     ]);
-    if (runTotal)
+    const runCands = runTotal < ENOUGH_EXACT && cleanQuery(q).length > 1 ? await db.testRun.findMany({ where: { projectId: { in: ids } }, orderBy: { createdAt: "desc" }, take: 2000, select: { id: true, number: true, name: true, release: true, build: true, projectId: true, state: true, project: { select: { key: true } } } }) : [];
+    const runIds = new Set(runs.map((r) => r.id));
+    const runClose = closeOnes(q, runCands, (r) => `${r.name} ${r.release} ${r.build}`, (r) => runIds.has(r.id), runTotal).map((r) => ({
+      href: `/p/${r.project.key}/runs/${r.number}`,
+      key: `R${r.number}`,
+      label: r.name,
+      sub: [placeOf(r.projectId), r.release && `Release ${r.release}`, r.state === "ACTIVE" ? "Active" : "Closed"].filter(Boolean).join(" · "),
+    }));
+    if (runTotal || runClose.length)
       groups.push({
         kind: "runs",
         total: runTotal,
+        close: runClose,
         seeAll: group ? `/g/${group.id}/runs` : undefined,
         hits: runs.map((r) => {
           const done = r.entries.filter((e) => !["UNTESTED", "RETEST", "IN_PROGRESS"].includes(e.status)).length;
@@ -211,7 +248,10 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
       db.defect.count({ where: bugWhere }),
       db.defect.findMany({ where: bugWhere, orderBy: { createdAt: "desc" }, take: 20, include: { project: { select: { key: true, groupId: true } } } }),
     ]);
-    if (bugTotal) {
+    const bugCands = bugTotal < ENOUGH_EXACT && cleanQuery(q).length > 1 ? await db.defect.findMany({ where: { projectId: { in: ids } }, orderBy: { createdAt: "desc" }, take: 3000, include: { project: { select: { key: true, groupId: true } } } }) : [];
+    const bugIds = new Set(bugs.map((b) => b.id));
+    const bugCloseRaw = closeOnes(q, bugCands, (d) => `${d.title} ${d.externalKey ?? ""}`, (d) => bugIds.has(d.id), bugTotal);
+    if (bugTotal || bugCloseRaw.length) {
       // An exact Jira key goes first; the same Jira issue filed from two test cycles shows once.
       const seen = new Set<string>();
       const list = bugs
@@ -238,6 +278,7 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
           sub: [d.externalStatus ?? (d.status === "OPEN" ? "Open" : d.status.toLowerCase().replace("_", " ")), placeOf(d.projectId)].filter(Boolean).join(" · "),
           best: d.externalKey?.toUpperCase() === q.toUpperCase(),
         })),
+        close: bugCloseRaw.map((d) => ({ href: bugsPage(d), key: d.externalKey ?? `D-${d.number}`, label: d.title, sub: [d.externalStatus ?? (d.status === "OPEN" ? "Open" : d.status.toLowerCase().replace("_", " ")), placeOf(d.projectId)].filter(Boolean).join(" · ") })),
       });
     }
 
@@ -255,7 +296,17 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
       .filter((p) => !p.hubOf && [p.name, p.rcName, p.platform, p.key].some((t) => t.toLowerCase().includes(needle)))
       .map((p) => ({ href: `/p/${p.key}`, label: p.name, sub: ["Test cycle", p.group?.hubProjectId && !group ? p.group.name : null].filter(Boolean).join(" · "), archived: !!p.archivedAt }));
     const cycleHits = [...umbrellas, ...cycles];
-    if (cycleHits.length) groups.push({ kind: "cycles", total: cycleHits.length, hits: cycleHits.slice(0, PER_GROUP), seeAll: group && cycles.length > PER_GROUP ? `/g/${group.id}/projects` : undefined });
+    const cycleClose = closeOnes(
+      q,
+      [
+        ...(group ? [] : [...new Map(projects.filter((p) => p.hubOf).map((p) => [p.hubOf!.id, p])).values()].map((p) => ({ href: `/g/${p.hubOf!.id}`, label: p.hubOf!.name, sub: "Umbrella", archived: false, text: p.hubOf!.name }))),
+        ...projects.filter((p) => !p.hubOf).map((p) => ({ href: `/p/${p.key}`, label: p.name, sub: ["Test cycle", p.group?.hubProjectId && !group ? p.group.name : null].filter(Boolean).join(" · "), archived: !!p.archivedAt, text: `${p.name} ${p.rcName} ${p.platform}` })),
+      ],
+      (x) => x.text,
+      (x) => cycleHits.some((h) => h.href === x.href),
+      cycleHits.length,
+    ).map(({ text: _t, ...h }) => h); // eslint-disable-line @typescript-eslint/no-unused-vars
+    if (cycleHits.length || cycleClose.length) groups.push({ kind: "cycles", total: cycleHits.length, hits: cycleHits.slice(0, PER_GROUP), close: cycleClose, seeAll: group && cycles.length > PER_GROUP ? `/g/${group.id}/projects` : undefined });
 
     // Suites and shared steps: name.
     const [suites, shared] = await Promise.all([
@@ -266,11 +317,26 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
       ...suites.map((s) => ({ href: `/p/${s.project.key}/suites/${s.id}`, label: s.name, sub: [`Suite v${s.currentVersion}`, `${s._count.cases} ${s._count.cases === 1 ? "case" : "cases"}`, placeOf(s.projectId)].join(" · "), archived: s.archived })),
       ...shared.map((s) => ({ href: `/p/${s.project.key}/shared-steps/${s.id}`, label: s.name, sub: [`Shared step v${s.currentVersion}`, `used by ${s._count.usages} ${s._count.usages === 1 ? "case" : "cases"}`, placeOf(s.projectId)].join(" · "), archived: s.archived })),
     ];
-    if (libHits.length) groups.push({ kind: "suites", total: libHits.length, hits: libHits.slice(0, PER_GROUP) });
+    const [suiteCands, sharedCands] =
+      libHits.length < ENOUGH_EXACT && cleanQuery(q).length > 1
+        ? await Promise.all([
+            db.testSuite.findMany({ where: { projectId: { in: ids }, ...(archived ? {} : { archived: false }) }, take: 2000, select: { id: true, name: true, archived: true, projectId: true, project: { select: { key: true } } } }),
+            db.sharedStep.findMany({ where: { projectId: { in: ids }, ...(archived ? {} : { archived: false }) }, take: 2000, select: { id: true, name: true, archived: true, projectId: true, project: { select: { key: true } } } }),
+          ])
+        : [[], []];
+    const libClose = closeOnes(
+      q,
+      [...suiteCands.map((x) => ({ ...x, href: `/p/${x.project.key}/suites/${x.id}`, what: "Suite" })), ...sharedCands.map((x) => ({ ...x, href: `/p/${x.project.key}/shared-steps/${x.id}`, what: "Shared step" }))],
+      (x) => x.name,
+      (x) => libHits.some((h) => h.href === x.href),
+      libHits.length,
+    ).map((x) => ({ href: x.href, label: x.name, sub: [x.what, placeOf(x.projectId)].join(" · "), archived: x.archived }));
+    if (libHits.length || libClose.length) groups.push({ kind: "suites", total: libHits.length, hits: libHits.slice(0, PER_GROUP), close: libClose });
 
     const everywhere = group ? [] : [...new Map(projects.filter((p) => p.hubOf).map((p) => [p.hubOf!.id, { id: p.hubOf!.id, name: p.hubOf!.name, hubKey: p.key }])).values()];
     const pages = pageHits(q, umbrella, everywhere);
-    if (pages.length) groups.push({ kind: "pages", total: pages.length, hits: pages.slice(0, PER_GROUP) });
+    const pageClose = pages.length < ENOUGH_EXACT && cleanQuery(q).length > 1 ? pageHits(q, umbrella, everywhere, true).filter((h) => !pages.some((x) => x.href === h.href)).slice(0, CLOSE_MAX) : [];
+    if (pages.length || pageClose.length) groups.push({ kind: "pages", total: pages.length, hits: pages.slice(0, PER_GROUP), close: pageClose });
 
     // The exact key, wherever it was found, leads.
     groups.sort((a, b) => Number(b.hits.some((h) => h.best)) - Number(a.hits.some((h) => h.best)));

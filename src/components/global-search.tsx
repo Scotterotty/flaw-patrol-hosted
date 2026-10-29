@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { CloseMatchesLabel } from "./close-matches";
 import { rememberOpened, searchEverything, searchStart, type RecentItem, type SearchGroup, type SearchHit, type SearchKind } from "@/server/search";
 import { cx } from "./ui";
 
@@ -16,7 +17,7 @@ const FILTERS: [SearchKind | "all", string][] = [
   ["pages", "Pages"],
 ];
 
-type Row = { id: string; hit: SearchHit; kind: SearchKind; seeAll?: boolean };
+type Row = { id: string; hit: SearchHit; kind: SearchKind; seeAll?: boolean; close?: boolean };
 
 /**
  * Ctrl+K search (ver_82): a Search button in the top bar and a dialog that finds cases,
@@ -122,10 +123,13 @@ function SearchDialog({ scope: start, onClose }: { scope: { id: string; name: st
     ? shown.flatMap((g) => [
         ...g.hits.map((hit, i) => ({ id: `${ids}-${g.kind}-${i}`, hit, kind: g.kind })),
         ...(g.seeAll && g.total > g.hits.length ? [{ id: `${ids}-${g.kind}-all`, hit: { href: g.seeAll, label: `See all ${g.total} ${KIND_LABEL[g.kind].toLowerCase()} for “${q.trim()}”`, sub: "" }, kind: g.kind, seeAll: true }] : []),
+        // Close matches (ver_96) always come after the exact ones.
+        ...g.close.map((hit, i) => ({ id: `${ids}-${g.kind}-c${i}`, hit, kind: g.kind, close: true })),
       ])
     : [...recent.map((r, i) => ({ id: `${ids}-recent-${i}`, hit: { href: r.href, label: r.label, sub: r.sub }, kind: r.kind })), ...goTo.map((g, i) => ({ id: `${ids}-go-${i}`, hit: g, kind: "pages" as const }))];
   }, [shown, q, ids, recent, goTo]);
   const total = shown.reduce((n, g) => n + g.total, 0);
+  const closeTotal = shown.reduce((n, g) => n + g.close.length, 0);
 
   const openRow = useCallback(
     (row: Row, newTab: boolean) => {
@@ -228,7 +232,7 @@ function SearchDialog({ scope: start, onClose }: { scope: { id: string; name: st
         {q.trim() && (
           <div className="mt-2 flex flex-wrap items-center gap-1" role="group" aria-label="Show only">
             {FILTERS.map(([k, label]) => {
-              const n = k === "all" ? (groups ?? []).reduce((s, g) => s + g.total, 0) : (groups?.find((g) => g.kind === k)?.total ?? 0);
+              const n = (groups ?? []).filter((g) => k === "all" || g.kind === k).reduce((s, g) => s + g.total + g.close.length, 0);
               return (
                 <button key={k} type="button" aria-pressed={filter === k} onClick={() => setFilter(k)} className={cx("rounded-full px-2 py-0.5 text-xs", filter === k ? "bg-accent-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200")}>
                   {label} {groups && <span className="tabular-nums opacity-80">{n}</span>}
@@ -280,7 +284,17 @@ function SearchDialog({ scope: start, onClose }: { scope: { id: string; name: st
                 <li role="presentation" className="px-3 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
                   {KIND_LABEL[g.kind]} <span className="font-normal normal-case">· {g.total}</span>
                 </li>
-                {mine.map((r) => renderRow(r, index++))}
+                {!g.hits.length && (
+                  <li role="presentation" className="px-3 py-1 text-xs text-slate-500">
+                    No exact matches.
+                  </li>
+                )}
+                {mine.map((r, i) => (
+                  <Fragment key={r.id}>
+                    {r.close && !mine[i - 1]?.close && <CloseMatchesLabel as="li" />}
+                    {renderRow(r, index++)}
+                  </Fragment>
+                ))}
               </ul>
             );
           })
@@ -292,7 +306,7 @@ function SearchDialog({ scope: start, onClose }: { scope: { id: string; name: st
         <span>Ctrl + Enter new tab</span>
         <span>Tab filters</span>
         <span className="ml-auto" aria-live="polite">
-          {busy ? "Searching…" : q.trim() && groups ? `${total} ${total === 1 ? "result" : "results"}` : ""}
+          {busy ? "Searching…" : q.trim() && groups ? `${total} ${total === 1 ? "result" : "results"}${closeTotal ? ` · ${closeTotal} close` : ""}` : ""}
         </span>
       </div>
     </dialog>
