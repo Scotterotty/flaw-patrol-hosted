@@ -14,15 +14,32 @@ import { jiraConfigFor } from "@/lib/umbrella";
 
 export const metadata = { title: "Edit test case" };
 
-export default async function EditCasePage({ params }: { params: Promise<{ key: string; number: string }> }) {
+export default async function EditCasePage({ params, searchParams }: { params: Promise<{ key: string; number: string }>; searchParams: Promise<{ req?: string; queue?: string; at?: string; total?: string; back?: string }> }) {
   const { key, number } = await params;
+  const sp = await searchParams;
   const { project, who } = await projectAccess(key);
   if (!can(who, "case:edit")) notFound();
   const c = await loadCase(project.id, number);
   const steps = parseCaseSteps(c.versions[0]?.steps);
   const ctx = await editorContext(project.id, sharedStepIdsIn(steps), c.personaId, c.type === "EXPLORATORY");
+  // Create and write steps on the Requirements page (ver_96): the other new cases wait in `queue`.
+  const story = sp.req && /^[A-Z][A-Z0-9_]*-\d+$/.test(sp.req) ? sp.req : null;
+  const rest = (sp.queue ?? "").split(",").filter((n) => /^\d+$/.test(n));
+  const total = Math.max(Number(sp.total) || 1, rest.length + 1);
+  const at = Math.min(Number(sp.at) || 1, total);
+  const back = sp.back?.startsWith(`/p/${project.key}/stories?`) ? sp.back : `/p/${project.key}/stories?${new URLSearchParams({ open: story ?? "", made: String(total) })}`;
+  const queue = story
+    ? {
+        story,
+        at,
+        total,
+        next: rest.length ? `/p/${project.key}/cases/${rest[0]}/edit?${new URLSearchParams({ req: story, queue: rest.slice(1).join(","), at: String(at + 1), total: String(total), back })}` : null,
+        back,
+      }
+    : undefined;
   return (
     <CaseEditor
+      queue={queue}
       tagColors={await tagColorsFor(project.id)}
       platformNames={await platformNamesFor(project.id)}
       inLibrary={!!(await hubGroupId(project.id))}

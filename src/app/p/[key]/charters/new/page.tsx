@@ -10,7 +10,8 @@ import { projectAccess } from "@/lib/session";
 export const metadata = { title: "Start from a tour or checklist" };
 
 /** New charter → From a tour or checklist… (ver_93). */
-export default async function CharterGalleryPage({ params }: { params: Promise<{ key: string }> }) {
+export default async function CharterGalleryPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ story?: string }> }) {
+  const { story } = await searchParams;
   const { project, who } = await projectAccess((await params).key);
   if (!can(who, "case:edit")) notFound();
   const home = await charterHome(project);
@@ -18,7 +19,7 @@ export default async function CharterGalleryPage({ params }: { params: Promise<{
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader title="Start from a tour or checklist" subtitle="Click a card to see the charter it makes. Hover a card for what it's for." />
-      <TemplateGallery projectId={project.id} projectKey={project.key} templates={[...BUILT_IN, ...team]} personas={personas} canManage={can(who, "shared:manage")} />
+      <TemplateGallery projectId={project.id} projectKey={project.key} templates={[...BUILT_IN, ...team]} personas={personas} canManage={can(who, "shared:manage")} story={story && /^[A-Z][A-Z0-9_]*-\d+$/.test(story) ? story : undefined} />
     </div>
   );
 }

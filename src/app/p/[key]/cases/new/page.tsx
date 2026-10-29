@@ -11,9 +11,9 @@ import { projectAccess } from "@/lib/session";
 
 export const metadata = { title: "New test case" };
 
-export default async function NewCasePage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ folder?: string; charter?: string; persona?: string; explore?: string; minutes?: string; template?: string; title?: string }> }) {
+export default async function NewCasePage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ folder?: string; charter?: string; persona?: string; explore?: string; minutes?: string; template?: string; title?: string; story?: string }> }) {
   const { key } = await params;
-  const { folder, charter, persona, explore, minutes, template, title } = await searchParams;
+  const { folder, charter, persona, explore, minutes, template, title, story } = await searchParams;
   const isCharter = charter === "1";
   const { project, who } = await projectAccess(key);
   if (!can(who, "case:edit")) notFound();
@@ -22,6 +22,7 @@ export default async function NewCasePage({ params, searchParams }: { params: Pr
   const tpl = isCharter && template ? templateById(template, await teamTemplates((await charterHome(project)).id)) : null;
   return (
     <CaseEditor
+      linkTo={story && /^[A-Z][A-Z0-9_]*-\d+$/.test(story) ? story : undefined}
       tagColors={await tagColorsFor(project.id)}
       platformNames={await platformNamesFor(project.id)}
       inLibrary={!!(await hubGroupId(project.id))}

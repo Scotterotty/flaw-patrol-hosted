@@ -13,7 +13,7 @@ import { OPEN_BUG } from "./umbrella";
 
 export type CoverageColumn = { id: string; key: string; name: string };
 export type CoverageCell = { text: string; tone: "pass" | "fail" | "run" | "none" };
-export type CoverageCase = { id: string; key: string; href: string; title: string; results: (ResultStatus | null)[] };
+export type CoverageCase = { id: string; key: string; href: string; title: string; results: (ResultStatus | null)[]; charter: boolean; needsSteps: boolean };
 export type CoverageState = "none" | "failing" | "notrun" | "passing";
 export type CoverageRow = {
   story: StoryInfo;
@@ -50,7 +50,7 @@ export async function storyCoverage(opts: { projectId: string; libraryIds: strin
   const setup = await storiesConfigFor(projectId);
   const cases = await db.testCase.findMany({
     where: { projectId: { in: libraryIds }, archived: false, NOT: { jiraStories: { isEmpty: true } } },
-    select: { id: true, number: true, title: true, jiraStories: true, project: { select: { key: true } } },
+    select: { id: true, number: true, title: true, jiraStories: true, type: true, flag: true, project: { select: { key: true } } },
     orderBy: [{ projectId: "asc" }, { number: "asc" }],
   });
   let inRelease: StoryInfo[] | null = null;
@@ -105,6 +105,8 @@ export async function storyCoverage(opts: { projectId: string; libraryIds: strin
       href: `/p/${c.project.key}/cases/${c.number}`,
       title: c.title,
       results: columns.map((col) => latest.get(`${col.id}:${c.id}`) ?? null),
+      charter: c.type === "EXPLORATORY",
+      needsSteps: c.flag === "NEEDS_STEPS",
     }));
     const cells = columns.map((_, i) => cellOf(list.map((c) => c.results[i])));
     const overall = cellOf(mine.map((c) => newest.get(c.id) ?? null));

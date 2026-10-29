@@ -4,6 +4,8 @@ export const FLAG_REASONS = {
   UNCLEAR: "Steps unclear",
   WRONG_EXPECTED: "Wrong expected result",
   OTHER: "Needs attention",
+  /** Made with a title only, from a requirement (ver_96); clears itself once a step is written. */
+  NEEDS_STEPS: "Needs steps",
 } as const;
 export type FlagReason = keyof typeof FLAG_REASONS;
 

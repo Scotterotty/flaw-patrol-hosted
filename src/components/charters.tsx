@@ -44,12 +44,15 @@ export function TemplateGallery({
   templates: given,
   personas,
   canManage,
+  story,
 }: {
   projectId: string;
   projectKey: string;
   templates: CharterTemplateInfo[];
   personas: { id: string; name: string; emoji: string }[];
   canManage: boolean;
+  /** From a requirement's New charter tab (ver_96): the charter gets linked to it. */
+  story?: string;
 }) {
   // Built-in tours and checklists follow the reader's US/UK English; the team's own stay as written.
   const sp = useSpell();
@@ -74,7 +77,7 @@ export function TemplateGallery({
   const name = title || (t ? `${t.name}: ${area || ""}`.trim().replace(/:$/, "") : "");
   const use = () => {
     if (!t) return;
-    const q = new URLSearchParams({ charter: "1", template: t.id, title: name, explore: area, minutes: String(minutes), ...(persona && { persona }) });
+    const q = new URLSearchParams({ charter: "1", template: t.id, title: name, explore: area, minutes: String(minutes), ...(persona && { persona }), ...(story && { story }) });
     router.push(`/p/${projectKey}/cases/new?${q}`);
   };
   return (

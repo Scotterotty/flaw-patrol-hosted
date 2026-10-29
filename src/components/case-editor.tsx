@@ -31,6 +31,8 @@ import {
   type SharedStepDef,
 } from "@/lib/steps";
 import { saveCase } from "@/server/cases";
+import { linkStory } from "@/server/stories";
+import Link from "next/link";
 import { saveSharedStep } from "@/server/shared-steps";
 import { Modal } from "./modal";
 import {
@@ -77,6 +79,10 @@ export type CaseEditorProps = {
   /** Tag pill colors and the umbrella's platform names, so [WEB] becomes Web (ver_96). */
   tagColors?: TagColors;
   platformNames?: string[];
+  /** Writing steps for cases just made from a requirement (ver_96): where Save goes next. */
+  queue?: { story: string; at: number; total: number; next: string | null; back: string };
+  /** A new case made from a requirement: linked to it once created (ver_96). */
+  linkTo?: string;
 };
 
 let uidCounter = 0;
@@ -178,6 +184,15 @@ export function CaseEditor(props: CaseEditorProps) {
       });
       if (!res.ok) return setError(res.error);
       setDirty(false);
+      if (!caseId && props.linkTo && res.caseId) {
+        const l = await linkStory(projectId, [res.caseId], props.linkTo, "add");
+        if (!l.ok) return setError(l.error);
+      }
+      if (props.queue) {
+        router.push(props.queue.next ?? props.queue.back);
+        router.refresh();
+        return;
+      }
       if (andNew && !caseId) {
         // Keep folder, priority, type, tags and persona; start the next case blank.
         setMade({ number: res.number, title });
@@ -211,6 +226,8 @@ export function CaseEditor(props: CaseEditorProps) {
     isCharter,
     charter,
     personaId,
+    props.linkTo,
+    props.queue,
   ]);
 
   useEffect(() => {
@@ -294,7 +311,11 @@ export function CaseEditor(props: CaseEditorProps) {
           <Button type="submit" variant="primary" disabled={pending}>
             {pending
               ? "Saving…"
-              : caseId
+              : props.queue
+                ? props.queue.next
+                  ? "Save and next case"
+                  : "Save and back to Requirements"
+                : caseId
                 ? "Save new version"
                 : isCharter
                   ? "Create charter"
@@ -303,6 +324,21 @@ export function CaseEditor(props: CaseEditorProps) {
         </div>
       </div>
 
+      {props.queue && (
+        <p role="status" className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-sm text-accent-900" data-testid="writing-queue">
+          <span className="flex-1">
+            Writing {props.queue.at} of {props.queue.total} new {props.queue.total === 1 ? "case" : "cases"} for <span className="font-mono font-medium">{props.queue.story}</span>.
+          </span>
+          {props.queue.next && (
+            <Link href={props.queue.next} className="font-medium text-accent-700 hover:underline">
+              Skip to next
+            </Link>
+          )}
+          <Link href={props.queue.back} className="font-medium text-accent-700 hover:underline">
+            Back to Requirements
+          </Link>
+        </p>
+      )}
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       {made && (
         <p role="status" className="flex flex-wrap items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
@@ -832,7 +868,11 @@ export function CaseEditor(props: CaseEditorProps) {
         <Button type="submit" variant="primary" disabled={pending}>
           {pending
             ? "Saving…"
-            : caseId
+            : props.queue
+              ? props.queue.next
+                ? "Save and next case"
+                : "Save and back to Requirements"
+              : caseId
               ? "Save new version"
               : isCharter
                 ? "Create charter"

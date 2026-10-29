@@ -4,6 +4,8 @@ import { StoryRows } from "@/components/story-coverage";
 import { RequirementsViews } from "@/components/requirements-views";
 import { cx, EmptyState, InfoTip, LinkButton, PageHeader } from "@/components/ui";
 import { can } from "@/lib/permissions";
+import { db } from "@/lib/db";
+import { buildTree, flattenTree, pathOf } from "@/lib/folders";
 import { projectAccess } from "@/lib/session";
 import { forgetStories } from "@/lib/stories";
 import { newestRcNames, storyCoverage, storyReleases, testedRelease, type CoverageState } from "@/lib/story-coverage";
@@ -47,6 +49,9 @@ export default async function StoriesPage({ params, searchParams }: { params: Pr
   const rows = cov.rows.filter((r) => (show === "all" || r.state === show) && (!type || r.story.type === type));
   const canEdit = can(who, "case:edit");
   const picker = canEdit ? (await suitePickerData(project)).cases.map((c) => ({ id: c.id, key: c.key, title: c.title, folder: c.folderPath })) : [];
+  // New cases from a requirement (ver_96) go into this library's folders.
+  const folderRows = canEdit ? await db.folder.findMany({ where: { projectId: project.id }, select: { id: true, parentId: true, name: true } }) : [];
+  const folders = flattenTree(buildTree(folderRows)).map((f) => ({ id: f.id, label: pathOf(folderRows, f.id).join(" / ") }));
   const qs = (extra: Record<string, string | undefined>) => {
     const u = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...sp, ...extra })) if (v) u.set(k, v);
@@ -130,7 +135,16 @@ export default async function StoriesPage({ params, searchParams }: { params: Pr
         </div>
       )}
       {rows.length ? (
-        <StoryRows projectId={project.id} rows={rows} canEdit={canEdit} library={picker} />
+        <StoryRows
+          projectId={project.id}
+          projectKey={project.key}
+          rows={rows}
+          canEdit={canEdit}
+          library={picker}
+          folders={folders}
+          openKey={sp.open}
+          flash={sp.made && sp.open ? (sp.made === "charter" ? `Created a charter and linked it to ${sp.open}.` : `Created ${sp.made} ${sp.made === "1" ? "case" : "cases"} and linked ${sp.made === "1" ? "it" : "them"} to ${sp.open}.`) : undefined}
+        />
       ) : (
         <EmptyState title={cov.rows.length ? "No requirements match" : "No requirements yet"}>
           {cov.rows.length ? "Pick another filter above." : release ? `Jira has no requirements in ${release}, and no case links one.` : "Link a case to a Jira requirement from the case page or the Case library's Link to requirement."}

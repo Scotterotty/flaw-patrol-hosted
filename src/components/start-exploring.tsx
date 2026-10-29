@@ -24,6 +24,15 @@ export function StartExploringButton({ caseId, label = "▶ Start exploring", si
   );
 }
 
+/** The same box, opened by its caller (Create and start exploring on a requirement, ver_96). */
+export function StartExploringModal({ caseId, open, onClose }: { caseId: string; open: boolean; onClose: () => void }) {
+  return (
+    <Modal open={open} onClose={onClose} title="Start exploring">
+      {open && <Box caseId={caseId} onClose={onClose} />}
+    </Modal>
+  );
+}
+
 function Box({ caseId, onClose }: { caseId: string; onClose: () => void }) {
   const [opts, setOpts] = useState<ExploreOptions | null>(null);
   const [error, setError] = useState<string | null>(null);

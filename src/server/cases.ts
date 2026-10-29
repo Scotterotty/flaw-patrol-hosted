@@ -106,7 +106,7 @@ export async function saveCase(projectId: string, caseId: string | null, input: 
             sharedUsages: { create: sharedStepIdsIn(steps).map((sharedStepId) => ({ sharedStepId })) },
           },
         });
-        return { number: created.number, version: 1, changed: true };
+        return { number: created.number, version: 1, changed: true, caseId: created.id };
       }
 
       const existing = await tx.testCase.findFirst({
@@ -130,7 +130,7 @@ export async function saveCase(projectId: string, caseId: string | null, input: 
       if (unchanged) {
         // A pure folder move isn't a content change, so it doesn't add a version.
         await tx.testCase.update({ where: { id: caseId }, data: { folderId: data.folderId, personaId: persona?.id ?? null } });
-        return { number: existing.number, version: existing.currentVersion, changed: false };
+        return { number: existing.number, version: existing.currentVersion, changed: false, caseId: existing.id };
       }
 
       const version = existing.currentVersion + 1;
@@ -138,9 +138,11 @@ export async function saveCase(projectId: string, caseId: string | null, input: 
       await tx.testCase.update({ where: { id: caseId }, data: { ...fields, currentVersion: version } });
       await tx.caseSharedStep.deleteMany({ where: { caseId } });
       await tx.caseSharedStep.createMany({ data: sharedStepIdsIn(steps).map((sharedStepId) => ({ caseId, sharedStepId })) });
-      return { number: existing.number, version, changed: true };
+      return { number: existing.number, version, changed: true, caseId: existing.id };
     });
 
+    // Needs steps (ver_96) clears itself once the case has a step.
+    if (caseId && steps.length) await db.testCase.updateMany({ where: { id: caseId, flag: "NEEDS_STEPS" }, data: { flag: null, flagNote: "", flaggedBy: "", flaggedAt: null, flagRunNumber: null } });
     revalidatePath(`/p/${project.key}`, "layout");
     return result;
   });
