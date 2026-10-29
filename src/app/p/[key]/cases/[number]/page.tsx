@@ -1,3 +1,4 @@
+import { StartExploringButton } from "@/components/start-exploring";
 import { TagPills } from "@/components/tag-pill";
 import { tagColorsFor } from "@/lib/tag-data";
 import type { Metadata } from "next";
@@ -114,7 +115,9 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
         <div className="flex flex-wrap items-center gap-2">
           {can(who, "case:flag") && <CaseFlagButton projectId={project.id} projectKey={project.key} caseId={c.id} flag={flag} />}
           {can(who, "suite:manage") && !c.archived && suites.length > 0 && <AddToSuite projectId={project.id} caseId={c.id} suites={suites} />}
-          {can(who, "run:create") && !c.archived && hubOf && (
+          {/* Charters get the small Start exploring box (ver_96). */}
+          {can(who, "run:create") && !c.archived && isCharter && <StartExploringButton caseId={c.id} />}
+          {can(who, "run:create") && !c.archived && hubOf && !isCharter && (
             <StartRunBox
               scope={{ groupId: hubOf }}
               preset={{ what: "cases", caseIds: [c.id] }}
@@ -124,7 +127,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
               session={isCharter}
             />
           )}
-          {can(who, "run:create") && !c.archived && !hubOf && (
+          {can(who, "run:create") && !c.archived && !hubOf && !isCharter && (
             <NewRunButton
               meId={user.id}
               projectId={project.id}

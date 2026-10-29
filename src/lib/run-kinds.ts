@@ -34,8 +34,24 @@ export function parseRunKinds(v: unknown): RunKindDef[] {
   return [...built, ...custom];
 }
 
+/**
+ * Exploratory (ver_96): set on runs made by Start exploring, and worked out for a plain
+ * run that holds only charters. It's never asked in Start a run.
+ */
+export const EXPLORE_KIND = "explore";
+
+/** A run's kind as shown: Exploratory for a plain run of charters only. */
+export function shownKind(run: { kind: string; entries?: { kind: string }[] }) {
+  if (!run.kind && run.entries?.length && run.entries.every((e) => e.kind === "EXPLORATORY")) return EXPLORE_KIND;
+  return run.kind;
+}
+
+/** The emoji in front of a kind's tag. */
+export const kindIcon = (id: string) => (id === EXPLORE_KIND ? "🧭" : id === "bash" ? "🐞" : "");
+
 /** What a run's kind reads as: its name, or "Run" for a plain run or a kind since removed. */
 export function kindLabel(kinds: RunKindDef[], id: string | null | undefined) {
+  if (id === EXPLORE_KIND) return "Exploratory";
   if (!id) return "Run";
   return kinds.find((k) => k.id === id)?.name ?? BUILT_IN_KINDS.find((b) => b.id === id)?.name ?? "Run";
 }
@@ -50,9 +66,9 @@ export function kindIdFor(name: string, taken: string[]) {
       .slice(0, 30) || "kind";
   for (let i = 1; ; i++) {
     const id = i === 1 ? base : `${base}-${i}`;
-    if (!taken.includes(id) && !BUILT_IN_KINDS.some((b) => b.id === id)) return id;
+    if (!taken.includes(id) && !BUILT_IN_KINDS.some((b) => b.id === id) && id !== EXPLORE_KIND) return id;
   }
 }
 
-/** Release status leaves out smoke tests, custom kinds and bug bashes; plain runs still count. */
+/** Release status leaves out smoke tests, custom kinds, bug bashes and exploring; plain runs still count. */
 export const countsForRelease = (kind: string) => kind === "rc" || kind === "";

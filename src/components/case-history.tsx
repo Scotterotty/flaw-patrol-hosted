@@ -84,7 +84,7 @@ export async function CaseHistory({ caseId, charter }: { caseId: string; project
         )}
       </div>
       {results.length === 0 ? (
-        <p className="px-4 py-6 text-sm text-slate-500">{charter ? "Not run yet. Use Start session above." : "Not run yet. Use Run this case above, or add it to a suite."}</p>
+        <p className="px-4 py-6 text-sm text-slate-500">{charter ? "Not explored yet. Use Start exploring above." : "Not run yet. Use Run this case above, or add it to a suite."}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

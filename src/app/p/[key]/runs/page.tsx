@@ -1,4 +1,5 @@
-import { kindLabel, parseRunKinds } from "@/lib/run-kinds";
+import { parseRunKinds, shownKind } from "@/lib/run-kinds";
+import { RunKindTag } from "@/components/run-kind-tag";
 import { umbrellaOf } from "@/lib/umbrella";
 import Link from "next/link";
 import { fieldBits } from "@/lib/run-fields";
@@ -34,7 +35,7 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
       where: { projectId: project.id, ...(automated ? { automated: true } : { state: closed ? "COMPLETED" : "ACTIVE", automated: false }) },
       orderBy: { number: "desc" },
       take: 200,
-      include: { suite: { select: { name: true } }, entries: { select: { status: true, assigneeId: true } } },
+      include: { suite: { select: { name: true } }, entries: { select: { status: true, assigneeId: true, kind: true } } },
     }),
     db.testRun.count({ where: { projectId: project.id, state: "ACTIVE" } }),
     db.testRun.count({ where: { projectId: project.id, state: "COMPLETED", automated: false } }),
@@ -98,11 +99,7 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
                         🤖 Automated
                       </Badge>
                     )}
-                    {r.kind && (
-                      <Badge tone="gray" className="ml-2" data-testid="kind-tag">
-                        {kindLabel(kinds, r.kind)}
-                      </Badge>
-                    )}
+                    {shownKind(r) && <RunKindTag kinds={kinds} kind={shownKind(r)} className="ml-2" />}
                     {mine > 0 && (
                       <Badge tone="blue" className="ml-2">
                         {mine} for you

@@ -3,7 +3,7 @@ import { FlagIcon } from "@/components/case-flag";
 import { StartRunBox } from "@/components/start-run-box";
 import { StatusBar } from "@/components/status";
 import { PassRateOverTime } from "@/components/trend-charts";
-import { Badge, Card, LinkButton, PageHeader } from "@/components/ui";
+import { Badge, Card, cx, LinkButton, PageHeader } from "@/components/ui";
 import { flagLabel } from "@/lib/case-flag";
 import { db } from "@/lib/db";
 import { mailOn } from "@/lib/mail";
@@ -18,6 +18,10 @@ import { InviteTeam, QuestMapOnButton } from "@/components/overview-extras";
 import { RolesNudge } from "@/components/roles-nudge";
 import { MoveCasesButton } from "@/components/umbrella-ui";
 import { CloseRunButton } from "@/components/run-actions";
+import { RunKindTag } from "@/components/run-kind-tag";
+import { EXPLORE_KIND, parseRunKinds, shownKind } from "@/lib/run-kinds";
+import { findsLine, runLive } from "@/lib/run-live";
+import { noteCounts, parseSessionLog } from "@/lib/charter";
 
 export const metadata = { title: "Overview" };
 
@@ -40,7 +44,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
       where: { projectId: project.id, state: "ACTIVE" },
       orderBy: { number: "desc" },
       take: 50,
-      select: { id: true, number: true, name: true, release: true, createdAt: true, entries: { select: { status: true, assigneeId: true } } },
+      select: { id: true, number: true, name: true, kind: true, release: true, createdAt: true, entries: { select: { status: true, assigneeId: true, kind: true } } },
     }),
     db.defect.findMany({
       where: { projectId: project.id, status: "OPEN" },
@@ -60,12 +64,24 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
     trends(project.id, month),
     caseHealth(project.id, { from: new Date(now.getTime() - 90 * DAY), to: now }),
   ]);
+  const kinds = parseRunKinds(umbrella?.group.runKinds);
+  const live = await runLive(runs.map((r) => r.id), now);
+  // 🧭 Explored, last 30 days (ver_96): exploring isn't in the pass rate, so it gets its own tile.
+  const explored = await db.testResult.findMany({
+    where: { run: { projectId: project.id }, entry: { kind: "EXPLORATORY" }, createdAt: { gte: month.from } },
+    select: { elapsedSec: true, sessionLog: true },
+  });
+  const exploredFinds = explored.reduce((acc, r) => {
+    const c = noteCounts(parseSessionLog(r.sessionLog));
+    return { bugs: acc.bugs + c.bug, questions: acc.questions + c.question };
+  }, { bugs: 0, questions: 0 });
+  const exploredMin = Math.round(explored.reduce((n, r) => n + (r.elapsedSec ?? 0), 0) / 60);
   const libraryCount = umbrella && !umbrella.isHub ? await db.testCase.count({ where: { projectId: umbrella.hub.id, archived: false } }) : 0;
 
   const open = runs.map((r) => {
     const counts = countStatuses(r.entries.map((e) => e.status));
     const mine = r.entries.filter((e) => e.assigneeId === user.id);
-    return { ...r, counts, t: totals(counts), mineLeft: mine.filter((e) => isOpen(e.status)).length, mine: mine.length };
+    return { ...r, counts, t: totals(counts), mineLeft: mine.filter((e) => isOpen(e.status)).length, mine: mine.length, shown: shownKind(r), live: live.get(r.id) };
   });
   // A run where every case has a result is finished; it only waits for someone to close it.
   const finished = open.filter((r) => r.t.total > 0 && r.t.tested === r.t.total);
@@ -114,9 +130,17 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
         />
       )}
 
-      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className={cx("mb-5 grid grid-cols-2 gap-3", explored.length ? "lg:grid-cols-5" : "lg:grid-cols-4")}>
         <Tile label="Runs in progress" value={String(active.length)} href={`/p/${project.key}/runs`} />
-        <Tile label="Pass rate, last 30 days" value={pct(monthRate)} note={`${trend.results} results`} href={`/p/${project.key}/reports?view=trends`} />
+        <Tile label="Pass rate, last 30 days" value={pct(monthRate)} note={`${trend.results} results${explored.length ? " · exploring not counted" : ""}`} href={`/p/${project.key}/reports?view=trends`} />
+        {explored.length > 0 && (
+          <Tile
+            label="🧭 Explored, last 30 days"
+            value={exploredMin >= 60 ? `${Math.floor(exploredMin / 60)} h ${exploredMin % 60} min` : `${exploredMin} min`}
+            note={`${explored.length} ${explored.length === 1 ? "session" : "sessions"} · ${exploredFinds.bugs} ${exploredFinds.bugs === 1 ? "bug" : "bugs"} · ${exploredFinds.questions} ${exploredFinds.questions === 1 ? "question" : "questions"}`}
+            href={`/p/${project.key}/runs`}
+          />
+        )}
         <Tile label="Open bugs" value={String(openBugCount)} href={`/p/${project.key}/bugs?status=open`} tone={openBugCount ? "red" : undefined} />
         {/* In an umbrella the runs use the Case library, so count what the cycle can run, not just its own cases. */}
         {umbrella && !umbrella.isHub ? (
@@ -153,37 +177,73 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
               </div>
             ) : (
               <ul className="divide-y divide-slate-100">
-                {active.slice(0, 8).map((r) => (
-                  <li key={r.number} className="relative px-4 py-3 hover:bg-slate-50">
-                    <div className="flex items-center justify-between gap-3">
-                      <Link
-                        href={`/p/${project.key}/runs/${r.number}`}
-                        className="min-w-0 truncate font-medium text-slate-900 after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-accent-500 focus-visible:after:ring-inset"
-                      >
-                        <span className="font-mono text-xs text-slate-500">R{r.number}</span> {r.name}
-                      </Link>
-                      {canExecute && r.t.tested < r.t.total && (
-                        <LinkButton
-                          size="sm"
-                          variant="primary"
-                          href={`/p/${project.key}/runs/${r.number}/execute${r.mineLeft ? "?mine=1" : ""}`}
-                          className="relative z-10 shrink-0"
-                          aria-label={`${r.t.tested === 0 ? "Start testing" : "Resume"} R${r.number} ${r.name}`}
+                {active.slice(0, 8).map((r) => {
+                  const lv = r.live;
+                  const button =
+                    lv?.type === "bash"
+                      ? lv.live && { href: `/p/${lv.homeKey}/bashes/${lv.bashId}/join`, label: "Join the bash" }
+                      : lv?.type === "explore"
+                        ? canExecute && { href: `/p/${project.key}/runs/${r.number}/execute`, label: lv.started ? "Keep exploring" : "Start exploring" }
+                        : canExecute && r.t.tested < r.t.total && { href: `/p/${project.key}/runs/${r.number}/execute${r.mineLeft ? "?mine=1" : ""}`, label: r.t.tested === 0 ? "Start testing" : "Resume" };
+                  return (
+                    <li key={r.number} className="relative px-4 py-3 hover:bg-slate-50">
+                      <div className="flex items-center justify-between gap-3">
+                        <Link
+                          href={`/p/${project.key}/runs/${r.number}`}
+                          className="min-w-0 truncate font-medium text-slate-900 after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-accent-500 focus-visible:after:ring-inset"
                         >
-                          {r.t.tested === 0 ? "Start testing" : "Resume"}
-                        </LinkButton>
+                          <span className="font-mono text-xs text-slate-500">R{r.number}</span> {r.name}
+                        </Link>
+                        <span className="relative z-10 flex shrink-0 items-center gap-2">
+                          <RunKindTag kinds={kinds} kind={r.shown} live={lv?.type === "bash" && lv.live} />
+                          {button && (
+                            <LinkButton size="sm" variant="primary" href={button.href} aria-label={`${button.label} R${r.number} ${r.name}`}>
+                              {button.label}
+                            </LinkButton>
+                          )}
+                        </span>
+                      </div>
+                      {lv?.type === "explore" ? (
+                        <>
+                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100" aria-hidden>
+                            <div className="h-full rounded-full bg-teal-600" style={{ width: `${lv.limitMin ? Math.min(100, (lv.usedMin / lv.limitMin) * 100) : 0}%` }} />
+                          </div>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {lv.started ? (
+                              <>
+                                <span className="tabular-nums">
+                                  {lv.usedMin} of {lv.limitMin} min
+                                </span>
+                                {lv.who && ` · ${lv.who}`}
+                                {lv.persona && ` · as ${lv.persona.emoji} ${lv.persona.name}`} · {findsLine(lv)}
+                              </>
+                            ) : (
+                              <>
+                                Not started · {lv.limitMin} min limit{lv.persona && ` · as ${lv.persona.emoji} ${lv.persona.name}`}
+                              </>
+                            )}
+                          </p>
+                        </>
+                      ) : lv?.type === "bash" ? (
+                        <p className="mt-1 text-xs text-slate-500">
+                          {lv.live && <span className="font-medium text-rose-700">{lv.minutesLeft} min left · </span>}
+                          {lv.people} {lv.people === 1 ? "person" : "people"} exploring · {lv.bugs} {lv.bugs === 1 ? "bug" : "bugs"} logged · {lv.areas} {lv.areas === 1 ? "area" : "areas"} · started {relativeTime(lv.startedAt, spelling)}
+                        </p>
+                      ) : (
+                        <>
+                          <StatusBar counts={r.counts} className="mt-2" />
+                          <p className="mt-1 text-xs text-slate-500">
+                            <span className="tabular-nums">
+                              {r.t.tested} of {r.t.total} tested · {pct(r.t.passRate)} passed
+                            </span>
+                            {r.release && ` · ${r.release}`} · started {relativeTime(r.createdAt, spelling)}
+                            {r.mine > 0 && ` · ${r.mineLeft ? `${r.mineLeft} of yours to go` : "your cases are done"}`}
+                          </p>
+                        </>
                       )}
-                    </div>
-                    <StatusBar counts={r.counts} className="mt-2" />
-                    <p className="mt-1 text-xs text-slate-500">
-                      <span className="tabular-nums">
-                        {r.t.tested} of {r.t.total} tested · {pct(r.t.passRate)} passed
-                      </span>
-                      {r.release && ` · ${r.release}`} · started {relativeTime(r.createdAt, spelling)}
-                      {r.mine > 0 && ` · ${r.mineLeft ? `${r.mineLeft} of yours to go` : "your cases are done"}`}
-                    </p>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </Section>
@@ -223,9 +283,9 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
                   <li key={r.number}>
                     <Link href={`/p/${project.key}/runs/${r.number}/execute?mine=1`} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-slate-50">
                       <span className="min-w-0 truncate text-slate-800">
-                        <span className="font-mono text-xs text-slate-500">R{r.number}</span> {r.name}
+                        {r.shown === EXPLORE_KIND ? <span aria-hidden>🧭 </span> : <span className="font-mono text-xs text-slate-500">{r.shown === "rc" ? "RC" : `R${r.number}`}</span>} {r.name}
                       </span>
-                      <span className="shrink-0 text-xs font-medium text-accent-700">{r.mineLeft} to go</span>
+                      <span className="shrink-0 text-xs font-medium text-accent-700">{r.live?.type === "explore" ? `${r.live.usedMin} of ${r.live.limitMin} min` : `${r.mineLeft} to go`}</span>
                     </Link>
                   </li>
                 ))}

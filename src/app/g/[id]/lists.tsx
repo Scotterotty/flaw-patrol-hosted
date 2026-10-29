@@ -6,7 +6,8 @@ import { Badge, Card, EmptyState } from "@/components/ui";
 import { db } from "@/lib/db";
 import { relativeTime } from "@/lib/format";
 import { countStatuses, pct, totals } from "@/lib/status";
-import { kindLabel, type RunKindDef } from "@/lib/run-kinds";
+import { shownKind, type RunKindDef } from "@/lib/run-kinds";
+import { RunKindTag } from "@/components/run-kind-tag";
 
 /** Runs across these projects, newest first. */
 export async function Runs({ projectIds, state, kind, kinds = [] }: { projectIds: string[]; state?: string; kind?: string; kinds?: RunKindDef[] }) {
@@ -20,7 +21,7 @@ export async function Runs({ projectIds, state, kind, kinds = [] }: { projectIds
     },
     orderBy: { createdAt: "desc" },
     take: 200,
-    include: { project: { select: { key: true, name: true } }, suite: { select: { name: true } }, entries: { select: { status: true } } },
+    include: { project: { select: { key: true, name: true } }, suite: { select: { name: true } }, entries: { select: { status: true, kind: true } } },
   });
   if (runs.length === 0)
     return state === "automated" ? (
@@ -50,11 +51,7 @@ export async function Runs({ projectIds, state, kind, kinds = [] }: { projectIds
                     Closed
                   </Badge>
                 )}
-                {r.kind && (
-                  <Badge tone="gray" className="ml-1" data-testid="kind-tag">
-                    {kindLabel(kinds, r.kind)}
-                  </Badge>
-                )}
+                {shownKind(r) && <RunKindTag kinds={kinds} kind={shownKind(r)} className="ml-1" />}
               </p>
               <p className="truncate text-xs text-slate-500">
                 {[r.release && `Release ${r.release}`, r.suite && `${r.suite.name}${r.suiteVersion ? ` v${r.suiteVersion}` : ""}`, r.build && `build ${r.build}`, ...fieldBits(r), `${r.automated ? "uploaded" : "started"} ${relativeTime(r.createdAt, spelling)} by ${r.createdBy}`].filter(Boolean).join(" · ")}

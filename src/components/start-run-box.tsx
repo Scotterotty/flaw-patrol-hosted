@@ -125,9 +125,9 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
   const [goTest, setGoTest] = useState(true);
   const [assignee, setAssignee] = useState("");
   const [release, setRelease] = useState<string | null>(null);
-  const [name, setName] = useState(
-    defaultName ?? (preset?.what === "suite" ? `${opts.suites.find((s) => s.id === preset.suiteId)?.name ?? "Suite"} ${today()}` : preset?.what === "cases" ? `Picked cases ${today()}` : ""),
-  );
+  const presetName = defaultName ?? (preset?.what === "suite" ? `${opts.suites.find((s) => s.id === preset.suiteId)?.name ?? "Suite"} ${today()}` : preset?.what === "cases" ? `Picked cases ${today()}` : "");
+  // The name follows What to run until someone types their own (ver_96).
+  const [typedName, setName] = useState<string | null>(null);
 
   const suite = opts.suites.find((s) => s.id === suiteId);
   // A test cycle's own suite only runs there.
@@ -137,6 +137,8 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
   const rcs = [...new Set(chosen.map((c) => c.rcName))];
   const releaseValue = release ?? (rcs.length === 1 ? rcs[0] : "");
   const autoName = kind ? `${kind.name} ${today()}` : what === "all" ? `Full library ${today()}` : what === "suite" ? `${suite?.name ?? "Suite"} ${today()}` : what === "cases" ? `Picked cases ${today()}` : "";
+  const samePick = !!preset && what === preset.what && (preset.what !== "suite" || suiteId === preset.suiteId);
+  const name = typedName ?? (samePick && presetName ? presetName : autoName);
 
   // Forgiving search (ver_96): exact matches, then close ones under their own label.
   const { visible, closeStart } = useMemo(() => {
@@ -414,6 +416,7 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Run name" htmlFor="rb-name">
           <Input id="rb-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={autoName} />
+          {typedName === null && <p className="mt-1 text-xs text-slate-500">Changes with what you pick, until you type your own.</p>}
         </Field>
         <Field label="Release (optional)" htmlFor="rb-release" hint={rcs.length > 1 && release === null ? "Blank uses each test cycle's own." : undefined}>
           <Input id="rb-release" aria-label="Release" value={releaseValue} onChange={(e) => setRelease(e.target.value)} placeholder="e.g. 2.1" />
