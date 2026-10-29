@@ -1,6 +1,8 @@
 "use client";
 
 import { TagPill, TagPills } from "./tag-pill";
+import { CloseMatchesLabel } from "./close-matches";
+import { forgivingFilter } from "@/lib/fuzzy";
 import { tagColor, type TagColors } from "@/lib/tags";
 import type { CaseType, Priority } from "@prisma/client";
 import { useRouter } from "next/navigation";
@@ -1003,9 +1005,10 @@ function SharedPicker({
   const [q, setQ] = useState("");
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
-  const shown = defs.filter((d) =>
-    d.name.toLowerCase().includes(q.toLowerCase()),
-  );
+  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  const found = forgivingFilter(defs, q, (d) => d.name);
+  const shown = [...found.exact, ...found.close];
+  const closeStart = found.close.length ? found.exact.length : -1;
   const picked = shown.find((d) => d.id === pickedId) ?? shown[0];
   const where =
     count === 0 ? "" : at >= count ? " at the end" : at === 0 ? " at the start" : ` after step ${at}`;
@@ -1031,8 +1034,14 @@ function SharedPicker({
       />
       <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
         <ul className="max-h-96 divide-y divide-slate-100 overflow-y-auto" aria-label="Shared steps">
-          {shown.map((d) => (
+          {shown.map((d, i) => (
             <li key={d.id}>
+              {i === closeStart && (
+                <>
+                  {closeStart === 0 && <p className="px-2 pt-1.5 text-xs text-slate-500">No exact matches.</p>}
+                  <CloseMatchesLabel className="px-1" />
+                </>
+              )}
               <button
                 type="button"
                 aria-pressed={picked?.id === d.id}

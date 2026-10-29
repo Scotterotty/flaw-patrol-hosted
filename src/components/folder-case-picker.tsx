@@ -3,10 +3,12 @@
 import { useMemo, useState } from "react";
 import { buildTree, type FolderNode, type FolderRow } from "@/lib/folders";
 import { Button, cx, Input } from "./ui";
+import { CloseMatchesLabel } from "./close-matches";
+import { forgivingFilter } from "@/lib/fuzzy";
 
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
-export type PickerCase = { id: string; key: string; title: string; folderId: string | null };
+export type PickerCase = { id: string; key: string; title: string; folderId: string | null; tags?: string[] };
 
 /**
  * Choose from folders… (ver_91): the Case library as a tree. Tick a folder to take every
@@ -32,7 +34,10 @@ export function FolderCasePicker({
   const picked = useMemo(() => new Set(value), [value]);
   const tree = useMemo(() => buildTree(folders), [folders]);
   const needle = q.trim().toLowerCase();
-  const matches = (c: PickerCase) => !needle || c.title.toLowerCase().includes(needle) || c.key.toLowerCase().includes(needle);
+  // Forgiving search (ver_96): exact matches in the tree, close ones listed under their own label.
+  const found = useMemo(() => forgivingFilter(cases, q, (c) => `${c.key} ${c.title} ${(c.tags ?? []).join(" ")}`), [cases, q]);
+  const exactIds = useMemo(() => new Set(found.exact.map((c) => c.id)), [found]);
+  const matches = (c: PickerCase) => !needle || exactIds.has(c.id);
   // Cases in each folder and everything under it, in library order.
   const under = useMemo(() => {
     const direct = new Map<string, PickerCase[]>();
@@ -132,8 +137,15 @@ export function FolderCasePicker({
             {looseShown.map((c) => caseRow(c, -1))}
           </>
         )}
+        {needle && found.close.length > 0 && (
+          <>
+            {!found.exact.length && <p className="px-2 pt-1 text-xs text-slate-500">No exact matches.</p>}
+            <CloseMatchesLabel className="px-1" />
+            {found.close.map((c) => caseRow(c, -1))}
+          </>
+        )}
         {!cases.length && <p className="px-2 py-2 text-sm text-slate-500">The Case library has no cases yet.</p>}
-        {cases.length > 0 && needle && !tree.some((n) => (under.all.get(n.id) ?? []).some(matches)) && !looseShown.length && (
+        {cases.length > 0 && needle && !found.exact.length && !found.close.length && (
           <p className="px-2 py-2 text-sm text-slate-500">No cases match “{q.trim()}”.</p>
         )}
       </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { forgivingFilter } from "@/lib/fuzzy";
+import { CloseMatchesLabel } from "./close-matches";
 import { githubRunName } from "@/lib/github-name";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -566,7 +568,10 @@ function Check({
 function CasePicker({ library, onPick, onCancel }: { library: { id: string; key: string; title: string }[]; onPick: (id: string) => void; onCancel: () => void }) {
   const [q, setQ] = useState("");
   const s = q.trim().toLowerCase();
-  const hits = s ? library.filter((c) => c.key.toLowerCase().includes(s) || c.title.toLowerCase().includes(s)).slice(0, 8) : [];
+  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  const found = s ? forgivingFilter(library, q, (c) => `${c.key} ${c.title}`) : { exact: [], close: [] };
+  const exact = found.exact.slice(0, 8);
+  const hits = [...exact, ...found.close.slice(0, Math.max(0, 8 - exact.length))];
   return (
     <div className="mt-1.5 rounded-md border border-slate-200 bg-slate-50 p-2">
       <div className="flex gap-2">
@@ -577,8 +582,9 @@ function CasePicker({ library, onPick, onCancel }: { library: { id: string; key:
       </div>
       {hits.length > 0 && (
         <ul className="mt-1 divide-y divide-slate-100 rounded border border-slate-200 bg-surface">
-          {hits.map((c) => (
+          {hits.map((c, i) => (
             <li key={c.id}>
+              {i === exact.length && i < hits.length && found.close.length > 0 && <CloseMatchesLabel className="px-2 text-[11px]" />}
               <button type="button" className="w-full px-2 py-1 text-left text-xs hover:bg-accent-50" onClick={() => onPick(c.id)}>
                 <span className="font-mono text-slate-500">{c.key}</span> {c.title}
               </button>

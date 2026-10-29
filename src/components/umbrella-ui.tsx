@@ -1,5 +1,7 @@
 "use client";
 
+import { forgivingFilter } from "@/lib/fuzzy";
+import { CloseMatchesLabel } from "./close-matches";
 import { onStartKind } from "@/lib/start-kind";
 import { LiveBashPill } from "./bash";
 import Link from "next/link";
@@ -451,12 +453,53 @@ export function ShortcutsEditor({
     setList(next);
     run(() => setShortcuts(groupId, next));
   };
-  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
-  const matches = (s: Shortcut, section: string) =>
-    words.every((w) =>
-      `${s.label} ${s.sub} ${section}`.toLowerCase().includes(w),
-    );
+  // Forgiving search (ver_96): exact matches in their sections, close ones under their own label.
+  const found = forgivingFilter(
+    choices.flatMap((c) => c.items.map((s) => ({ s, section: c.section }))),
+    q,
+    (x) => `${x.s.label} ${x.s.sub} ${x.section}`,
+  );
+  const exactSet = new Set(found.exact.map((x) => `${x.section}|${x.s.href}`));
+  const matches = (s: Shortcut, section: string) => exactSet.has(`${section}|${s.href}`);
   const has = (href: string) => list.some((s) => s.href === href);
+  const renderChoice = (s: Shortcut) => (
+                  <li
+                    key={s.href}
+                    className="flex items-center gap-2 rounded-md px-1 py-1.5 hover:bg-slate-50"
+                  >
+                    <ShortcutIcon
+                      icon={s.icon}
+                      className="size-4 text-accent-600"
+                    />
+                    <span className="min-w-0 flex-1 text-sm">
+                      <span className="block truncate text-slate-800">
+                        {s.label}
+                      </span>
+                      {s.sub && (
+                        <span className="block truncate text-xs text-slate-500">
+                          {s.sub}
+                        </span>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={pending || has(s.href) || full}
+                      onClick={() => save([...list, s])}
+                      aria-label={
+                        has(s.href) ? `${s.label} is pinned` : `Pin ${s.label}`
+                      }
+                      title={
+                        has(s.href)
+                          ? "Already pinned"
+                          : full
+                            ? "6 is the most; remove one first"
+                            : "Pin"
+                      }
+                      className="rounded px-1.5 text-lg leading-none text-slate-400 hover:bg-accent-100 hover:text-accent-700 disabled:opacity-40"
+                    >
+                      {has(s.href) ? "✓" : "＋"}
+                    </button>
+                  </li>);
   const full = list.length >= 6;
   const move = (i: number, by: number) => {
     const next = [...list];
@@ -552,49 +595,18 @@ export function ShortcutsEditor({
                 {c.section}
               </p>
               <ul>
-                {items.map((s) => (
-                  <li
-                    key={s.href}
-                    className="flex items-center gap-2 rounded-md px-1 py-1.5 hover:bg-slate-50"
-                  >
-                    <ShortcutIcon
-                      icon={s.icon}
-                      className="size-4 text-accent-600"
-                    />
-                    <span className="min-w-0 flex-1 text-sm">
-                      <span className="block truncate text-slate-800">
-                        {s.label}
-                      </span>
-                      {s.sub && (
-                        <span className="block truncate text-xs text-slate-500">
-                          {s.sub}
-                        </span>
-                      )}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={pending || has(s.href) || full}
-                      onClick={() => save([...list, s])}
-                      aria-label={
-                        has(s.href) ? `${s.label} is pinned` : `Pin ${s.label}`
-                      }
-                      title={
-                        has(s.href)
-                          ? "Already pinned"
-                          : full
-                            ? "6 is the most; remove one first"
-                            : "Pin"
-                      }
-                      className="rounded px-1.5 text-lg leading-none text-slate-400 hover:bg-accent-100 hover:text-accent-700 disabled:opacity-40"
-                    >
-                      {has(s.href) ? "✓" : "＋"}
-                    </button>
-                  </li>
-                ))}
+                {items.map((s) => renderChoice(s))}
               </ul>
             </div>
           );
         })}
+        {found.close.length > 0 && (
+          <div className="sm:col-span-2 lg:col-span-3">
+            {!found.exact.length && <p className="text-xs text-slate-500">No exact matches.</p>}
+            <CloseMatchesLabel className="px-0" />
+            <ul className="grid gap-x-6 sm:grid-cols-2 lg:grid-cols-3">{found.close.map((x) => renderChoice(x.s))}</ul>
+          </div>
+        )}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
         <span className="text-sm text-slate-500">

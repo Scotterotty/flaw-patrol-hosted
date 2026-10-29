@@ -1,5 +1,7 @@
 "use client";
 
+import { forgivingFilter } from "@/lib/fuzzy";
+import { CloseMatchesLabel } from "./close-matches";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -154,8 +156,14 @@ function AddCases({ projectId, row, library, onClose }: { projectId: string; row
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const s = q.trim().toLowerCase();
-  const list = library.filter((c) => !has.has(c.id) && (!s || c.key.toLowerCase().includes(s) || c.title.toLowerCase().includes(s) || c.folder.toLowerCase().includes(s)));
+  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  const found = forgivingFilter(
+    library.filter((c) => !has.has(c.id)),
+    q,
+    (c) => `${c.key} ${c.title} ${c.folder}`,
+  );
+  const list = [...found.exact, ...found.close];
+  const closeStart = found.close.length ? found.exact.length : -1;
   const toggle = (id: string) =>
     setPicked((p) => {
       const n = new Set(p);
@@ -176,8 +184,14 @@ function AddCases({ projectId, row, library, onClose }: { projectId: string; row
         {row.story.title && <p className="text-sm text-slate-600">{row.story.title}</p>}
         <Input autoFocus placeholder="Search by key, title or folder" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find cases" />
         <ul className="max-h-80 overflow-y-auto rounded-md border border-slate-200">
-          {list.slice(0, 200).map((c) => (
+          {list.slice(0, 200).map((c, i) => (
             <li key={c.id}>
+              {i === closeStart && (
+                <>
+                  {closeStart === 0 && <p className="px-2 pt-1.5 text-xs text-slate-500">No exact matches.</p>}
+                  <CloseMatchesLabel className="px-2" />
+                </>
+              )}
               <label className="flex cursor-pointer items-center gap-2 px-2 py-1.5 text-sm hover:bg-slate-50">
                 <input type="checkbox" checked={picked.has(c.id)} onChange={() => toggle(c.id)} />
                 <span className="font-mono text-xs text-slate-600">{c.key}</span>

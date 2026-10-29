@@ -1,7 +1,8 @@
 "use client";
 
 import { TagPills } from "./tag-pill";
-import { tagQuery } from "@/lib/tags";
+import { forgivingFilter, tagHits } from "@/lib/fuzzy";
+import { CloseMatchesLabel } from "./close-matches";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { PRIORITIES, PRIORITY_LABEL } from "@/lib/format";
@@ -137,17 +138,18 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
   const releaseValue = release ?? (rcs.length === 1 ? rcs[0] : "");
   const autoName = kind ? `${kind.name} ${today()}` : what === "all" ? `Full library ${today()}` : what === "suite" ? `${suite?.name ?? "Suite"} ${today()}` : what === "cases" ? `Picked cases ${today()}` : "";
 
-  const visible = useMemo(() => {
+  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  const { visible, closeStart } = useMemo(() => {
     const folderIds = folder ? new Set(opts.folders.find((f) => f.id === folder)?.ids ?? []) : null;
-    const s = q.toLowerCase();
-    return opts.cases.filter(
-      (c) =>
-        (!folderIds || (c.folderId && folderIds.has(c.folderId))) &&
-        (!tag || c.tags.includes(tag)) &&
-        (!priority || c.priority === priority) &&
-        (!s || c.title.toLowerCase().includes(s) || c.key.toLowerCase().includes(s) || c.tags.some((t) => t.toLowerCase() === tagQuery(s))),
+    const found = forgivingFilter(
+      opts.cases.filter((c) => (!folderIds || (c.folderId && folderIds.has(c.folderId))) && (!tag || c.tags.includes(tag)) && (!priority || c.priority === priority)),
+      q,
+      (c) => `${c.key} ${c.title} ${c.tags.join(" ")}`,
     );
+    return { visible: [...found.exact, ...found.close], closeStart: found.close.length ? found.exact.length : -1 };
   }, [opts, folder, tag, priority, q]);
+  // Tick all takes the exact matches only, when there are some.
+  const tickable = closeStart > 0 ? visible.slice(0, closeStart) : visible;
   const pickedSet = new Set(picked);
   const count = what === "all" ? opts.allCount : what === "suite" ? (suite?.cases ?? 0) : what === "cases" ? picked.length : 0;
   const members = chosen.length === 1 ? chosen[0].members : [];
@@ -306,27 +308,33 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
             </Select>
             {/* Option B of the Tick all mockup (ver_93): a real button by the filters, not a footer link. */}
             {(() => {
-              const allOn = visible.length > 0 && visible.every((c) => pickedSet.has(c.id));
-              const ids = new Set(visible.map((c) => c.id));
+              const allOn = tickable.length > 0 && tickable.every((c) => pickedSet.has(c.id));
+              const ids = new Set(tickable.map((c) => c.id));
               return (
                 <Button
                   size="sm"
                   className="h-8 border-accent-500 text-accent-700 hover:bg-accent-50"
-                  disabled={!visible.length}
+                  disabled={!tickable.length}
                   onClick={() => setPicked((p) => (allOn ? p.filter((id) => !ids.has(id)) : [...new Set([...p, ...ids])]))}
                 >
-                  {allOn ? "Untick all" : `Tick all ${visible.length}`}
+                  {allOn ? "Untick all" : `Tick all ${tickable.length}`}
                 </Button>
               );
             })()}
           </div>
           <ul className="max-h-56 divide-y divide-slate-100 overflow-y-auto" aria-label="Cases to pick">
-            {visible.slice(0, 300).map((c) => (
+            {visible.slice(0, 300).map((c, i) => (
               <li key={c.id}>
+                {i === closeStart && (
+                  <>
+                    {closeStart === 0 && <p className="px-3 pt-1.5 text-xs text-slate-500">No exact matches.</p>}
+                    <CloseMatchesLabel />
+                  </>
+                )}
                 <label className="flex cursor-pointer items-start gap-2 px-3 py-1.5 text-sm hover:bg-slate-50">
                   <input type="checkbox" className="mt-1" checked={pickedSet.has(c.id)} onChange={() => setPicked((p) => (p.includes(c.id) ? p.filter((x) => x !== c.id) : [...p, c.id]))} />
                   <span className="min-w-0 flex-1">
-                    <span className="font-mono text-xs text-slate-500">{c.key}</span> <TagPills tags={c.tags} colors={opts.tagColors} /> {c.title}
+                    <span className="font-mono text-xs text-slate-500">{c.key}</span> <TagPills tags={c.tags} colors={opts.tagColors} hits={tagHits(q, c.tags)} /> {c.title}
                     {c.folderPath && <span className="text-xs text-slate-500"> · {c.folderPath}</span>}
                   </span>
                 </label>

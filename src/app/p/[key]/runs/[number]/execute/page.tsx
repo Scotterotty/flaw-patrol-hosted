@@ -228,7 +228,7 @@ export default async function ExecutePage({
                 id: e.id,
                 done: !isOpen(e.status),
                 current: e.id === pick.id,
-                text: `${caseKey(e.testCase.project.key, e.testCase.number)} ${e.title}`,
+                text: `${caseKey(e.testCase.project.key, e.testCase.number)} ${e.title} ${e.testCase.tags.join(" ")}`,
                 row: (
                   <Link
                     href={`?entry=${e.id}${keep}`}

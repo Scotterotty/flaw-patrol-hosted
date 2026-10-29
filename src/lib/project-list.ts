@@ -1,3 +1,4 @@
+import { ENOUGH_EXACT, forgivingFilter } from "./fuzzy";
 // How the Projects page sorts projects into sections, so it stays tidy as the
 // list grows: Starred, Recent (only once there are enough projects to need it),
 // everything else, and Archived and Hidden by you (both collapsed). Search ignores
@@ -130,4 +131,16 @@ export function findRows(rows: FindRow[], query: string, scope: FindScope) {
     .filter((r) => scope === "all" || (scope === "archived") === r.archived)
     .filter((r) => words.every((w) => `${r.name} ${r.key} ${r.where}`.toLowerCase().includes(w)))
     .sort((a, b) => Number(a.archived) - Number(b.archived) || a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+}
+
+/** findRows plus close matches spelled a bit differently (ver_96), for the Umbrellas page search. */
+export function findRowsForgiving(rows: FindRow[], query: string, scope: FindScope) {
+  const exact = findRows(rows, query, scope);
+  const seen = new Set(exact.map((r) => r.id));
+  const { close } = forgivingFilter(
+    rows.filter((r) => !seen.has(r.id) && (scope === "all" || (scope === "archived") === r.archived)),
+    exact.length >= ENOUGH_EXACT ? "" : query,
+    (r) => `${r.name} ${r.key} ${r.where}`,
+  );
+  return { exact, close: exact.length >= ENOUGH_EXACT ? [] : close };
 }

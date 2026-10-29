@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { forgivingFilter } from "@/lib/fuzzy";
+import { CloseMatchesLabel } from "./close-matches";
 import { Input } from "./ui";
 
 type Item = { id: string; text: string; row: ReactNode; done: boolean; current: boolean };
@@ -27,7 +29,10 @@ export function RunnerCaseList({ items, empty, tuckDone = false }: { items: Item
       return !s;
     });
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const matching = words.length ? items.filter((i) => words.every((w) => i.text.toLowerCase().includes(w))) : items;
+  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  const found = forgivingFilter(items, query, (i) => i.text);
+  const matching = words.length ? [...found.exact, ...found.close] : items;
+  const closeStart = words.length && found.close.length ? found.exact.length : -1;
   // Searching shows every match; the open case never hides, even once it's saved.
   const tucking = tuckDone && !words.length;
   const shown = tucking ? matching.filter((i) => !i.done || i.current) : matching;
@@ -53,8 +58,16 @@ export function RunnerCaseList({ items, empty, tuckDone = false }: { items: Item
         </div>
       )}
       <ul aria-label="Run list" className="max-h-[40vh] divide-y divide-slate-100 overflow-y-auto lg:max-h-[calc(60vh-10rem)] bigtext:max-h-[40vh]">
-        {shown.map((i) => (
-          <li key={i.id}>{i.row}</li>
+        {shown.map((i, n) => (
+          <Fragment key={i.id}>
+            {n === closeStart && (
+              <li>
+                {closeStart === 0 && <p className="px-3 pt-1.5 text-xs text-slate-500">No exact matches.</p>}
+                <CloseMatchesLabel className="text-[11px]" />
+              </li>
+            )}
+            <li>{i.row}</li>
+          </Fragment>
         ))}
         {shown.length === 0 && !tucked.length && <li className="px-3 py-4 text-center text-xs text-slate-500">{items.length ? "No cases match." : empty}</li>}
         {shown.length === 0 && tucked.length > 0 && <li className="px-3 py-4 text-center text-xs text-slate-500">Nothing left to test. Nice work.</li>}

@@ -1,5 +1,7 @@
 "use client";
 
+import { CloseMatchesLabel } from "./close-matches";
+import { matchCount } from "@/lib/fuzzy";
 import type { Role } from "@prisma/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,7 +10,7 @@ import {
   arrange,
   arrangeUmbrellas,
   CROWDED,
-  findRows,
+  findRowsForgiving,
   moveBefore,
   moveUmbrella,
   UMBRELLA_SORT_COOKIE,
@@ -320,7 +322,9 @@ export function ProjectsBrowser({
         archived: p.archivedAt !== null,
       })),
   ];
-  const found = query.trim() ? findRows(rows, query, scope) : null;
+  const forgiving = query.trim() ? findRowsForgiving(rows, query, scope) : null;
+  const found = forgiving?.exact ?? null;
+  const closeFound = forgiving?.close ?? [];
   const cards = (list: Item[], section?: Sortable) =>
     list.map((p) =>
       p.kind === "group" ? (
@@ -463,9 +467,9 @@ export function ProjectsBrowser({
 
         {found ? (
           <Section
-            title={`${found.length} ${found.length === 1 ? "match" : "matches"}`}
+            title={matchCount(found.length, closeFound.length)}
           >
-            {found.length === 0 ? (
+            {found.length === 0 && closeFound.length === 0 ? (
               <p className="text-sm text-slate-500">
                 Nothing matches “{query.trim()}”
                 {scope !== "all" ? ". Try All." : "."}
@@ -518,6 +522,24 @@ export function ProjectsBrowser({
                     </div>
                   );
                 })}
+                {closeFound.length > 0 && (
+                  <div>
+                    {found.length === 0 && <p className="mb-1 text-sm text-slate-500">No exact matches.</p>}
+                    <CloseMatchesLabel className="px-0" />
+                    <ul className="mt-1.5 space-y-1.5">
+                      {closeFound.map((r) => (
+                        <li key={r.id} className={cx("flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-surface px-3 py-2 text-sm", r.archived && "opacity-75")}>
+                          <span className="min-w-14 font-mono text-xs font-semibold text-accent-700">{r.key || "☂"}</span>
+                          <Link href={r.href} className="min-w-0 flex-1 font-medium text-slate-900 hover:underline">
+                            {r.name}
+                          </Link>
+                          <span className="text-xs text-slate-500">{r.where}</span>
+                          {r.archived && <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">Archived</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </Section>

@@ -1,5 +1,7 @@
 "use client";
 
+import { forgivingFilter } from "@/lib/fuzzy";
+import { CloseMatchesLabel } from "./close-matches";
 import type { Priority } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -40,16 +42,16 @@ export function SuiteEditor({
   const byId = useMemo(() => new Map(cases.map((c) => [c.id, c])), [cases]);
   const selectedSet = new Set(selected);
   const folderIds = folder ? new Set(folders.find((f) => f.id === folder)?.ids ?? []) : null;
-  const visible = cases.filter((c) => {
-    if (folderIds && !(c.folderId && folderIds.has(c.folderId))) return false;
-    if (tag && !c.tags.includes(tag)) return false;
-    if (q) {
-      const s = q.toLowerCase();
-      if (!c.title.toLowerCase().includes(s) && !c.key.toLowerCase().includes(s)) return false;
-    }
-    return true;
-  });
-  const visibleUnselected = visible.filter((c) => !selectedSet.has(c.id));
+  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  const found = forgivingFilter(
+    cases.filter((c) => !(folderIds && !(c.folderId && folderIds.has(c.folderId))) && !(tag && !c.tags.includes(tag))),
+    q,
+    (c) => `${c.key} ${c.title} ${c.tags.join(" ")}`,
+  );
+  const visible = [...found.exact, ...found.close];
+  const closeStart = found.close.length ? found.exact.length : -1;
+  // Add all takes the exact matches only, when there are some.
+  const visibleUnselected = (closeStart > 0 ? found.exact : visible).filter((c) => !selectedSet.has(c.id));
 
   const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const move = (i: number, to: number) =>
@@ -126,8 +128,14 @@ export function SuiteEditor({
             </Button>
           </div>
           <ul className="max-h-[32rem] divide-y divide-slate-100 overflow-y-auto">
-            {visible.map((c) => (
+            {visible.map((c, i) => (
               <li key={c.id}>
+                {i === closeStart && (
+                  <>
+                    {closeStart === 0 && <p className="px-3 pt-1.5 text-xs text-slate-500">No exact matches.</p>}
+                    <CloseMatchesLabel />
+                  </>
+                )}
                 <label className="flex cursor-pointer items-start gap-2 px-3 py-2 text-sm hover:bg-slate-50">
                   <input type="checkbox" className="mt-1" checked={selectedSet.has(c.id)} onChange={() => toggle(c.id)} />
                   <span className="min-w-0 flex-1">

@@ -4,7 +4,7 @@ import { useSpelling } from "@/components/spelling";
 import type { Priority, ResultStatus } from "@prisma/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { relativeTime } from "@/lib/format";
 import { STATUSES, STATUS_LABEL, STATUS_STYLE } from "@/lib/status";
 import { assignEntries } from "@/server/runs";
@@ -16,6 +16,8 @@ import { CaseSortToggle } from "./case-sort-toggle";
 import { StatusChip } from "./status";
 import { buttonClass, cx, Input, Select } from "./ui";
 import { TagPills } from "./tag-pill";
+import { CloseMatchesLabel } from "./close-matches";
+import { forgivingFilter, matchCount, tagHits } from "@/lib/fuzzy";
 import type { TagColors } from "@/lib/tags";
 
 export type EntryRow = {
@@ -75,7 +77,6 @@ export function RunEntries({
   const regCount = rows.filter((r) => r.regression).length;
   const [who, setWho] = useState("");
   const [query, setQuery] = useState("");
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -84,13 +85,19 @@ export function RunEntries({
   // Selected cases in the order they're listed, as case numbers for a short, shareable link.
   const only = rows.filter((r) => selected.has(r.id)).map((r) => r.caseNumber);
 
-  const shown = rows.filter(
-    (r) =>
-      (!status || r.status === status) &&
-      (!onlyReg || !!r.regression) &&
-      (!who || (who === "none" ? !r.assigneeId : who === "me" ? r.assigneeId === meId : r.assigneeId === who)) &&
-      words.every((w) => `${r.caseKey} ${r.title} ${r.folderPath} ${r.tags.map((t) => `${t} [${t}]`).join(" ")}`.toLowerCase().includes(w)),
+  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  const found = forgivingFilter(
+    rows.filter(
+      (r) =>
+        (!status || r.status === status) &&
+        (!onlyReg || !!r.regression) &&
+        (!who || (who === "none" ? !r.assigneeId : who === "me" ? r.assigneeId === meId : r.assigneeId === who)),
+    ),
+    query,
+    (r) => `${r.caseKey} ${r.title} ${r.folderPath} ${r.tags.join(" ")}`,
   );
+  const shown = [...found.exact, ...found.close];
+  const closeStart = found.close.length ? found.exact.length : -1;
   const shownIds = new Set(shown.map((r) => r.id));
   const hiddenPicks = [...selected].filter((id) => !shownIds.has(id)).length;
 
@@ -147,7 +154,7 @@ export function RunEntries({
         )}
         <CaseSortToggle value={sort} orderLabel="Run order" statuses />
         <span className="text-xs text-slate-500">
-          {shown.length} of {rows.length}
+          {query.trim() ? matchCount(found.exact.length, found.close.length) : `${shown.length} of ${rows.length}`}
           {hiddenPicks > 0 && ` · ${hiddenPicks} selected not shown`}
         </span>
         {selected.size > 0 && (
@@ -214,8 +221,17 @@ export function RunEntries({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {shown.map((r) => (
-              <tr key={r.id} className="hover:bg-slate-50">
+            {shown.map((r, i) => (
+              <Fragment key={r.id}>
+              {i === closeStart && (
+                <tr>
+                  <td colSpan={8} className="px-0 py-1">
+                    {closeStart === 0 && <p className="px-3 pb-1 text-xs text-slate-500">No exact matches.</p>}
+                    <CloseMatchesLabel />
+                  </td>
+                </tr>
+              )}
+              <tr className="hover:bg-slate-50">
                 {canSelect && (
                   <td className="px-3 py-2">
                     <input
@@ -235,7 +251,7 @@ export function RunEntries({
                 )}
                 <td className="px-3 py-2">
                   <Link href={`/p/${projectKey}/runs/${runNumber}/execute?entry=${r.id}`} className="hover:underline">
-                    <span className="font-mono text-xs text-slate-500">{r.caseKey}</span> <TagPills tags={r.tags} colors={tagColors} /> <span className="font-medium text-slate-900">{r.title}</span>
+                    <span className="font-mono text-xs text-slate-500">{r.caseKey}</span> <TagPills tags={r.tags} colors={tagColors} hits={tagHits(query, r.tags)} /> <span className="font-medium text-slate-900">{r.title}</span>
                   </Link>
                   {r.regression ? <span className="ml-1.5 align-middle"><RegressionBadge tip={r.regression} /></span> : null}
                   {r.flaky ? <span className="ml-1.5 align-middle"><FlakyBadge flips={r.flaky} /></span> : null}
@@ -273,6 +289,7 @@ export function RunEntries({
                   </Link>
                 </td>
               </tr>
+              </Fragment>
             ))}
             {shown.length === 0 && (
               <tr>
