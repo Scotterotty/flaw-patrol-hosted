@@ -26,6 +26,8 @@ import { RecordingBar, RecordingPreview, takeScreenshot, useCaptureSupport, useS
 import { CloseRunButton } from "./run-actions";
 import { bugTitle } from "@/lib/jira-format";
 import { RegressionNote } from "./regression";
+import { SentryStepBox, type StepSentry } from "./sentry-box";
+import { sentryForStep } from "@/server/sentry";
 
 /** Regression flag (ver_93): the earlier release this case passed in, and which of its steps passed there. */
 export type RunnerRegression = { label: string; when: string; passed: boolean[]; resultId: string; off: boolean; jiraLabel: string };
@@ -95,7 +97,10 @@ export function Runner({
   justFinished = null,
   takeBar = null,
   regression = null,
+  sentryOn = false,
 }: {
+  /** Sentry is connected (ver_96): Failed and Blocked steps show the errors it caught. */
+  sentryOn?: boolean;
   regression?: RunnerRegression | null;
   /** The "You're on this case" bar. It sits above the title and scrolls with it, so it never covers Flag or the timer (ver_87). */
   takeBar?: ReactNode;
@@ -187,6 +192,9 @@ export function Runner({
   const fileInput = useRef<HTMLInputElement>(null);
   const uploadStep = useRef<number | null>(null);
   const dirty = statuses.some((s) => s !== "UNTESTED") || comment !== "" || defects.length > 0 || attachments.length > 0;
+  // Sentry (ver_96): when each step was opened, and the errors found for Failed or Blocked ones.
+  const opened = useRef<Record<number, number>>({});
+  const [sentry, setSentry] = useState<Record<number, StepSentry>>({});
 
   useEffect(() => {
     const t = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt.current) / 1000)), 1000);
@@ -367,6 +375,29 @@ export function Runner({
     [n],
   );
 
+  // Sentry (ver_96): the clock for a step starts when it's opened.
+  useEffect(() => {
+    opened.current[current] ??= Date.now();
+  }, [current]);
+  useEffect(() => {
+    if (!sentryOn || runClosed) return;
+    statuses.forEach((st, i) => {
+      if ((st !== "FAILED" && st !== "BLOCKED") || sentry[i]) return;
+      setSentry((x) => ({ ...x, [i]: { loading: true, errors: [], picked: [], searchUrl: "" } }));
+      const openedAt = new Date(opened.current[i] ?? startedAt.current).toISOString();
+      void sentryForStep(projectId, entry.id, { openedAt, stepIndex: i }).then((r) =>
+        setSentry((x) => ({
+          ...x,
+          [i]: r.ok ? { loading: false, errors: r.errors, picked: [], searchUrl: r.searchUrl, onlyYours: "onlyYours" in r ? r.onlyYours : undefined } : { loading: false, errors: [], picked: [], searchUrl: "", error: r.error },
+        })),
+      );
+    });
+    // Only when a step's status changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statuses, sentryOn]);
+  const sentryPicked = (i: number | null) =>
+    Object.entries(sentry).flatMap(([k, v]) => (i === null || Number(k) === i ? v.errors.filter((e) => v.picked.includes(e.id)).map((e) => ({ ...e, stepIndex: Number(k) })) : []));
+
   // "Bug still occurs" in the history panel: copy that execution's step
   // results and bugs into this case, so a known bug is re-reported in one click.
   useEffect(() => {
@@ -507,6 +538,7 @@ export function Runner({
           elapsedSec: Math.floor((Date.now() - startedAt.current) / 1000),
           attachmentIds: attachments.map((a) => a.id),
           defects: defects.map((d) => ({ existingId: d.defect.id, stepIndex: d.stepIndex })),
+          sentry: sentryPicked(null),
         });
         if (!res.ok) {
           finished.current = false;
@@ -522,7 +554,8 @@ export function Runner({
         router.refresh();
       });
     },
-    [caseStatus, statuses, n, projectId, entry.id, comment, attachments, defects, projectKey, runNumber, nextEntryId, keepQuery, router, reopened, flush],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [caseStatus, statuses, n, projectId, entry.id, comment, attachments, defects, projectKey, runNumber, nextEntryId, keepQuery, router, reopened, flush, sentry],
   );
 
   // Marking any step answers the no-result question.
@@ -816,6 +849,14 @@ export function Runner({
                           onShow={() => window.dispatchEvent(new CustomEvent<string>(SHOW_HISTORY_EVENT, { detail: regression.resultId }))}
                         />
                       )}
+                      {sentry[i] && (s === "FAILED" || s === "BLOCKED") && (
+                        <SentryStepBox
+                          data={sentry[i]}
+                          canFile={!runClosed}
+                          onPick={(ids) => setSentry((x) => ({ ...x, [i]: { ...x[i], picked: ids } }))}
+                          onFile={() => setBugFor(i)}
+                        />
+                      )}
                       <Textarea
                         rows={2}
                         aria-label={`Step ${step.number} actual result`}
@@ -1075,6 +1116,8 @@ export function Runner({
         onUploaded={(a) => setAttachments((all) => [...all, { ...a, stepIndex: bugFor ?? null }])}
         jiraConnected={jiraConnected}
         recent={recent}
+        sentryOn={sentryOn}
+        sentryErrors={bugFor === undefined ? [] : sentryPicked(bugFor)}
         stories={entry.stories}
         linkStories={entry.linkStories}
         regression={

@@ -1,5 +1,7 @@
 "use server";
 
+import { parseSentryRefs, sentryAdf } from "@/lib/sentry";
+import { sentryFrames } from "./sentry";
 import { logActivity } from "@/lib/activity";
 import { pickValues } from "@/lib/run-fields";
 import { runFieldsFor } from "@/lib/run-fields-server";
@@ -249,6 +251,8 @@ const bugSchema = z.object({
   regression: z.boolean().default(false),
   /** Send to Jira (ver_91): the bug saved here before Jira was connected, which becomes the new issue. */
   fromDefectId: z.string().optional(),
+  /** Sentry errors (ver_96): a section at the end of the description. */
+  sentry: z.array(z.unknown()).max(20).default([]),
   template: templateSchema.optional(),
   imported: z
     .object({
@@ -479,6 +483,8 @@ export async function fileJiraBug(projectId: string, entryId: string, input: z.i
         client.leadLines = [reg.line];
       }
     }
+    const sentryRefs = parseSentryRefs(data.sentry);
+    if (sentryRefs.length) client.tailBlocks = sentryAdf(await sentryFrames(projectId, sentryRefs));
     const local = data.fromDefectId ? await db.defect.findFirst({ where: { id: data.fromDefectId, projectId } }) : null;
     if (data.fromDefectId && !local) throw new UserError("That bug isn't in this test cycle anymore.");
     if (local?.externalKey) throw new UserError(`That bug is already ${local.externalKey} in Jira.`);

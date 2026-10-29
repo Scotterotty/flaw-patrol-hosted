@@ -1,4 +1,6 @@
 import { RcStatusView } from "@/components/rc-status";
+import { SentryCard } from "@/components/sentry-card";
+import { sentryConnected } from "@/lib/sentry-config";
 import { EmptyState } from "@/components/ui";
 import { pickFor, readPrefs, releaseKey } from "@/lib/rc-status";
 import { listReleases, rcStatus, type RcScope } from "@/server/rc-status";
@@ -36,7 +38,12 @@ export async function RcReport({
       </EmptyState>
     );
   const pick = pickFor(prefs, release);
+  const status = await rcStatus(user, release, pick, scope);
+  // Sentry (ver_96): how the release's build is doing, when the scope's test cycles have Sentry.
+  const sentryFor = scope ? (await Promise.all(scope.projectIds.map(async (id) => ((await sentryConnected(id)) ? id : null)))).find(Boolean) : null;
+  const runIds = status.columns.flatMap((c) => c.runIds);
   return (
+    <>
     <RcStatusView
       releases={releases}
       release={release}
@@ -44,7 +51,13 @@ export async function RcReport({
       base={base}
       scopeNote={scopeNote}
       exportTo={exportUrl ? { url: `${exportUrl}?release=${encodeURIComponent(release)}`, cycle, preparedBy: user.name ?? user.email ?? "" } : undefined}
-      {...await rcStatus(user, release, pick, scope)}
+      {...status}
     />
+    {sentryFor && runIds.length > 0 && (
+      <div className="mt-5">
+        <SentryCard projectId={sentryFor} runIds={runIds} />
+      </div>
+    )}
+    </>
   );
 }

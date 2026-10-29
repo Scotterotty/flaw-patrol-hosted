@@ -15,6 +15,7 @@ import { db } from "@/lib/db";
 import { memberInviteInfo } from "@/lib/invites";
 import { can } from "@/lib/permissions";
 import { RolesCard } from "@/components/roles-card";
+import { SentryPanel } from "@/components/sentry-settings";
 import { RolesNudge } from "@/components/roles-nudge";
 import { projectAccess } from "@/lib/session";
 import { APP_VERSION } from "@/lib/version";
@@ -38,6 +39,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
   const canManage = can(who, "project:manage");
   const canMembers = can(who, "members:manage");
   const canJira = can(who, "jira:manage");
+  const sentryRow = await db.sentryConfig.findUnique({ where: { projectId: project.id } });
   const jiraRow = await db.jiraConfig.findUnique({
     where: { projectId: project.id },
     select: { siteUrl: true, email: true, jiraProjectKey: true, issueType: true, tokenEncrypted: true, bugTemplate: true, stories: true, severity: true },
@@ -156,6 +158,19 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
         />
       ) : (
         <SlackCard target={{ projectId: project.id }} channels={slackOwn} canManage={canJira} tip="Post to Slack when something needs the team's eyes. Each channel picks its own alerts." />
+      )}
+      {/* Sentry (ver_96): test cycles in an umbrella use the umbrella's connection. */}
+      {!umbrella && (
+        <Card id="sentry" className="scroll-mt-20 p-5">
+          <h2 className="mb-1 text-sm font-semibold text-slate-800">Sentry</h2>
+          <p className="mb-3 text-xs text-slate-500">See the app&apos;s errors next to failed steps and add them to bugs. Flaw Patrol only reads from Sentry.</p>
+          <SentryPanel
+            projectId={project.id}
+            canManage={canJira}
+            fields={[]}
+            saved={sentryRow && { baseUrl: sentryRow.baseUrl, org: sentryRow.org, connectedAs: sentryRow.connectedAs, projects: Array.isArray(sentryRow.projects) ? (sentryRow.projects as { id: string; slug: string }[]) : [], environment: sentryRow.environment, buildField: sentryRow.buildField, onlyTester: sentryRow.onlyTester, tokenReadable: canOpen(sentryRow.tokenEncrypted) }}
+          />
+        </Card>
       )}
       {/* One Archive… card: this test cycle, others in its umbrella, or the whole umbrella. */}
       {archive && <ArchiveCard data={archive} />}

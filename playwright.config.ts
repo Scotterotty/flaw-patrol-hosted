@@ -27,6 +27,7 @@ export default defineConfig({
     },
     // Stand-in for Jira Cloud, used by execution.spec.ts.
     { command: "node tests/e2e/mock-jira.mjs", port: 3199, reuseExistingServer: !process.env.CI },
+    { command: "node tests/e2e/mock-sentry.mjs", port: 3198, reuseExistingServer: !process.env.CI },
     // Stand-in for GitHub's API with Scott's demo repo, used by github.spec.ts.
     { command: "node tests/e2e/mock-github.mjs", port: 3196, reuseExistingServer: !process.env.CI },
     // Stand-ins for Microsoft / company sign-in and a mail server, used by ver92.spec.ts.

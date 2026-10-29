@@ -2,6 +2,7 @@
 
 import { after } from "next/server";
 import { refreshCrownsFor } from "@/lib/crowns";
+import { parseSentryRefs } from "@/lib/sentry";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -42,6 +43,8 @@ const resultSchema = z.object({
     )
     .max(50)
     .default([]),
+  /** Sentry errors ticked under Failed or Blocked steps (ver_96). */
+  sentry: z.array(z.unknown()).max(40).default([]),
 });
 export type ResultInput = z.input<typeof resultSchema>;
 
@@ -76,6 +79,7 @@ export async function submitResult(projectId: string, entryId: string, input: Re
           testerName: user.name ?? user.email,
           // Quest players: what they wore, so encounter lines keep naming it.
           questGear: gear ? gear : Prisma.DbNull,
+          sentry: data.sentry.length ? (parseSentryRefs(data.sentry) as Prisma.InputJsonValue) : Prisma.DbNull,
         },
       });
       await tx.runEntry.update({

@@ -8,7 +8,7 @@ import { Button, cx, InfoTip } from "./ui";
 export type BugFile = { id: string; fileName: string; contentType: string; label?: string };
 
 /** Take screenshot / Record screen from inside the bug box (ver_88). */
-export type BugCapture = { ok: boolean; why: string; busy: boolean; screenshot: () => void; record: () => void };
+export type BugCapture = { ok: boolean; why: string; busy: boolean; screenshot: () => void; record: () => void; /** "Sentry error…" (ver_96), when Sentry is connected. */ sentry?: () => void };
 
 function Thumb({ f }: { f: BugFile }) {
   if (f.contentType.startsWith("image/"))
@@ -206,6 +206,19 @@ export function AddMenu({
           >
             📁 Upload a file…
           </button>
+          {capture?.sentry && (
+            <button
+              type="button"
+              role="menuitem"
+              className={item}
+              onClick={() => {
+                setOpen(false);
+                capture.sentry!();
+              }}
+            >
+              🛰 Sentry error…
+            </button>
+          )}
         </div>
       )}
     </span>

@@ -11,6 +11,7 @@ import { buttonClass, Card, InfoTip, PageHeader } from "@/components/ui";
 import { AddUmbrellaProject } from "@/components/umbrella-ui";
 import { ArchiveCard } from "@/components/archive-project";
 import { RolesCard } from "@/components/roles-card";
+import { SentryPanel } from "@/components/sentry-settings";
 import { CrownNamesPanel } from "@/components/crown-names";
 import { RolesNudge } from "@/components/roles-nudge";
 import { SlackCard } from "@/components/slack-card";
@@ -42,6 +43,8 @@ import { loadUmbrella, looseProjects, platformColor } from "@/lib/umbrella";
 
 export const metadata = { title: "Settings" };
 
+const projectsOfSentry = (v: unknown) => (Array.isArray(v) ? v.filter((p): p is { id: string; slug: string } => !!p && typeof p.id === "string" && typeof p.slug === "string") : []);
+
 /** What the umbrella sets once for all its projects, and which projects use their own instead. */
 export default async function UmbrellaSettingsPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
@@ -55,6 +58,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
     db.jiraConfig.findMany({ where: { projectId: { in: u.projects.map((p) => p.id) } }, select: { projectId: true, jiraProjectKey: true, bugTemplate: true } }),
   ]);
   const template = parseTemplateSettings(jira?.bugTemplate);
+  const sentry = await db.sentryConfig.findUnique({ where: { projectId: u.hub.id } });
   const leads = members.filter((m) => m.role === "LEAD" || m.role === "ADMIN").length;
   const invites = await memberInviteInfo(members.map((m) => m.userId));
   const manage = can(u.who, "jira:manage");
@@ -254,6 +258,21 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               label={manage ? (slack.length ? "Manage" : "Set up") : "View"}
             >
               <SlackCard target={{ groupId: u.group.id }} channels={slack} canManage={manage} tip={`Post to Slack when something needs the team's eyes. Each channel picks its own alerts. Every ${name} test cycle follows these channels unless its own Settings change that.`} />
+            </ExpandRow>
+            <ExpandRow
+              id="sentry"
+              hashes={["sentry"]}
+              title="Sentry"
+              text={sentry ? `${sentry.org} · ${projectsOfSentry(sentry.projects).map((p) => p.slug).join(", ")}${sentry.environment ? ` · ${sentry.environment}` : ""}` : "Not connected. See the app's errors next to failed steps and add them to bugs."}
+              label={manage ? (sentry ? "Change" : "Connect to Sentry") : "View"}
+              buttonVariant={sentry || !manage ? undefined : "primary"}
+            >
+              <SentryPanel
+                projectId={u.hub.id}
+                canManage={manage}
+                fields={runFields.map((f) => ({ id: f.id, name: f.name }))}
+                saved={sentry && { baseUrl: sentry.baseUrl, org: sentry.org, connectedAs: sentry.connectedAs, projects: projectsOfSentry(sentry.projects), environment: sentry.environment, buildField: sentry.buildField, onlyTester: sentry.onlyTester, tokenReadable: canOpen(sentry.tokenEncrypted) }}
+              />
             </ExpandRow>
             {manage ? (
               <ExpandRow

@@ -1,3 +1,4 @@
+import { sentryConnected } from "@/lib/sentry-config";
 import { resultSteps } from "@/lib/result-steps";
 import { CrumbName } from "@/components/crumb-name";
 import { fieldBits } from "@/lib/run-fields";
@@ -325,6 +326,7 @@ export default async function ExecutePage({
           canCloseRun={can(who, "run:manage")}
           justFinished={sp.finished === "1" && run.state === "ACTIVE" ? run.id : null}
           regression={regression}
+          sentryOn={await sentryConnected(project.id)}
           projectId={project.id}
           projectKey={project.key}
           runNumber={run.number}

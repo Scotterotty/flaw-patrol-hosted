@@ -109,12 +109,14 @@ export class JiraClient {
    */
   labels: string[] = [];
   leadLines: string[] = [];
+  /** Blocks put last in the description, like the Sentry errors section (ver_96). */
+  tailBlocks: object[] = [];
 
   private withLead(description: object) {
-    if (!this.leadLines.length) return description;
+    if (!this.leadLines.length && !this.tailBlocks.length) return description;
     const d = description as { type?: string; content?: object[] };
     const lines = this.leadLines.map((t) => ({ type: "paragraph", content: [{ type: "text", text: t, marks: [{ type: "strong" }] }] }));
-    return { ...d, content: [...lines, ...(d.content ?? [])] };
+    return { ...d, content: [...lines, ...(d.content ?? []), ...this.tailBlocks] };
   }
 
   private async call<T>(path: string, init: RequestInit = {}): Promise<T> {

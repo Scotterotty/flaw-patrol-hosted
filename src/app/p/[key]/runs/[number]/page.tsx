@@ -1,3 +1,5 @@
+import { sentryConnected } from "@/lib/sentry-config";
+import { SentryCard } from "@/components/sentry-card";
 import { resultSteps } from "@/lib/result-steps";
 import { Fragment } from "react";
 import { CrumbName } from "@/components/crumb-name";
@@ -254,6 +256,13 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           </ul>
         </Card>
       </div>
+
+      {/* Sentry (ver_96): how this build is doing, for runs tested by hand. */}
+      {!run.automated && (await sentryConnected(project.id)) && (
+        <div className="mb-5">
+          <SentryCard projectId={project.id} runIds={[run.id]} />
+        </div>
+      )}
 
       {defects.length > 0 && (
         <Card className="mb-5 p-4">

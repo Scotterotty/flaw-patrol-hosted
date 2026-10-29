@@ -1,5 +1,7 @@
 "use client";
 
+import type { SentryRef } from "@/lib/sentry";
+import { SentryBugSection } from "./sentry-box";
 import type { Severity } from "@prisma/client";
 import { useEffect, useState, useTransition } from "react";
 import { browserContext, orderFiles, stamp, type TemplateBug } from "@/lib/bug-template";
@@ -46,7 +48,13 @@ export function BugDialog({
   fromDefect,
   prefill,
   regression = null,
+  sentryOn = false,
+  sentryErrors = [],
 }: {
+  /** Sentry is connected (ver_96): + Add offers "Sentry error…". */
+  sentryOn?: boolean;
+  /** Errors ticked under the step, put on the bug. */
+  sentryErrors?: SentryRef[];
   /** A bug already written elsewhere (a bug bash line, ver_94): its title and severity start filled in. */
   prefill?: { title: string; severity: Severity };
   /** Regression flag (ver_93): the case passed in an earlier release, so the box to mark it in Jira starts ticked. */
@@ -95,6 +103,8 @@ export function BugDialog({
   // A template imported from an example Jira bug, when the project uses one.
   const [imported, setImported] = useState<ImportedBug | null>(null);
   const [added, setAdded] = useState<Attached[]>([]);
+  const [sentryList, setSentryList] = useState<SentryRef[]>([]);
+  const [sentrySearch, setSentrySearch] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Issue[] | null>(null);
@@ -134,6 +144,7 @@ export function BugDialog({
       }
     },
     record: () => void recorder.start({ stepIndex, label: `for this bug`, baseName: captureName }),
+    ...(sentryOn && jiraConnected ? { sentry: () => setSentrySearch(true) } : {}),
   };
   // Closing the box mid-recording throws the recording away.
   const stopRecording = recorder.stop;
@@ -151,6 +162,8 @@ export function BugDialog({
     setTemplate(null);
     setImported(null);
     setAdded([]);
+    setSentryList(sentryErrors);
+    setSentrySearch(false);
     setLinkTo(new Set(linkStories ? stories.map((x) => x.key) : []));
     if (!jiraConnected) {
       setSummary(prefill?.title ?? suggested ?? (stepIndex === null ? "" : `${stepLabel} failed`));
@@ -217,6 +230,7 @@ export function BugDialog({
         attachmentIds: ordered,
         stories: [...linkTo],
         regression: !!regression && markReg,
+        sentry: sentryList,
         ...(fromDefect && { fromDefectId: fromDefect.id }),
         ...(template && { template }),
         ...(imported && {
@@ -389,6 +403,7 @@ export function BugDialog({
                   )}
                 </>
               )}
+              {(jiraConnected || sentryList.length > 0) && <SentryBugSection jira={jiraConnected} projectId={projectId} entryId={entryId} list={sentryList} setList={setSentryList} searching={sentrySearch} setSearching={setSentrySearch} />}
               {jiraConnected && stories.length > 0 && (
                 <fieldset className="space-y-1">
                   <legend className="sr-only">Link to requirements</legend>
