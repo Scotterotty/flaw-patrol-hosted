@@ -1,0 +1,1001 @@
+@import "tailwindcss";
+
+/*
+ * Larger and Largest text (ver_85): the runner stacks into one column, the way it
+ * does at phone width, until the screen is wide enough for two columns at that size.
+ */
+@custom-variant bigtext {
+  :root[data-text-size="150"] & {
+    @media (width < 96rem) {
+      @slot;
+    }
+  }
+  :root[data-text-size="125"] & {
+    @media (width < 80rem) {
+      @slot;
+    }
+  }
+}
+
+@theme {
+  /* Each person's font choice (data-font-body / data-font-heading on <html>). */
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-heading: var(--font-head), var(--font-sans);
+  /* The accent follows each person's theme choice (data-accent on <html>). */
+  --color-accent-50: oklch(0.97 0.02 var(--accent-h));
+  --color-accent-100: oklch(0.93 0.04 var(--accent-h));
+  --color-accent-500: oklch(0.58 0.19 var(--accent-h));
+  --color-accent-600: oklch(0.51 0.2 var(--accent-h));
+  --color-accent-700: oklch(0.45 0.19 var(--accent-h));
+  /* Cards, inputs and menus. Use bg-surface rather than bg-white so dark mode works. */
+  --color-surface: #fff;
+  /* Grays lean toward the accent color, at low chroma so status colors still stand out. */
+  --color-slate-50: oklch(98.4% calc(0.008 * var(--tint)) var(--accent-h));
+  --color-slate-100: oklch(96.8% calc(0.014 * var(--tint)) var(--accent-h));
+  --color-slate-200: oklch(92.9% calc(0.02 * var(--tint)) var(--accent-h));
+  --color-slate-300: oklch(86.9% calc(0.026 * var(--tint)) var(--accent-h));
+  /* The faint gray for small hints and counts, dark enough to read: 5.3:1 on white (ver_86, was 2.7:1). */
+  --color-slate-400: oklch(53% calc(0.04 * var(--tint)) var(--accent-h));
+  --color-slate-500: oklch(55.4% calc(0.046 * var(--tint)) var(--accent-h));
+  --color-slate-600: oklch(44.6% calc(0.043 * var(--tint)) var(--accent-h));
+  --color-slate-700: oklch(37.2% calc(0.044 * var(--tint)) var(--accent-h));
+  --color-slate-800: oklch(27.9% calc(0.041 * var(--tint)) var(--accent-h));
+  --color-slate-900: oklch(20.8% calc(0.042 * var(--tint)) var(--accent-h));
+  --color-slate-950: oklch(12.9% calc(0.042 * var(--tint)) var(--accent-h));
+  --color-status-blocked: #334155;
+}
+
+/* Fonts: layout.tsx sets these on <html> from each person's choice (fontVars in
+   src/lib/theme.ts); these are the defaults. */
+:root {
+  --font-body: "Poppins";
+  --font-head: "Young Serif";
+  --font-head-weight: 400;
+  --font-head-adjust: none;
+}
+
+/* Page and card titles use the heading font; small all-caps labels stay in the text font. */
+h1,
+h2:not(.uppercase),
+h3:not(.uppercase),
+.font-heading {
+  font-family: var(--font-heading);
+  /* Each heading font's own weight (several have only one, so don't fake bold).
+     Small or very wide display fonts are evened out to a similar letter height. */
+  font-weight: var(--font-head-weight);
+  font-size-adjust: var(--font-head-adjust);
+}
+
+/* Accent colors, as oklch hues. Keep in sync with ACCENTS in src/lib/theme.ts. */
+:root {
+  --accent-h: 295;
+  /* How strongly the grays take on the accent. Warm and green hues are
+     toned down so panels never read as a failed or passed status. */
+  --tint: 1;
+  color-scheme: light;
+}
+:root[data-accent="ocean"] {
+  --accent-h: 255;
+}
+:root[data-accent="teal"] {
+  --accent-h: 195;
+}
+:root[data-accent="forest"] {
+  --accent-h: 150;
+  --tint: 0.6;
+}
+:root[data-accent="rose"] {
+  --accent-h: 12;
+  --tint: 0.4;
+}
+:root[data-accent="sunset"] {
+  --accent-h: 45;
+  --tint: 0.45;
+}
+
+/* Dark mode: chosen outright, or following the computer's setting. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-surface: oklch(17.5% calc(0.03 * var(--tint)) var(--accent-h));
+  --color-status-blocked: #64748b;
+  --color-accent-50: oklch(0.26 0.07 var(--accent-h));
+  --color-accent-100: oklch(0.32 0.09 var(--accent-h));
+  --color-accent-500: oklch(0.66 0.17 var(--accent-h));
+  --color-accent-700: oklch(0.8 0.12 var(--accent-h));
+  /* Swap the light and dark ends of each palette; the middle (400-600) stays for solid fills with white text. */
+  --color-slate-50: oklch(12.9% calc(0.042 * var(--tint)) var(--accent-h));
+  --color-slate-100: oklch(20.8% calc(0.042 * var(--tint)) var(--accent-h));
+  --color-slate-200: oklch(27.9% calc(0.041 * var(--tint)) var(--accent-h));
+  --color-slate-300: oklch(37.2% calc(0.044 * var(--tint)) var(--accent-h));
+  --color-slate-400: oklch(75% calc(0.04 * var(--tint)) var(--accent-h)); /* readable on purple panels too (ver_86) */
+  --color-slate-500: oklch(70.4% calc(0.04 * var(--tint)) var(--accent-h));
+  --color-slate-600: oklch(70.4% calc(0.04 * var(--tint)) var(--accent-h));
+  --color-slate-700: oklch(86.9% calc(0.022 * var(--tint)) var(--accent-h));
+  --color-slate-800: oklch(92.9% calc(0.013 * var(--tint)) var(--accent-h));
+  --color-slate-900: oklch(96.8% calc(0.007 * var(--tint)) var(--accent-h));
+  --color-slate-950: oklch(98.4% calc(0.003 * var(--tint)) var(--accent-h));
+  --color-red-50: oklch(25.8% 0.092 26.042);
+  --color-red-100: oklch(39.6% 0.141 25.723);
+  --color-red-200: oklch(44.4% 0.177 26.899);
+  --color-red-300: oklch(50.5% 0.213 27.518);
+  --color-red-700: oklch(80.8% 0.114 19.571);
+  --color-red-800: oklch(88.5% 0.062 18.334);
+  --color-red-900: oklch(93.6% 0.032 17.717);
+  --color-red-950: oklch(97.1% 0.013 17.38);
+  --color-orange-50: oklch(26.6% 0.079 36.259);
+  --color-orange-100: oklch(40.8% 0.123 38.172);
+  --color-orange-200: oklch(47% 0.157 37.304);
+  --color-orange-300: oklch(55.3% 0.195 38.402);
+  --color-orange-700: oklch(83.7% 0.128 66.29);
+  --color-orange-800: oklch(90.1% 0.076 70.697);
+  --color-orange-900: oklch(95.4% 0.038 75.164);
+  --color-orange-950: oklch(98% 0.016 73.684);
+  --color-amber-50: oklch(27.9% 0.077 45.635);
+  --color-amber-100: oklch(41.4% 0.112 45.904);
+  --color-amber-200: oklch(47.3% 0.137 46.201);
+  --color-amber-300: oklch(55.5% 0.163 48.998);
+  --color-amber-700: oklch(87.9% 0.169 91.605);
+  --color-amber-800: oklch(92.4% 0.12 95.746);
+  --color-amber-900: oklch(96.2% 0.059 95.617);
+  --color-amber-950: oklch(98.7% 0.022 95.277);
+  --color-emerald-50: oklch(26.2% 0.051 172.552);
+  --color-emerald-100: oklch(37.8% 0.077 168.94);
+  --color-emerald-200: oklch(43.2% 0.095 166.913);
+  --color-emerald-300: oklch(50.8% 0.118 165.612);
+  --color-emerald-700: oklch(84.5% 0.143 164.978);
+  --color-emerald-800: oklch(90.5% 0.093 164.15);
+  --color-emerald-900: oklch(95% 0.052 163.051);
+  --color-emerald-950: oklch(97.9% 0.021 166.113);
+  --color-green-50: oklch(26.6% 0.065 152.934);
+  --color-green-100: oklch(39.3% 0.095 152.535);
+  --color-green-200: oklch(44.8% 0.119 151.328);
+  --color-green-300: oklch(52.7% 0.154 150.069);
+  --color-green-700: oklch(87.1% 0.15 154.449);
+  --color-green-800: oklch(92.5% 0.084 155.995);
+  --color-green-900: oklch(96.2% 0.044 156.743);
+  --color-green-950: oklch(98.2% 0.018 155.826);
+  --color-sky-50: oklch(29.3% 0.066 243.157);
+  --color-sky-100: oklch(39.1% 0.09 240.876);
+  --color-sky-200: oklch(44.3% 0.11 240.79);
+  --color-sky-300: oklch(50% 0.134 242.749);
+  --color-sky-700: oklch(82.8% 0.111 230.318);
+  --color-sky-800: oklch(90.1% 0.058 230.902);
+  --color-sky-900: oklch(95.1% 0.026 236.824);
+  --color-sky-950: oklch(97.7% 0.013 236.62);
+  --color-teal-50: oklch(27.7% 0.046 192.524);
+  --color-teal-100: oklch(38.6% 0.063 188.416);
+  --color-teal-200: oklch(43.7% 0.078 188.216);
+  --color-teal-300: oklch(51.1% 0.096 186.391);
+  --color-teal-700: oklch(85.5% 0.138 181.071);
+  --color-teal-800: oklch(91% 0.096 180.426);
+  --color-teal-900: oklch(95.3% 0.051 180.801);
+  --color-teal-950: oklch(98.4% 0.014 180.72);
+  --color-blue-50: oklch(28.2% 0.091 267.935);
+  --color-blue-100: oklch(37.9% 0.146 265.522);
+  --color-blue-200: oklch(42.4% 0.199 265.638);
+  --color-blue-300: oklch(48.8% 0.243 264.376);
+  --color-blue-700: oklch(80.9% 0.105 251.813);
+  --color-blue-800: oklch(88.2% 0.059 254.128);
+  --color-blue-900: oklch(93.2% 0.032 255.585);
+  --color-blue-950: oklch(97% 0.014 254.604);
+  --color-violet-50: oklch(28.3% 0.141 291.089);
+  --color-violet-100: oklch(38% 0.189 293.745);
+  --color-violet-200: oklch(43.2% 0.232 292.759);
+  --color-violet-300: oklch(49.1% 0.27 292.581);
+  --color-violet-700: oklch(81.1% 0.111 293.571);
+  --color-violet-800: oklch(89.4% 0.057 293.283);
+  --color-violet-900: oklch(94.3% 0.029 294.588);
+  --color-violet-950: oklch(96.9% 0.016 293.756);
+  --color-zinc-50: oklch(14.1% 0.005 285.823);
+  --color-zinc-100: oklch(21% 0.006 285.885);
+  --color-zinc-200: oklch(27.4% 0.006 286.033);
+  --color-zinc-300: oklch(37% 0.013 285.805);
+  --color-zinc-700: oklch(87.1% 0.006 286.286);
+  --color-zinc-800: oklch(92% 0.004 286.32);
+  --color-zinc-900: oklch(96.7% 0.001 286.375);
+  --color-zinc-950: oklch(98.5% 0 none);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] {
+    color-scheme: dark;
+    --color-surface: oklch(17.5% calc(0.03 * var(--tint)) var(--accent-h));
+    --color-status-blocked: #64748b;
+    --color-accent-50: oklch(0.26 0.07 var(--accent-h));
+    --color-accent-100: oklch(0.32 0.09 var(--accent-h));
+    --color-accent-500: oklch(0.66 0.17 var(--accent-h));
+    --color-accent-700: oklch(0.8 0.12 var(--accent-h));
+    /* Swap the light and dark ends of each palette; the middle (400-600) stays for solid fills with white text. */
+    --color-slate-50: oklch(12.9% calc(0.042 * var(--tint)) var(--accent-h));
+    --color-slate-100: oklch(20.8% calc(0.042 * var(--tint)) var(--accent-h));
+    --color-slate-200: oklch(27.9% calc(0.041 * var(--tint)) var(--accent-h));
+    --color-slate-300: oklch(37.2% calc(0.044 * var(--tint)) var(--accent-h));
+    --color-slate-400: oklch(75% calc(0.04 * var(--tint)) var(--accent-h)); /* readable on purple panels too (ver_86) */
+    --color-slate-500: oklch(70.4% calc(0.04 * var(--tint)) var(--accent-h));
+    --color-slate-600: oklch(70.4% calc(0.04 * var(--tint)) var(--accent-h));
+    --color-slate-700: oklch(86.9% calc(0.022 * var(--tint)) var(--accent-h));
+    --color-slate-800: oklch(92.9% calc(0.013 * var(--tint)) var(--accent-h));
+    --color-slate-900: oklch(96.8% calc(0.007 * var(--tint)) var(--accent-h));
+    --color-slate-950: oklch(98.4% calc(0.003 * var(--tint)) var(--accent-h));
+    --color-red-50: oklch(25.8% 0.092 26.042);
+    --color-red-100: oklch(39.6% 0.141 25.723);
+    --color-red-200: oklch(44.4% 0.177 26.899);
+    --color-red-300: oklch(50.5% 0.213 27.518);
+    --color-red-700: oklch(80.8% 0.114 19.571);
+    --color-red-800: oklch(88.5% 0.062 18.334);
+    --color-red-900: oklch(93.6% 0.032 17.717);
+    --color-red-950: oklch(97.1% 0.013 17.38);
+    --color-orange-50: oklch(26.6% 0.079 36.259);
+    --color-orange-100: oklch(40.8% 0.123 38.172);
+    --color-orange-200: oklch(47% 0.157 37.304);
+    --color-orange-300: oklch(55.3% 0.195 38.402);
+    --color-orange-700: oklch(83.7% 0.128 66.29);
+    --color-orange-800: oklch(90.1% 0.076 70.697);
+    --color-orange-900: oklch(95.4% 0.038 75.164);
+    --color-orange-950: oklch(98% 0.016 73.684);
+    --color-amber-50: oklch(27.9% 0.077 45.635);
+    --color-amber-100: oklch(41.4% 0.112 45.904);
+    --color-amber-200: oklch(47.3% 0.137 46.201);
+    --color-amber-300: oklch(55.5% 0.163 48.998);
+    --color-amber-700: oklch(87.9% 0.169 91.605);
+    --color-amber-800: oklch(92.4% 0.12 95.746);
+    --color-amber-900: oklch(96.2% 0.059 95.617);
+    --color-amber-950: oklch(98.7% 0.022 95.277);
+    --color-emerald-50: oklch(26.2% 0.051 172.552);
+    --color-emerald-100: oklch(37.8% 0.077 168.94);
+    --color-emerald-200: oklch(43.2% 0.095 166.913);
+    --color-emerald-300: oklch(50.8% 0.118 165.612);
+    --color-emerald-700: oklch(84.5% 0.143 164.978);
+    --color-emerald-800: oklch(90.5% 0.093 164.15);
+    --color-emerald-900: oklch(95% 0.052 163.051);
+    --color-emerald-950: oklch(97.9% 0.021 166.113);
+    --color-green-50: oklch(26.6% 0.065 152.934);
+    --color-green-100: oklch(39.3% 0.095 152.535);
+    --color-green-200: oklch(44.8% 0.119 151.328);
+    --color-green-300: oklch(52.7% 0.154 150.069);
+    --color-green-700: oklch(87.1% 0.15 154.449);
+    --color-green-800: oklch(92.5% 0.084 155.995);
+    --color-green-900: oklch(96.2% 0.044 156.743);
+    --color-green-950: oklch(98.2% 0.018 155.826);
+    --color-sky-50: oklch(29.3% 0.066 243.157);
+    --color-sky-100: oklch(39.1% 0.09 240.876);
+    --color-sky-200: oklch(44.3% 0.11 240.79);
+    --color-sky-300: oklch(50% 0.134 242.749);
+    --color-sky-700: oklch(82.8% 0.111 230.318);
+    --color-sky-800: oklch(90.1% 0.058 230.902);
+    --color-sky-900: oklch(95.1% 0.026 236.824);
+    --color-sky-950: oklch(97.7% 0.013 236.62);
+    --color-teal-50: oklch(27.7% 0.046 192.524);
+    --color-teal-100: oklch(38.6% 0.063 188.416);
+    --color-teal-200: oklch(43.7% 0.078 188.216);
+    --color-teal-300: oklch(51.1% 0.096 186.391);
+    --color-teal-700: oklch(85.5% 0.138 181.071);
+    --color-teal-800: oklch(91% 0.096 180.426);
+    --color-teal-900: oklch(95.3% 0.051 180.801);
+    --color-teal-950: oklch(98.4% 0.014 180.72);
+    --color-blue-50: oklch(28.2% 0.091 267.935);
+    --color-blue-100: oklch(37.9% 0.146 265.522);
+    --color-blue-200: oklch(42.4% 0.199 265.638);
+    --color-blue-300: oklch(48.8% 0.243 264.376);
+    --color-blue-700: oklch(80.9% 0.105 251.813);
+    --color-blue-800: oklch(88.2% 0.059 254.128);
+    --color-blue-900: oklch(93.2% 0.032 255.585);
+    --color-blue-950: oklch(97% 0.014 254.604);
+    --color-violet-50: oklch(28.3% 0.141 291.089);
+    --color-violet-100: oklch(38% 0.189 293.745);
+    --color-violet-200: oklch(43.2% 0.232 292.759);
+    --color-violet-300: oklch(49.1% 0.27 292.581);
+    --color-violet-700: oklch(81.1% 0.111 293.571);
+    --color-violet-800: oklch(89.4% 0.057 293.283);
+    --color-violet-900: oklch(94.3% 0.029 294.588);
+    --color-violet-950: oklch(96.9% 0.016 293.756);
+    --color-zinc-50: oklch(14.1% 0.005 285.823);
+    --color-zinc-100: oklch(21% 0.006 285.885);
+    --color-zinc-200: oklch(27.4% 0.006 286.033);
+    --color-zinc-300: oklch(37% 0.013 285.805);
+    --color-zinc-700: oklch(87.1% 0.006 286.286);
+    --color-zinc-800: oklch(92% 0.004 286.32);
+    --color-zinc-900: oklch(96.7% 0.001 286.375);
+    --color-zinc-950: oklch(98.5% 0 none);
+  }
+}
+
+body {
+  /* Multi-color themes give the page its own color; otherwise it's the palest gray. */
+  background: var(--page, var(--color-slate-50));
+  color: var(--color-slate-900);
+}
+
+kbd {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  border: 1px solid var(--color-slate-300);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0 4px;
+  background: var(--color-surface);
+  color: var(--color-slate-600);
+}
+
+/* Tailwind 4 leaves buttons with the arrow cursor; show the hand on anything clickable. */
+@layer base {
+  :is(button, [role="button"], select, summary, label:has(input[type="radio"], input[type="checkbox"], input[type="file"]), input[type="checkbox"], input[type="radio"], input[type="file"], input[type="range"]):not(:disabled, [aria-disabled="true"]) {
+    cursor: pointer;
+  }
+}
+
+/* Accessibility (each person's choice, set on <html> in layout.tsx). */
+:root[data-text-size="90"] {
+  font-size: 90%;
+}
+:root[data-text-size="112"] {
+  font-size: 112.5%;
+}
+:root[data-text-size="125"] {
+  font-size: 125%;
+}
+:root[data-text-size="150"] {
+  font-size: 150%;
+}
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] ::before,
+:root[data-motion="reduce"] ::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+/* Early Adopter frame: the ring slowly turns and two stars twinkle on it. */
+@property --fresh-turn {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+.frame-fresh {
+  animation: fresh-turn 6s linear infinite;
+  box-shadow: 0 0 6px rgb(56 189 248 / 0.6);
+}
+.frame-fresh::before,
+.frame-fresh::after {
+  content: "";
+  position: absolute;
+  width: 38%;
+  height: 38%;
+  max-width: 14px;
+  max-height: 14px;
+  background: linear-gradient(135deg, #fff, #fde047);
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+  filter: drop-shadow(0 0 1px #854d0e) drop-shadow(0 0 3px #fde047);
+  pointer-events: none;
+  animation: fresh-twinkle 2.4s ease-in-out infinite;
+}
+.frame-fresh::before {
+  top: -12%;
+  right: -10%;
+}
+.frame-fresh::after {
+  bottom: -6%;
+  left: -8%;
+  width: 26%;
+  height: 26%;
+  animation-delay: 1.2s;
+}
+@keyframes fresh-turn {
+  to {
+    --fresh-turn: 360deg;
+  }
+}
+@keyframes fresh-twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.55) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .frame-fresh,
+  .frame-fresh::before,
+  .frame-fresh::after {
+    animation: none;
+  }
+}
+
+/* Quest map pawn: a gentle bob so it reads as "you are here". */
+.quest-pawn-bob {
+  animation: quest-bob 1.6s ease-in-out infinite;
+}
+@keyframes quest-bob {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .quest-pawn-bob {
+    animation: none;
+  }
+}
+
+/* Links inside sentences are underlined for everyone (ver_87, A3), so they don't rely on color alone.
+   Buttons, chips and menus stay as they are. */
+:is(main, [role="dialog"]) :is(p, dd, label, small, p span) > a:not(.inline-flex, .flex, .block, .grid, [class*="rounded"], [class*="border"]) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+/* The Underline links setting underlines every other content link too. */
+:root[data-links="underline"] main a:not(.inline-flex, .flex, .block) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+/* Multi-color themes (generated from the approved mockup; keep in sync with THEMES in src/lib/theme.ts).
+   Two-color themes: one color for the page, one for bars and panels. Three-color themes give the
+   top bar and left menu their own bold color. Status colors never change. */
+:root[data-accent="peach"] {
+  --accent-h: 275;
+  --tint: 0.6;
+  --page: #fbe3d1;
+  --color-surface: #f1f2ff;
+  --color-slate-900: #1e2140;
+  --color-slate-500: #535880;
+  --color-slate-200: #d8daf2;
+  --color-accent-50: color-mix(in oklab, #e0e3ff 60%, #f1f2ff);
+  --color-accent-100: #e0e3ff;
+  --color-accent-500: #4a55c9;
+  --color-accent-600: #4a55c9;
+  --color-accent-700: #343fae;
+  --bar: #f1f2ff;
+  --bar-fg: #1e2140;
+  --bar-muted: #535880;
+  --bar-line: #d8daf2;
+  --bar-active: #dfe2ff;
+  --bar-active-fg: #333dae;
+  --bar-accent: #4a55c9;
+}
+:root[data-theme="dark"][data-accent="peach"] {
+  --tint: 0.6;
+  --page: #2b1a10;
+  --color-surface: #1a1d36;
+  --color-slate-900: #eceeff;
+  --color-slate-500: #a7acd2;
+  --color-slate-200: #2f3459;
+  --color-accent-50: color-mix(in oklab, #272d5c 60%, #1a1d36);
+  --color-accent-100: #272d5c;
+  --color-accent-500: color-mix(in oklab, #5f6be0 50%, #b9c0ff);
+  --color-accent-600: #5f6be0;
+  --color-accent-700: #b9c0ff;
+  --bar: #1a1d36;
+  --bar-fg: #eceeff;
+  --bar-muted: #a7acd2;
+  --bar-line: #2f3459;
+  --bar-active: #2c3266;
+  --bar-active-fg: #c4c9ff;
+  --bar-accent: #909af6;
+}
+:root[data-accent="butter"] {
+  --accent-h: 295;
+  --tint: 0.6;
+  --page: #f9eecb;
+  --color-surface: #f5efff;
+  --color-slate-900: #241a38;
+  --color-slate-500: #5f5476;
+  --color-slate-200: #e2d8f5;
+  --color-accent-50: color-mix(in oklab, #ebdfff 60%, #f5efff);
+  --color-accent-100: #ebdfff;
+  --color-accent-500: #7442c8;
+  --color-accent-600: #7442c8;
+  --color-accent-700: #5b2fa8;
+  --bar: #f5efff;
+  --bar-fg: #241a38;
+  --bar-muted: #5f5476;
+  --bar-line: #e2d8f5;
+  --bar-active: #e9dcff;
+  --bar-active-fg: #5b2fa8;
+  --bar-accent: #7442c8;
+}
+:root[data-theme="dark"][data-accent="butter"] {
+  --tint: 0.6;
+  --page: #231d0a;
+  --color-surface: #1e1730;
+  --color-slate-900: #f1ecff;
+  --color-slate-500: #b5aad0;
+  --color-slate-200: #362a52;
+  --color-accent-50: color-mix(in oklab, #30234f 60%, #1e1730);
+  --color-accent-100: #30234f;
+  --color-accent-500: color-mix(in oklab, #8a5ae0 50%, #cdb6ff);
+  --color-accent-600: #8a5ae0;
+  --color-accent-700: #cdb6ff;
+  --bar: #1e1730;
+  --bar-fg: #f1ecff;
+  --bar-muted: #b5aad0;
+  --bar-line: #362a52;
+  --bar-active: #33255a;
+  --bar-active-fg: #d6c2ff;
+  --bar-accent: #b08bf2;
+}
+:root[data-accent="quartz"] {
+  --accent-h: 200;
+  --tint: 0.6;
+  --page: #f3d9df;
+  --color-surface: #ecf7f7;
+  --color-slate-900: #1b2a2b;
+  --color-slate-500: #506466;
+  --color-slate-200: #d1e5e5;
+  --color-accent-50: color-mix(in oklab, #d3eeee 60%, #ecf7f7);
+  --color-accent-100: #d3eeee;
+  --color-accent-500: #0f7a80;
+  --color-accent-600: #0f7a80;
+  --color-accent-700: #0b5f64;
+  --bar: #ecf7f7;
+  --bar-fg: #1b2a2b;
+  --bar-muted: #506466;
+  --bar-line: #d1e5e5;
+  --bar-active: #d4efef;
+  --bar-active-fg: #0b5f64;
+  --bar-accent: #0f7a80;
+}
+:root[data-theme="dark"][data-accent="quartz"] {
+  --tint: 0.6;
+  --page: #28131a;
+  --color-surface: #132426;
+  --color-slate-900: #e7f5f5;
+  --color-slate-500: #9cbcbd;
+  --color-slate-200: #244040;
+  --color-accent-50: color-mix(in oklab, #183a3c 60%, #132426);
+  --color-accent-100: #183a3c;
+  --color-accent-500: color-mix(in oklab, #0f7f86 50%, #86dde1);
+  --color-accent-600: #0f7f86;
+  --color-accent-700: #86dde1;
+  --bar: #132426;
+  --bar-fg: #e7f5f5;
+  --bar-muted: #9cbcbd;
+  --bar-line: #244040;
+  --bar-active: #1b3e40;
+  --bar-active-fg: #8fe3e6;
+  --bar-accent: #52c3c8;
+}
+:root[data-accent="denim"] {
+  --accent-h: 255;
+  --tint: 0.6;
+  --page: #d4def0;
+  --color-surface: #fbf7ef;
+  --color-slate-900: #22252b;
+  --color-slate-500: #575b63;
+  --color-slate-200: #e7dfcf;
+  --color-accent-50: color-mix(in oklab, #e3eaf7 60%, #fbf7ef);
+  --color-accent-100: #e3eaf7;
+  --color-accent-500: #2b5fa8;
+  --color-accent-600: #2b5fa8;
+  --color-accent-700: #244f8f;
+  --bar: #fbf7ef;
+  --bar-fg: #22252b;
+  --bar-muted: #575b63;
+  --bar-line: #e7dfcf;
+  --bar-active: #e4ebf8;
+  --bar-active-fg: #244f8f;
+  --bar-accent: #2b5fa8;
+}
+:root[data-theme="dark"][data-accent="denim"] {
+  --tint: 0.6;
+  --page: #0e1729;
+  --color-surface: #221e17;
+  --color-slate-900: #f2eee6;
+  --color-slate-500: #b9b0a0;
+  --color-slate-200: #3a332a;
+  --color-accent-50: color-mix(in oklab, #1d2c47 60%, #221e17);
+  --color-accent-100: #1d2c47;
+  --color-accent-500: color-mix(in oklab, #3b6fc0 50%, #a3c1f3);
+  --color-accent-600: #3b6fc0;
+  --color-accent-700: #a3c1f3;
+  --bar: #221e17;
+  --bar-fg: #f2eee6;
+  --bar-muted: #b9b0a0;
+  --bar-line: #3a332a;
+  --bar-active: #1f2f4c;
+  --bar-active-fg: #a9c6f5;
+  --bar-accent: #7da8ea;
+}
+:root[data-accent="harbor"] {
+  --accent-h: 255;
+  --tint: 0.6;
+  --page: #f0e6d6;
+  --color-surface: #ffffff;
+  --color-slate-900: #1a2433;
+  --color-slate-500: #596374;
+  --color-slate-200: #e5ddcf;
+  --color-accent-50: color-mix(in oklab, #e7effc 60%, #ffffff);
+  --color-accent-100: #e7effc;
+  --color-accent-500: #2563c9;
+  --color-accent-600: #2563c9;
+  --color-accent-700: #1d4fa3;
+  --bar: #1d3557;
+  --bar-fg: #f1f5fb;
+  --bar-muted: #a9bbd4;
+  --bar-line: #2c4770;
+  --bar-active: #335482;
+  --bar-active-fg: #ffffff;
+  --bar-accent: #8fc0ff;
+}
+:root[data-theme="dark"][data-accent="harbor"] {
+  --tint: 0.6;
+  --page: #17130c;
+  --color-surface: #1c2432;
+  --color-slate-900: #eef2f8;
+  --color-slate-500: #a7b2c3;
+  --color-slate-200: #2e3a4c;
+  --color-accent-50: color-mix(in oklab, #1f2f4b 60%, #1c2432);
+  --color-accent-100: #1f2f4b;
+  --color-accent-500: color-mix(in oklab, #3a74d6 50%, #9cc2ff);
+  --color-accent-600: #3a74d6;
+  --color-accent-700: #9cc2ff;
+  --bar: #0e1a2e;
+  --bar-fg: #e7eef8;
+  --bar-muted: #8d9fbb;
+  --bar-line: #1d2c45;
+  --bar-active: #1f3557;
+  --bar-active-fg: #ffffff;
+  --bar-accent: #7fb0ff;
+}
+:root[data-accent="grape"] {
+  --accent-h: 295;
+  --tint: 0.6;
+  --page: #fbe5d4;
+  --color-surface: #fffcf8;
+  --color-slate-900: #26193a;
+  --color-slate-500: #645878;
+  --color-slate-200: #ecdccd;
+  --color-accent-50: color-mix(in oklab, #f1e8fd 60%, #fffcf8);
+  --color-accent-100: #f1e8fd;
+  --color-accent-500: #7442c8;
+  --color-accent-600: #7442c8;
+  --color-accent-700: #5b2fa8;
+  --bar: #3a1f63;
+  --bar-fg: #f6f0ff;
+  --bar-muted: #c2b0e2;
+  --bar-line: #4c2e7c;
+  --bar-active: #5a3990;
+  --bar-active-fg: #ffffff;
+  --bar-accent: #ffb98a;
+}
+:root[data-theme="dark"][data-accent="grape"] {
+  --tint: 0.6;
+  --page: #1f140c;
+  --color-surface: #251c33;
+  --color-slate-900: #f3edff;
+  --color-slate-500: #b9aacf;
+  --color-slate-200: #3b2e52;
+  --color-accent-50: color-mix(in oklab, #33264d 60%, #251c33);
+  --color-accent-100: #33264d;
+  --color-accent-500: color-mix(in oklab, #8a5ae0 50%, #cfb8ff);
+  --color-accent-600: #8a5ae0;
+  --color-accent-700: #cfb8ff;
+  --bar: #1f1236;
+  --bar-fg: #f3edff;
+  --bar-muted: #ab9bc9;
+  --bar-line: #30204f;
+  --bar-active: #3a2563;
+  --bar-active-fg: #ffffff;
+  --bar-accent: #ffb27f;
+}
+:root[data-accent="lagoon"] {
+  --accent-h: 200;
+  --tint: 0.6;
+  --page: #fbe2d8;
+  --color-surface: #f6fbfb;
+  --color-slate-900: #132a2e;
+  --color-slate-500: #4e6568;
+  --color-slate-200: #d5e5e6;
+  --color-accent-50: color-mix(in oklab, #dcf0f1 60%, #f6fbfb);
+  --color-accent-100: #dcf0f1;
+  --color-accent-500: #0e7c86;
+  --color-accent-600: #0e7c86;
+  --color-accent-700: #0a636b;
+  --bar: #0f4c55;
+  --bar-fg: #eafbfb;
+  --bar-muted: #9ccbcf;
+  --bar-line: #1a5f69;
+  --bar-active: #1e6c77;
+  --bar-active-fg: #ffffff;
+  --bar-accent: #ffb199;
+}
+:root[data-theme="dark"][data-accent="lagoon"] {
+  --tint: 0.6;
+  --page: #23120d;
+  --color-surface: #13272a;
+  --color-slate-900: #e6f6f6;
+  --color-slate-500: #9dbdbf;
+  --color-slate-200: #24403f;
+  --color-accent-50: color-mix(in oklab, #163b3e 60%, #13272a);
+  --color-accent-100: #163b3e;
+  --color-accent-500: color-mix(in oklab, #0c7a84 50%, #7fd8df);
+  --color-accent-600: #0c7a84;
+  --color-accent-700: #7fd8df;
+  --bar: #082c31;
+  --bar-fg: #e6f6f6;
+  --bar-muted: #8fb6b9;
+  --bar-line: #123c42;
+  --bar-active: #134952;
+  --bar-active-fg: #ffffff;
+  --bar-accent: #ff9f85;
+}
+:root[data-accent="graphite"] {
+  --accent-h: 265;
+  --tint: 0.6;
+  --page: #faedcd;
+  --color-surface: #ffffff;
+  --color-slate-900: #1f2228;
+  --color-slate-500: #5b5f67;
+  --color-slate-200: #e9dfc8;
+  --color-accent-50: color-mix(in oklab, #e8ecfa 60%, #ffffff);
+  --color-accent-100: #e8ecfa;
+  --color-accent-500: #3555b8;
+  --color-accent-600: #3555b8;
+  --color-accent-700: #2c4799;
+  --bar: #2a2e35;
+  --bar-fg: #f4f4f2;
+  --bar-muted: #b0b4bc;
+  --bar-line: #3a3f48;
+  --bar-active: #454b56;
+  --bar-active-fg: #ffffff;
+  --bar-accent: #f2c14e;
+}
+:root[data-theme="dark"][data-accent="graphite"] {
+  --tint: 0.6;
+  --page: #201a09;
+  --color-surface: #23252a;
+  --color-slate-900: #f2f1ec;
+  --color-slate-500: #adafb4;
+  --color-slate-200: #383b42;
+  --color-accent-50: color-mix(in oklab, #232c45 60%, #23252a);
+  --color-accent-100: #232c45;
+  --color-accent-500: color-mix(in oklab, #4a6ad0 50%, #a9bcf5);
+  --color-accent-600: #4a6ad0;
+  --color-accent-700: #a9bcf5;
+  --bar: #15171b;
+  --bar-fg: #f2f1ec;
+  --bar-muted: #a2a6ae;
+  --bar-line: #262a30;
+  --bar-active: #2e333b;
+  --bar-active-fg: #ffffff;
+  --bar-accent: #f2c14e;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"][data-accent="peach"] {
+    --tint: 0.6;
+    --page: #2b1a10;
+    --color-surface: #1a1d36;
+    --color-slate-900: #eceeff;
+    --color-slate-500: #a7acd2;
+    --color-slate-200: #2f3459;
+    --color-accent-50: color-mix(in oklab, #272d5c 60%, #1a1d36);
+    --color-accent-100: #272d5c;
+    --color-accent-500: color-mix(in oklab, #5f6be0 50%, #b9c0ff);
+    --color-accent-600: #5f6be0;
+    --color-accent-700: #b9c0ff;
+    --bar: #1a1d36;
+    --bar-fg: #eceeff;
+    --bar-muted: #a7acd2;
+    --bar-line: #2f3459;
+    --bar-active: #2c3266;
+    --bar-active-fg: #c4c9ff;
+    --bar-accent: #909af6;
+  }
+  :root[data-theme="system"][data-accent="butter"] {
+    --tint: 0.6;
+    --page: #231d0a;
+    --color-surface: #1e1730;
+    --color-slate-900: #f1ecff;
+    --color-slate-500: #b5aad0;
+    --color-slate-200: #362a52;
+    --color-accent-50: color-mix(in oklab, #30234f 60%, #1e1730);
+    --color-accent-100: #30234f;
+    --color-accent-500: color-mix(in oklab, #8a5ae0 50%, #cdb6ff);
+    --color-accent-600: #8a5ae0;
+    --color-accent-700: #cdb6ff;
+    --bar: #1e1730;
+    --bar-fg: #f1ecff;
+    --bar-muted: #b5aad0;
+    --bar-line: #362a52;
+    --bar-active: #33255a;
+    --bar-active-fg: #d6c2ff;
+    --bar-accent: #b08bf2;
+  }
+  :root[data-theme="system"][data-accent="quartz"] {
+    --tint: 0.6;
+    --page: #28131a;
+    --color-surface: #132426;
+    --color-slate-900: #e7f5f5;
+    --color-slate-500: #9cbcbd;
+    --color-slate-200: #244040;
+    --color-accent-50: color-mix(in oklab, #183a3c 60%, #132426);
+    --color-accent-100: #183a3c;
+    --color-accent-500: color-mix(in oklab, #0f7f86 50%, #86dde1);
+    --color-accent-600: #0f7f86;
+    --color-accent-700: #86dde1;
+    --bar: #132426;
+    --bar-fg: #e7f5f5;
+    --bar-muted: #9cbcbd;
+    --bar-line: #244040;
+    --bar-active: #1b3e40;
+    --bar-active-fg: #8fe3e6;
+    --bar-accent: #52c3c8;
+  }
+  :root[data-theme="system"][data-accent="denim"] {
+    --tint: 0.6;
+    --page: #0e1729;
+    --color-surface: #221e17;
+    --color-slate-900: #f2eee6;
+    --color-slate-500: #b9b0a0;
+    --color-slate-200: #3a332a;
+    --color-accent-50: color-mix(in oklab, #1d2c47 60%, #221e17);
+    --color-accent-100: #1d2c47;
+    --color-accent-500: color-mix(in oklab, #3b6fc0 50%, #a3c1f3);
+    --color-accent-600: #3b6fc0;
+    --color-accent-700: #a3c1f3;
+    --bar: #221e17;
+    --bar-fg: #f2eee6;
+    --bar-muted: #b9b0a0;
+    --bar-line: #3a332a;
+    --bar-active: #1f2f4c;
+    --bar-active-fg: #a9c6f5;
+    --bar-accent: #7da8ea;
+  }
+  :root[data-theme="system"][data-accent="harbor"] {
+    --tint: 0.6;
+    --page: #17130c;
+    --color-surface: #1c2432;
+    --color-slate-900: #eef2f8;
+    --color-slate-500: #a7b2c3;
+    --color-slate-200: #2e3a4c;
+    --color-accent-50: color-mix(in oklab, #1f2f4b 60%, #1c2432);
+    --color-accent-100: #1f2f4b;
+    --color-accent-500: color-mix(in oklab, #3a74d6 50%, #9cc2ff);
+    --color-accent-600: #3a74d6;
+    --color-accent-700: #9cc2ff;
+    --bar: #0e1a2e;
+    --bar-fg: #e7eef8;
+    --bar-muted: #8d9fbb;
+    --bar-line: #1d2c45;
+    --bar-active: #1f3557;
+    --bar-active-fg: #ffffff;
+    --bar-accent: #7fb0ff;
+  }
+  :root[data-theme="system"][data-accent="grape"] {
+    --tint: 0.6;
+    --page: #1f140c;
+    --color-surface: #251c33;
+    --color-slate-900: #f3edff;
+    --color-slate-500: #b9aacf;
+    --color-slate-200: #3b2e52;
+    --color-accent-50: color-mix(in oklab, #33264d 60%, #251c33);
+    --color-accent-100: #33264d;
+    --color-accent-500: color-mix(in oklab, #8a5ae0 50%, #cfb8ff);
+    --color-accent-600: #8a5ae0;
+    --color-accent-700: #cfb8ff;
+    --bar: #1f1236;
+    --bar-fg: #f3edff;
+    --bar-muted: #ab9bc9;
+    --bar-line: #30204f;
+    --bar-active: #3a2563;
+    --bar-active-fg: #ffffff;
+    --bar-accent: #ffb27f;
+  }
+  :root[data-theme="system"][data-accent="lagoon"] {
+    --tint: 0.6;
+    --page: #23120d;
+    --color-surface: #13272a;
+    --color-slate-900: #e6f6f6;
+    --color-slate-500: #9dbdbf;
+    --color-slate-200: #24403f;
+    --color-accent-50: color-mix(in oklab, #163b3e 60%, #13272a);
+    --color-accent-100: #163b3e;
+    --color-accent-500: color-mix(in oklab, #0c7a84 50%, #7fd8df);
+    --color-accent-600: #0c7a84;
+    --color-accent-700: #7fd8df;
+    --bar: #082c31;
+    --bar-fg: #e6f6f6;
+    --bar-muted: #8fb6b9;
+    --bar-line: #123c42;
+    --bar-active: #134952;
+    --bar-active-fg: #ffffff;
+    --bar-accent: #ff9f85;
+  }
+  :root[data-theme="system"][data-accent="graphite"] {
+    --tint: 0.6;
+    --page: #201a09;
+    --color-surface: #23252a;
+    --color-slate-900: #f2f1ec;
+    --color-slate-500: #adafb4;
+    --color-slate-200: #383b42;
+    --color-accent-50: color-mix(in oklab, #232c45 60%, #23252a);
+    --color-accent-100: #232c45;
+    --color-accent-500: color-mix(in oklab, #4a6ad0 50%, #a9bcf5);
+    --color-accent-600: #4a6ad0;
+    --color-accent-700: #a9bcf5;
+    --bar: #15171b;
+    --bar-fg: #f2f1ec;
+    --bar-muted: #a2a6ae;
+    --bar-line: #262a30;
+    --bar-active: #2e333b;
+    --bar-active-fg: #ffffff;
+    --bar-accent: #f2c14e;
+  }
+}
+/* Inside the top bar and left menu, the grays and accent follow the theme's bar colors. */
+:root[data-accent="peach"] .fp-bar, :root[data-accent="butter"] .fp-bar, :root[data-accent="quartz"] .fp-bar, :root[data-accent="denim"] .fp-bar, :root[data-accent="harbor"] .fp-bar, :root[data-accent="grape"] .fp-bar, :root[data-accent="lagoon"] .fp-bar, :root[data-accent="graphite"] .fp-bar {
+  --color-surface: var(--bar);
+  --color-slate-950: var(--bar-fg);
+  --color-slate-900: var(--bar-fg);
+  --color-slate-800: var(--bar-fg);
+  --color-slate-700: var(--bar-muted);
+  --color-slate-600: var(--bar-muted);
+  --color-slate-500: var(--bar-muted);
+  --color-slate-400: var(--bar-muted);
+  --color-slate-300: var(--bar-line);
+  --color-slate-200: var(--bar-line);
+  --color-slate-100: color-mix(in oklab, var(--bar-active) 55%, var(--bar));
+  --color-slate-50: color-mix(in oklab, var(--bar-active) 35%, var(--bar));
+  --color-accent-50: var(--bar-active);
+  --color-accent-100: var(--bar-active);
+  --color-accent-500: var(--bar-accent);
+  --color-accent-600: var(--bar-accent);
+  --color-accent-700: var(--bar-active-fg);
+  color: var(--bar-fg);
+}
+/* Native dropdown rows are drawn on the OS popup, so give them the bar's own colors or the text fades into a white popup. */
+.fp-bar option, .fp-bar optgroup {
+  background-color: var(--color-surface);
+  color: var(--color-slate-800);
+}
+
+/* Stronger contrast: darker secondary text and clearer borders. */
+:root[data-contrast="more"] {
+  --color-slate-200: oklch(80% calc(0.03 * var(--tint)) var(--accent-h));
+  --color-slate-300: oklch(70.4% calc(0.04 * var(--tint)) var(--accent-h));
+  --color-slate-400: oklch(44.6% calc(0.043 * var(--tint)) var(--accent-h));
+  --color-slate-500: oklch(37.2% calc(0.044 * var(--tint)) var(--accent-h));
+  --color-slate-600: oklch(27.9% calc(0.041 * var(--tint)) var(--accent-h));
+}
+:root[data-theme="dark"][data-contrast="more"] {
+  --color-slate-200: oklch(42% calc(0.044 * var(--tint)) var(--accent-h));
+  --color-slate-300: oklch(55.4% calc(0.046 * var(--tint)) var(--accent-h));
+  --color-slate-400: oklch(80% calc(0.03 * var(--tint)) var(--accent-h));
+  --color-slate-500: oklch(86.9% calc(0.022 * var(--tint)) var(--accent-h));
+  --color-slate-600: oklch(92.9% calc(0.013 * var(--tint)) var(--accent-h));
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"][data-contrast="more"] {
+    --color-slate-200: oklch(42% calc(0.044 * var(--tint)) var(--accent-h));
+    --color-slate-300: oklch(55.4% calc(0.046 * var(--tint)) var(--accent-h));
+    --color-slate-400: oklch(80% calc(0.03 * var(--tint)) var(--accent-h));
+    --color-slate-500: oklch(86.9% calc(0.022 * var(--tint)) var(--accent-h));
+    --color-slate-600: oklch(92.9% calc(0.013 * var(--tint)) var(--accent-h));
+  }
+}
+
+/* The radio's playing bars. */
+@keyframes radio-bar {
+  0%, 100% { height: 30%; }
+  50% { height: 100%; }
+}
+.radio-bar {
+  height: 60%;
+  animation: radio-bar 0.9s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .radio-bar { animation: none; }
+}
+:root[data-motion="reduce"] .radio-bar { animation: none; }
+
+/* The Skip to content link focuses main; no ring around the whole page. */
+main:focus {
+  outline: none;
+}
+
+/* Keyboard hints mean nothing on a phone or tablet with no keyboard (ver_89). */
+@media (hover: none) and (pointer: coarse) {
+  .fp-keyhint {
+    display: none;
+  }
+}

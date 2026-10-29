@@ -1,0 +1,74 @@
+{
+ "total_count": 1,
+ "jobs": [
+  {
+   "id": 40598327409,
+   "name": "test",
+   "status": "completed",
+   "conclusion": "failure",
+   "html_url": "https://github.com/Scotterotty/flaw-patrol-ci-demo/actions/runs/40598327408/job/40598327409",
+   "steps": [
+    {
+     "name": "Set up job",
+     "status": "completed",
+     "conclusion": "success",
+     "number": 1
+    },
+    {
+     "name": "Run actions/checkout@v5",
+     "status": "completed",
+     "conclusion": "success",
+     "number": 2
+    },
+    {
+     "name": "Run actions/setup-node@v5",
+     "status": "completed",
+     "conclusion": "success",
+     "number": 3
+    },
+    {
+     "name": "Install",
+     "status": "completed",
+     "conclusion": "success",
+     "number": 4
+    },
+    {
+     "name": "Build",
+     "status": "completed",
+     "conclusion": "success",
+     "number": 5
+    },
+    {
+     "name": "Run tests",
+     "status": "completed",
+     "conclusion": "failure",
+     "number": 6
+    },
+    {
+     "name": "Package",
+     "status": "completed",
+     "conclusion": "failure",
+     "number": 7
+    },
+    {
+     "name": "Run actions/upload-artifact@v6",
+     "status": "completed",
+     "conclusion": "success",
+     "number": 8
+    },
+    {
+     "name": "Post Run actions/checkout@v5",
+     "status": "completed",
+     "conclusion": "success",
+     "number": 9
+    },
+    {
+     "name": "Complete job",
+     "status": "completed",
+     "conclusion": "success",
+     "number": 10
+    }
+   ]
+  }
+ ]
+}

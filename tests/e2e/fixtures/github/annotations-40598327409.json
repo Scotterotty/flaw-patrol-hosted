@@ -1,0 +1,10 @@
+[
+ {
+  "message": "Simulated packaging error: couldn't write flaw-patrol-ci-demo.zip (disk full)",
+  "annotation_level": "failure"
+ },
+ {
+  "message": "Process completed with exit code 1.",
+  "annotation_level": "failure"
+ }
+]

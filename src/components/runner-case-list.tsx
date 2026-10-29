@@ -1,0 +1,113 @@
+"use client";
+
+import { useEffect, useState, type ReactNode } from "react";
+import { Input } from "./ui";
+
+type Item = { id: string; text: string; row: ReactNode; done: boolean; current: boolean };
+
+/**
+ * The run list: the runner's cases with a search box. Rows are drawn on the server; this
+ * only filters them. With `tuckDone` (Assigned to me), finished cases fold into a Done
+ * group at the bottom so what's left to test stays in view.
+ */
+export function RunnerCaseList({ items, empty, tuckDone = false }: { items: Item[]; empty: string; tuckDone?: boolean }) {
+  const [query, setQuery] = useState("");
+  // Open or closed, the Done group stays that way from case to case.
+  const [showDone, setShowDone] = useState(false);
+  useEffect(() => {
+    try {
+      setShowDone(localStorage.getItem("fp-run-list-done") === "1");
+    } catch {}
+  }, []);
+  const toggleDone = () =>
+    setShowDone((s) => {
+      try {
+        localStorage.setItem("fp-run-list-done", s ? "0" : "1");
+      } catch {}
+      return !s;
+    });
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const matching = words.length ? items.filter((i) => words.every((w) => i.text.toLowerCase().includes(w))) : items;
+  // Searching shows every match; the open case never hides, even once it's saved.
+  const tucking = tuckDone && !words.length;
+  const shown = tucking ? matching.filter((i) => !i.done || i.current) : matching;
+  const tucked = tucking ? matching.filter((i) => i.done && !i.current) : [];
+  const left = items.filter((i) => !i.done).length;
+  return (
+    <>
+      <div className="flex items-baseline justify-between gap-2 border-b border-slate-200 px-3 pt-2.5 pb-2">
+        <h2 className="text-sm font-semibold text-slate-900">Run list</h2>
+        <span className="text-xs text-slate-500 tabular-nums">{left === 0 ? "All done" : `${left} to go`}</span>
+      </div>
+      {items.length > 5 && (
+        <div className="border-b border-slate-200 px-3 py-2">
+          <Input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Escape" && setQuery("")}
+            placeholder="Search cases"
+            aria-label="Search cases in this run"
+            className="h-7 text-xs"
+          />
+        </div>
+      )}
+      <ul aria-label="Run list" className="max-h-[40vh] divide-y divide-slate-100 overflow-y-auto lg:max-h-[calc(60vh-10rem)] bigtext:max-h-[40vh]">
+        {shown.map((i) => (
+          <li key={i.id}>{i.row}</li>
+        ))}
+        {shown.length === 0 && !tucked.length && <li className="px-3 py-4 text-center text-xs text-slate-500">{items.length ? "No cases match." : empty}</li>}
+        {shown.length === 0 && tucked.length > 0 && <li className="px-3 py-4 text-center text-xs text-slate-500">Nothing left to test. Nice work.</li>}
+        {tucked.length > 0 && (
+          <li>
+            <button
+              type="button"
+              aria-expanded={showDone}
+              onClick={toggleDone}
+              className="flex w-full items-center gap-2 bg-slate-50 px-3 py-1.5 text-left text-xs font-medium text-slate-600 hover:text-slate-900"
+            >
+              <span aria-hidden className={showDone ? "rotate-90 transition-transform" : "transition-transform"}>
+                ›
+              </span>
+              Done ({tucked.length})
+              <span className="ml-auto font-normal text-slate-500">{showDone ? "Hide" : "Show"}</span>
+            </button>
+            {showDone && (
+              <ul className="divide-y divide-slate-100 opacity-80">
+                {tucked.map((i) => (
+                  <li key={i.id}>{i.row}</li>
+                ))}
+              </ul>
+            )}
+          </li>
+        )}
+      </ul>
+    </>
+  );
+}
+
+/**
+ * On a phone the case comes first (ver_94): the run's case list folds behind a
+ * "Run list (x of y)" button. From the lg breakpoint it's always shown, as before.
+ */
+export function RunListFold({ done, total, children }: { done: number; total: number; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-surface px-3 py-2 text-sm font-medium text-slate-800 shadow-sm lg:hidden bigtext:flex"
+      >
+        <span>
+          Run list ({done} of {total})
+        </span>
+        <span aria-hidden className="text-slate-400">
+          {open ? "▴" : "▾"}
+        </span>
+      </button>
+      <div className={open ? "contents" : "hidden lg:contents bigtext:hidden"}>{children}</div>
+    </>
+  );
+}

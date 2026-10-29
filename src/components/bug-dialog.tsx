@@ -1,0 +1,678 @@
+"use client";
+
+import type { Severity } from "@prisma/client";
+import { useEffect, useState, useTransition } from "react";
+import { browserContext, orderFiles, stamp, type TemplateBug } from "@/lib/bug-template";
+import { DEFAULT_SEVERITY, defaultSeverityOf, PLAIN_SCALE, type SeverityScale } from "@/lib/severity";
+import type { ImportedDraft, LinkedDefect, ReporterInfo } from "@/server/jira";
+import { importedTitle } from "@/lib/bug-template";
+import { createLocalDefect, fileJiraBug, linkJiraIssue, previewJiraBug, searchJira } from "@/server/jira";
+import { uploadAttachment } from "@/server/results";
+import { BugFiles, type BugCapture, type BugFile } from "./bug-files";
+import { BugTemplateForm, type TemplateOptions } from "./bug-template-form";
+import { RecordingBar, takeScreenshot, useCaptureSupport, useScreenRecorder } from "./screen-capture";
+import { Modal } from "./modal";
+import { Button, cx, ErrorText, Field, InfoTip, Input, Select, Textarea } from "./ui";
+
+/** An imported template being filled in: the draft plus what the tester typed. */
+type ImportedBug = ImportedDraft & { summary: string };
+
+type Issue = { key: string; summary: string; status: string; url: string };
+type Attached = BugFile;
+
+/**
+ * Report a bug for a step (or the whole case): file a new Jira issue with the
+ * steps, expected and actual results and screenshots filled in, or link an
+ * existing one. Falls back to a local defect when Jira isn't connected.
+ */
+export function BugDialog({
+  open,
+  onClose,
+  onLinked,
+  projectId,
+  entryId,
+  stepIndex,
+  stepLabel,
+  actual,
+  attachments,
+  others = [],
+  captureName = "bug",
+  onUploaded,
+  jiraConnected,
+  recent,
+  suggested,
+  stories = [],
+  linkStories = true,
+  fromDefect,
+  prefill,
+  regression = null,
+}: {
+  /** A bug already written elsewhere (a bug bash line, ver_94): its title and severity start filled in. */
+  prefill?: { title: string; severity: Severity };
+  /** Regression flag (ver_93): the case passed in an earlier release, so the box to mark it in Jira starts ticked. */
+  regression?: { label: string; against: string } | null;
+  open: boolean;
+  onClose: () => void;
+  onLinked: (d: LinkedDefect) => void;
+  projectId: string;
+  entryId: string;
+  stepIndex: number | null;
+  stepLabel: string;
+  actual: string;
+  attachments: Attached[];
+  /** Files taken elsewhere in this case (other steps, the whole case): offered in + Add ▾ › From this case. */
+  others?: Attached[];
+  /** The start of a screenshot's or recording's file name, like "APP-12 step 3". */
+  captureName?: string;
+  /** A file added from the dialog, already uploaded, for the step's evidence too. */
+  onUploaded?: (a: Attached) => void;
+  jiraConnected: boolean;
+  recent: LinkedDefect[];
+  /** A title made from the screen, used when Jira isn't connected (Jira's preview makes its own). */
+  suggested?: string;
+  /** The case's Jira stories: each gets a "Link to story" tick. */
+  stories?: { key: string; title: string }[];
+  /** Whether those ticks start ticked (Settings → Jira → Stories). */
+  linkStories?: boolean;
+  /** Send to Jira (ver_91): a bug saved before Jira was connected becomes this Jira issue. */
+  fromDefect?: { id: string; label: string; title: string; severity: Severity };
+}) {
+  const [linkTo, setLinkTo] = useState<Set<string>>(new Set());
+  const [markReg, setMarkReg] = useState(true);
+  const [tab, setTab] = useState<"new" | "link">("new");
+  const [summary, setSummary] = useState("");
+  const [body, setBody] = useState("");
+  const [reporter, setReporter] = useState<ReporterInfo | null>(null);
+  const [severity, setSeverity] = useState<Severity>(DEFAULT_SEVERITY);
+  // The team's severity names, from its Jira (ver_91).
+  const [scale, setScale] = useState<SeverityScale>(PLAIN_SCALE);
+  // An imported template's Severity starts on "Choose…" (ver_85): the tester picks it.
+  const [sevPicked, setSevPicked] = useState(true);
+  const [include, setInclude] = useState<Set<string>>(new Set());
+  // The team template, when the project uses it.
+  const [template, setTemplate] = useState<TemplateBug | null>(null);
+  const [options, setOptions] = useState<TemplateOptions>({ clients: [], team: [], olyEnv: [] });
+  // A template imported from an example Jira bug, when the project uses one.
+  const [imported, setImported] = useState<ImportedBug | null>(null);
+  const [added, setAdded] = useState<Attached[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<Issue[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // Filed, with things the tester should know (files or links Jira refused): shown here, not in a browser alert.
+  const [filed, setFiled] = useState<{ key: string; notes: string[] } | null>(null);
+  const [pending, start] = useTransition();
+  const [searching, startSearch] = useTransition();
+  // Where a file made in the box came from, as the chips say it: "Step 3", "Whole case".
+  const here = stepLabel.charAt(0).toUpperCase() + stepLabel.slice(1);
+  const files = [...attachments, ...added.filter((a) => !attachments.some((b) => b.id === a.id))];
+  const candidates = others.filter((o) => !files.some((f) => f.id === o.id));
+  const pick = (picked: Attached[]) => {
+    setAdded((x) => [...x, ...picked]);
+    setInclude((s) => new Set([...s, ...picked.map((p) => p.id)]));
+  };
+  // Take screenshot / Record screen right in the box (ver_88): the new file goes on the step too.
+  const support = useCaptureSupport();
+  const recorder = useScreenRecorder(
+    (f) => void upload([f.file]),
+    (message) => setError(message),
+  );
+  const [shooting, setShooting] = useState(false);
+  const capture: BugCapture = {
+    ok: support.ok,
+    why: support.why,
+    busy: shooting || uploading || recorder.rec !== null,
+    screenshot: async () => {
+      setShooting(true);
+      try {
+        const file = await takeScreenshot(`${captureName} screenshot.png`);
+        if (file) await upload([file]);
+      } catch {
+        setError("Couldn't take the screenshot.");
+      } finally {
+        setShooting(false);
+      }
+    },
+    record: () => void recorder.start({ stepIndex, label: `for this bug`, baseName: captureName }),
+  };
+  // Closing the box mid-recording throws the recording away.
+  const stopRecording = recorder.stop;
+  useEffect(() => {
+    if (!open) stopRecording(false);
+  }, [open, stopRecording]);
+
+  useEffect(() => {
+    if (!open) return;
+    setError(null);
+    setFiled(null);
+    setTab("new");
+    setInclude(new Set(attachments.map((a) => a.id)));
+    setReporter(null);
+    setTemplate(null);
+    setImported(null);
+    setAdded([]);
+    setLinkTo(new Set(linkStories ? stories.map((x) => x.key) : []));
+    if (!jiraConnected) {
+      setSummary(prefill?.title ?? suggested ?? (stepIndex === null ? "" : `${stepLabel} failed`));
+      if (prefill) setSeverity(prefill.severity);
+      return;
+    }
+    start(async () => {
+      const res = await previewJiraBug(projectId, entryId, stepIndex, actual);
+      if (res.ok) {
+        setSummary(fromDefect?.title ?? prefill?.title ?? res.summary);
+        setScale(res.scale);
+        setSeverity(fromDefect?.severity ?? prefill?.severity ?? defaultSeverityOf(res.scale));
+        setBody(res.body);
+        setReporter(res.reporter);
+        if (res.template) {
+          const { bug, web } = res.template;
+          const context = bug.history.context || (web ? browserContext(navigator.userAgent) : "");
+          setTemplate({ ...bug, brief: bug.brief || prefill?.title || "", history: { ...bug.history, dateTime: stamp(), context } });
+          setOptions(res.template.options);
+        }
+        if (res.imported) setImported({ ...res.imported, summary: prefill?.title ?? "" });
+        setSevPicked(!res.imported || !!prefill);
+      } else setError(res.error);
+    });
+    // Only when the dialog opens for a step.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, stepIndex]);
+
+  useEffect(() => {
+    if (!open || tab !== "link" || !jiraConnected) return;
+    const t = setTimeout(
+      () =>
+        startSearch(async () => {
+          const res = await searchJira(projectId, q);
+          if (res.ok) {
+            setResults(res.issues);
+            setError(null);
+          } else setError(res.error);
+        }),
+      q ? 300 : 0,
+    );
+    return () => clearTimeout(t);
+  }, [q, tab, open, jiraConnected, projectId]);
+
+  const done = (d: LinkedDefect) => {
+    onLinked(d);
+    onClose();
+  };
+
+  const create = () =>
+    start(async () => {
+      setError(null);
+      if (!jiraConnected) {
+        const res = await createLocalDefect(projectId, { title: summary, severity });
+        return res.ok ? done(res.defect) : setError(res.error);
+      }
+      // Screenshots and videos first, then logs, as they appear on the bug.
+      const ordered = [...orderFiles(files).media, ...orderFiles(files).logs].filter((a) => include.has(a.id)).map((a) => a.id);
+      const res = await fileJiraBug(projectId, entryId, {
+        summary,
+        severity,
+        stepIndex,
+        actual,
+        attachmentIds: ordered,
+        stories: [...linkTo],
+        regression: !!regression && markReg,
+        ...(fromDefect && { fromDefectId: fromDefect.id }),
+        ...(template && { template }),
+        ...(imported && {
+          imported: {
+            tag: imported.tag,
+            feature: imported.feature,
+            summary: imported.summary,
+            sections: imported.sections.map((x) => ({ heading: x.heading, text: x.text })),
+            fields: Object.fromEntries(imported.fields.map((f) => [f.id, f.value])),
+          },
+        }),
+      });
+      if (!res.ok) return setError(res.error);
+      const notes = [
+        res.attachError && `${res.defect.externalKey} was created, but attaching files failed: ${res.attachError}`,
+        res.reporterNote,
+        res.linkError,
+      ].filter((n): n is string => !!n);
+      if (!notes.length) return done(res.defect);
+      onLinked(res.defect);
+      setFiled({ key: res.defect.externalKey ?? `#${res.defect.number}`, notes });
+    });
+
+  const upload = async (list: File[]) => {
+    setUploading(true);
+    for (const file of list) {
+      const form = new FormData();
+      form.set("file", file);
+      if (stepIndex !== null) form.set("stepIndex", String(stepIndex));
+      const res = await uploadAttachment(projectId, form);
+      if (!res.ok) {
+        setError(res.error);
+        continue;
+      }
+      const a = { id: res.attachment.id, fileName: res.attachment.fileName, contentType: res.attachment.contentType, label: here };
+      setAdded((x) => [...x, a]);
+      setInclude((s) => new Set(s).add(a.id));
+      onUploaded?.(a);
+    }
+    setUploading(false);
+  };
+
+  const link = (key: string) =>
+    start(async () => {
+      setError(null);
+      const res = await linkJiraIssue(projectId, key);
+      return res.ok ? done(res.defect) : setError(res.error);
+    });
+
+  return (
+    <Modal open={open} onClose={onClose} title={fromDefect ? `Send ${fromDefect.label} to Jira` : `Report a bug · ${stepLabel}`} wide>
+      {filed ? (
+        <div className="space-y-3" data-testid="bug-filed-notes">
+          <p className="text-sm font-medium text-slate-800">Filed {filed.key} in Jira.</p>
+          {filed.notes.map((n) => (
+            <p key={n} className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              {n}
+            </p>
+          ))}
+          <div className="flex justify-end">
+            <Button variant="primary" onClick={onClose}>
+              Done
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="mb-4 flex gap-1 rounded-md bg-slate-100 p-1 text-sm">
+            {(fromDefect ? (["new"] as const) : (["new", "link"] as const)).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTab(t)}
+                className={cx("flex-1 rounded px-3 py-1.5", tab === t ? "bg-surface font-medium text-slate-900 shadow-sm" : "text-slate-600")}
+              >
+                {t === "new" ? (fromDefect ? "New Jira bug" : "New bug") : "Link existing bug"}
+              </button>
+            ))}
+          </div>
+          <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+
+          {tab === "new" ? (
+            <form
+              className="mt-3 space-y-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                create();
+              }}
+            >
+              {template ? (
+                <>
+                  {reporter && <ReporterLine reporter={reporter} />}
+                  <BugTemplateForm
+                    bug={template}
+                    setBug={(fn) => setTemplate((b) => (b ? fn(b) : b))}
+                    options={options}
+                    severity={severity}
+                    setSeverity={setSeverity}
+                    scale={scale}
+                    files={files}
+                    include={include}
+                    setInclude={setInclude}
+                    onAdd={upload}
+                    uploading={uploading}
+                    candidates={candidates}
+                    onPick={pick}
+                    capture={capture}
+                  />
+                </>
+              ) : imported ? (
+                <>
+                  {reporter && <ReporterLine reporter={reporter} />}
+                  <ImportedForm
+                    bug={imported}
+                    setBug={(fn) => setImported((b) => (b ? fn(b) : b))}
+                    severity={sevPicked ? severity : ""}
+                    scale={scale}
+                    setSeverity={(x) => {
+                      setSeverity(x);
+                      setSevPicked(true);
+                    }}
+                  />
+                  <BugFiles
+                    files={files}
+                    include={include}
+                    setInclude={setInclude}
+                    candidates={candidates}
+                    onPick={pick}
+                    onUpload={upload}
+                    capture={capture}
+                    uploading={uploading}
+                  />
+                </>
+              ) : (
+                <>
+                  <Field label="Summary" htmlFor="bug-summary">
+                    <Input id="bug-summary" value={summary} onChange={(e) => setSummary(e.target.value)} required autoFocus />
+                  </Field>
+                  <Field label="Severity" htmlFor="bug-severity">
+                    <Select id="bug-severity" value={severity} onChange={(e) => setSeverity(e.target.value as Severity)} className="w-48">
+                      {scale.levels.map((s) => (
+                        <option key={s} value={s}>
+                          {scale.labels[s]}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  {jiraConnected ? (
+                    <>
+                      {reporter && <ReporterLine reporter={reporter} />}
+                      <div>
+                        <p className="mb-1 text-xs font-medium text-slate-600">Description (filled in for you)</p>
+                        <pre className="max-h-48 overflow-auto rounded-md border border-slate-200 bg-slate-50 p-3 text-xs whitespace-pre-wrap wrap-anywhere text-slate-700">
+                          {body || "Loading…"}
+                        </pre>
+                      </div>
+                      <BugFiles
+                        files={files}
+                        include={include}
+                        setInclude={setInclude}
+                        candidates={candidates}
+                        onPick={pick}
+                        onUpload={upload}
+                        capture={capture}
+                        uploading={uploading}
+                      />
+                    </>
+                  ) : (
+                    <p className="text-xs text-slate-500">Jira isn&apos;t connected, so this is recorded here only. An admin can connect Jira in Settings.</p>
+                  )}
+                </>
+              )}
+              {jiraConnected && stories.length > 0 && (
+                <fieldset className="space-y-1">
+                  <legend className="sr-only">Link to requirements</legend>
+                  {stories.map((st) => (
+                    <label key={st.key} className="flex items-center gap-1.5 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={linkTo.has(st.key)}
+                        onChange={(e) =>
+                          setLinkTo((s) => {
+                            const n = new Set(s);
+                            if (e.target.checked) n.add(st.key);
+                            else n.delete(st.key);
+                            return n;
+                          })
+                        }
+                      />
+                      Link to requirement <span className="font-mono">{st.key}</span> in Jira
+                      <InfoTip text={`Adds a "relates to" link from the new bug to ${st.key}${st.title ? ` (${st.title})` : ""}, so the requirement shows it.`} />
+                    </label>
+                  ))}
+                </fieldset>
+              )}
+              {jiraConnected && regression && (
+                <label className="flex items-start gap-1.5 rounded-md bg-pink-50 px-2.5 py-2 text-sm text-pink-900 ring-1 ring-pink-200 ring-inset">
+                  <input type="checkbox" className="mt-1" checked={markReg} onChange={(e) => setMarkReg(e.target.checked)} />
+                  <span>
+                    Mark as a regression in Jira
+                    <span className="block text-xs text-pink-800">
+                      Adds the label <span className="font-mono">{regression.label}</span> and a line saying it passed in {regression.against} and which builds to compare.
+                    </span>
+                  </span>
+                </label>
+              )}
+              <RecordingBar r={recorder} inline />
+              <div className="flex justify-end gap-2">
+                <Button onClick={onClose}>Cancel</Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={
+                    pending ||
+                    uploading ||
+                    recorder.rec !== null ||
+                    (template
+                      ? !template.brief.trim() || !template.reproSteps.trim()
+                      : imported
+                        ? !imported.summary.trim() || !sevPicked || imported.fields.some((f) => f.required && !f.value.some((v) => v.trim()))
+                        : !summary.trim())
+                  }
+                >
+                  {pending ? "Creating…" : jiraConnected ? "File bug in Jira" : "Save bug"}
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className="mt-3 space-y-3">
+              {recent.length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-medium text-slate-600">Already found in this run</p>
+                  <ul className="divide-y divide-slate-100 rounded-md border border-slate-200">
+                    {recent.map((d) => (
+                      <li key={d.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                        <span className="font-mono text-xs text-slate-500">{d.externalKey ?? `D-${d.number}`}</span>
+                        <span className="min-w-0 flex-1 truncate">{d.title}</span>
+                        <Button size="sm" onClick={() => done(d)}>
+                          Link
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {jiraConnected ? (
+                <>
+                  <Input autoFocus placeholder="Search Jira, or paste an issue key or link (QA-123)" value={q} onChange={(e) => setQ(e.target.value)} />
+                  <ul className="max-h-72 divide-y divide-slate-100 overflow-y-auto rounded-md border border-slate-200">
+                    {(results ?? []).map((i) => (
+                      <li key={i.key} className="flex items-center gap-2 px-3 py-2 text-sm">
+                        <a href={i.url} target="_blank" rel="noreferrer" className="font-mono text-xs text-accent-700 hover:underline">
+                          {i.key}
+                        </a>
+                        <span className="min-w-0 flex-1 truncate">{i.summary}</span>
+                        <span className="text-xs text-slate-500">{i.status}</span>
+                        <Button size="sm" disabled={pending} onClick={() => link(i.key)}>
+                          Link
+                        </Button>
+                      </li>
+                    ))}
+                    {results && results.length === 0 && <li className="px-3 py-4 text-center text-sm text-slate-500">No matching bugs.</li>}
+                    {searching && !results && <li className="px-3 py-4 text-center text-sm text-slate-500">Searching…</li>}
+                  </ul>
+                </>
+              ) : (
+                recent.length === 0 && <p className="text-sm text-slate-500">No bugs found in this run yet. Connect Jira in Settings to link Jira bugs.</p>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </Modal>
+  );
+}
+
+/**
+ * Who Jira will show as the bug's Reporter: one quiet line (ver_85). When your Jira
+ * account isn't found, the connected account files it and your name goes in the description.
+ */
+function ReporterLine({ reporter }: { reporter: ReporterInfo }) {
+  if (reporter.found)
+    return (
+      <p className="text-xs text-slate-500" data-testid="jira-reporter" title={`Found by your email, ${reporter.email}`}>
+        Reporter in Jira: <span className="font-medium text-slate-700">{reporter.name}</span> (you)
+      </p>
+    );
+  return (
+    <p className="text-xs text-slate-500" data-testid="jira-reporter">
+      Reporter in Jira: <span className="font-medium text-slate-700">{reporter.owner}</span> (your name goes in the description) ·{" "}
+      <a
+        href="/account#jira"
+        target="_blank"
+        rel="noreferrer"
+        className="text-accent-700 hover:underline"
+        title={`No Jira user has the email ${reporter.email}`}
+      >
+        Set your Jira email
+      </a>
+    </p>
+  );
+}
+
+/**
+ * Values Jira won't take in a picker field, like a version Jira doesn't have yet (ver_85):
+ * said in words, since they go in the description instead.
+ */
+function NotInJira({ field: f, onRemove }: { field: ImportedBug["fields"][number]; onRemove: (v: string) => void }) {
+  const missing = f.pick ? f.value.filter((v) => v.trim() && !f.options.includes(v)) : [];
+  if (!missing.length) return null;
+  const what = f.source === "release" ? "version" : "choice";
+  return (
+    <p className="mt-1 text-xs text-amber-800" data-testid="not-in-jira">
+      {missing.map((v) => `"${v}"`).join(", ")} {missing.length === 1 ? "isn't a" : "aren't"} {what}
+      {missing.length === 1 ? "" : "s"} in Jira{f.options.length ? "" : " yet"}, so {missing.length === 1 ? "it goes" : "they go"} in the description instead.{" "}
+      {missing.map((v) => (
+        <button key={v} type="button" className="text-accent-700 hover:underline" onClick={() => onRemove(v)}>
+          Leave {missing.length === 1 ? "it" : `"${v}"`} out
+        </button>
+      ))}
+    </p>
+  );
+}
+
+/** A bug in the team's imported template: the title in its shape, its description sections and its Jira fields. */
+function ImportedForm({
+  bug,
+  setBug,
+  severity,
+  scale,
+  setSeverity,
+}: {
+  bug: ImportedBug;
+  setBug: (fn: (b: ImportedBug) => ImportedBug) => void;
+  severity: Severity | "";
+  scale: SeverityScale;
+  setSeverity: (s: Severity) => void;
+}) {
+  const setField = (id: string, value: string[]) => setBug((b) => ({ ...b, fields: b.fields.map((f) => (f.id === id ? { ...f, value } : f)) }));
+  return (
+    <div className="space-y-4" data-testid="imported-template">
+      <div className="space-y-2">
+        <div className="grid gap-2.5 sm:grid-cols-[repeat(auto-fit,minmax(140px,1fr))]">
+          {bug.title.tag && (
+            <Field label="Tag" htmlFor="it-tag">
+              <Input id="it-tag" value={bug.tag} onChange={(e) => setBug((b) => ({ ...b, tag: e.target.value.toUpperCase() }))} placeholder="Optional" />
+            </Field>
+          )}
+          {bug.title.feature && (
+            <Field label="Feature" htmlFor="it-feature">
+              <Input id="it-feature" value={bug.feature} onChange={(e) => setBug((b) => ({ ...b, feature: e.target.value }))} placeholder="Optional" />
+            </Field>
+          )}
+          <div className="sm:col-span-2">
+            <Field label="Summary" htmlFor="it-summary">
+              <Input
+                id="it-summary"
+                value={bug.summary}
+                onChange={(e) => setBug((b) => ({ ...b, summary: e.target.value }))}
+                required
+                autoFocus
+                placeholder="What's wrong, in a few words"
+              />
+            </Field>
+          </div>
+        </div>
+        {(bug.title.tag || bug.title.feature) && (
+          <p className="text-[13px] text-slate-600">
+            Jira title:{" "}
+            <span className="font-semibold text-slate-900" data-testid="imported-title">
+              {importedTitle(bug.title, bug)}
+            </span>
+          </p>
+        )}
+      </div>
+      <Field label="Severity" htmlFor="it-severity">
+        <Select id="it-severity" value={severity} onChange={(e) => e.target.value && setSeverity(e.target.value as Severity)} className="w-48">
+          {!severity && <option value="">Choose…</option>}
+          {scale.levels.map((x) => (
+            <option key={x} value={x}>
+              {scale.labels[x]}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      {bug.sections.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-[11px] font-bold tracking-wider text-slate-700">DESCRIPTION</p>
+          {bug.sections.map((x, i) => (
+            <Field key={x.heading} label={x.heading} htmlFor={`it-s${i}`}>
+              <Textarea
+                id={`it-s${i}`}
+                rows={x.source === "steps" ? 5 : 3}
+                value={x.text}
+                onChange={(e) => setBug((b) => ({ ...b, sections: b.sections.map((y, j) => (j === i ? { ...y, text: e.target.value } : y)) }))}
+              />
+            </Field>
+          ))}
+        </div>
+      )}
+      {bug.fields.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-[11px] font-bold tracking-wider text-slate-700">JIRA FIELDS</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {bug.fields.map((f) => (
+              <Field key={f.id} label={`${f.name}${f.required ? " (required)" : ""}`} htmlFor={`it-f-${f.id}`}>
+                {f.options.length && f.multi ? (
+                  <div role="group" aria-label={f.name} className="flex flex-wrap gap-1.5">
+                    {f.options.map((o) => {
+                      const on = f.value.includes(o);
+                      return (
+                        <button
+                          key={o}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => setField(f.id, on ? f.value.filter((v) => v !== o) : [...f.value, o])}
+                          className={cx(
+                            "rounded-full border px-2.5 py-0.5 text-[13px]",
+                            on ? "border-accent-600 bg-accent-600 text-white" : "border-slate-300 bg-surface text-slate-700 hover:border-slate-400",
+                          )}
+                        >
+                          {o}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : f.options.length ? (
+                  <Select id={`it-f-${f.id}`} value={f.value[0] ?? ""} onChange={(e) => setField(f.id, [e.target.value].filter(Boolean))}>
+                    <option value="">Choose…</option>
+                    {f.options.map((o) => (
+                      <option key={o}>{o}</option>
+                    ))}
+                  </Select>
+                ) : f.long ? (
+                  <Textarea id={`it-f-${f.id}`} rows={3} value={f.value.join("\n")} onChange={(e) => setField(f.id, [e.target.value])} />
+                ) : (
+                  <Input
+                    id={`it-f-${f.id}`}
+                    value={f.value.join(", ")}
+                    onChange={(e) => setField(f.id, f.multi ? e.target.value.split(/\s*,\s*/) : [e.target.value])}
+                  />
+                )}
+                <NotInJira
+                  field={f}
+                  onRemove={(v) =>
+                    setField(
+                      f.id,
+                      f.value.filter((x) => x !== v),
+                    )
+                  }
+                />
+              </Field>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

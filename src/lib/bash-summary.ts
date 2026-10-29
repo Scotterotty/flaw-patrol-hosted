@@ -1,0 +1,139 @@
+import "server-only";
+import { parseAreas, phaseOf, plusOnesOf, sevRank, timeRange } from "./bash";
+import { parseCharter } from "./charter";
+import { db } from "./db";
+import { severityScaleFor } from "./severity-server";
+
+// What a bug bash found (ver_93): the board while it's on, and the one-page report after.
+
+export async function loadBashFull(bashId: string) {
+  const bash = await db.bugBash.findUnique({
+    where: { id: bashId },
+    include: {
+      project: { select: { id: true, key: true, name: true, groupId: true } },
+      run: { select: { id: true, number: true, projectId: true, project: { select: { key: true, name: true, platform: true } } } },
+      people: { orderBy: { joinedAt: "asc" } },
+      items: { orderBy: { createdAt: "desc" }, include: { attachments: { select: { id: true, fileName: true, contentType: true } } } },
+    },
+  });
+  if (!bash) return null;
+  const areas = parseAreas(bash.areas);
+  const charters = await db.testCase.findMany({ where: { id: { in: areas.map((a) => a.caseId) } }, select: { id: true, number: true, project: { select: { key: true } }, versions: { orderBy: { version: "desc" }, take: 1, select: { charter: true } } } });
+  const charterOf = new Map(charters.map((c) => [c.id, { ...parseCharter(c.versions[0]?.charter), key: c.project.key, number: c.number }]));
+  const defects = await db.defect.findMany({ where: { id: { in: bash.items.map((i) => i.defectId).filter((x): x is string => !!x) } }, select: { id: true, number: true, externalKey: true, externalUrl: true } });
+  const defectOf = new Map(defects.map((d) => [d.id, d]));
+  // Each area's run entry, so "File this bug…" can file against the area's charter (ver_94).
+  const entries = bash.run ? await db.runEntry.findMany({ where: { runId: bash.run.id, caseId: { in: areas.map((a) => a.caseId) } }, select: { id: true, caseId: true } }) : [];
+  const entryOf = Object.fromEntries(areas.flatMap((a) => { const e = entries.find((x) => x.caseId === a.caseId); return e ? [[a.id, e.id] as const] : []; }));
+  const items = bash.items.map((i) => ({
+    id: i.id,
+    areaId: i.areaId,
+    kind: i.kind,
+    text: i.text,
+    details: i.details,
+    severity: i.severity,
+    byId: i.byId,
+    byName: i.byName,
+    plusOnes: plusOnesOf(i.plusOnes),
+    review: i.review,
+    fileError: i.fileError,
+    mergedIntoId: i.mergedIntoId,
+    at: i.createdAt,
+    attachments: i.attachments,
+    bug: i.defectId ? (defectOf.get(i.defectId) ?? null) : null,
+  }));
+  return {
+    bash,
+    phase: phaseOf(bash),
+    areas: areas.map((a) => ({ ...a, charter: charterOf.get(a.caseId) ?? null, people: bash.people.filter((p) => p.areaId === a.id).map((p) => ({ id: p.userId, name: p.name })) })),
+    items,
+    entryOf,
+    // The team's own severity names (ver_94), so bash levels show what they file as.
+    sevNames: (await severityScaleFor(bash.run?.projectId ?? bash.projectId)).labels,
+  };
+}
+export type BashFull = NonNullable<Awaited<ReturnType<typeof loadBashFull>>>;
+
+/** The report: counts, by area, worst bugs, prompts covered and not touched, and vs the last bash. */
+export async function bashReport(bashId: string) {
+  const full = await loadBashFull(bashId);
+  if (!full) return null;
+  const { bash, areas, items } = full;
+  const bugs = items.filter((i) => i.kind === "bug" && !i.mergedIntoId);
+  // Every bug logged counts as found (ver_94), filed or not: the report used to drop unfiled ones and say 0.
+  const counted = bugs;
+  const previous = await db.bugBash.findFirst({
+    where: { projectId: bash.projectId, wrappedAt: { not: null }, createdAt: { lt: bash.createdAt } },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, name: true, items: { where: { kind: "bug", mergedIntoId: null }, select: { id: true } } },
+  });
+  const byArea = areas.map((a) => ({ id: a.id, name: a.name, bugs: counted.filter((b) => b.areaId === a.id).length })).sort((x, y) => y.bugs - x.bugs);
+  const worst = [...counted].sort((a, b) => sevRank(a.severity) - sevRank(b.severity) || b.plusOnes.length - a.plusOnes.length).slice(0, 3);
+  const coverage = areas.map((a) => {
+    const prompts = a.charter?.prompts ?? [];
+    const covered = new Set(items.filter((i) => i.kind === "covered" && i.areaId === a.id).map((i) => i.text));
+    const notes = items.filter((i) => i.areaId === a.id && i.kind !== "covered").length;
+    return { id: a.id, name: a.name, prompts: prompts.length, covered: prompts.filter((p) => covered.has(p)).length, untouched: prompts.filter((p) => !covered.has(p)), notes };
+  });
+  const people = new Set([...bash.people.map((p) => p.userId), ...items.map((i) => i.byId).filter(Boolean)]).size;
+  const end = bash.endedAt && bash.endedAt < bash.endsAt ? bash.endedAt : bash.endsAt;
+  return {
+    ...full,
+    when: `${bash.startsAt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} ${timeRange(bash.startsAt, end)}`,
+    people,
+    bugs: counted,
+    notFiled: bash.wrappedAt ? counted.filter((b) => !b.bug).length : 0,
+    high: counted.filter((b) => b.severity === "CRITICAL" || b.severity === "SHOWSTOPPER").length,
+    questions: items.filter((i) => i.kind === "question").length,
+    plusOnes: bugs.reduce((n, b) => n + b.plusOnes.length, 0),
+    vsLast: previous ? { name: previous.name, diff: counted.length - previous.items.length } : null,
+    byArea,
+    worst,
+    coverage,
+  };
+}
+export type BashReport = NonNullable<Awaited<ReturnType<typeof bashReport>>>;
+
+/** "10 people found 11 bugs in an hour (2 High). Most in Checkout (5). Worst: PRJ-812 …" */
+export async function bashSummaryLine(bashId: string) {
+  const r = await bashReport(bashId);
+  if (!r) return "";
+  const length = r.bash.minutes === 60 ? "an hour" : r.bash.minutes % 60 === 0 ? `${r.bash.minutes / 60} hours` : `${r.bash.minutes} minutes`;
+  const top = r.byArea[0];
+  const worst = r.worst[0];
+  return [
+    `${r.people} ${r.people === 1 ? "person" : "people"} found ${r.bugs.length} ${r.bugs.length === 1 ? "bug" : "bugs"} in ${length}${r.high ? ` (${r.high} High or Blocker)` : ""}.`,
+    top?.bugs ? `Most in ${top.name} (${top.bugs}).` : "",
+    worst ? `Worst: ${worst.bug?.externalKey ?? (worst.bug ? `D-${worst.bug.number}` : "")} ${worst.text}`.replace(/\s+/g, " ").trim() : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** What the bash screens need, with plain strings for times. */
+export function bashView(full: BashFull, me: { id: string; canManage: boolean }) {
+  const { bash } = full;
+  const mine = bash.people.find((p) => p.userId === me.id);
+  return {
+    id: bash.id,
+    name: bash.name,
+    phase: full.phase,
+    minutes: bash.minutes,
+    startsAt: bash.startsAt.toISOString(),
+    endsAt: (bash.endedAt && bash.endedAt < bash.endsAt ? bash.endedAt : bash.endsAt).toISOString(),
+    createdBy: bash.createdBy,
+    isOwner: bash.createdById === me.id || me.canManage,
+    collectFirst: bash.collectFirst,
+    funExtras: bash.funExtras,
+    homeKey: bash.project.key,
+    entryOf: full.entryOf,
+    sevNames: full.sevNames,
+    runProjectId: bash.run?.projectId ?? bash.projectId,
+    runHref: bash.run ? `/p/${bash.run.project.key}/runs/${bash.run.number}` : null,
+    areas: full.areas.map((a) => ({ id: a.id, name: a.name, template: a.template, prompts: a.charter?.prompts ?? [], charterHref: a.charter ? `/p/${a.charter.key}/cases/${a.charter.number}` : null, people: a.people })),
+    people: bash.people.map((p) => ({ id: p.userId, name: p.name, areaId: p.areaId })),
+    items: full.items.map((i) => ({ ...i, at: i.at.toISOString() })),
+    me: { id: me.id, areaId: mine?.areaId ?? null },
+  };
+}
+export type BashView = ReturnType<typeof bashView>;

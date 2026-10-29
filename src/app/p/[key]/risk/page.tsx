@@ -1,0 +1,84 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { RiskBoard } from "@/components/risk-board";
+import { RequirementsViews } from "@/components/requirements-views";
+import { cx, EmptyState, LinkButton, PageHeader } from "@/components/ui";
+import { BUILT_IN } from "@/lib/charter-templates";
+import { charterHome, teamTemplates } from "@/lib/charter-data";
+import { can } from "@/lib/permissions";
+import { riskBoard } from "@/lib/risk-data";
+import { projectAccess } from "@/lib/session";
+import { forgetStories } from "@/lib/stories";
+import { newestRcNames, storyReleases, testedRelease } from "@/lib/story-coverage";
+import { loadUmbrella, umbrellaOf } from "@/lib/umbrella";
+
+export const metadata = { title: "Risk board" };
+
+/** Risk board (ver_93): a release's requirements on a grid of how likely to break by how much it would hurt. */
+export default async function RiskPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ release?: string; fresh?: string }> }) {
+  const { key } = await params;
+  const sp = await searchParams;
+  const { project, user, who } = await projectAccess(key);
+  const home = await charterHome(project);
+  const qs = (release?: string) => (release ? `?release=${encodeURIComponent(release)}` : "");
+  if (home.id !== project.id) redirect(`/p/${home.key}/risk${qs(sp.release)}`);
+  if (sp.fresh) {
+    forgetStories();
+    redirect(`/p/${project.key}/risk${qs(sp.release)}`);
+  }
+  const umbrella = await umbrellaOf(project);
+  const full = umbrella ? await loadUmbrella(umbrella.group.id, user) : null;
+  const cycles = full ? full.current : [project];
+  const releases = await storyReleases(project.id);
+  const rcNames = await newestRcNames(cycles);
+  const release = releases.find((r) => r === sp.release) ?? testedRelease(releases, rcNames);
+  const board = release ? await riskBoard({ homeId: project.id, release, columns: cycles.map((c) => ({ id: c.id, key: c.key, name: c.name })) }) : null;
+  const canPlan = can(who, "run:create");
+  const team = canPlan ? await teamTemplates(project.id) : [];
+  const runCycles = full?.current.length ? full.current.map((c) => ({ id: c.id, name: c.name })) : [{ id: project.id, name: project.name }];
+  const header = (
+    <PageHeader
+      title="Risk board"
+      subtitle="Which requirements in a release are most likely to break, and how much it would hurt. Flaw Patrol makes a first guess; move cards to correct it."
+      actions={
+        <Link href={`/p/${project.key}/risk?fresh=1${release ? `&release=${encodeURIComponent(release)}` : ""}`} className="text-sm text-slate-500 hover:underline" prefetch={false}>
+          Refresh
+        </Link>
+      }
+    />
+  );
+
+  if (!releases.length || !board?.connected)
+    return (
+      <div className="mx-auto max-w-6xl">
+        {header}
+        <RequirementsViews base={`/p/${project.key}`} current="risk" />
+        <EmptyState title={board && !board.connected ? "Jira isn't connected" : "No Jira releases yet"} action={can(who, "jira:manage") ? <LinkButton href={full ? `/g/${full.group.id}/settings#stories` : `/p/${project.key}/settings#jira`}>Open Settings</LinkButton> : null}>
+          The Risk board shows the requirements in one Jira release (fix version). Connect Jira and give requirements a fix version, and they show up here.
+        </EmptyState>
+      </div>
+    );
+
+  return (
+    <div className="mx-auto max-w-6xl">
+      {header}
+      <RequirementsViews base={`/p/${project.key}`} current="risk" release={release ?? undefined} />
+      <div className="mb-4">
+        <div className="mb-1 text-xs font-medium text-slate-500">Release</div>
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Release">
+          {releases.slice(0, 10).map((r) => (
+            <Link key={r} href={`/p/${project.key}/risk${qs(r)}`} aria-current={release === r ? "true" : undefined} className={cx("rounded-md border px-2.5 py-1 text-sm", release === r ? "border-accent-600 bg-accent-50 font-medium text-accent-800" : "border-slate-200 hover:bg-slate-50")}>
+              {r}
+            </Link>
+          ))}
+        </div>
+      </div>
+      {board.jiraError && <p className="mb-3 rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-900">Couldn&apos;t read the release from Jira: {board.jiraError}</p>}
+      {board.cards.length ? (
+        <RiskBoard key={release} homeId={project.id} release={release!} cards={board.cards} canMove={can(who, "risk:move")} canPlan={canPlan} cycles={runCycles} templates={[...BUILT_IN, ...team]} />
+      ) : (
+        <EmptyState title="Nothing in this release">Jira has no requirements in {release}. Pick another release above.</EmptyState>
+      )}
+    </div>
+  );
+}

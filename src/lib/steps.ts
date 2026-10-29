@@ -1,0 +1,116 @@
+import { z } from "zod";
+
+// Step data shared by the editor, the server actions, CSV import and (later)
+// the execution view. Kept free of database imports so it can run anywhere.
+
+export const plainStepSchema = z.object({
+  action: z.string().max(5000),
+  expected: z.string().max(5000).default(""),
+});
+export type PlainStep = z.infer<typeof plainStepSchema>;
+
+export const caseStepItemSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("step"), action: z.string().max(5000), expected: z.string().max(5000).default("") }),
+  z.object({
+    kind: z.literal("shared"),
+    sharedStepId: z.string().min(1),
+    params: z.record(z.string(), z.string().max(1000)).default({}),
+  }),
+]);
+export type CaseStepItem = z.infer<typeof caseStepItemSchema>;
+
+export const sharedStepParamSchema = z.object({
+  name: z
+    .string()
+    .min(1)
+    .max(50)
+    .regex(/^[A-Za-z_][A-Za-z0-9_]*$/, "Use letters, digits and underscores, starting with a letter"),
+  defaultValue: z.string().max(1000).default(""),
+});
+export type SharedStepParam = z.infer<typeof sharedStepParamSchema>;
+
+export function parseCaseSteps(json: unknown): CaseStepItem[] {
+  const parsed = z.array(caseStepItemSchema).safeParse(json);
+  return parsed.success ? parsed.data : [];
+}
+
+export function parsePlainSteps(json: unknown): PlainStep[] {
+  const parsed = z.array(plainStepSchema).safeParse(json);
+  return parsed.success ? parsed.data : [];
+}
+
+export function parseParams(json: unknown): SharedStepParam[] {
+  const parsed = z.array(sharedStepParamSchema).safeParse(json);
+  return parsed.success ? parsed.data : [];
+}
+
+const PLACEHOLDER = /\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g;
+
+/** Names of every {{param}} used in a shared step's steps, in first-seen order. */
+export function placeholdersIn(steps: PlainStep[]): string[] {
+  const seen = new Set<string>();
+  for (const s of steps) {
+    for (const text of [s.action, s.expected]) {
+      for (const m of text.matchAll(PLACEHOLDER)) seen.add(m[1]);
+    }
+  }
+  return [...seen];
+}
+
+/** Replace {{param}} with the case's value, falling back to the parameter default. */
+export function fillPlaceholders(text: string, params: SharedStepParam[], values: Record<string, string>): string {
+  return text.replace(PLACEHOLDER, (whole, name: string) => {
+    const given = values[name];
+    if (given !== undefined && given !== "") return given;
+    const def = params.find((p) => p.name === name)?.defaultValue;
+    return def !== undefined && def !== "" ? def : whole;
+  });
+}
+
+export type SharedStepDef = { id: string; name: string; version: number; parameters: SharedStepParam[]; steps: PlainStep[]; /** How many cases use it. */ usedIn?: number };
+
+export type ExpandedStep = PlainStep & {
+  number: string;
+  /** Set when this step came from a shared step. */
+  shared?: { id: string; name: string; version: number };
+};
+
+/**
+ * Flatten a case's steps for display or execution. Shared steps expand inline
+ * with numbering like 3.1, 3.2; an unknown or deleted shared step becomes a
+ * single placeholder step so nothing silently disappears.
+ */
+export function expandSteps(items: CaseStepItem[], defs: Map<string, SharedStepDef>): ExpandedStep[] {
+  const out: ExpandedStep[] = [];
+  items.forEach((item, i) => {
+    const n = String(i + 1);
+    if (item.kind === "step") {
+      out.push({ number: n, action: item.action, expected: item.expected });
+      return;
+    }
+    const def = defs.get(item.sharedStepId);
+    if (!def) {
+      out.push({ number: n, action: "[Missing shared step]", expected: "" });
+      return;
+    }
+    const shared = { id: def.id, name: fillPlaceholders(def.name, def.parameters, item.params), version: def.version };
+    def.steps.forEach((s, j) => {
+      out.push({
+        number: def.steps.length === 1 ? n : `${n}.${j + 1}`,
+        action: fillPlaceholders(s.action, def.parameters, item.params),
+        expected: fillPlaceholders(s.expected, def.parameters, item.params),
+        shared,
+      });
+    });
+  });
+  return out;
+}
+
+export function sharedStepIdsIn(items: CaseStepItem[]): string[] {
+  return [...new Set(items.flatMap((i) => (i.kind === "shared" ? [i.sharedStepId] : [])))];
+}
+
+/** Drop blank plain steps the editor leaves behind. */
+export function cleanSteps(items: CaseStepItem[]): CaseStepItem[] {
+  return items.filter((i) => i.kind === "shared" || i.action.trim() !== "" || i.expected.trim() !== "");
+}

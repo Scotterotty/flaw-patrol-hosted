@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="9" failures="1" errors="0" time="0.412">
+  <testsuite name="Sample tests" errors="0" failures="0" skipped="0" timestamp="2026-10-27T22:55:10" time="0.231" tests="6" file="tests/cart.test.js">
+    <properties>
+      <property name="build" value="{{BUILD}}">
+      </property>
+    </properties>
+    <testcase classname="Cart" name="starts empty" time="0.002" file="tests/cart.test.js">
+    </testcase>
+    <testcase classname="Cart" name="adds an item" time="0.001" file="tests/cart.test.js">
+    </testcase>
+    <testcase classname="Cart" name="adding the same item again raises its quantity" time="0" file="tests/cart.test.js">
+    </testcase>
+    <testcase classname="Cart" name="removes an item" time="0.001" file="tests/cart.test.js">
+    </testcase>
+    <testcase classname="Cart" name="rejects a negative price" time="0.003" file="tests/cart.test.js">
+    </testcase>
+    <testcase classname="Cart" name="totals the subtotal" time="0" file="tests/cart.test.js">
+    </testcase>
+  </testsuite>
+  <testsuite name="Sample tests" errors="0" failures="1" skipped="0" timestamp="2026-10-27T22:55:10" time="0.181" tests="3" file="tests/discount.test.js">
+    <properties>
+      <property name="build" value="{{BUILD}}">
+      </property>
+    </properties>
+    <testcase classname="Discounts" name="takes 10 percent off" time="0.001" file="tests/discount.test.js">
+    </testcase>
+    <testcase classname="Discounts" name="zero percent changes nothing" time="0" file="tests/discount.test.js">
+    </testcase>
+    <testcase classname="Discounts" name="takes 25 percent off (fails on purpose)" time="0.004" file="tests/discount.test.js">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 75
+Received: 80
+    at Object.toBe (/home/runner/work/flaw-patrol-ci-demo/flaw-patrol-ci-demo/tests/discount.test.js:15:39)</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

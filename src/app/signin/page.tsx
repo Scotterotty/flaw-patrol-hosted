@@ -1,0 +1,66 @@
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { auth, passwordSignInOn, signIn } from "@/auth";
+import { LogoBanner } from "@/components/logo";
+import { PasswordSignIn } from "@/components/password-sign-in";
+import { Button, Card, ErrorText } from "@/components/ui";
+import { signInButtons } from "@/lib/sign-in-config";
+
+export const metadata = { title: "Sign in" };
+
+const ERRORS: Record<string, string> = {
+  NotInvited: "That account hasn't been invited yet. Ask an admin to add your email.",
+  AccessDenied: "That account hasn't been invited yet. Ask an admin to add your email.",
+  CredentialsSignin: "Enter a valid email address.",
+  NotOn: "That sign-in isn't turned on yet. Ask a workspace admin.",
+  Unverified: "That account's email address isn't verified, so it can't be matched to a Flaw Patrol account.",
+  NoEmail: "That sign-in didn't share an email address, so it can't be matched to a Flaw Patrol account.",
+  Configuration: "That sign-in isn't set up correctly. Ask a workspace admin to check Workspace settings → Sign-in.",
+  OAuthCallbackError: "That sign-in didn't finish. Please try again.",
+};
+
+export default async function SignInPage({ searchParams }: { searchParams: Promise<{ callbackUrl?: string; error?: string; email?: string; admin?: string }> }) {
+  const { callbackUrl, error, email, admin } = await searchParams;
+  const redirectTo = callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : "/";
+  if ((await auth())?.user) redirect(redirectTo);
+  const oauth = await signInButtons();
+  // With email and password off, only the company buttons show, plus Admin sign-in for emergencies.
+  const showPassword = admin === "1" || !oauth.length || (await passwordSignInOn());
+
+  return (
+    <main className="flex min-h-screen items-center justify-center px-4">
+      <Card className="w-full max-w-sm overflow-hidden p-6">
+        <h1 className="-mx-6 -mt-6 mb-6 bg-[#191d24]">
+          <LogoBanner />
+        </h1>
+        <ErrorText>{error ? (ERRORS[error] ?? "Sign-in failed. Please try again.") : null}</ErrorText>
+        <div className="mt-4 space-y-2">
+          {oauth.map((p) => (
+            <form
+              key={p.id}
+              action={async () => {
+                "use server";
+                await signIn(p.id, { redirectTo });
+              }}
+            >
+              <Button type="submit" className="w-full">
+                Sign in with {p.name}
+              </Button>
+            </form>
+          ))}
+        </div>
+        {showPassword ? (
+          <div className={oauth.length ? "mt-4 border-t border-slate-200 pt-4" : ""}>
+            <PasswordSignIn redirectTo={redirectTo} initialEmail={email ?? ""} />
+          </div>
+        ) : (
+          <p className="mt-4 text-center text-xs">
+            <Link href={`/signin?admin=1${callbackUrl ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`} className="text-slate-500 hover:text-slate-700 hover:underline">
+              Admin sign-in
+            </Link>
+          </p>
+        )}
+      </Card>
+    </main>
+  );
+}

@@ -1,0 +1,375 @@
+/**
+ * The "What's new" window after sign-in (ver_88). Add one entry at the TOP in
+ * every build, in the same plain words as the release notes, one line each.
+ * Builds with no entry don't pop up. Never write secret features here.
+ *
+ * who: "all" (default), "lead" (leads and admins), "admin" or "workspace"
+ * (workspace admins only, for Workspace settings). game: only for
+ * people with the mini game on. link: where Show me goes; {umbrella} becomes
+ * the person's umbrella, and the link is left out when they have none.
+ */
+export type WhatsNewItem = {
+  kind: "new" | "better" | "fix";
+  title: string;
+  text?: string;
+  who?: "all" | "lead" | "admin" | "workspace";
+  game?: boolean;
+  link?: string;
+};
+
+export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem[] };
+
+export const WHATS_NEW: WhatsNewEntry[] = [
+  {
+    version: 95,
+    date: "2026-10-29",
+    items: [
+      {
+        kind: "new",
+        title: "One Start a run button: pick the kind of run first",
+        text: "Start a run asks what kind of run it is: Smoke test, Release candidate, Bug bash, or your own kind. A kind can remember its usual suite. Release candidate and Bug bash open their own boxes. Runs show their kind, and Test runs and Reports can filter by it.",
+        link: "/g/{umbrella}",
+      },
+      {
+        kind: "better",
+        title: "Make the test cycle while you start the run",
+        text: "Step 2 of Start a run, Where it goes, ends with + New test cycle. Name it, and it's made when you press Start, with the run in it.",
+      },
+      {
+        kind: "better",
+        title: "Reports never add hand testing and automation together",
+        text: "Execution status shows Manual testing and Automated tests on their own. Automation counts each automated case once, by its latest result. Trends and Step results split the same way.",
+      },
+      {
+        kind: "better",
+        title: "Automated cases look like your other cases",
+        text: "Plain titles, steps from the test when it has them, and a line saying when automation last ran each one. The Case library's Who runs it filter shows cases run by hand, by automation, or both.",
+      },
+      {
+        kind: "better",
+        title: "Step pips move as you test",
+        text: "The run list's step pips update as you mark each step, and saved cases keep their pips.",
+      },
+      {
+        kind: "better",
+        title: "Retried Playwright tests: one attempt at a time",
+        text: "A test Playwright retried shows the last attempt's screenshot, video and replay, with an Attempt switch to see the earlier one.",
+      },
+      {
+        kind: "new",
+        title: "Use your profile picture as your quest pawn",
+        text: "Pick My picture in Choose your pawn to show your profile picture inside a ring.",
+        game: true,
+      },
+      {
+        kind: "better",
+        title: "Testing isn't only for release candidates",
+        text: "Wording across Flaw Patrol no longer assumes every run is for a release. The setup card says Run your first tests. Release status counts release candidates and plain runs, not smoke tests.",
+      },
+      {
+        kind: "fix",
+        title: "Test cycle settings stay in the left menu",
+        text: "Under Settings, the left menu lists each current test cycle's settings next to the umbrella's on every page, not only while you're inside that test cycle.",
+      },
+    ],
+  },
+  {
+    version: 94,
+    date: "2026-10-29",
+    items: [
+      {
+        kind: "better",
+        title: "Pass or fail: Bug found is gone",
+        text: "A step or case is Passed or Failed, and a failure is where you file or link the bug. Blocked, Retest and Skipped stay. Old Bug found results now show as Failed.",
+      },
+      {
+        kind: "fix",
+        title: "Bug bash bugs that weren't filed still count",
+        text: "At wrap-up, each bug has a File it tick box. If a bug doesn't reach Jira, you stay on the review screen and see why. The report counts every bug found, tags the ones not filed yet, and has File this bug… to file them later.",
+      },
+      {
+        kind: "better",
+        title: "Bug bashes stay separate from releases",
+        text: "When you start a bug bash, you choose up front whether to attach it to a test cycle. Release status has an Include bug bashes switch. Serious bash bugs always show in its critical bug list, tagged from bug bash.",
+      },
+      {
+        kind: "better",
+        title: "Hide umbrellas you don't use",
+        text: "Tick umbrellas on the Umbrellas page and press Hide for me. Only you stop seeing them. Find them again under Hidden by you. Admins also get Archive… there, and dragging an umbrella by its top edge is easier.",
+        link: "/",
+      },
+      {
+        kind: "new",
+        title: "Member and Viewer roles",
+        text: "Tester is now called Member. The new Viewer role can see everything, flag cases and join bug bashes, but doesn't edit, run or archive.",
+        who: "lead",
+      },
+      {
+        kind: "better",
+        title: "Clearer words everywhere",
+        text: "Release instead of RC, Platform instead of client, and Import cases on the Case library. Release status shows one column per platform, and severity names match Jira's.",
+      },
+      {
+        kind: "better",
+        title: "Easier on a phone",
+        text: "The runner shows the case first, with the run's cases behind a Run list button. Hand it back gives a case back for someone else to take.",
+      },
+      {
+        kind: "better",
+        title: "GitHub runs keep their GitHub name",
+        text: "Runs pulled from GitHub are named after the workflow and run, like Browser tests · GitHub run 16, on Test runs and on the Repositories page.",
+        who: "lead",
+      },
+      {
+        kind: "fix",
+        title: "Arrange menu order drags again",
+        text: "Dragging a left menu link no longer snaps back. It stays where you drop it.",
+      },
+      {
+        kind: "better",
+        title: "Your pawn on the quest map",
+        text: "The Quest map page has a Your pawn card with Change gear and Change pawn. Your pawn waits at the start of runs you haven't tested in yet, and automated runs no longer get a map.",
+        game: true,
+      },
+    ],
+  },
+  {
+    version: 93,
+    date: "2026-10-29",
+    items: [
+      {
+        kind: "new",
+        title: "Bug bashes",
+        text: "Everyone explores for a set time, picks an area and logs bugs in one line. Whoever starts it wraps up, merges duplicates and files the bugs, then gets a report to share. Find Bug bashes in the left menu.",
+        link: "/g/{umbrella}/runs",
+      },
+      {
+        kind: "new",
+        title: "Charters page, with tours and checklists",
+        text: "Charters have their own page in the Library menu. New charter → From a tour or checklist fills in everything but the area, with prompts you tick off during the session.",
+      },
+      {
+        kind: "new",
+        title: "Risk board",
+        text: "See which requirements in a Jira release are most likely to break and how much it would hurt. Move cards to correct the first guess, then press Plan this RC to make the run.",
+      },
+      {
+        kind: "new",
+        title: "Screenshots, videos and replays from Playwright",
+        text: "Upload a zip of your Playwright results and failed tests show their screenshot, video and a step-by-step replay that opens right here.",
+      },
+      {
+        kind: "new",
+        title: "Regression flag",
+        text: "A case that passed in the last RC and fails now gets a Regression badge, and its Jira bug gets the regression label.",
+      },
+      {
+        kind: "better",
+        title: "Arrange your own menu",
+        text: "Press Arrange menu order at the bottom of the left menu to drag links into the order you like. Only you see it.",
+      },
+      {
+        kind: "better",
+        title: "Tick all in Pick cases",
+        text: "Start a run → Pick cases has Tick all and Untick all next to the filters.",
+      },
+    ],
+  },
+  {
+    version: 92,
+    date: "2026-10-28",
+    items: [
+      {
+        kind: "new",
+        title: "Workspace settings",
+        text: "Company sign-in, invite emails, the activity log and Game admin now live on one page in the name menu, for workspace admins only.",
+        who: "workspace",
+        link: "/workspace",
+      },
+      {
+        kind: "new",
+        title: "Sign in with Microsoft, Google or your company's SSO",
+        text: "Set it up in Workspace settings → Sign-in, test it with your own account, then turn it on. Email and password can then be turned off for everyone but admins.",
+        who: "workspace",
+        link: "/workspace#sign-in",
+      },
+      {
+        kind: "new",
+        title: "Invite emails",
+        text: "Once email is set up, adding someone emails them an invite. Members lists show when it was sent, with Resend and Copy invite link.",
+        who: "admin",
+      },
+      {
+        kind: "new",
+        title: "Activity log",
+        text: "See who changed what: sign-ins, people, settings, deletes and runs. It never records results, cases run or bugs filed.",
+        who: "workspace",
+        link: "/workspace#activity",
+      },
+    ],
+  },
+  {
+    version: 91,
+    date: "2026-10-28",
+    items: [
+      {
+        kind: "better",
+        title: "Start next RC: pick cases from folders, or reuse last RC's",
+        text: "Each platform can take whole folders or single cases from the Case library, or the same cases as last RC. Same testers on same cases and bug re-checks now also work for platforms with no runs yet.",
+        who: "lead",
+        link: "/g/{umbrella}",
+      },
+      {
+        kind: "new",
+        title: "Export any report",
+        text: "One Export menu on every Reports page: CSV, image, Copy for Confluence, a PDF report of the tabs you pick, or an Excel workbook.",
+        link: "/g/{umbrella}/reports",
+      },
+      {
+        kind: "new",
+        title: "Send to Jira for bugs saved before Jira was connected",
+        link: "/g/{umbrella}/bugs",
+      },
+      {
+        kind: "better",
+        title: "Severity names come from your Jira",
+        text: "Settings → Jira shows the severity field and which values count as critical. Without Jira, bugs use Critical, Major, Minor and Trivial.",
+        who: "admin",
+        link: "/g/{umbrella}/settings#jira",
+      },
+      {
+        kind: "new",
+        title: "CI uploads: your pipeline can send results by itself",
+        text: "Make a token in Settings → CI uploads and copy the ready-made GitHub Actions step.",
+        who: "admin",
+        link: "/g/{umbrella}/settings#ci-uploads",
+      },
+      {
+        kind: "better",
+        title: "Automation uploads link tests to cases with the same name",
+        text: "Check them in the preview and press Undo on any that are wrong.",
+        who: "lead",
+      },
+      {
+        kind: "better",
+        title: "Imports keep the file's folders",
+        text: "A file with a Folder or Section column makes those folders by default. TestRail Type values become tags.",
+        who: "lead",
+      },
+      { kind: "fix", title: "Reports add up: Testers are listed A to Z, Step results use Bug found, and Retest says how many weren't passed" },
+      { kind: "fix", title: "Role descriptions match the Roles grid, and inviting from a test cycle adds people to its umbrella" },
+    ],
+  },
+  {
+    version: 90,
+    date: "2026-10-28",
+    items: [
+      {
+        kind: "better",
+        title: "Reports show manual and automated runs apart",
+        text: "Pass rate by run draws a solid line for runs tested by hand and a dashed 🤖 line for uploaded or GitHub runs. A new Runs filter shows All, Manual or Automated.",
+        link: "/g/{umbrella}/reports",
+      },
+      {
+        kind: "fix",
+        title: "Test suites in Reports count every run of the suite",
+        text: "Runs started by picking exactly a suite's cases now count as that suite's runs, and get linked to the suite when they start.",
+      },
+      {
+        kind: "fix",
+        title: "Import a run can link a Case library suite",
+        who: "lead",
+      },
+      {
+        kind: "better",
+        title: "Language choices are now US English and UK English",
+        text: "Change yours in Your account → Language.",
+        link: "/account#language",
+      },
+    ],
+  },
+  {
+    version: 89,
+    date: "2026-10-28",
+    items: [
+      {
+        kind: "new",
+        title: "Run fields: pick the extra details your runs ask for",
+        text: "Each umbrella can add up to 5 fields, like Firmware or Region, as text or a list. Umbrellas you already have keep CSP version.",
+        who: "lead",
+        link: "/g/{umbrella}/settings#run-fields",
+      },
+      {
+        kind: "better",
+        title: "Start next RC: tick any platform and choose what it runs",
+        text: "Each ticked platform has one dropdown: run last RC's suites again, pick suites from the library, or start brand new.",
+        who: "lead",
+        link: "/g/{umbrella}?start=rc",
+      },
+      {
+        kind: "better",
+        title: "Stories are now Requirements",
+        text: "Link any Jira issue type, filter by type, and let an Epic count its child issues.",
+      },
+      {
+        kind: "better",
+        title: "GitHub runs show each build step",
+        text: "See which step failed, so a broken build looks different from failing tests.",
+      },
+      {
+        kind: "better",
+        title: "Click a pip in a case's history to open that run",
+      },
+      {
+        kind: "better",
+        title: "Every popup box has an ✕ to close it",
+      },
+      {
+        kind: "fix",
+        title: "Recordings with no sound and the mic off attach again",
+        text: "Imported steps also show > instead of &gt;.",
+      },
+    ],
+  },
+  {
+    version: 88,
+    date: "2026-10-28",
+    items: [
+      {
+        kind: "new",
+        title: "This window shows what changed",
+        text: "It opens once after each new version. Open it again any time from your name in the top bar, then What's new.",
+        link: "/whats-new",
+      },
+      {
+        kind: "better",
+        title: "Add any of the case's screenshots and recordings to a bug",
+        text: "In the bug box, + Add lists captures from other steps and the whole case, and can take a screenshot or record the screen right there.",
+      },
+      {
+        kind: "fix",
+        title: "No wrong reporter warning when the Jira token is yours",
+        text: "Notes after filing a bug, like a file Jira refused, now show in the bug box instead of a pop-up.",
+      },
+      {
+        kind: "fix",
+        title: "No false \"Jira wouldn't link it\" note when a bug is linked to a story",
+        text: "The link was made, but Flaw Patrol misread Jira's empty answer and said it failed.",
+      },
+      {
+        kind: "fix",
+        title: "Connecting GitHub saves the workflow too",
+        text: "Save and test now saves the picked workflow. A repo without one says Setup not finished and shows the picker.",
+        who: "admin",
+        link: "/g/{umbrella}/settings",
+      },
+      {
+        kind: "better",
+        title: "Clearer GitHub message when a token can't see the repo",
+        text: "It says which GitHub account the token belongs to and what to change.",
+        who: "admin",
+        link: "/g/{umbrella}/settings",
+      },
+    ],
+  },
+];

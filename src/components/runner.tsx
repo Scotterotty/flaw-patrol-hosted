@@ -1,0 +1,1122 @@
+"use client";
+
+import { dateTime } from "@/lib/spelling";
+import { useSpelling } from "@/components/spelling";
+import type { ResultStatus } from "@prisma/client";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type { CaseFlagInfo } from "@/lib/case-flag";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { holdLive } from "@/lib/live-hold";
+import { publishLiveSteps } from "@/lib/live-steps";
+import type { Draft } from "@/lib/run-draft";
+import { mapHistorySteps, SHOW_HISTORY_EVENT, STILL_OCCURS_EVENT, type HistoryRun } from "@/lib/run-history";
+import { relativeTime } from "@/lib/format";
+import { deriveCaseStatus, SETTABLE, STATUS_HELP, STATUS_LABEL, STATUS_STYLE } from "@/lib/status";
+import type { ExpandedStep } from "@/lib/steps";
+import type { LinkedDefect } from "@/server/jira";
+import { saveDraft, submitResult, uploadAttachment } from "@/server/results";
+import { showQuestMoments } from "./quest-toast";
+import { BugDialog } from "./bug-dialog";
+import { CaseFlagButton } from "./case-flag";
+import { StepText } from "./step-text";
+import { StatusChip } from "./status";
+import { Button, buttonClass, cx, ErrorText, Textarea } from "./ui";
+import { RecordingBar, RecordingPreview, takeScreenshot, useCaptureSupport, useScreenRecorder, type Finished } from "./screen-capture";
+import { CloseRunButton } from "./run-actions";
+import { bugTitle } from "@/lib/jira-format";
+import { RegressionNote } from "./regression";
+
+/** Regression flag (ver_93): the earlier release this case passed in, and which of its steps passed there. */
+export type RunnerRegression = { label: string; when: string; passed: boolean[]; resultId: string; off: boolean; jiraLabel: string };
+
+type Attachment = { id: string; fileName: string; contentType: string; stepIndex: number | null };
+type PendingDefect = { defect: LinkedDefect; stepIndex: number | null };
+
+export type RunnerEntry = {
+  id: string;
+  caseKey: string;
+  caseNumber: number;
+  /** The project the case lives in: an umbrella's library, for shared cases. */
+  caseProjectKey?: string;
+  caseId: string;
+  /** Set when someone flagged the case as needing attention. */
+  flag: CaseFlagInfo | null;
+  caseVersion: number;
+  title: string;
+  preconditions: string;
+  folderPath: string;
+  steps: ExpandedStep[];
+  status: ResultStatus;
+  /** Results autosaved earlier and not yet saved as the case result. */
+  draft: Draft | null;
+  /** Who left the autosaved draft, how long ago, and whether it was you. */
+  draftBy: { name: string; ago: string; mine: boolean; at?: string } | null;
+  /** Jira stories the case tests, and whether the bug box ticks "Link to story" for them. */
+  stories?: { key: string; title: string; status: string; url: string | null }[];
+  linkStories?: boolean;
+};
+
+type Snap = Pick<Draft, "stepResults" | "override" | "comment" | "attachments" | "defects">;
+
+// What autosave compares, leaving out the timer so only real changes save.
+const contentOf = (d: Snap) =>
+  JSON.stringify({ stepResults: d.stepResults, override: d.override, comment: d.comment, elapsedSec: 0, attachments: d.attachments, defects: d.defects, notes: [], reminders: [] });
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+export type PreviousResult = {
+  status: ResultStatus;
+  testerName: string;
+  createdAt: string;
+  comment: string;
+  stepStatuses: ResultStatus[];
+  defects: { key: string; url: string | null; title: string }[];
+  /** The saved step results and bugs, shown again when the case is reopened. */
+  stepResults: { status: ResultStatus; actual: string }[];
+  links: PendingDefect[];
+  /** Files saved with that result: screenshots, recordings and other attachments. */
+  attachments: Attachment[];
+};
+
+const LIVE_MS = 2000;
+
+export function Runner({
+  projectId,
+  projectKey,
+  runNumber,
+  runClosed,
+  entry,
+  nextEntryId,
+  keepQuery = "",
+  previous,
+  jiraConnected,
+  runDefects,
+  canCloseRun = false,
+  justFinished = null,
+  takeBar = null,
+  regression = null,
+}: {
+  regression?: RunnerRegression | null;
+  /** The "You're on this case" bar. It sits above the title and scrolls with it, so it never covers Flag or the timer (ver_87). */
+  takeBar?: ReactNode;
+  canCloseRun?: boolean;
+  /** The run this case just finished (?finished=1): show the close-the-run prompt. It lives in the URL because saving remounts the runner. */
+  justFinished?: string | null;
+  projectId: string;
+  projectKey: string;
+  runNumber: number;
+  runClosed: boolean;
+  entry: RunnerEntry;
+  nextEntryId: string | null;
+  /** Extra query (like "&only=3,5") so Save and next stays in the same list. */
+  keepQuery?: string;
+  previous: PreviousResult | null;
+  jiraConnected: boolean;
+  runDefects: LinkedDefect[];
+}) {
+  const spelling = useSpelling();
+  const router = useRouter();
+  const n = entry.steps.length;
+  const draft = entry.draft?.stepResults.length === n ? entry.draft : null;
+  // A finished case opens showing its saved result; changing it and saving records a new result.
+  const saved =
+    !draft && previous && previous.stepResults.length === n
+      ? {
+          stepResults: previous.stepResults,
+          override: n && deriveCaseStatus(previous.stepResults.map((s) => s.status)) === previous.status ? null : previous.status,
+          comment: previous.comment,
+          defects: previous.links,
+          attachments: previous.attachments,
+        }
+      : null;
+  const start0 = draft ?? saved;
+  // Only say "picked up where … left off" when the case opened half done, not after your own autosave.
+  const resumed = useRef(draft !== null).current;
+  const [changingResult, setChangingResult] = useState(false);
+  // Set to the run's id once the last case is saved, to offer Close run.
+  const [lastCase, setLastCase] = useState<string | null>(justFinished);
+  // Dragging to select text stays inside the one action or expected result it started in,
+  // so copying a URL from a step doesn't pick up the expected result (or anything below).
+  const [selCell, setSelCell] = useState<string | null>(null);
+  useEffect(() => {
+    let cell: HTMLElement | null = null;
+    const clamp = () => {
+      const sel = window.getSelection();
+      if (!cell || !sel || !sel.anchorNode || !sel.focusNode || cell.contains(sel.focusNode)) return;
+      const after = sel.anchorNode.compareDocumentPosition(sel.focusNode) & Node.DOCUMENT_POSITION_FOLLOWING;
+      if (after) sel.setBaseAndExtent(sel.anchorNode, sel.anchorOffset, cell, cell.childNodes.length);
+      else sel.setBaseAndExtent(sel.anchorNode, sel.anchorOffset, cell, 0);
+    };
+    const down = (e: PointerEvent) => {
+      cell = (e.target as HTMLElement).closest?.<HTMLElement>("[data-sel]") ?? null;
+      if (!cell) setSelCell(null);
+    };
+    const up = () => {
+      clamp();
+      cell = null;
+    };
+    document.addEventListener("pointerdown", down);
+    document.addEventListener("selectionchange", clamp);
+    document.addEventListener("pointerup", up);
+    return () => {
+      document.removeEventListener("pointerdown", down);
+      document.removeEventListener("selectionchange", clamp);
+      document.removeEventListener("pointerup", up);
+    };
+  }, []);
+  const reopened = useRef(saved !== null).current;
+  const [statuses, setStatuses] = useState<ResultStatus[]>(() => start0?.stepResults.map((s) => s.status) ?? Array(n).fill("UNTESTED"));
+  const [actuals, setActuals] = useState<string[]>(() => start0?.stepResults.map((s) => s.actual) ?? Array(n).fill(""));
+  // Pick up at the first step without a result.
+  const [current, setCurrent] = useState(() => Math.max(0, draft ? draft.stepResults.findIndex((s) => s.status === "UNTESTED") : 0));
+  const [override, setOverride] = useState<ResultStatus | null>(start0?.override ?? null);
+  // Save and next on a case with no step marked asks first.
+  const [askSkip, setAskSkip] = useState(false);
+  const [passThenNext, setPassThenNext] = useState(false);
+  const [comment, setComment] = useState(start0?.comment ?? "");
+  const [defects, setDefects] = useState<PendingDefect[]>(start0?.defects ?? []);
+  const [attachments, setAttachments] = useState<Attachment[]>(start0?.attachments ?? []);
+  const [bugFor, setBugFor] = useState<number | null | undefined>(undefined); // undefined = closed, null = whole case
+  const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [pending, start] = useTransition();
+  const statusesRef = useRef(statuses);
+  statusesRef.current = statuses;
+  const startedAt = useRef(Date.now() - (draft?.elapsedSec ?? 0) * 1000);
+  const [elapsed, setElapsed] = useState(0);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const uploadStep = useRef<number | null>(null);
+  const dirty = statuses.some((s) => s !== "UNTESTED") || comment !== "" || defects.length > 0 || attachments.length > 0;
+
+  useEffect(() => {
+    const t = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt.current) / 1000)), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Autosave: every change is saved shortly after it's made, so leaving the
+  // case half done keeps its step results. The case shows In progress meanwhile.
+  const [saveState, setSaveState] = useState<"idle" | "waiting" | "saving" | "saved" | "error">(draft ? "saved" : "idle");
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inflight = useRef<Promise<unknown> | null>(null);
+  const finished = useRef(false);
+  const payload = useRef<Draft | null>(null);
+  payload.current = {
+    stepResults: statuses.map((status, i) => ({ status: status as Draft["stepResults"][number]["status"], actual: actuals[i] })),
+    override: override as Draft["override"],
+    comment,
+    elapsedSec: Math.floor((Date.now() - startedAt.current) / 1000),
+    attachments,
+    defects,
+    notes: [],
+    reminders: [],
+  };
+  // What was last saved (or loaded), ignoring the timer, so only real changes save.
+  const content = contentOf(payload.current);
+  const savedContent = useRef(content);
+  const loadedContent = useRef(content);
+  // The case as the server last told us. Anything that differs from it is
+  // this tester's own change: only those parts are sent, and only the rest
+  // takes other people's changes, so two people on one case never wipe each other.
+  const base = useRef<Snap>(payload.current);
+  const seenAt = useRef(entry.draftBy?.at ?? null);
+
+  const applyRemote = useCallback((remote: Snap) => {
+    const cur = payload.current!;
+    const b = base.current;
+    const wasSaved = contentOf(cur) === savedContent.current;
+    const next: Snap = {
+      stepResults: cur.stepResults.map((s, i) => (same(s, b.stepResults[i]) ? remote.stepResults[i] : s)),
+      override: cur.override === b.override ? remote.override : cur.override,
+      comment: cur.comment === b.comment ? remote.comment : cur.comment,
+      attachments: same(cur.attachments, b.attachments) ? remote.attachments : cur.attachments,
+      defects: same(cur.defects, b.defects) ? remote.defects : cur.defects,
+    };
+    base.current = remote;
+    if (contentOf(next) === contentOf(cur)) return;
+    setStatuses(next.stepResults.map((s) => s.status));
+    setActuals(next.stepResults.map((s) => s.actual));
+    setOverride(next.override);
+    setComment(next.comment);
+    setAttachments(next.attachments);
+    setDefects(next.defects as PendingDefect[]);
+    // Someone else's change isn't yours to save again.
+    if (wasSaved) savedContent.current = contentOf(next);
+  }, []);
+
+  const flush = useCallback((): Promise<boolean> => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    if (finished.current || !payload.current) return Promise.resolve(true);
+    const sent = payload.current;
+    const b = base.current;
+    const touched = {
+      steps: sent.stepResults.flatMap((s, i) => (same(s, b.stepResults[i]) ? [] : [i])),
+      override: sent.override !== b.override,
+      comment: sent.comment !== b.comment,
+      attachments: !same(sent.attachments, b.attachments),
+      defects: !same(sent.defects, b.defects),
+    };
+    savedContent.current = contentOf(sent);
+    setSaveState("saving");
+    const p = saveDraft(projectId, entry.id, { ...sent, elapsedSec: Math.floor((Date.now() - startedAt.current) / 1000) }, touched).then((res) => {
+      if (inflight.current === p) inflight.current = null;
+      if (finished.current) return res.ok;
+      setSaveState(res.ok ? "saved" : "error");
+      if (!res.ok) {
+        setError(res.error);
+        return false;
+      }
+      // What we sent is now on the server, along with anyone else's changes.
+      base.current = {
+        stepResults: b.stepResults.map((s, i) => (touched.steps.includes(i) ? sent.stepResults[i] : s)),
+        override: touched.override ? sent.override : b.override,
+        comment: touched.comment ? sent.comment : b.comment,
+        attachments: touched.attachments ? sent.attachments : b.attachments,
+        defects: touched.defects ? sent.defects : b.defects,
+      };
+      seenAt.current = res.draftAt;
+      if (res.draft) applyRemote(res.draft);
+      return true;
+    });
+    inflight.current = p;
+    return p;
+  }, [projectId, entry.id, applyRemote]);
+
+  // Live: pick up step results other people mark on this case while it's open,
+  // and who made the last change.
+  const [lastBy, setLastBy] = useState<{ name: string; mine: boolean; at: string } | null>(
+    entry.draftBy?.at ? { name: entry.draftBy.name, mine: entry.draftBy.mine, at: entry.draftBy.at } : null,
+  );
+  const [savedElsewhere, setSavedElsewhere] = useState<{ testerName: string; status: ResultStatus; mine: boolean } | null>(null);
+  const previousAt = previous?.createdAt ?? null;
+  useEffect(() => {
+    if (runClosed) return;
+    let stop = false;
+    let t: ReturnType<typeof setTimeout>;
+    const tick = async () => {
+      if (!document.hidden && !inflight.current && !finished.current) {
+        try {
+          const r = await fetch(`/api/live/entries/${entry.id}`, { cache: "no-store" });
+          if (r.ok && !stop && !inflight.current && !finished.current) {
+            const d = (await r.json()) as {
+              draft: Draft | null;
+              draftAt: string | null;
+              draftBy: { name: string; mine: boolean } | null;
+              lastResult: { testerName: string; status: ResultStatus; mine: boolean; at: string } | null;
+            };
+            if (d.draft && d.draftAt && d.draftAt !== seenAt.current && d.draft.stepResults.length === n) {
+              seenAt.current = d.draftAt;
+              applyRemote(d.draft);
+            }
+            setLastBy(d.draftBy && d.draftAt ? { ...d.draftBy, at: d.draftAt } : null);
+            setSavedElsewhere(d.lastResult && d.lastResult.at !== previousAt ? d.lastResult : null);
+          }
+        } catch {
+          // Offline or the server restarted; try again next time.
+        }
+      }
+      if (!stop) t = setTimeout(tick, LIVE_MS);
+    };
+    t = setTimeout(tick, LIVE_MS);
+    return () => {
+      stop = true;
+      clearTimeout(t);
+    };
+  }, [entry.id, n, runClosed, applyRemote, previousAt]);
+
+  useEffect(() => {
+    if (runClosed || finished.current || content === savedContent.current) return;
+    setSaveState("waiting");
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(flush, 600);
+  }, [content, runClosed, flush]);
+
+  // Leaving the page (another case, another tab of the app) saves straight away.
+  useEffect(() => () => void (timer.current && flush()), [flush]);
+
+  const unsaved = saveState === "waiting" || saveState === "saving" || saveState === "error";
+  useEffect(() => {
+    if (!unsaved) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      flush();
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [unsaved, flush]);
+
+  // Don't let other people's live changes reset this case while you're filling it in.
+  const busy = dirty || actuals.some((a) => a !== "") || bugFor !== undefined;
+  useEffect(() => (busy ? holdLive() : undefined), [busy]);
+  // That hold also stops the run list refreshing, so hand it this case's step results directly.
+  useEffect(() => publishLiveSteps(entry.id, statuses), [entry.id, statuses]);
+  useEffect(() => () => publishLiveSteps(entry.id, null), [entry.id]);
+
+  const derived = n ? deriveCaseStatus(statuses) : "UNTESTED";
+  const caseStatus = override ?? derived;
+  // No case result yet: saving keeps the progress and the case stays In progress.
+  const partial = caseStatus === "UNTESTED";
+
+  const setStep = useCallback(
+    (i: number, s: ResultStatus) => {
+      // A status always sets that status, never toggles it off (pressing P twice used to clear a pass). U or Clear empties it.
+      setStatuses((prev) => prev.map((x, j) => (j === i ? s : x)));
+      // Move on after a pass; stay put on a problem so the tester can describe it.
+      if (s === "PASSED" && i < n - 1) setCurrent(i + 1);
+    },
+    [n],
+  );
+
+  // "Bug still occurs" in the history panel: copy that execution's step
+  // results and bugs into this case, so a known bug is re-reported in one click.
+  useEffect(() => {
+    const apply = (e: Event) => {
+      const past = (e as CustomEvent<HistoryRun>).detail;
+      if (runClosed) return;
+      const marked = statusesRef.current.some((x) => x !== "UNTESTED");
+      if (marked && !window.confirm("Replace the step results you've already entered with the ones from that run?")) return;
+      const where = mapHistorySteps(past.steps, entry.steps);
+      const nextStatuses: ResultStatus[] = Array(n).fill("UNTESTED");
+      const nextActuals: string[] = Array(n).fill("");
+      past.steps.forEach((st, j) => {
+        if (where[j] < 0) return;
+        nextStatuses[where[j]] = st.status;
+        nextActuals[where[j]] = st.actual;
+      });
+      const bugs: PendingDefect[] = past.defects.map((d) => {
+        const i = d.stepIndex === null ? -1 : (where[d.stepIndex] ?? -1);
+        // A step with a bug on it fails if the old run left it unmarked.
+        if (i >= 0 && nextStatuses[i] === "UNTESTED") nextStatuses[i] = "FAILED";
+        return { defect: d.defect, stepIndex: i >= 0 ? i : null };
+      });
+      setStatuses(nextStatuses);
+      setActuals(nextActuals);
+      setDefects(bugs.filter((b, k) => bugs.findIndex((x) => x.defect.id === b.defect.id && x.stepIndex === b.stepIndex) === k));
+      setOverride(n && deriveCaseStatus(nextStatuses) === past.status ? null : past.status === "UNTESTED" ? null : past.status);
+      const keys = [...new Set(past.defects.map((d) => d.defect.externalKey ?? `D-${d.defect.number}`))].join(", ");
+      setComment((c) => c || `Bug still occurs: ${keys} (same as R${past.runNumber}).`);
+      const firstProblem = nextStatuses.findIndex((x) => x !== "UNTESTED" && x !== "PASSED" && x !== "SKIPPED");
+      if (firstProblem >= 0) setCurrent(firstProblem);
+      setError(null);
+    };
+    window.addEventListener(STILL_OCCURS_EVENT, apply);
+    return () => window.removeEventListener(STILL_OCCURS_EVENT, apply);
+  }, [entry.steps, n, runClosed]);
+
+  const upload = useCallback(
+    async (files: File[], stepIndex: number | null) => {
+      setUploading(true);
+      const added: (Attachment & { size: number })[] = [];
+      for (const file of files) {
+        const form = new FormData();
+        form.set("file", file);
+        if (stepIndex !== null) form.set("stepIndex", String(stepIndex));
+        const res = await uploadAttachment(projectId, form);
+        if (res.ok) {
+          const a = { ...res.attachment, stepIndex };
+          added.push(a);
+          setAttachments((all) => [...all, a]);
+        } else setError(res.error);
+      }
+      setUploading(false);
+      return added;
+    },
+    [projectId],
+  );
+
+  // Take screenshot / Record screen: the browser's own screen sharing, attached like any other file.
+  const capture = useCaptureSupport();
+  const stepLabel = (i: number | null) => (i === null ? "the case" : `step ${entry.steps[i]?.number ?? i + 1}`);
+  const fileLabel = (i: number | null) => (i === null ? "Whole case" : `Step ${entry.steps[i]?.number ?? i + 1}`);
+  const captureName = (i: number | null) => `${entry.caseKey} ${i === null ? "case" : `step ${entry.steps[i]?.number ?? i + 1}`}`;
+  const [preview, setPreview] = useState<{ id: string; fileName: string; seconds: number; size: number; stepIndex: number | null } | null>(null);
+  const recorder = useScreenRecorder(
+    useCallback(
+      async (f: Finished) => {
+        const [a] = await upload([f.file], f.stepIndex);
+        if (a) setPreview({ id: a.id, fileName: a.fileName, seconds: f.seconds, size: a.size, stepIndex: f.stepIndex });
+      },
+      [upload],
+    ),
+    useCallback((m: string) => setError(m), []),
+  );
+  const recording = useRef(false);
+  recording.current = recorder.rec !== null;
+  const screenshot = async (i: number | null) => {
+    setError(null);
+    try {
+      const file = await takeScreenshot(`${captureName(i)} screenshot.png`);
+      if (file) await upload([file], i);
+    } catch {
+      setError("Couldn't take the screenshot.");
+    }
+  };
+  const record = (i: number | null) => {
+    setError(null);
+    setPreview(null);
+    void recorder.start({ stepIndex: i, label: i === null ? "for the case" : `for ${stepLabel(i)}`, baseName: captureName(i) });
+  };
+  const captureButtons = (i: number | null) => (
+    <>
+      <Button size="sm" disabled={!capture.ok || uploading || runClosed} title={capture.ok ? `Pick a tab, window or screen and attach a still image of it to ${stepLabel(i)}` : capture.why} onClick={() => void screenshot(i)}>
+        📷 Take screenshot
+      </Button>
+      <Button
+        size="sm"
+        disabled={!capture.ok || runClosed || recorder.rec !== null}
+        title={capture.ok ? `Record a tab, window or screen for up to 5 minutes and attach the video to ${stepLabel(i)}` : capture.why}
+        onClick={() => record(i)}
+      >
+        <span aria-hidden className="text-red-600">●</span> {i === null ? "Record screen for case" : "Record screen"}
+      </Button>
+    </>
+  );
+
+  const submit = useCallback(
+    (goNext: boolean, skipUnmarked = false) => {
+      setError(null);
+      setAskSkip(false);
+      if (recording.current) return setError("Stop the screen recording first: Stop and attach, or Discard.");
+      const runPath = `/p/${projectKey}/runs/${runNumber}`;
+      // Plain Save stays on this case; the refresh below reloads it with the saved result.
+      const goOn = () => goNext && router.push(nextEntryId ? `${runPath}/execute?entry=${nextEntryId}${keepQuery}` : runPath);
+      // Not finished: keep the step results (autosave has them) and leave the case In progress.
+      if (caseStatus === "UNTESTED") {
+        // Nothing marked at all: ask rather than quietly moving on and leaving the case Untested.
+        if (goNext && !skipUnmarked && n > 0 && statuses.every((x) => x === "UNTESTED")) return setAskSkip(true);
+        start(async () => {
+          const ok = timer.current ? await flush() : await (inflight.current ?? true);
+          if (ok === false) return;
+          goOn();
+          router.refresh();
+        });
+        return;
+      }
+      // Nothing changed on a reopened finished case: keep its result rather than saving a copy.
+      if (reopened && JSON.stringify({ ...payload.current, elapsedSec: 0 }) === loadedContent.current) return goOn();
+      start(async () => {
+        // Let a pending autosave land first, so it can't bring the draft back afterwards.
+        if (timer.current) clearTimeout(timer.current);
+        timer.current = null;
+        finished.current = true;
+        await inflight.current;
+        const res = await submitResult(projectId, entry.id, {
+          status: caseStatus as Exclude<Draft["override"], null>,
+          stepResults: payload.current!.stepResults,
+          comment,
+          elapsedSec: Math.floor((Date.now() - startedAt.current) / 1000),
+          attachmentIds: attachments.map((a) => a.id),
+          defects: defects.map((d) => ({ existingId: d.defect.id, stepIndex: d.stepIndex })),
+        });
+        if (!res.ok) {
+          finished.current = false;
+          return setError(res.error);
+        }
+        showQuestMoments(res.quest);
+        // The last case of the run: offer to close it rather than dropping back to the run page.
+        if (goNext && !nextEntryId && res.runDone) {
+          router.replace(`${runPath}/execute?entry=${entry.id}&finished=1${keepQuery}`);
+          return;
+        }
+        goOn();
+        router.refresh();
+      });
+    },
+    [caseStatus, statuses, n, projectId, entry.id, comment, attachments, defects, projectKey, runNumber, nextEntryId, keepQuery, router, reopened, flush],
+  );
+
+  // Marking any step answers the no-result question.
+  useEffect(() => setAskSkip(false), [statuses]);
+
+  // "Pass all and next" from the no-result question: save once the passes are in.
+  useEffect(() => {
+    if (!passThenNext || caseStatus === "UNTESTED") return;
+    setPassThenNext(false);
+    submit(true);
+  }, [passThenNext, caseStatus, submit]);
+
+  // Keyboard: P F B D R S mark the current step, arrows or J/K move, Ctrl+Enter saves.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Ctrl+K search has its own keys (Ctrl+Enter opens a result in a new tab).
+      if ((e.target as HTMLElement).closest?.("dialog[aria-label='Search']")) return;
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        submit(true);
+        return;
+      }
+      const t = e.target as HTMLElement;
+      if (t.closest("input, textarea, select, dialog") || e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k === "arrowdown" || k === "j") {
+        e.preventDefault();
+        setCurrent((c) => Math.min(n - 1, c + 1));
+      } else if (k === "arrowup" || k === "k") {
+        e.preventDefault();
+        setCurrent((c) => Math.max(0, c - 1));
+      } else if (k === "u" && n) {
+        e.preventDefault();
+        setStep(current, "UNTESTED");
+      } else {
+        const hit = SETTABLE.find((s) => s.key === k);
+        if (hit && n) {
+          e.preventDefault();
+          setStep(current, hit.status);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [current, n, setStep, submit]);
+
+  // Paste a screenshot anywhere to attach it to the current step.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith("image/"));
+      if (!files.length) return;
+      e.preventDefault();
+      void upload(
+        files.map((f) => new File([f], f.name && f.name !== "image.png" ? f.name : `step-${current + 1}-screenshot.png`, { type: f.type })),
+        n ? current : null,
+      );
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [current, n, upload]);
+
+  useEffect(() => {
+    document.querySelector(`[data-step="${current}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [current]);
+
+  const stepCounts = useMemo(() => {
+    const c: Partial<Record<ResultStatus, number>> = {};
+    for (const s of statuses) c[s] = (c[s] ?? 0) + 1;
+    return c;
+  }, [statuses]);
+
+  const recent = useMemo(() => {
+    const seen = new Set(defects.map((d) => d.defect.id));
+    return runDefects.filter((d) => !seen.has(d.id));
+  }, [runDefects, defects]);
+
+  // Someone else changed this case in the last half hour.
+  const othersActive = !!lastBy && !lastBy.mine && Date.now() - Date.parse(lastBy.at) < 30 * 60_000;
+  const mm = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
+
+  return (
+    // On wide screens the steps scroll on their own and the case result stays put underneath them.
+    <div className="min-w-0 flex-1 lg:flex lg:min-h-0 lg:flex-col bigtext:block">
+      <div data-steps-scroll className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1 lg:pb-2 bigtext:overflow-visible bigtext:pr-0">
+        {takeBar && <div className="mb-3">{takeBar}</div>}
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs text-slate-500">
+              <Link href={`/p/${entry.caseProjectKey ?? projectKey}/cases/${entry.caseNumber}`} className="font-mono hover:underline" target="_blank">
+                {entry.caseKey}
+              </Link>{" "}
+              · version {entry.caseVersion}
+              {entry.folderPath && ` · ${entry.folderPath}`}
+            </p>
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900">{entry.title}</h1>
+            {!!entry.stories?.length && (
+              <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                Tests
+                {entry.stories.map((st) =>
+                  st.url ? (
+                    <a key={st.key} href={st.url} target="_blank" rel="noreferrer" title={[st.title, st.status].filter(Boolean).join(" · ")} className="rounded border border-slate-200 bg-surface px-1.5 py-0.5 font-mono text-accent-700 hover:underline">
+                      {st.key} ↗
+                    </a>
+                  ) : (
+                    <span key={st.key} title={st.title} className="rounded border border-slate-200 bg-surface px-1.5 py-0.5 font-mono">
+                      {st.key}
+                    </span>
+                  ),
+                )}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-3 text-sm text-slate-500">
+            <CaseFlagButton projectId={projectId} projectKey={projectKey} caseId={entry.caseId} flag={entry.flag} runNumber={runNumber} />
+            <span title="Time on this case" className="tabular-nums">
+              ⏱ {mm}
+            </span>
+            <StatusChip status={entry.status} />
+          </div>
+        </div>
+
+        {runClosed && <p className="mb-3 rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700">This run is closed. Reopen it to record results.</p>}
+
+        {previous && (
+          <div className="mb-4 rounded-md border border-slate-200 bg-surface px-3 py-2 text-sm text-slate-600">
+            Last result in this run: <StatusChip status={previous.status} /> by {previous.testerName}{" "}
+            <span suppressHydrationWarning>{dateTime(new Date(previous.createdAt), spelling)}</span>
+            {previous.comment && <span className="block text-xs text-slate-500">“{previous.comment}”</span>}
+            {saved && <span className="block text-xs text-slate-500">Its step results are shown below. Change anything and save to record a new result.</span>}
+            {previous.defects.length > 0 && (
+              <span className="block text-xs">
+                Bugs:{" "}
+                {previous.defects.map((d, i) => (
+                  <span key={d.key}>
+                    {i > 0 && ", "}
+                    {d.url ? (
+                      <a href={d.url} target="_blank" rel="noreferrer" className="text-accent-700 hover:underline">
+                        {d.key}
+                      </a>
+                    ) : (
+                      d.key
+                    )}
+                  </span>
+                ))}
+              </span>
+            )}
+          </div>
+        )}
+
+        {savedElsewhere && (
+          <p className="mb-4 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+            {savedElsewhere.mine ? "You" : savedElsewhere.testerName} saved this case as {STATUS_LABEL[savedElsewhere.status]}. Saving here records another result.
+          </p>
+        )}
+        {othersActive ? (
+          <p className="mb-4 flex items-center gap-2 text-sm text-slate-600" role="status">
+            <span className={cx("h-2 w-2 shrink-0 rounded-full", Date.now() - Date.parse(lastBy!.at) < 2 * 60_000 ? "bg-emerald-500" : "bg-slate-300")} />
+            <span>
+              <span className="font-medium text-slate-800">{lastBy!.name}</span> is working on this case · last change{" "}
+              <span suppressHydrationWarning>{relativeTime(new Date(lastBy!.at), spelling)}</span>
+            </span>
+          </p>
+        ) : resumed && draft && entry.draftBy && (
+          <p className="mb-4 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
+            Picked up where {entry.draftBy.mine ? "you" : entry.draftBy.name} left off {entry.draftBy.ago}.{" "}
+            {draft.stepResults.filter((s) => s.status !== "UNTESTED").length} of {n} steps have results.
+          </p>
+        )}
+
+        {entry.preconditions && (
+          <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <span className="font-medium">Preconditions: </span>
+            {entry.preconditions}
+          </div>
+        )}
+
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+          <span className="fp-keyhint">
+            Keys: {SETTABLE.map((s) => (
+              <span key={s.key} className="mr-1.5">
+                <kbd>{s.key.toUpperCase()}</kbd> {STATUS_LABEL[s.status].toLowerCase()}
+              </span>
+            ))}
+            <kbd>U</kbd> clear <kbd>↑</kbd>
+            <kbd>↓</kbd> move · paste a screenshot to attach it
+          </span>
+          {n > 0 && (
+            <button
+              type="button"
+              className="text-accent-700 hover:underline"
+              onClick={() => setStatuses((prev) => prev.map((s) => (s === "UNTESTED" ? "PASSED" : s)))}
+            >
+              Pass all remaining steps
+            </button>
+          )}
+        </div>
+
+        <ol className="space-y-2">
+          {entry.steps.map((step, i) => {
+            const s = statuses[i];
+            const problem = s !== "UNTESTED" && s !== "PASSED" && s !== "SKIPPED";
+            const stepDefects = defects.filter((d) => d.stepIndex === i);
+            const stepFiles = attachments.filter((a) => a.stepIndex === i);
+            const firstOfShared = step.shared && (i === 0 || entry.steps[i - 1].shared?.id !== step.shared.id || entry.steps[i - 1].number.split(".")[0] !== step.number.split(".")[0]);
+            return (
+              <li key={i} data-step={i}>
+                {firstOfShared && (
+                  <p className="mt-3 mb-1 text-xs text-violet-700">
+                    Shared step: <span className="font-medium">{step.shared!.name}</span> v{step.shared!.version}
+                  </p>
+                )}
+                <div
+                  onClick={() => setCurrent(i)}
+                  className={cx(
+                    "rounded-lg border bg-surface p-3 shadow-sm transition",
+                    current === i ? "border-accent-500 ring-2 ring-accent-500/20" : "border-slate-200",
+                    step.shared && "border-l-4 border-l-violet-300",
+                  )}
+                >
+                  <div className="flex flex-wrap gap-3">
+                    <span className="w-9 shrink-0 pt-0.5 font-mono text-sm font-semibold text-slate-500 select-none">{step.number}</span>
+                    <div className="grid min-w-0 flex-1 gap-2 md:grid-cols-2 md:gap-0">
+                      <div
+                        data-sel
+                        onPointerDown={() => setSelCell(`a${i}`)}
+                        className={cx("min-w-0 text-sm text-slate-900 md:pr-3", selCell && selCell !== `a${i}` && "select-none")}
+                      >
+                        <span className="block text-[11px] font-medium tracking-wide text-slate-400 uppercase select-none">Step</span>
+                        <StepText text={step.action} className="whitespace-pre-wrap wrap-anywhere" />
+                      </div>
+                      <div
+                        data-sel
+                        onPointerDown={() => setSelCell(`e${i}`)}
+                        className={cx(
+                          "min-w-0 border-t border-slate-200 pt-2 text-sm text-slate-600 md:border-t-0 md:border-l md:pt-0 md:pl-3",
+                          selCell && selCell !== `e${i}` && "select-none",
+                        )}
+                      >
+                        <span className="block text-[11px] font-medium tracking-wide text-slate-400 uppercase select-none">Expected</span>
+                        {step.expected ? <StepText text={step.expected} className="whitespace-pre-wrap wrap-anywhere" /> : "–"}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap gap-1 select-none max-2xl:basis-full max-2xl:pl-12" role="group" aria-label={`Step ${step.number} status`}>
+                      {SETTABLE.map(({ status }) => (
+                        <button
+                          key={status}
+                          type="button"
+                          title={`${STATUS_LABEL[status]}: ${STATUS_HELP[status]}`}
+                          aria-pressed={s === status}
+                          disabled={runClosed}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrent(i);
+                            setStep(i, status);
+                          }}
+                          className={cx(
+                            "h-7 rounded px-2 text-xs font-medium ring-1 ring-inset transition",
+                            s === status ? cx(STATUS_STYLE[status].solid, "ring-transparent") : "bg-surface text-slate-600 ring-slate-200 hover:bg-slate-50",
+                          )}
+                        >
+                          {STATUS_LABEL[status]}
+                        </button>
+                      ))}
+                      {s !== "UNTESTED" && !runClosed && (
+                        <button
+                          type="button"
+                          aria-label={`Clear step ${step.number}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrent(i);
+                            setStep(i, "UNTESTED");
+                          }}
+                          className="h-7 px-1.5 text-xs text-slate-500 underline hover:text-slate-800"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {(problem || actuals[i] || stepDefects.length > 0 || stepFiles.length > 0 || recorder.rec?.stepIndex === i) && (
+                    <div className="mt-3 space-y-2 pl-12">
+                      {s === "FAILED" && regression && regression.passed.length === n && regression.passed[i] && (
+                        <RegressionNote
+                          projectId={projectId}
+                          entryId={entry.id}
+                          label={regression.label}
+                          when={regression.when}
+                          off={regression.off}
+                          onReport={runClosed ? undefined : () => setBugFor(i)}
+                          onShow={() => window.dispatchEvent(new CustomEvent<string>(SHOW_HISTORY_EVENT, { detail: regression.resultId }))}
+                        />
+                      )}
+                      <Textarea
+                        rows={2}
+                        aria-label={`Step ${step.number} actual result`}
+                        placeholder="What actually happened?"
+                        value={actuals[i]}
+                        onChange={(e) => setActuals((a) => a.map((x, j) => (j === i ? e.target.value : x)))}
+                      />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button size="sm" variant={s === "FAILED" ? "primary" : "secondary"} onClick={() => setBugFor(i)} disabled={runClosed}>
+                          {jiraConnected ? "Report bug in Jira" : "Report bug"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          disabled={uploading || runClosed}
+                          onClick={() => {
+                            uploadStep.current = i;
+                            fileInput.current?.click();
+                          }}
+                        >
+                          {uploading ? "Uploading…" : "Attach file"}
+                        </Button>
+                        {captureButtons(i)}
+                        {stepDefects.map((d) => (
+                          <DefectChip key={d.defect.id} d={d.defect} onRemove={() => setDefects((all) => all.filter((x) => x !== d))} />
+                        ))}
+                        {stepFiles.map((a) => (
+                          <FileChip key={a.id} a={a} onRemove={() => setAttachments((all) => all.filter((x) => x.id !== a.id))} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+        {n === 0 && <p className="rounded-lg border border-dashed border-slate-300 bg-surface p-6 text-center text-sm text-slate-500">This case has no steps. Set the case result below.</p>}
+
+        <input
+          ref={fileInput}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            const files = [...(e.target.files ?? [])];
+            e.target.value = "";
+            if (files.length) void upload(files, uploadStep.current);
+          }}
+        />
+      </div>
+
+      <div className="mt-3 shrink-0 rounded-lg border border-slate-200 bg-surface p-3 shadow-sm">
+        <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium text-slate-700">Case result</span>
+          {n > 0 && !override && !changingResult && (
+            <>
+              {caseStatus === "UNTESTED" ? (
+                <span className="text-sm text-slate-500">
+                  {(stepCounts.UNTESTED ?? 0) === n ? "Mark the steps above" : `${stepCounts.UNTESTED} ${stepCounts.UNTESTED === 1 ? "step" : "steps"} left`}
+                </span>
+              ) : (
+                <StatusChip status={caseStatus} solid />
+              )}
+              <span className="text-xs text-slate-500">
+                {`from steps: ${
+                  Object.entries(stepCounts)
+                    .filter(([k]) => k !== "UNTESTED")
+                    .map(([k, v]) => `${v} ${STATUS_LABEL[k as ResultStatus].toLowerCase()}`)
+                    .join(", ") || "none marked yet"
+                }`}
+              </span>
+              {!runClosed && (
+                <button type="button" className="text-xs text-accent-700 hover:underline" onClick={() => setChangingResult(true)}>
+                  Set it yourself
+                </button>
+              )}
+            </>
+          )}
+          {(n === 0 || override || changingResult) && SETTABLE.map(({ status }) => (
+            <button
+              key={status}
+              type="button"
+              disabled={runClosed}
+              onClick={() => setOverride(override === status ? null : status)}
+              className={cx(
+                "h-8 rounded-md px-2.5 text-xs font-medium ring-1 ring-inset",
+                caseStatus === status ? cx(STATUS_STYLE[status].solid, "ring-transparent") : "bg-surface text-slate-600 ring-slate-200 hover:bg-slate-50",
+              )}
+            >
+              {STATUS_LABEL[status]}
+            </button>
+          ))}
+          {n > 0 && (override || changingResult) && (
+            <button
+              type="button"
+              className="text-xs text-accent-700 hover:underline"
+              onClick={() => {
+                setOverride(null);
+                setChangingResult(false);
+              }}
+            >
+              Use the steps&apos; result{derived !== "UNTESTED" && ` (${STATUS_LABEL[derived]})`}
+            </button>
+          )}
+        </div>
+        {/* The comment gets its own full-width line, with the case buttons under it (ver_87: it used to shrink to a few letters). */}
+        <div className="mt-3 grid gap-2">
+          <Textarea
+            rows={1}
+            placeholder="Comment on this case (optional)"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            aria-label="Comment"
+            className={cx("min-h-9 resize-none transition-[min-height] focus:min-h-20", comment.includes("\n") && "min-h-20")}
+          />
+          <div className="flex flex-wrap items-start gap-2">
+            <Button size="sm" onClick={() => setBugFor(null)} disabled={runClosed}>
+              Report bug for case
+            </Button>
+            <Button
+              size="sm"
+              disabled={uploading || runClosed}
+              onClick={() => {
+                uploadStep.current = null;
+                fileInput.current?.click();
+              }}
+            >
+              Attach file to case
+            </Button>
+            {captureButtons(null)}
+          </div>
+        </div>
+        {(defects.some((d) => d.stepIndex === null) || attachments.some((a) => a.stepIndex === null)) && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {defects
+              .filter((d) => d.stepIndex === null)
+              .map((d) => (
+                <DefectChip key={d.defect.id} d={d.defect} onRemove={() => setDefects((all) => all.filter((x) => x !== d))} />
+              ))}
+            {attachments
+              .filter((a) => a.stepIndex === null)
+              .map((a) => (
+                <FileChip key={a.id} a={a} onRemove={() => setAttachments((all) => all.filter((x) => x.id !== a.id))} />
+              ))}
+          </div>
+        )}
+        {askSkip && (
+          <div role="alert" className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+            <p>
+              <span className="font-medium">{entry.caseKey} has no result yet.</span> {n === 1 ? "Its step is" : `All ${n} steps are`} still Untested.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => {
+                  setAskSkip(false);
+                  setStatuses((prev) => prev.map(() => "PASSED"));
+                  setPassThenNext(true);
+                }}
+              >
+                Pass all and next
+              </Button>
+              <Button size="sm" onClick={() => submit(true, true)}>
+                Leave it for later
+              </Button>
+              <Button size="sm" onClick={() => setAskSkip(false)}>
+                Stay here
+              </Button>
+            </div>
+          </div>
+        )}
+        <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+          <span className="mr-auto text-xs text-slate-400">
+            <span role="status" className={cx("mr-2", saveState === "error" ? "text-red-600" : "text-slate-500")}>
+              {saveState === "saving" || saveState === "waiting"
+                ? "Saving…"
+                : saveState === "saved"
+                  ? "Step results saved"
+                  : saveState === "error"
+                    ? "Couldn't save step results."
+                    : ""}
+            </span>
+            <span className="fp-keyhint">
+              <kbd>Ctrl</kbd>+<kbd>Enter</kbd> saves and opens the next case
+            </span>
+          </span>
+          <Button disabled={pending || runClosed} onClick={() => submit(false)}>
+            {partial ? "Save progress" : "Save"}
+          </Button>
+          <Button variant="primary" disabled={pending || runClosed} onClick={() => submit(true)}>
+            {pending
+              ? "Saving…"
+              : partial
+                ? nextEntryId
+                  ? "Save progress and next"
+                  : "Save progress and exit"
+                : nextEntryId
+                  ? "Save and next"
+                  : "Save and finish"}
+          </Button>
+        </div>
+      </div>
+
+      {lastCase && (
+        <div role="status" className="flex flex-wrap items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          <span className="flex-1">That was the last case in R{runNumber}. Every case has a result.</span>
+          <Button size="sm" onClick={() => setLastCase(null)}>
+            Stay here
+          </Button>
+          {canCloseRun ? (
+            <CloseRunButton projectId={projectId} runId={lastCase} onClosed={() => router.push(`/p/${projectKey}/runs/${runNumber}`)} />
+          ) : (
+            <Link href={`/p/${projectKey}/runs/${runNumber}`} className={buttonClass("primary", "sm")}>
+              Back to the run
+            </Link>
+          )}
+        </div>
+      )}
+
+      <RecordingBar r={recorder} />
+      {preview && !recorder.rec && (
+        <RecordingPreview
+          {...preview}
+          label={stepLabel(preview.stepIndex)}
+          onClose={() => setPreview(null)}
+          onRemove={() => {
+            setAttachments((all) => all.filter((x) => x.id !== preview.id));
+            setPreview(null);
+          }}
+          onRerecord={() => {
+            setAttachments((all) => all.filter((x) => x.id !== preview.id));
+            record(preview.stepIndex);
+          }}
+        />
+      )}
+
+      <BugDialog
+        open={bugFor !== undefined}
+        onClose={() => setBugFor(undefined)}
+        onLinked={(d) => {
+          const stepIndex = bugFor ?? null;
+          setDefects((all) => (all.some((x) => x.defect.id === d.id && x.stepIndex === stepIndex) ? all : [...all, { defect: d, stepIndex }]));
+          if (stepIndex !== null && statuses[stepIndex] === "UNTESTED") setStep(stepIndex, "FAILED");
+        }}
+        projectId={projectId}
+        entryId={entry.id}
+        stepIndex={bugFor ?? null}
+        stepLabel={bugFor === null || bugFor === undefined ? "whole case" : `step ${entry.steps[bugFor]?.number}`}
+        actual={bugFor === null || bugFor === undefined ? comment : actuals[bugFor]}
+        suggested={bugTitle(entry.title, bugFor === null || bugFor === undefined ? null : (entry.steps[bugFor] ?? null), bugFor === null || bugFor === undefined ? comment : (actuals[bugFor] ?? ""))}
+        attachments={attachments.filter((a) => (bugFor === null ? true : a.stepIndex === bugFor)).map((a) => ({ ...a, label: fileLabel(a.stepIndex) }))}
+        others={attachments.filter((a) => bugFor !== null && a.stepIndex !== bugFor).map((a) => ({ ...a, label: fileLabel(a.stepIndex) }))}
+        captureName={captureName(bugFor ?? null)}
+        onUploaded={(a) => setAttachments((all) => [...all, { ...a, stepIndex: bugFor ?? null }])}
+        jiraConnected={jiraConnected}
+        recent={recent}
+        stories={entry.stories}
+        linkStories={entry.linkStories}
+        regression={
+          regression && !regression.off && bugFor !== undefined && (bugFor === null ? regression.passed.some((p, i) => p && statuses[i] === "FAILED") : regression.passed.length === n && !!regression.passed[bugFor])
+            ? { label: regression.jiraLabel, against: regression.label }
+            : null
+        }
+      />
+    </div>
+  );
+}
+
+export function DefectChip({ d, onRemove }: { d: LinkedDefect; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded bg-red-50 px-2 py-0.5 text-xs text-red-800 ring-1 ring-red-200 ring-inset">
+      {d.externalUrl ? (
+        <a href={d.externalUrl} target="_blank" rel="noreferrer" className="font-mono font-medium hover:underline">
+          {d.externalKey}
+        </a>
+      ) : (
+        <span className="font-mono">D-{d.number}</span>
+      )}
+      <span className="max-w-48 truncate">{d.title}</span>
+      <button type="button" aria-label="Unlink bug" className="text-red-400 hover:text-red-800" onClick={onRemove}>
+        ×
+      </button>
+    </span>
+  );
+}
+
+export function FileChip({ a, onRemove }: { a: Attachment; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
+      {a.contentType.startsWith("image/") && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={`/api/attachments/${a.id}`} alt="" className="h-5 w-5 rounded object-cover" />
+      )}
+      {a.contentType.startsWith("video/") && <span aria-hidden>🎥</span>}
+      <a href={`/api/attachments/${a.id}`} target="_blank" rel="noreferrer" className="max-w-40 truncate hover:underline">
+        {a.fileName}
+      </a>
+      <button type="button" aria-label="Remove attachment" className="text-slate-400 hover:text-slate-800" onClick={onRemove}>
+        ×
+      </button>
+    </span>
+  );
+}

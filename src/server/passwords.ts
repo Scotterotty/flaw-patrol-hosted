@@ -1,0 +1,171 @@
+"use server";
+
+import { AuthError } from "next-auth";
+import { unstable_rethrow } from "next/navigation";
+import { mayJoin, passwordSignInOn, signIn } from "@/auth";
+import { logActivity } from "@/lib/activity";
+import { db } from "@/lib/db";
+import { emailInvite, INVITE_DAYS, newLink, placeName, RESET_HOURS } from "@/lib/invites";
+import { mailOn, sendMail } from "@/lib/mail";
+import { hashLinkToken, hashPassword, passwordProblem, verifyPassword } from "@/lib/password";
+import { requireProjectAction, requireUser } from "@/lib/session";
+import { attempt, UserError } from "./result";
+
+const SIGN_IN_ERRORS: Record<string, string> = {
+  wrong: "That email and password don't match.",
+  locked: "Too many wrong passwords. Try again in 15 minutes, or ask an admin for a password link.",
+  "not-invited": "That email hasn't been invited yet. Ask an admin to add you.",
+  weak: "Pick a stronger password.",
+  "sso-only": "Email and password sign-in is off. Use one of the sign-in buttons instead.",
+};
+
+/** Step one of signing in: does this person sign in with a password, set one up, or neither? */
+export async function checkEmail(rawEmail: string): Promise<{ ok: true; next: "password" | "create" } | { ok: false; error: string }> {
+  const email = rawEmail.trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+$/.test(email)) return { ok: false, error: "Enter a valid email address." };
+  const user = await db.user.findUnique({ where: { email }, select: { passwordHash: true, isAdmin: true } });
+  if (!user?.isAdmin && !(await passwordSignInOn()) && (await db.user.count()) > 0) return { ok: false, error: SIGN_IN_ERRORS["sso-only"] };
+  if (user) return { ok: true, next: user.passwordHash ? "password" : "create" };
+  return (await mayJoin(email)) ? { ok: true, next: "create" } : { ok: false, error: SIGN_IN_ERRORS["not-invited"] };
+}
+
+export async function passwordSignIn(input: { email: string; password: string; confirm?: string; name?: string; mode: "password" | "create"; redirectTo: string }) {
+  if (input.mode === "create") {
+    const problem = passwordProblem(input.password, input.email);
+    if (problem) return { ok: false as const, error: problem };
+    if (input.password !== input.confirm) return { ok: false as const, error: "The two passwords don't match." };
+  }
+  try {
+    await signIn("password", {
+      email: input.email,
+      password: input.password,
+      name: input.name ?? "",
+      mode: input.mode,
+      redirectTo: input.redirectTo.startsWith("/") && !input.redirectTo.startsWith("//") ? input.redirectTo : "/",
+    });
+    return { ok: true as const };
+  } catch (e) {
+    unstable_rethrow(e);
+    if (e instanceof AuthError) {
+      const code = (e as AuthError & { code?: string }).code ?? "wrong";
+      return { ok: false as const, error: SIGN_IN_ERRORS[code] ?? SIGN_IN_ERRORS.wrong };
+    }
+    throw e;
+  }
+}
+
+/** Change your own password. People who signed in with Google or GitHub and have none can set one. */
+export async function changeMyPassword(input: { current: string; next: string; confirm: string }) {
+  return attempt(async () => {
+    const { id } = await requireUser();
+    const user = await db.user.findUniqueOrThrow({ where: { id }, omit: { passwordHash: false } });
+    if (user.passwordHash && !(await verifyPassword(input.current, user.passwordHash))) throw new UserError("Your current password isn't right.");
+    const problem = passwordProblem(input.next, user.email);
+    if (problem) throw new UserError(problem);
+    if (input.next !== input.confirm) throw new UserError("The two new passwords don't match.");
+    await db.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(input.next), passwordSetAt: new Date(), failedLogins: 0, lockedUntil: null } });
+    return {};
+  });
+}
+
+/** The member a project admin may make a link for. Only workspace admins can for another workspace admin. */
+async function memberFor(projectId: string, userId: string) {
+  const { user: admin, project } = await requireProjectAction(projectId, "members:manage");
+  const member = await db.projectMember.findUnique({ where: { projectId_userId: { projectId, userId } }, include: { user: true } });
+  if (!member) throw new UserError("They aren't a member of this test cycle.");
+  if (member.user.isAdmin && !admin.isAdmin) throw new UserError("Only a workspace admin can reset another workspace admin's password.");
+  return { admin, project, member };
+}
+
+/**
+ * A one-time link a project admin hands a member to set a new password, for a
+ * forgotten password or a locked account. Only workspace admins can make one
+ * for another workspace admin.
+ */
+export async function createPasswordLink(projectId: string, userId: string) {
+  return attempt(async () => {
+    const { admin, project, member } = await memberFor(projectId, userId);
+    const link = await newLink(userId, "reset", admin.id);
+    await logActivity({ actor: admin, kind: "signin", action: `Made a password link for ${member.user.name ?? member.user.email}`, project });
+    return { url: link.url, hours: RESET_HOURS, canEmail: await mailOn() };
+  });
+}
+
+/** Password link → Email it to them (ver_92), when Workspace settings → Email is set up. */
+export async function emailPasswordLink(projectId: string, userId: string) {
+  return attempt(async () => {
+    const { admin, project, member } = await memberFor(projectId, userId);
+    if (!(await mailOn())) throw new UserError("Email isn't set up. A workspace admin can set it up in Workspace settings → Email.");
+    const link = await newLink(userId, "reset", admin.id);
+    try {
+      await sendMail({
+        to: member.user.email,
+        subject: "Set a new Flaw Patrol password",
+        lines: [`${admin.name ?? admin.email} made you a link to set a new Flaw Patrol password.`],
+        button: { label: "Set a new password", url: link.url },
+        footer: `It works once and expires in ${RESET_HOURS} hours. Your current password stops working once you use it.`,
+      });
+    } catch (e) {
+      throw new UserError(`Couldn't send it: ${(e as Error).message} Copy the link instead.`);
+    }
+    await db.passwordLink.update({ where: { id: link.id }, data: { emailedAt: new Date() } });
+    await logActivity({ actor: admin, kind: "signin", action: `Emailed a password link to ${member.user.name ?? member.user.email}`, project });
+    return { email: member.user.email };
+  });
+}
+
+/** Resend: email a fresh invite to someone who hasn't signed in yet. */
+export async function sendInvite(projectId: string, userId: string) {
+  return attempt(async () => {
+    const { admin, project, member } = await memberFor(projectId, userId);
+    if (!(await mailOn())) throw new UserError("Email isn't set up. A workspace admin can set it up in Workspace settings → Email.");
+    try {
+      await emailInvite({ projectId, user: member.user, role: member.role, by: admin });
+    } catch (e) {
+      throw new UserError(`Couldn't send it: ${(e as Error).message} Use Copy invite link instead.`);
+    }
+    await logActivity({ actor: admin, kind: "people", action: `Emailed an invite to ${member.user.email}`, project });
+    return { email: member.user.email };
+  });
+}
+
+/** Copy invite link: a one-time link to paste into chat when email isn't set up (or didn't arrive). */
+export async function copyInviteLink(projectId: string, userId: string) {
+  return attempt(async () => {
+    const { admin, member } = await memberFor(projectId, userId);
+    const link = await newLink(userId, "invite", admin.id);
+    const place = await placeName(projectId);
+    return {
+      url: link.url,
+      message: `You're invited to ${place} in Flaw Patrol. Accept here: ${link.url} (works once, expires in ${INVITE_DAYS} days). Use ${member.user.email}.`,
+    };
+  });
+}
+
+/** The invite page: who the link is for, or null when it was used or expired. */
+export async function findInviteLink(token: string) {
+  const link = await db.passwordLink.findUnique({ where: { tokenHash: hashLinkToken(token) }, include: { user: { select: { email: true, passwordSetAt: true } } } });
+  if (!link || link.kind !== "invite" || link.usedAt || link.expiresAt < new Date()) return null;
+  return { email: link.user.email, hasPassword: !!link.user.passwordSetAt };
+}
+
+export async function findPasswordLink(token: string) {
+  const link = await db.passwordLink.findUnique({ where: { tokenHash: hashLinkToken(token) }, include: { user: { select: { email: true } } } });
+  if (!link || link.kind !== "reset" || link.usedAt || link.expiresAt < new Date()) return null;
+  return { email: link.user.email };
+}
+
+export async function resetWithLink(token: string, input: { next: string; confirm: string }) {
+  return attempt(async () => {
+    const link = await db.passwordLink.findUnique({ where: { tokenHash: hashLinkToken(token) }, include: { user: true } });
+    if (!link || link.usedAt || link.expiresAt < new Date()) throw new UserError("This link has expired or was already used. Ask an admin for a new one.");
+    const problem = passwordProblem(input.next, link.user.email);
+    if (problem) throw new UserError(problem);
+    if (input.next !== input.confirm) throw new UserError("The two passwords don't match.");
+    const used = await db.passwordLink.updateMany({ where: { id: link.id, usedAt: null }, data: { usedAt: new Date() } });
+    if (used.count !== 1) throw new UserError("This link was already used.");
+    await db.user.update({ where: { id: link.userId }, data: { passwordHash: await hashPassword(input.next), passwordSetAt: new Date(), failedLogins: 0, lockedUntil: null } });
+    await logActivity({ actor: link.user, kind: "signin", action: link.kind === "invite" ? "Accepted an invite and chose a password" : "Used a password link" });
+    return { email: link.user.email };
+  });
+}

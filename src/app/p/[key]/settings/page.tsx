@@ -1,0 +1,165 @@
+import { badgeOf } from "@/lib/game";
+import { ArchiveCard } from "@/components/archive-project";
+import { archiveCardData } from "@/lib/archive-card";
+import { JiraSettings } from "@/components/jira-settings";
+import { parseSeverityConfig } from "@/lib/severity";
+import { CycleSlack, SlackCard } from "@/components/slack-card";
+import { slackChannelsOf } from "@/lib/slack";
+import { parseStoriesConfig } from "@/lib/stories-config";
+import Link from "next/link";
+import { MembersPanel, ProjectDetailsForm } from "@/components/members";
+import { Card, PageHeader } from "@/components/ui";
+import { parseTemplateSettings } from "@/lib/bug-template";
+import { canOpen } from "@/lib/crypto";
+import { db } from "@/lib/db";
+import { memberInviteInfo } from "@/lib/invites";
+import { can } from "@/lib/permissions";
+import { RolesCard } from "@/components/roles-card";
+import { projectAccess } from "@/lib/session";
+import { APP_VERSION } from "@/lib/version";
+import { KeepSeparateSwitch } from "@/components/umbrella-ui";
+import { UmbrellaIcon } from "@/components/umbrella-nav";
+import { HashRedirect } from "@/components/settings-row";
+
+export const metadata = { title: "Test cycle settings" };
+
+export default async function SettingsPage({ params }: { params: Promise<{ key: string }> }) {
+  const { project, user, who } = await projectAccess((await params).key);
+  // The umbrella's own library project has no settings page of its own: its team and Jira are on the umbrella's.
+  const hubOf = await db.projectGroup.findUnique({ where: { hubProjectId: project.id }, select: { id: true, name: true } });
+  if (hubOf) return <HashRedirect to={`/g/${hubOf.id}/settings`} />;
+  const members = await db.projectMember.findMany({
+    where: { projectId: project.id },
+    include: { user: true },
+    orderBy: [{ role: "asc" }, { user: { email: "asc" } }],
+  });
+  const invites = await memberInviteInfo(members.map((m) => m.userId));
+  const canManage = can(who, "project:manage");
+  const canMembers = can(who, "members:manage");
+  const canJira = can(who, "jira:manage");
+  const jiraRow = await db.jiraConfig.findUnique({
+    where: { projectId: project.id },
+    select: { siteUrl: true, email: true, jiraProjectKey: true, issueType: true, tokenEncrypted: true, bugTemplate: true, stories: true, severity: true },
+  });
+  // Under an umbrella: where the library, Jira and team come from.
+  const parent = project.groupId ? await db.projectGroup.findUnique({ where: { id: project.groupId }, include: { hub: { select: { id: true, key: true, jira: { select: { jiraProjectKey: true, siteUrl: true, bugTemplate: true } } } } } }) : null;
+  const umbrella = parent?.hub
+    ? {
+        id: parent.id,
+        name: parent.name,
+        hubKey: parent.hub.key,
+        jiraKey: parent.hub.jira?.jiraProjectKey ?? null,
+        site: parent.hub.jira?.siteUrl.replace(/^https?:\/\//, "") ?? null,
+        template: parseTemplateSettings(parent.hub.jira?.bugTemplate).on,
+      }
+    : null;
+  const archive = await archiveCardData(user, parent?.hub ? parent.id : null, can(who, "cycle:archive") ? { id: project.id, name: project.name, archived: !!project.archivedAt && !project.archivedWithUmbrella } : null);
+  const fromUmbrella = members.filter((m) => m.fromUmbrella).length;
+  // Slack: a test cycle in an umbrella follows its channels (or picks); one outside an umbrella has its own card.
+  const [slackOwn, slackUmbrella] = await Promise.all([slackChannelsOf({ projectId: project.id }), umbrella ? slackChannelsOf({ groupId: umbrella.id }) : []]);
+  const jira = jiraRow && { siteUrl: jiraRow.siteUrl, email: jiraRow.email, jiraProjectKey: jiraRow.jiraProjectKey, issueType: jiraRow.issueType, tokenReadable: canOpen(jiraRow.tokenEncrypted) };
+  return (
+    <div className="mx-auto max-w-3xl space-y-5">
+      <PageHeader title="Test cycle settings" subtitle={<>Test cycle key <code className="font-mono">{project.key}</code></>} />
+      <Card className="flex flex-wrap items-center justify-between gap-2 p-4 text-sm text-slate-600">
+        <span>Your name, picture, appearance, radio and password are on your own account page.</span>
+        <Link href="/account" className="font-medium text-accent-700 hover:underline">
+          Your account
+        </Link>
+      </Card>
+      {umbrella && (
+        <Card className="space-y-3 p-5">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+            <UmbrellaIcon className="size-4 text-accent-600" />
+            Part of {umbrella.name}
+          </h2>
+          <p className="text-sm text-slate-600">
+            Runs here use cases and suites from the {umbrella.name} case library.{" "}
+            <Link href={`/g/${umbrella.id}/settings`} className="font-medium text-accent-700 hover:underline">
+              {umbrella.name} settings
+            </Link>
+          </p>
+          <KeepSeparateSwitch projectId={project.id} on={project.keepMembersSeparate} umbrella={umbrella.name} disabled={!canManage} />
+          {!project.keepMembersSeparate && fromUmbrella > 0 && <p className="text-xs text-slate-500">{fromUmbrella} of the members below come from {umbrella.name}&apos;s team and follow it.</p>}
+        </Card>
+      )}
+      {canManage && <ProjectDetailsForm projectId={project.id} name={project.name} description={project.description} />}
+      <MembersPanel
+        projectId={project.id}
+        me={user.id}
+        canManage={canMembers}
+        canEmail={invites.canEmail}
+                members={members.map((m) => ({ userId: m.userId, email: m.user.email, name: m.user.name, role: m.role, signedIn: !!m.user.lastLoginAt, hasPassword: !!m.user.passwordSetAt, avatarAt: m.user.avatarAt, inviteSentAt: invites.sent.get(m.userId) ?? null, ...badgeOf(m.user) }))}
+      />
+      {/* Under an umbrella with no Jira of its own, one line says whose Jira it uses; the full form is the override. */}
+      {canJira && umbrella && !jiraRow ? (
+        <Card id="jira" className="scroll-mt-20 space-y-3 p-5">
+          <h2 className="text-sm font-semibold text-slate-800">Jira</h2>
+          <p className="text-sm text-slate-700">
+            {umbrella.jiraKey ? (
+              <>
+                ✓ Using {umbrella.name}&apos;s Jira: {umbrella.site} · Jira project {umbrella.jiraKey}
+                {umbrella.template ? `, with ${umbrella.name}'s bug template` : ""}.{" "}
+              </>
+            ) : (
+              <>{umbrella.name} hasn&apos;t connected Jira yet. Connect it once there and every test cycle under it uses it. </>
+            )}
+            <Link href={`/g/${umbrella.id}/settings`} className="font-medium text-accent-700 hover:underline">
+              Open {umbrella.name} settings
+            </Link>
+          </p>
+          <details>
+            <summary className="cursor-pointer text-sm text-accent-700 hover:underline">Use a different Jira for this test cycle only</summary>
+            <div className="mt-3">
+              <JiraSettings projectId={project.id} current={null} template={parseTemplateSettings(null)} okoLayout={parent?.hub ? parent.okoLayout : true} />
+            </div>
+          </details>
+        </Card>
+      ) : (
+        canJira && (
+          <>
+            {umbrella && jiraRow && (
+              <p className="text-sm text-slate-600">
+                This test cycle files bugs into its own Jira project, {jiraRow.jiraProjectKey}. Disconnect it below to use {umbrella.name}&apos;s instead.
+              </p>
+            )}
+            <JiraSettings projectId={project.id} current={jira} template={parseTemplateSettings(jiraRow?.bugTemplate)} stories={parseStoriesConfig(jiraRow?.stories)} okoLayout={parent?.hub ? parent.okoLayout : true} severity={parseSeverityConfig(jiraRow?.severity)} />
+          </>
+        )
+      )}
+      {canMembers &&
+        (umbrella ? (
+          <Card id="roles" className="space-y-1 p-5">
+            <h2 className="text-sm font-semibold text-slate-800">Roles</h2>
+            <p className="text-sm text-slate-600">
+              This test cycle follows {umbrella.name}: {{ standard: "standard roles", open: "testers do everything except archive and delete", custom: "custom roles" }[who.rules?.preset ?? "standard"]}.{" "}
+              <Link href={`/g/${umbrella.id}/settings#roles`} className="font-medium text-accent-700 hover:underline">
+                Change in {umbrella.name} settings
+              </Link>
+            </p>
+          </Card>
+        ) : (
+          <RolesCard target={{ projectId: project.id }} rules={who.rules ?? null} appliesTo={`${project.name} and its runs`} />
+        ))}
+      {umbrella ? (
+        <CycleSlack
+          projectId={project.id}
+          mode={(["umbrella", "choose", "off"].includes(project.slackMode) ? project.slackMode : "umbrella") as "umbrella" | "choose" | "off"}
+          picked={project.slackChannelIds}
+          umbrella={umbrella.name}
+          umbrellaChannels={slackUmbrella}
+          own={slackOwn}
+          canManage={canJira}
+          settingsHref={`/g/${umbrella.id}/settings#slack`}
+        />
+      ) : (
+        <SlackCard target={{ projectId: project.id }} channels={slackOwn} canManage={canJira} tip="Post to Slack when something needs the team's eyes. Each channel picks its own alerts." />
+      )}
+      {/* One Archive… card: this test cycle, others in its umbrella, or the whole umbrella. */}
+      {archive && <ArchiveCard data={archive} />}
+      <p className="pt-2 text-center text-xs text-slate-400">
+        Flaw Patrol version <span className="font-mono">{APP_VERSION}</span>
+      </p>
+    </div>
+  );
+}

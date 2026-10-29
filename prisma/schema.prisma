@@ -1,0 +1,1009 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Workspace-level person. isAdmin is a workspace admin who can create projects
+// and see every project; project access otherwise comes from ProjectMember.
+model User {
+  id               String          @id @default(cuid())
+  email            String          @unique
+  name             String?
+  image            String?
+  isAdmin          Boolean         @default(false)
+  lastLoginAt      DateTime?
+  createdAt        DateTime        @default(now())
+  memberships      ProjectMember[]
+  projectPins      ProjectPin[]
+  groupPins        GroupPin[]
+  // scrypt hash (see src/lib/password.ts). Null until the person sets one,
+  // which they do the first time they sign in.
+  // Email of their Jira account when it differs from this one; used to set them as a bug's Reporter.
+  jiraEmail        String?
+  // Bug template answers remembered per client tag (Context, User name & ID,
+  // tenant), see src/lib/bug-template.ts.
+  bugProfile       Json            @default("{}")
+  passwordHash     String?
+  passwordSetAt    DateTime?
+  // Repeated wrong passwords lock the account for a while.
+  failedLogins     Int             @default(0)
+  lockedUntil      DateTime?
+  passwordLinks    PasswordLink[]
+  // Appearance, see src/lib/theme.ts.
+  themeMode        String          @default("light")
+  accent           String          @default("violet")
+  fontBody         String          @default("poppins")
+  fontHeading      String          @default("bungee")
+  // Accessibility: text size as a percentage, and opt-in display aids.
+  textSize         String          @default("100")
+  reduceMotion     Boolean         @default(false)
+  strongContrast   Boolean         @default(false)
+  underlineLinks   Boolean         @default(false)
+  // Optional background radio, off until the person turns it on (src/lib/radio.ts).
+  radioEnabled     Boolean         @default(false)
+  radioStation     String          @default("fluid")
+  // Spotify playlists, albums and podcasts this person saved: { id: "playlist:abc", name }[].
+  spotifyLinks     Json            @default("[]")
+  // RC status page: the release last shown and the runs picked for each release (src/lib/rc-status.ts).
+  rcReport         Json            @default("{}")
+  // The newest build whose What's new window this person has closed (src/content/whats-new.ts).
+  // Null for people who signed in before ver_88: they see the newest entries once.
+  whatsNewSeen     Int?
+  // Opt-in mini game (src/lib/game.ts): the title and avatar frame they show.
+  gameEnabled      Boolean         @default(false)
+  gameTitle        String?
+  gameFrame        String?
+  // Opt-in quest maps for test runs (src/lib/quest.ts); needs the mini game on.
+  questMap         Boolean         @default(false)
+  // Quest pawn and worn gear (src/lib/quest-gear.ts): looks only, cleared with the satchel on an XP reset.
+  questPawn        String          @default("classic")
+  questColor       String          @default("accent") @map("questColour")
+  questGear        Json            @default("{}")
+  // Auto-equip (ver_72): slots the player emptied or changed by hand never fill on their own again,
+  // and slots the game filled itself, so the Gear tab can mark them. Cleared with the gear on an XP reset.
+  questGearTouched String[]        @default([])
+  questGearAuto    String[]        @default([])
+  // "us" or "uk" English for the app's words and dates; null means American (src/lib/spelling.ts).
+  spelling         String?
+  // XP only counts work from this moment on; an admin sets it to reset someone.
+  xpSince          DateTime?
+  // Signed in before launch (see Workspace.launchedAt); unlocks the Early Adopter title.
+  earlyAdopter     Boolean         @default(false)
+  // Profile picture: a small square WebP/PNG/JPEG, served by /api/avatars/[id].
+  avatar           Bytes?
+  avatarType       String?
+  avatarAt         DateTime?
+  // Ctrl+K search (ver_82): the last 5 things this person opened from it, { href, label, kind }[].
+  searchRecent     Json            @default("[]")
+  // Arrange menu order (ver_93): this person's own left menu order (src/lib/nav-order.ts); {} is the default.
+  navOrder         Json            @default("{}")
+  // Activity log entries this person made (ver_92).
+  activity         ActivityEntry[]
+}
+
+// Workspace-wide settings, one row (id 1). launchedAt is when an admin launched
+// the mini game: everyone's XP restarted and those who'd signed in became early adopters.
+model Workspace {
+  id               Int       @id @default(1)
+  launchedAt       DateTime?
+  // Unused since ver_70 (the team default was removed; everyone picks their own).
+  spelling         String    @default("us")
+  // XP for writing cases, shared steps and suites only counts work from here on (set by the ver_70 migration).
+  xpAuthoringSince DateTime?
+  // Workspace settings → Sign-in (ver_92). Email and password can be turned off once
+  // another way to sign in works; admins can still use it from "Admin sign-in".
+  passwordSignIn   Boolean   @default(true)
+  // Email domains anyone may create a password account with (adds to AUTH_ALLOWED_DOMAINS).
+  joinDomains      String    @default("")
+  // Workspace settings → Email (src/lib/mail.ts). mailMode "off" means invites are copied by hand.
+  mailMode         String    @default("off")
+  mailHost         String    @default("")
+  mailPort         Int       @default(587)
+  mailSecurity     String    @default("starttls")
+  mailUser         String    @default("")
+  // Sealed with AUTH_SECRET like the Jira token (src/lib/crypto.ts).
+  mailPassEncrypted String?
+  mailFromName     String    @default("Flaw Patrol")
+  mailFromAddress  String    @default("")
+  // Activity log entries older than this are removed.
+  activityKeepDays Int       @default(365)
+}
+
+// A company sign-in set from Workspace settings → Sign-in (ver_92): "microsoft",
+// "google" or "oidc" (any OpenID Connect single sign-on). Settings in .env win.
+model SignInProvider {
+  id              String    @id
+  enabled         Boolean   @default(false)
+  clientId        String    @default("")
+  // Microsoft: the directory (tenant) ID. Company SSO: the issuer URL.
+  tenantId        String    @default("")
+  issuer          String    @default("")
+  // Company SSO button name, e.g. "Okta".
+  label           String    @default("")
+  secretEncrypted String?
+  secretExpires   DateTime?
+  // Email domains whose people may join through this sign-in without being added first.
+  joinDomains     String    @default("")
+  // The last admin sign-in that worked through it; needed before it can be turned on.
+  testedAt        DateTime?
+  testedEmail     String?
+  updatedAt       DateTime  @updatedAt
+}
+
+// Workspace settings → Activity log (ver_92): admin and security events only.
+// Results, cases run and bugs filed are never written here.
+model ActivityEntry {
+  id         String   @id @default(cuid())
+  at         DateTime @default(now())
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorId    String?
+  // Name or email when it happened (or the email someone tried to sign in with).
+  actorLabel String
+  // signin | people | settings | delete | run
+  kind       String
+  action     String
+  where      String   @default("Workspace")
+  groupId    String?
+  projectId  String?
+  detail     String   @default("")
+  ip         String?
+
+  @@index([at])
+  @@index([kind, at])
+}
+
+// One-time link an admin hands someone to set a new password. Only a hash of
+// the token is stored.
+model PasswordLink {
+  id          String    @id @default(cuid())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  // "reset" (password link) or "invite" (ver_92 invite link, 7 days).
+  kind        String    @default("reset")
+  // When it was emailed, if it was.
+  emailedAt   DateTime?
+
+  @@index([userId])
+}
+
+enum Role {
+  ADMIN
+  LEAD
+  TESTER
+  VIEWER
+}
+
+// A product or app under test. `key` prefixes case IDs, e.g. WEB-12.
+model Project {
+  id                   String          @id @default(cuid())
+  key                  String          @unique
+  name                 String
+  description          String          @default("")
+  caseSeq              Int             @default(0)
+  runSeq               Int             @default(0)
+  defectSeq            Int             @default(0)
+  /// Tester names from imported sheets, lower-cased, mapped to user ids ("jord" → Jordan).
+  runImportAliases     Json            @default("{}")
+  createdAt            DateTime        @default(now())
+  members              ProjectMember[]
+  folders              Folder[]
+  cases                TestCase[]
+  sharedSteps          SharedStep[]
+  suites               TestSuite[]
+  runs                 TestRun[]
+  defects              Defect[]
+  attachments          Attachment[]
+  jira                 JiraConfig?
+  savedReports         SavedReport[]
+  // Archived projects move to a collapsed section on the Projects page. Nothing is deleted.
+  archivedAt           DateTime?
+  pins                 ProjectPin[]
+  personas             Persona[]
+  // Key the Google Sheets script checks, so only this project can write to a linked sheet.
+  sheetSecret          String?
+  // Optional shared group (e.g. "OKO" holding its Web, Unity and Unreal projects).
+  group                ProjectGroup?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  groupId              String?
+  /// Set when this project is an umbrella's hub: it holds the umbrella's library, Jira and team.
+  hubOf                ProjectGroup?   @relation("UmbrellaHub")
+  /// In an umbrella: the platform this RC project tests (e.g. "Unity"), and its RC name.
+  platform             String          @default("")
+  rcName               String          @default("")
+  /// In an umbrella: don't give this project the umbrella's team (private projects).
+  keepMembersSeparate  Boolean         @default(false)
+  /// Start next RC with "No runs yet" (ver_91): last RC's testers per case and cases with open
+  /// bugs, applied to this test cycle's first run, then cleared. See CarryOver in src/lib/umbrella.ts.
+  carryOver            Json?
+  /// Archived along with its umbrella, so restoring the umbrella brings it back.
+  archivedWithUmbrella Boolean         @default(false)
+  /// Roles card (ver_82) for a test cycle that isn't in an umbrella; see src/lib/permissions.ts.
+  roleRules            Json?
+  /// Slack alerts (ver_82): "umbrella" follows the umbrella's channels, "choose" uses
+  /// slackChannelIds (ticked umbrella channels) plus its own, "off" sends nothing.
+  slackMode            String          @default("umbrella")
+  slackChannelIds      String[]        @default([])
+  slackChannels        SlackChannel[]
+  charterTemplates     CharterTemplate[]
+  bugBashes            BugBash[]
+  riskRatings          RiskRating[]
+
+  @@index([groupId])
+}
+
+/**
+ * A shared bundle of projects, shown as one card on the Projects page and with
+ * its own page listing every suite and run across them. Deleting a group only
+ * ungroups its projects.
+ */
+model ProjectGroup {
+  id            String         @id @default(cuid())
+  name          String
+  description   String         @default("")
+  createdAt     DateTime       @default(now())
+  projects      Project[]
+  pins          GroupPin[]
+  /// Umbrellas (ver_68): the hub project holding the shared library, Jira and team.
+  hub           Project?       @relation("UmbrellaHub", fields: [hubProjectId], references: [id], onDelete: SetNull)
+  hubProjectId  String?        @unique
+  /// Up to 6 shortcuts on the umbrella's Projects-page card, same for everyone.
+  shortcuts     Json           @default("[]")
+  /// Platforms the umbrella tests on, each with the hub suites a new RC runs.
+  platforms     Json           @default("[]")
+  /// Umbrellas (ver_73): archived with its projects. Nothing is deleted.
+  archivedAt    DateTime?
+  /// Roles card (ver_82): what each role can do in the umbrella and all its test cycles.
+  roleRules     Json?
+  /// Run fields (ver_89): extra details runs ask for, beyond Release, Build and Environment. See src/lib/run-fields.ts.
+  runFields     Json           @default("[]")
+  /// Umbrellas made before ver_89 keep the OKO bug layout choice in Jira settings.
+  okoLayout     Boolean        @default(false)
+  /// Regression flag (ver_93): { on, compare, label, slack }, see src/lib/regression.ts. {} = defaults (on).
+  regression    Json           @default("{}")
+  /// Screenshots, videos and replays from automation (ver_93): { keep: "failed" | "all", maxMb }, see src/lib/test-files.ts.
+  automationFiles Json         @default("{}")
+  /// Run kinds (ver_95): built-in Smoke test / Release candidate / Bug bash plus custom ones, see src/lib/run-kinds.ts.
+  runKinds      Json           @default("[]")
+  slackChannels SlackChannel[]
+  githubRepos   GitHubRepo[]
+  ciTokens      CiToken[]
+}
+
+/**
+ * CI uploads (ver_91): a token a pipeline sends with its results file to
+ * /api/ci/results. Only a hash is kept; the token is shown once when made.
+ */
+model CiToken {
+  id          String       @id @default(cuid())
+  group       ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId     String
+  name        String       @default("")
+  /// sha256 of the whole token.
+  hash        String       @unique
+  /// The last 4 characters, so people can tell tokens apart.
+  last4       String
+  createdById String?
+  createdBy   String       @default("")
+  createdAt   DateTime     @default(now())
+  lastUsedAt  DateTime?
+
+  @@index([groupId])
+}
+
+/**
+ * Pull from GitHub (ver_85): a repo whose workflow runs bring automation results
+ * into the umbrella. The access token is encrypted like the Jira token.
+ */
+model GitHubRepo {
+  id             String       @id @default(cuid())
+  group          ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId        String
+  /// "owner/name"
+  fullName       String
+  tokenEncrypted String
+  /// The workflow whose runs are pulled; null until one is picked.
+  workflowId     String?
+  workflowName   String       @default("")
+  /// Which files inside a run's artifacts hold the results.
+  resultsGlob    String       @default("*.xml")
+  /// Also bring in screenshots, videos and replays from the same artifact (ver_93).
+  bringFiles     Boolean      @default(true)
+  lastPulledAt   DateTime?
+  createdAt      DateTime     @default(now())
+  runs           TestRun[]
+
+  @@unique([groupId, fullName])
+}
+
+/**
+ * Slack alerts (ver_82): one incoming webhook (a channel) with its own alerts, on an
+ * umbrella (groupId) or on one test cycle (projectId). The webhook URL is encrypted
+ * like the Jira token.
+ */
+model SlackChannel {
+  id               String        @id @default(cuid())
+  group            ProjectGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId          String?
+  project          Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId        String?
+  name             String
+  webhookEncrypted String
+  /// Which alerts post here, see src/lib/slack.ts.
+  alerts           Json          @default("{}")
+  paused           Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+
+  @@index([groupId])
+  @@index([projectId])
+}
+
+/**
+ * Per person: whether they starred a group card and where they dragged it.
+ */
+model GroupPin {
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  group    ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId  String
+  starred  Boolean      @default(false)
+  position Int?
+  /// Hidden from this person's Umbrellas page (ver_94); everyone else still sees it.
+  hidden   Boolean      @default(false)
+
+  @@id([userId, groupId])
+}
+
+/**
+ * Per person: projects they starred, when they last opened each one (for Recent),
+ * where they dragged it to, and whether they hid it from their Projects page.
+ */
+model ProjectPin {
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  starred   Boolean   @default(false)
+  visitedAt DateTime?
+  // Their own order on the Projects page; null sorts by name after the ordered ones.
+  position  Int?
+  hidden    Boolean   @default(false)
+
+  @@id([userId, projectId])
+}
+
+model ProjectMember {
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId    String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  role         Role     @default(TESTER)
+  createdAt    DateTime @default(now())
+  /// Given by the project's umbrella; follows the umbrella's team.
+  fromUmbrella Boolean  @default(false)
+
+  @@id([projectId, userId])
+}
+
+model Folder {
+  id        String     @id @default(cuid())
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  parent    Folder?    @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId  String?
+  children  Folder[]   @relation("FolderTree")
+  name      String
+  cases     TestCase[]
+  createdAt DateTime   @default(now())
+
+  @@unique([projectId, parentId, name])
+  @@index([projectId])
+}
+
+enum Priority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum CaseType {
+  MANUAL
+  AUTOMATED
+  // A charter for an exploratory session: no steps, a mission and a time box instead.
+  EXPLORATORY
+}
+
+// Who a tester pretends to be. Charters and cases can be tagged with one.
+model Persona {
+  id          String     @id @default(cuid())
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  name        String
+  emoji       String     @default("🧑")
+  description String     @default("")
+  archived    Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  cases       TestCase[]
+
+  @@unique([projectId, name])
+}
+
+// The current state of a case. Every save also writes a CaseVersion snapshot;
+// the latest snapshot's steps are the case's current steps.
+model TestCase {
+  id             String           @id @default(cuid())
+  project        Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId      String
+  number         Int
+  folder         Folder?          @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  folderId       String?
+  title          String
+  preconditions  String           @default("")
+  priority       Priority         @default(MEDIUM)
+  type           CaseType         @default(MANUAL)
+  automationId   String?
+  // Jira stories this case tests, by key (ver_82). Titles and statuses come from Jira.
+  jiraStories    String[]         @default([])
+  // The case's ID in the tool it was imported from, such as qTest's PQ-1708.
+  sourceKey      String?
+  tags           String[]
+  persona        Persona?         @relation(fields: [personaId], references: [id], onDelete: SetNull)
+  personaId      String?
+  // Raised by a tester (usually from a run) when the case needs updating or
+  // other attention; cleared once someone has dealt with it.
+  flag           String?
+  flagNote       String           @default("")
+  flaggedBy      String           @default("")
+  flaggedAt      DateTime?
+  flagRunNumber  Int?
+  currentVersion Int              @default(1)
+  archived       Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  versions       CaseVersion[]
+  sharedUsages   CaseSharedStep[]
+  suites         SuiteCase[]
+  runEntries     RunEntry[]
+
+  @@unique([projectId, number])
+  @@index([projectId, folderId])
+}
+
+// Immutable snapshot. `steps` is CaseStepItem[] (see src/lib/steps.ts): plain
+// steps, or references to a shared step by id with parameter values. Results
+// (milestone 2) pin a case version plus the shared step versions they ran.
+model CaseVersion {
+  id            String   @id @default(cuid())
+  testCase      TestCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  caseId        String
+  version       Int
+  title         String
+  preconditions String
+  priority      Priority
+  type          CaseType
+  automationId  String?
+  tags          String[]
+  folderPath    String   @default("")
+  steps         Json
+  // Exploratory charters only: { explore, with, discover, minutes } (src/lib/charter.ts).
+  charter       Json?
+  personaName   String   @default("")
+  changeNote    String   @default("")
+  authorId      String?
+  authorName    String   @default("")
+  createdAt     DateTime @default(now())
+
+  @@unique([caseId, version])
+}
+
+// A reusable, parameterised block of steps.
+model SharedStep {
+  id             String              @id @default(cuid())
+  project        Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId      String
+  name           String
+  description    String              @default("")
+  currentVersion Int                 @default(1)
+  archived       Boolean             @default(false)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  versions       SharedStepVersion[]
+  usages         CaseSharedStep[]
+
+  @@index([projectId])
+}
+
+// `parameters` is SharedStepParam[]; `steps` is PlainStep[] whose text may
+// contain {{param}} placeholders.
+model SharedStepVersion {
+  id           String     @id @default(cuid())
+  sharedStep   SharedStep @relation(fields: [sharedStepId], references: [id], onDelete: Cascade)
+  sharedStepId String
+  version      Int
+  name         String
+  description  String     @default("")
+  parameters   Json
+  steps        Json
+  authorId     String?
+  authorName   String     @default("")
+  createdAt    DateTime   @default(now())
+
+  @@unique([sharedStepId, version])
+}
+
+// Which current cases use which shared steps, rewritten on every case save.
+model CaseSharedStep {
+  testCase     TestCase   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  caseId       String
+  sharedStep   SharedStep @relation(fields: [sharedStepId], references: [id], onDelete: Cascade)
+  sharedStepId String
+
+  @@id([caseId, sharedStepId])
+  @@index([sharedStepId])
+}
+
+// A named, ordered collection of cases that is run again and again (regression, smoke...).
+model TestSuite {
+  id             String         @id @default(cuid())
+  project        Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId      String
+  name           String
+  description    String         @default("")
+  archived       Boolean        @default(false)
+  // Bumped whenever the name or case list changes; runs record which version they ran.
+  currentVersion Int            @default(1)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  cases          SuiteCase[]
+  runs           TestRun[]
+  versions       SuiteVersion[]
+
+  @@index([projectId])
+}
+
+// Immutable snapshot of a suite's case list. caseIds is the ordered list.
+model SuiteVersion {
+  id         String    @id @default(cuid())
+  suite      TestSuite @relation(fields: [suiteId], references: [id], onDelete: Cascade)
+  suiteId    String
+  version    Int
+  name       String
+  caseIds    Json
+  changeNote String    @default("")
+  authorId   String?
+  authorName String    @default("")
+  createdAt  DateTime  @default(now())
+
+  @@unique([suiteId, version])
+}
+
+model SuiteCase {
+  suite    TestSuite @relation(fields: [suiteId], references: [id], onDelete: Cascade)
+  suiteId  String
+  testCase TestCase  @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  caseId   String
+  position Int
+
+  @@id([suiteId, caseId])
+}
+
+enum RunState {
+  ACTIVE
+  COMPLETED
+}
+
+enum ResultStatus {
+  UNTESTED
+  PASSED
+  FAILED
+  BLOCKED
+  RETEST
+  SKIPPED
+  // Some steps have results saved but the case isn't finished. Only set by
+  // autosave, never chosen as a result.
+  IN_PROGRESS
+}
+
+// One execution of a suite (or a hand-picked set of cases) against a build.
+model TestRun {
+  id            String       @id @default(cuid())
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId     String
+  number        Int
+  suite         TestSuite?   @relation(fields: [suiteId], references: [id], onDelete: SetNull)
+  suiteId       String?
+  suiteVersion  Int?
+  /// Which quest catalog (items and encounters) this run's map draws from; see QUEST_CATALOG.
+  questCatalog  Int          @default(3)
+  name          String
+  /// Run kind (ver_95): "smoke", "rc", "bash", a custom kind's id, or "" for a plain run. See src/lib/run-kinds.ts.
+  kind          String       @default("")
+  description   String       @default("")
+  build         String       @default("")
+  cspVersion    String       @default("")
+  /// Run fields (ver_89): [{ id, name, value }] for the umbrella's extra fields. CSP version stays in cspVersion.
+  fields        Json         @default("[]")
+  environment   String       @default("")
+  release       String       @default("")
+  state         RunState     @default(ACTIVE)
+  createdById   String?
+  createdBy     String       @default("")
+  createdAt     DateTime     @default(now())
+  completedAt   DateTime?
+  // A Google Sheet that mirrors this run's results: the sheet's script web app
+  // URL, the tab it writes, and how the last push went.
+  sheetHook     String?
+  sheetTab      String       @default("")
+  // Send after every saved result, rather than only when someone presses Send.
+  sheetAuto     Boolean      @default(false)
+  sheetLink     String       @default("")
+  sheetSyncedAt DateTime?
+  sheetError    String       @default("")
+  // Automation results (ver_82): uploaded from a JUnit/NUnit file, never tested by hand.
+  automated     Boolean      @default(false)
+  sourceFile    String       @default("")
+  // sha256 of the uploaded files, to catch the same file uploaded twice.
+  sourceHash    String?
+  durationSec   Int?
+  /// Pulled from GitHub (ver_85): the repo, and the workflow run the results came from.
+  githubRepo    GitHubRepo?  @relation(fields: [githubRepoId], references: [id], onDelete: SetNull)
+  githubRepoId  String?
+  githubRunId   String?
+  githubRunNo   Int?
+  githubRunUrl  String?
+  /// Someone deleted this run's screenshots, videos and replays (ver_93); results stay.
+  filesDeletedBy String      @default("")
+  filesDeletedAt DateTime?
+  entries       RunEntry[]
+  results       TestResult[]
+  bugBash       BugBash?
+
+  @@unique([projectId, number])
+  @@index([projectId, createdAt])
+  @@index([projectId, release])
+  @@index([sourceHash])
+  @@index([githubRepoId, githubRunId])
+}
+
+// A case inside a run. Steps are snapshotted when the run starts (shared steps
+// expanded, with their versions), so later edits never change what was run.
+model RunEntry {
+  id            String       @id @default(cuid())
+  run           TestRun      @relation(fields: [runId], references: [id], onDelete: Cascade)
+  runId         String
+  testCase      TestCase     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  caseId        String
+  caseVersion   Int
+  position      Int
+  title         String
+  preconditions String       @default("")
+  priority      Priority
+  folderPath    String       @default("")
+  steps         Json
+  // Charters are run as timed exploratory sessions instead of steps.
+  kind          CaseType     @default(MANUAL)
+  charter       Json?
+  // { name, emoji, description } of the persona when the run started.
+  persona       Json?
+  assigneeId    String?
+  status        ResultStatus @default(UNTESTED)
+  lastTestedAt  DateTime?
+  // Step results saved as they're picked, until the case result is saved.
+  draft         Json?
+  draftAt       DateTime?
+  draftByName   String       @default("")
+  // Who made the last autosaved change, so others see who's working on the case.
+  draftById     String?
+  /// Regression flag turned off for this case in this run (ver_93), and by whom.
+  regressionOff   Boolean    @default(false)
+  regressionOffBy String     @default("")
+  results       TestResult[]
+
+  @@unique([runId, caseId])
+  @@index([caseId])
+}
+
+// Every time someone records an outcome. History is never overwritten.
+model TestResult {
+  id             String          @id @default(cuid())
+  entry          RunEntry        @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  entryId        String
+  run            TestRun         @relation(fields: [runId], references: [id], onDelete: Cascade)
+  runId          String
+  caseId         String
+  caseVersion    Int
+  status         ResultStatus
+  // StepResult[]: { status, actual } per snapshotted step, in order.
+  stepResults    Json
+  comment        String          @default("")
+  elapsedSec     Int?
+  // Exploratory sessions: the timestamped notes, bugs, questions and ideas (src/lib/charter.ts).
+  sessionLog     Json?
+  testerId       String?
+  testerName     String          @default("")
+  // Quest gear the tester wore when saving, so encounter lines keep naming what they used.
+  questGear      Json?
+  // Brought in by Import a run; earns no testing XP.
+  imported       Boolean         @default(false)
+  // From an automation upload (ver_82): what the test framework reported.
+  automated      Boolean         @default(false)
+  failureMessage String          @default("")
+  stackTrace     String          @default("")
+  output         String          @default("")
+  durationMs     Int?
+  /// Automation (ver_93): what the test did, from Playwright's test.step() lines: [{ title, ms, failed }].
+  testSteps      Json?
+  createdAt      DateTime        @default(now())
+  defects        DefectLink[]
+  attachments    Attachment[]
+  answers        SessionAnswer[]
+
+  @@index([entryId, createdAt])
+  @@index([caseId, createdAt])
+  @@index([runId])
+}
+
+// The answer to a question logged in an exploratory session (a note in
+// TestResult.sessionLog), recorded later from Reports → Session findings.
+model SessionAnswer {
+  id           String     @id @default(cuid())
+  result       TestResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  resultId     String
+  noteId       String
+  text         String
+  answeredById String?
+  answeredBy   String     @default("")
+  createdAt    DateTime   @default(now())
+
+  @@unique([resultId, noteId])
+}
+
+enum DefectStatus {
+  OPEN
+  FIXED
+  CLOSED
+  WONT_FIX
+}
+
+/// The team's Jira severities, A to E (labels in src/lib/severity.ts).
+enum Severity {
+  SHOWSTOPPER
+  CRITICAL
+  PROBLEMATIC
+  MINOR
+  ENHANCEMENT
+}
+
+// A bug found while testing. externalKey links it to Jira (synced in milestone 3).
+model Defect {
+  id               String       @id @default(cuid())
+  project          Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId        String
+  number           Int
+  title            String
+  description      String       @default("")
+  severity         Severity     @default(PROBLEMATIC)
+  status           DefectStatus @default(OPEN)
+  externalKey      String?
+  externalUrl      String?
+  // Jira's own status name and category (new, indeterminate, done), refreshed from Jira.
+  externalStatus   String?
+  externalCategory String?
+  // Jira's Priority (Blocker, Highest…), set by producers in Jira, never by Flaw Patrol.
+  externalPriority String?
+  syncedAt         DateTime?
+  createdById      String?
+  createdBy        String       @default("")
+  // False when an existing Jira issue was linked or a sheet import added it: nobody filed it here.
+  filed            Boolean      @default(true)
+  // Who last marked it Fixed or Closed in Flaw Patrol (bug XP needs someone other than the filer).
+  fixedById        String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  links            DefectLink[]
+
+  @@unique([projectId, number])
+  @@index([projectId, externalKey])
+}
+
+model DefectLink {
+  defect    Defect     @relation(fields: [defectId], references: [id], onDelete: Cascade)
+  defectId  String
+  result    TestResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  resultId  String
+  // 0-based index into the run entry's step snapshot, when raised from a step.
+  stepIndex Int?
+
+  @@id([defectId, resultId])
+}
+
+// Screenshots and logs. Stored in Postgres for now; move to object storage when volumes grow.
+model Attachment {
+  id           String      @id @default(cuid())
+  project      Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId    String
+  result       TestResult? @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  resultId     String?
+  stepIndex    Int?
+  fileName     String
+  contentType  String
+  size         Int
+  data         Bytes
+  /// "file", or from automation (ver_93) "screenshot", "video" or "trace" (a step-by-step replay).
+  kind         String      @default("file")
+  /// Which try made it (ver_95): 1 first, 2 after Playwright's first retry. Null on older files.
+  attempt      Int?
+  /// Logged in a bug bash (ver_93), before it's filed.
+  bashItem     BashItem?   @relation(fields: [bashItemId], references: [id], onDelete: Cascade)
+  bashItemId   String?
+  uploadedById String?
+  createdAt    DateTime    @default(now())
+
+  @@index([resultId])
+  @@index([bashItemId])
+}
+
+// A named set of report filters (the Reports page query string). Shared views
+// show for everyone in the project; private ones only for whoever saved them.
+model SavedReport {
+  id            String   @id @default(cuid())
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId     String
+  name          String
+  query         String
+  shared        Boolean  @default(true)
+  createdById   String
+  createdByName String   @default("")
+  createdAt     DateTime @default(now())
+
+  @@index([projectId])
+}
+
+// Jira Cloud connection for one project. The API token is encrypted with a key
+// derived from AUTH_SECRET.
+model JiraConfig {
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId      String   @id
+  siteUrl        String
+  email          String
+  tokenEncrypted String
+  jiraProjectKey String
+  issueType      String   @default("Bug")
+  // The team bug template (OB-5292 layout) and this project's defaults for it;
+  // null keeps the plain layout. See src/lib/bug-template.ts.
+  bugTemplate    Json?
+  // Jira stories (ver_82): { project, types: string[], linkBugs: boolean }; null = stories off.
+  stories        Json?
+  // Severity field (ver_91): { fieldId, fieldName, values: string[], critical: string[] }; null = plain list.
+  severity       Json?
+  updatedAt      DateTime @updatedAt
+}
+
+/**
+ * Your team's charter templates (ver_93): saved from any charter with Save as template, and
+ * shown in the gallery next to the built-in tours and checklists (src/lib/charter-templates.ts).
+ * Kept on the umbrella's hub (or the test cycle, outside an umbrella).
+ */
+model CharterTemplate {
+  id          String   @id @default(cuid())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  name        String
+  description String   @default("")
+  with        String   @default("")
+  discover    String   @default("")
+  minutes     Int      @default(30)
+  prompts     String[] @default([])
+  createdById String?
+  createdBy   String   @default("")
+  createdAt   DateTime @default(now())
+
+  @@index([projectId])
+}
+
+/**
+ * A bug bash (ver_93): a short, timed session where anyone picks an area and logs bugs.
+ * Under the hood it's a test run (one charter per area) in a test cycle, so it shows in
+ * Test runs and Reports. It belongs to the umbrella's hub, or a test cycle outside one.
+ * `areas` is [{ id, name, caseId, template }], see src/lib/bash.ts.
+ */
+model BugBash {
+  id           String       @id @default(cuid())
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId    String
+  run          TestRun?     @relation(fields: [runId], references: [id], onDelete: SetNull)
+  runId        String?      @unique
+  name         String
+  release      String       @default("")
+  minutes      Int
+  startsAt     DateTime
+  endsAt       DateTime
+  /// Ended early by whoever started it (time-up bashes just pass endsAt).
+  endedAt      DateTime?
+  /// Wrap-up done: bugs filed and sessions saved to the run.
+  wrappedAt    DateTime?
+  areas        Json         @default("[]")
+  /// Collect bugs here first and file them at wrap-up (the default), or straight to Jira.
+  collectFirst Boolean      @default(true)
+  slack        Boolean      @default(true)
+  funExtras    Boolean      @default(false)
+  /// When the start post, the 10-minute warning and the summary went to Slack.
+  slackStartAt DateTime?
+  slackWarnAt  DateTime?
+  slackDoneAt  DateTime?
+  createdById  String?
+  createdBy    String       @default("")
+  createdAt    DateTime     @default(now())
+  people       BashPerson[]
+  items        BashItem[]
+
+  @@index([projectId, createdAt])
+}
+
+/** Someone in a bug bash, and the area they're exploring now. */
+model BashPerson {
+  bash     BugBash  @relation(fields: [bashId], references: [id], onDelete: Cascade)
+  bashId   String
+  userId   String
+  name     String
+  areaId   String
+  joinedAt DateTime @default(now())
+
+  @@id([bashId, userId])
+}
+
+/**
+ * A bug (or question, note, idea) logged in a bug bash, or a prompt someone covered.
+ * plusOnes are the people who saw the same bug ("+1, I see it too").
+ * At wrap-up a bug is filed ("file"), skipped ("skip") or merged into another.
+ */
+model BashItem {
+  id           String       @id @default(cuid())
+  bash         BugBash      @relation(fields: [bashId], references: [id], onDelete: Cascade)
+  bashId       String
+  areaId       String
+  /// bug | question | note | idea | covered
+  kind         String
+  text         String
+  details      String       @default("")
+  severity     Severity     @default(PROBLEMATIC)
+  byId         String?
+  byName       String       @default("")
+  plusOnes     Json         @default("[]")
+  review       String       @default("file")
+  mergedIntoId String?
+  defectId     String?
+  /// Why filing it failed at wrap-up (ver_94); cleared once it's filed.
+  fileError    String       @default("")
+  createdAt    DateTime     @default(now())
+  attachments  Attachment[]
+
+  @@index([bashId, createdAt])
+}
+
+/**
+ * Risk board (ver_93): where someone moved a requirement on a release's board.
+ * Requirements nobody moved use Flaw Patrol's first guess (src/lib/risk.ts).
+ */
+model RiskRating {
+  id         String   @id @default(cuid())
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId  String
+  release    String
+  issueKey   String
+  likelihood Int
+  impact     Int
+  movedById  String?
+  movedBy    String   @default("")
+  movedAt    DateTime @default(now())
+
+  @@unique([projectId, release, issueKey])
+}
