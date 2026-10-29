@@ -6,6 +6,7 @@ import { GameAdminCard } from "@/components/game-admin-card";
 import { ProjectMenu } from "@/components/project-menu";
 import { TopBar } from "@/components/top-bar";
 import { PageHeader } from "@/components/ui";
+import { WorkspaceBugTemplates } from "@/components/workspace-bug-templates";
 import { WorkspaceEmail, type MailView } from "@/components/workspace-email";
 import { WorkspaceSignIn, type ProviderView } from "@/components/workspace-sign-in";
 import { pruneActivity } from "@/lib/activity";
@@ -13,6 +14,7 @@ import type { ActivityFilters } from "@/lib/activity-query";
 import { canOpen } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { mySpelling, requireUser } from "@/lib/session";
+import { sharedTemplateList, shareSources } from "@/lib/shared-template-data";
 import { COMPANY_PROVIDERS, domainList, envProviders, PROVIDER_NAME } from "@/lib/sign-in-config";
 
 export const metadata = { title: "Workspace settings" };
@@ -23,7 +25,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
   if (!user.isAdmin) notFound();
   const { tested, ...filters } = await searchParams;
   await pruneActivity();
-  const [ws, rows, last, spelling] = await Promise.all([
+  const [ws, rows, last, spelling, templates, sources] = await Promise.all([
     db.workspace.upsert({ where: { id: 1 }, create: { id: 1 }, update: {} }),
     db.signInProvider.findMany(),
     db.projectPin.findFirst({
@@ -32,6 +34,8 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
       select: { project: { select: { id: true, key: true, name: true, groupId: true, platform: true } } },
     }),
     mySpelling(),
+    sharedTemplateList(),
+    shareSources(),
   ]);
   const env = envProviders();
   const providers: ProviderView[] = COMPANY_PROVIDERS.map((id) => {
@@ -83,6 +87,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
             tabs={[
               ["sign-in", "Sign-in"],
               ["email", "Email"],
+              ["bug-templates", "Bug templates"],
               ["activity", "Activity log"],
               ["game-admin", "Game admin"],
             ]}
@@ -96,6 +101,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
               tested={tested ?? null}
             />
             <WorkspaceEmail saved={mail} />
+            <WorkspaceBugTemplates list={templates} sources={sources} joinDomains={ws.joinDomains} />
             <ActivityLog filters={filters} spelling={spelling} />
             <GameAdminCard />
           </div>

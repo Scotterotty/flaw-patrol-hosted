@@ -906,7 +906,28 @@ model JiraConfig {
   stories        Json?
   // Severity field (ver_91): { fieldId, fieldName, values: string[], critical: string[] }; null = plain list.
   severity       Json?
+  /// A company bug template it uses (ver_96); its layout wins over bugTemplate while set.
+  sharedTemplate   SharedBugTemplate? @relation(fields: [sharedTemplateId], references: [id], onDelete: SetNull)
+  sharedTemplateId String?
   updatedAt      DateTime @updatedAt
+}
+
+/**
+ * A company bug template (ver_96): one saved layout that umbrellas and test cycles point at,
+ * offered to people whose email ends with one of `domains` (stored without the @).
+ * `settings` has the same shape as JiraConfig.bugTemplate.
+ */
+model SharedBugTemplate {
+  id        String       @id @default(cuid())
+  name      String
+  /// Where it came from, like "Ready-made layout from OB-5292".
+  source    String       @default("")
+  settings  Json
+  domains   String[]
+  createdBy String       @default("")
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  configs   JiraConfig[]
 }
 
 /**

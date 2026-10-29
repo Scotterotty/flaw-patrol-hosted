@@ -1,3 +1,4 @@
+import { effectiveTemplate } from "./bug-template";
 import "server-only";
 import type { Prisma, Role } from "@prisma/client";
 import { db } from "./db";
@@ -66,11 +67,14 @@ export async function unionMembers(projectIds: string[]) {
 
 /** A project's Jira settings: its own, or its umbrella hub's when it has none. */
 export async function jiraConfigFor(projectId: string) {
-  const own = await db.jiraConfig.findUnique({ where: { projectId } });
-  if (own) return own;
-  const p = await db.project.findUnique({ where: { id: projectId }, select: { group: { select: { hubProjectId: true } } } });
+  const own = await db.jiraConfig.findUnique({ where: { projectId }, include: { sharedTemplate: { select: { settings: true } } } });
+  const p = own ? null : await db.project.findUnique({ where: { id: projectId }, select: { group: { select: { hubProjectId: true } } } });
   const hub = p?.group?.hubProjectId;
-  return hub && hub !== projectId ? db.jiraConfig.findUnique({ where: { projectId: hub } }) : null;
+  const row = own ?? (hub && hub !== projectId ? await db.jiraConfig.findUnique({ where: { projectId: hub }, include: { sharedTemplate: { select: { settings: true } } } }) : null);
+  if (!row) return null;
+  // A company template (ver_96) stands in for the project's own layout while it's picked.
+  const { sharedTemplate, ...rest } = row;
+  return sharedTemplate ? { ...rest, bugTemplate: effectiveTemplate(row.bugTemplate, sharedTemplate.settings) as unknown as Prisma.JsonValue } : rest;
 }
 
 /** One shortcut on an umbrella's card: a page anywhere in it, by path. */

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { Fragment, useCallback, useEffect, useState, useTransition } from "react";
 import { FIELD_SOURCES, SECTION_SOURCES, templateKind, type FieldSource, type ImportedTemplate, type SectionSource, type TemplateSettings } from "@/lib/bug-template";
 import {
   checkBugTemplate,
@@ -15,6 +15,8 @@ import {
   saveSeverityField,
   setPlainLayout,
 } from "@/server/jira";
+import type { SharedView } from "@/lib/shared-template-data";
+import { useSharedTemplate } from "@/server/shared-templates";
 import { PLAIN_SCALE, SEVERITIES, type SeverityConfig } from "@/lib/severity";
 import { loadIssueTypes, saveStoriesConfig } from "@/server/stories";
 import { DEFAULT_STORIES, STORY_TYPES, type StoriesConfig } from "@/lib/stories-config";
@@ -26,7 +28,7 @@ export function JiraSettings({
   template,
   stories = null,
   connectionOnly = false,
-  okoLayout = true,
+  shared,
   severity = null,
 }: {
   projectId: string;
@@ -35,8 +37,8 @@ export function JiraSettings({
   stories?: StoriesConfig | null;
   /** The umbrella's Settings show the bug template and stories in rows of their own. */
   connectionOnly?: boolean;
-  /** Offer the OKO bug layout: umbrellas made before ver_89, and test cycles outside one. */
-  okoLayout?: boolean;
+  /** Company bug templates this person may pick, and the one in use (ver_96). */
+  shared?: SharedView;
   /** Settings → Jira → Severity field (ver_91). */
   severity?: SeverityConfig | null;
 }) {
@@ -137,15 +139,15 @@ export function JiraSettings({
           )}
         </div>
       </form>
-      {!connectionOnly && (current?.tokenReadable ? <BugTemplateSettings key={checked} projectId={projectId} saved={template} jiraProjectKey={current.jiraProjectKey} okoLayout={okoLayout} /> : <BugTemplateLocked okoLayout={okoLayout} />)}
+      {!connectionOnly && (current?.tokenReadable ? <BugTemplateSettings key={checked} projectId={projectId} saved={template} jiraProjectKey={current.jiraProjectKey} shared={shared} /> : <BugTemplateLocked />)}
       {!connectionOnly && current && <StoriesSettings projectId={projectId} saved={stories ?? DEFAULT_STORIES} bugProject={current.jiraProjectKey} />}
     </Card>
   );
 }
 
 /** The umbrella's Settings → Bug template row, on its own. */
-export function BugTemplatePanel({ projectId, template, jiraProjectKey, tokenReadable, okoLayout = true }: { projectId: string; template: TemplateSettings; jiraProjectKey: string; tokenReadable: boolean; okoLayout?: boolean }) {
-  return <Card className="p-5">{tokenReadable ? <BugTemplateSettings projectId={projectId} saved={template} jiraProjectKey={jiraProjectKey} okoLayout={okoLayout} standalone /> : <BugTemplateLocked standalone okoLayout={okoLayout} />}</Card>;
+export function BugTemplatePanel({ projectId, template, jiraProjectKey, tokenReadable, shared }: { projectId: string; template: TemplateSettings; jiraProjectKey: string; tokenReadable: boolean; shared?: SharedView }) {
+  return <Card className="p-5">{tokenReadable ? <BugTemplateSettings projectId={projectId} saved={template} jiraProjectKey={jiraProjectKey} shared={shared} standalone /> : <BugTemplateLocked standalone />}</Card>;
 }
 
 /** The umbrella's Settings → Requirements row, on its own. */
@@ -186,11 +188,13 @@ const titleShape = (t: { tag: boolean; feature: boolean }) => [t.tag && "[Tag]",
  * pasting one example Jira bug (read, checked, saved). A detailed template set
  * up before imports shows as a saved one too, with its own defaults.
  */
-function BugTemplateSettings({ projectId, saved, jiraProjectKey, standalone = false, okoLayout = true }: { projectId: string; saved: TemplateSettings; jiraProjectKey: string; standalone?: boolean; okoLayout?: boolean }) {
+function BugTemplateSettings({ projectId, saved, jiraProjectKey, standalone = false, shared = { choices: [], current: null } }: { projectId: string; saved: TemplateSettings; jiraProjectKey: string; standalone?: boolean; shared?: SharedView }) {
   const router = useRouter();
-  const kind = templateKind(saved);
-  const [choice, setChoice] = useState<Choice>(kind === "plain" ? "plain" : kind === "detailed" ? "oko" : "import");
-  const [stage, setStage] = useState<"paste" | "check" | "saved" | "detailed">(kind === "plain" ? "paste" : "saved");
+  const inUse = shared.current;
+  // With a company template picked, `saved` is that layout; this place's own kind stays behind it.
+  const kind = inUse ? "plain" : templateKind(saved);
+  const [choice, setChoice] = useState<Choice>(inUse ? `shared:${inUse.id}` : kind === "plain" ? "plain" : kind === "detailed" ? "oko" : "import");
+  const [stage, setStage] = useState<"paste" | "check" | "saved" | "detailed">(kind === "plain" && !inUse ? "paste" : "saved");
   const [example, setExample] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -255,7 +259,8 @@ function BugTemplateSettings({ projectId, saved, jiraProjectKey, standalone = fa
         onChange={() => {
           setChoice(value);
           setOk(null);
-          if (value === "oko") setStage(kind === "detailed" ? "saved" : "detailed");
+          if (value.startsWith("shared:")) setStage("saved");
+          else if (value === "oko") setStage(kind === "detailed" ? "saved" : "detailed");
           else if (value === "import") setStage(kind === "imported" ? "saved" : "paste");
         }}
         className="mt-1"
@@ -267,20 +272,75 @@ function BugTemplateSettings({ projectId, saved, jiraProjectKey, standalone = fa
     </label>
   );
   const imp = saved.imported;
+  // The company templates this email may pick, plus the one in use even when it isn't theirs.
+  const sharedList = [...shared.choices.map((t) => ({ ...t, mine: true })), ...(inUse && !shared.choices.some((t) => t.id === inUse.id) ? [{ ...inUse, mine: false }] : [])];
+  const picked = choice.startsWith("shared:") ? sharedList.find((t) => `shared:${t.id}` === choice) : undefined;
+  const useShared = (id: string | null) =>
+    start(async () => {
+      const res = await useSharedTemplate(projectId, id);
+      if (!res.ok) return setError(res.error);
+      // The detailed layout fills a client tag and defaults from this place: set them next.
+      done(id ? `Saved. New bugs from here use ${picked?.name ?? "the shared template"}.${picked?.kind === "detailed" ? " Check this place's defaults below." : ""}` : "Saved.", picked?.kind === "detailed" ? "detailed" : "saved");
+    });
   return (
     <div id={IMPORT_HASH} className={`${standalone ? "" : "mt-5 border-t border-slate-100 pt-4"} scroll-mt-20 space-y-3 text-sm`} data-testid="bug-template-settings">
       <BugTemplateHeading tip="Paste a Jira bug that already uses your layout, and Flaw Patrol copies its sections and fields." />
       <div className="grid gap-2">
         {option("plain", "Plain layout", "Steps, expected and actual result, attachments. The tester writes the title.")}
-        {/* Umbrellas made from ver_89 on don't get the OKO layout, unless it's already in use (ver_89). */}
-        {(okoLayout || kind === "detailed") && option("oko", OKO_TITLE, "A ready-made layout with a Reproduction History table and a client tag in the title.")}
+        {/* The built-in OKO layout only where it's already in use; company templates replace it (ver_96). */}
+        {kind === "detailed" && option("oko", OKO_TITLE, "A ready-made layout with a Reproduction History table and a client tag in the title.")}
+        {sharedList.length > 0 && (
+          <div className="space-y-2 rounded-lg border border-dashed border-accent-200 p-2" data-testid="shared-templates">
+            <p className="flex items-center gap-1.5 px-1 text-xs font-semibold text-slate-600">
+              Shared with you <InfoTip text="Bug templates a workspace admin shared with everyone whose email ends a certain way. Once picked, every bug from here uses it, whoever files it." />
+            </p>
+            {sharedList.map((t) => (
+              <Fragment key={t.id}>
+                {option(
+                `shared:${t.id}`,
+                <span className="inline-flex flex-wrap items-center gap-1.5">
+                  {t.name}
+                  <span className="rounded-full bg-accent-100 px-1.5 py-px text-[10px] font-semibold text-accent-800 uppercase">Shared</span>
+                </span>,
+                `${t.source} · title ${t.title}${t.mine ? "" : " · Shared with other emails, so once you switch away only they can pick it again."}`,
+                )}
+              </Fragment>
+            ))}
+          </div>
+        )}
         {option("import", "Import a template from Jira", "Copy the layout of a bug your team already writes the right way.")}
       </div>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       {ok && <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{ok}</p>}
 
-      {choice === "plain" ? (
-        kind !== "plain" && (
+      {picked ? (
+        inUse?.id === picked.id ? (
+          stage === "detailed" ? (
+            <DetailedTemplate projectId={projectId} saved={saved} jiraProjectKey={jiraProjectKey} keepShared onCancel={() => setStage("saved")} />
+          ) : (
+            <div className="space-y-2" data-testid="template-saved">
+              {!ok && <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{picked.name} on. Every bug from here uses it, whoever files it.</p>}
+              <p className="text-xs font-medium text-slate-600">Title</p>
+              <p className="rounded-md border border-slate-200 px-3 py-1.5 font-mono text-[13px] text-slate-800">{templateKind(saved) === "detailed" ? `${saved.clientTag ? `[${saved.clientTag}]` : "[Tag]"} - Feature - Brief summary` : picked.title}</p>
+              {templateKind(saved) === "detailed" && (
+                <Button size="sm" onClick={() => (setStage("detailed"), setOk(null))}>
+                  Edit defaults
+                </Button>
+              )}
+            </div>
+          )
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xs text-slate-500">
+              {picked.source}. Title: <span className="font-mono">{picked.title}</span>. Fields are matched to this Jira project by name; any it doesn&apos;t have go into the description.
+            </p>
+            <Button variant="primary" size="sm" disabled={pending} onClick={() => useShared(picked.id)}>
+              {pending ? "Saving…" : `Use ${picked.name}`}
+            </Button>
+          </div>
+        )
+      ) : choice === "plain" ? (
+        (kind !== "plain" || inUse) && (
           <Button variant="primary" size="sm" disabled={pending} onClick={plain}>
             {pending ? "Saving…" : "Use the plain layout"}
           </Button>
@@ -471,7 +531,7 @@ function BugTemplateSettings({ projectId, saved, jiraProjectKey, standalone = fa
   );
 }
 
-type Choice = "plain" | "oko" | "import";
+type Choice = "plain" | "oko" | "import" | `shared:${string}`;
 const IMPORT_HASH = "import-template";
 const OKO_TITLE = (
   <span className="inline-flex items-center gap-1">
@@ -492,14 +552,13 @@ function BugTemplateHeading({ tip }: { tip: string }) {
 }
 
 /** Before Jira is connected: the same choices, grayed, so people know where the import lives. */
-function BugTemplateLocked({ standalone = false, okoLayout = true }: { standalone?: boolean; okoLayout?: boolean }) {
+function BugTemplateLocked({ standalone = false }: { standalone?: boolean }) {
   return (
     <div id={IMPORT_HASH} className={`${standalone ? "" : "mt-5 border-t border-slate-100 pt-4"} scroll-mt-20 space-y-3 text-sm opacity-60`} data-testid="bug-template-locked">
       <BugTemplateHeading tip={standalone ? "Paste the API token again in Jira connection first. Then you can pick or import a template." : "Connect Jira above first. Then you can import a template from an example bug."} />
       <div className="grid gap-2">
         {[
           ["Plain layout", "Steps, expected and actual result, attachments. The tester writes the title."],
-          ...(okoLayout ? [[OKO_TITLE, "A ready-made layout with a Reproduction History table and a client tag in the title."] as const] : []),
           ["Import a template from Jira", "Copy the layout of a bug your team already writes the right way."],
         ].map(([title, text], i) => (
           <label key={i} className="flex cursor-not-allowed items-start gap-2.5 rounded-lg border border-slate-200 px-3 py-2">
@@ -542,7 +601,7 @@ function MapTable({ head, rows }: { head: [string, string]; rows: { label: strin
 }
 
 /** The detailed template (Reproduction History layout): see which of its fields this Jira has, and set this test cycle's defaults. */
-function DetailedTemplate({ projectId, saved, jiraProjectKey, onCancel }: { projectId: string; saved: TemplateSettings; jiraProjectKey: string; onCancel?: () => void }) {
+function DetailedTemplate({ projectId, saved, jiraProjectKey, onCancel, keepShared = false }: { projectId: string; saved: TemplateSettings; jiraProjectKey: string; onCancel?: () => void; keepShared?: boolean }) {
   const router = useRouter();
   const on = true;
   const [clientTag, setClientTag] = useState(saved.clientTag);
@@ -599,10 +658,10 @@ function DetailedTemplate({ projectId, saved, jiraProjectKey, onCancel }: { proj
   const save = () =>
     start(async () => {
       setOk(null);
-      const res = await saveBugTemplate(projectId, { on, clientTag, team, clients, olyEnv });
+      const res = await saveBugTemplate(projectId, { on, clientTag, team, clients, olyEnv }, { keepShared });
       if (!res.ok) return setError(res.error);
       setError(null);
-      setOk("Saved. New bugs use the OKO bug layout.");
+      setOk(keepShared ? "Saved. New bugs from here use these defaults." : "Saved. New bugs use the OKO bug layout.");
       router.refresh();
     });
   return (

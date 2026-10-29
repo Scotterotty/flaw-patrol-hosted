@@ -39,6 +39,7 @@ import { memberInviteInfo } from "@/lib/invites";
 import { canManageGroups } from "@/lib/groups";
 import { can } from "@/lib/permissions";
 import { requireUser } from "@/lib/session";
+import { bugTemplateView } from "@/lib/shared-template-data";
 import { loadUmbrella, looseProjects, platformColor } from "@/lib/umbrella";
 
 export const metadata = { title: "Settings" };
@@ -57,7 +58,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
     db.projectMember.findMany({ where: { projectId: u.hub.id }, include: { user: true }, orderBy: [{ role: "asc" }, { user: { email: "asc" } }] }),
     db.jiraConfig.findMany({ where: { projectId: { in: u.projects.map((p) => p.id) } }, select: { projectId: true, jiraProjectKey: true, bugTemplate: true } }),
   ]);
-  const template = parseTemplateSettings(jira?.bugTemplate);
+  const { template, shared } = await bugTemplateView(u.hub.id, user.email);
   const sentry = await db.sentryConfig.findUnique({ where: { projectId: u.hub.id } });
   const leads = members.filter((m) => m.role === "LEAD" || m.role === "ADMIN").length;
   const invites = await memberInviteInfo(members.map((m) => m.userId));
@@ -108,7 +109,9 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
   const site = jira?.siteUrl.replace(/^https?:\/\//, "");
   const templateText = !jira
     ? "Plain layout. Connect Jira first to import a template."
-    : hubKind === "imported"
+    : shared.current
+      ? `${shared.current.name} (shared)${template.clientTag ? ` · tag [${template.clientTag}]` : ""}`
+      : hubKind === "imported"
       ? `Imported from ${template.imported!.from} · ${template.imported!.sections.filter((x) => x.source !== "empty").length} sections, ${template.imported!.fields.filter((f) => f.source !== "empty").length} fields`
       : hubKind === "detailed"
         ? `OKO bug layout (from OB-5292)${template.clientTag ? ` · tag [${template.clientTag}]` : ""}`
@@ -194,7 +197,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                       : `Opens ${whose} bug template to pick a different layout or import one from Jira.`
                 }
               >
-                <BugTemplatePanel projectId={u.hub.id} template={template} jiraProjectKey={jira.jiraProjectKey} tokenReadable={canOpen(jira.tokenEncrypted)} okoLayout={u.group.okoLayout} />
+                <BugTemplatePanel projectId={u.hub.id} template={template} jiraProjectKey={jira.jiraProjectKey} tokenReadable={canOpen(jira.tokenEncrypted)} shared={shared} />
               </ExpandRow>
             ) : (
               <Row

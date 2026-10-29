@@ -304,7 +304,9 @@ async function bugContext(projectId: string, entryId: string, stepIndex: number 
 
 type Entry = Awaited<ReturnType<typeof bugContext>>["entry"];
 
-const findField = (meta: MetaField[] | null, name: string) => meta?.find((f) => f.name.trim().toLowerCase() === name.toLowerCase()) ?? null;
+const findField = (meta: MetaField[] | null, name: string) => meta?.find((f) => f.name.trim().toLowerCase() === name.trim().toLowerCase()) ?? null;
+/** An imported field on this Jira: by its id when the name still matches, else by name (a company template read from another Jira, ver_96). */
+const metaFor = (meta: MetaField[] | null, f: { id: string; name: string }) => meta?.find((x) => x.id === f.id && x.name.trim().toLowerCase() === f.name.trim().toLowerCase()) ?? findField(meta, f.name) ?? undefined;
 
 /** The project's template settings, or null when the plain layout is used. */
 async function templateOf(projectId: string): Promise<TemplateSettings | null> {
@@ -342,7 +344,7 @@ function importedDraft(t: ImportedTemplate, entry: Entry, ctx: BugContext, meta:
     fields: t.fields
       .filter((f) => f.source !== "empty")
       .map((f) => {
-        const m = meta?.find((x) => x.id === f.id);
+        const m = metaFor(meta, f);
         const value = f.source === "default" ? f.value : f.source === "release" ? [run.release || run.build].filter(Boolean) : [];
         return { id: f.id, name: f.name, required: f.required, source: f.source, value, options: m?.options ?? [], multi: m?.schema.type === "array", long: !!m?.schema.custom?.endsWith(":textarea"), pick: isPick(m) };
       }),
@@ -516,11 +518,11 @@ export async function fileJiraBug(projectId: string, entryId: string, input: z.i
       for (const f of imported.fields) {
         const value = (typed.fields[f.id] ?? []).map((v) => v.trim()).filter(Boolean);
         if (!value.length) continue;
-        const m = meta?.find((x) => x.id === f.id);
+        const m = metaFor(meta, f);
         // A version Jira doesn't have (or a picker with no choices) goes in the description, as the dialog said.
         const known = m && (m.options.length ? value.every((v) => m.options.includes(v)) : !isPick(m));
         const jira = m && known ? jiraValue(m, m.schema.type === "array" ? value : value[0]) : undefined;
-        if (m && jira !== undefined) fields[f.id] = { name: f.name, value: jira };
+        if (m && jira !== undefined) fields[m.id] = { name: f.name, value: jira };
         else extra.push({ name: f.name, text: value.join(", ") });
       }
       const valueOf = new Map(imported.fields.map((f) => [f.name, (typed.fields[f.id] ?? []).join(", ")]));
@@ -721,14 +723,16 @@ const settingsSchema = z.object({
 });
 
 /** Turn the team bug template on or off for a project, and set its defaults. */
-export async function saveBugTemplate(projectId: string, input: z.input<typeof settingsSchema>) {
+export async function saveBugTemplate(projectId: string, input: z.input<typeof settingsSchema>, opts: { keepShared?: boolean } = {}) {
   return wrap(async () => {
     const { project, user } = await requireProjectAction(projectId, "jira:manage");
     const data = settingsSchema.parse(input);
     // The detailed layout replaces an imported one; turning the template off keeps the import for later.
     const old = parseTemplateSettings((await db.jiraConfig.findUnique({ where: { projectId }, select: { bugTemplate: true } }))?.bugTemplate);
-    const imported = data.on ? null : old.imported;
-    const done = await db.jiraConfig.updateMany({ where: { projectId }, data: { bugTemplate: { ...data, imported, clientTag: data.clientTag.replace(/^\[|\]$/g, "").toUpperCase() } } });
+    const clientTag = data.clientTag.replace(/^\[|\]$/g, "").toUpperCase();
+    // With a company template picked (ver_96), only this place's defaults change; the layout stays shared.
+    const bugTemplate = opts.keepShared ? { ...old, clientTag, team: data.team, clients: data.clients, olyEnv: data.olyEnv } : { ...data, imported: data.on ? null : old.imported, clientTag };
+    const done = await db.jiraConfig.updateMany({ where: { projectId }, data: { bugTemplate, ...(!opts.keepShared && { sharedTemplateId: null }) } });
     if (!done.count) throw new UserError("Connect Jira first.");
     revalidatePath(`/p/${project.key}/settings`);
     await logActivity({ actor: user, kind: "settings", action: data.on ? "Changed the bug template" : "Turned off the bug template", project });
@@ -831,7 +835,7 @@ export async function saveImportedTemplate(projectId: string, input: z.input<typ
     const row = await db.jiraConfig.findUnique({ where: { projectId }, select: { bugTemplate: true } });
     if (!row) throw new UserError("Connect Jira first.");
     const old = parseTemplateSettings(row.bugTemplate);
-    await db.jiraConfig.update({ where: { projectId }, data: { bugTemplate: { ...old, on: true, imported } } });
+    await db.jiraConfig.update({ where: { projectId }, data: { bugTemplate: { ...old, on: true, imported }, sharedTemplateId: null } });
     revalidatePath(`/p/${project.key}/settings`);
     revalidatePath("/g", "layout");
     await logActivity({ actor: user, kind: "settings", action: "Imported a bug template from Jira", project });
@@ -845,7 +849,7 @@ export async function setPlainLayout(projectId: string) {
     const { project, user } = await requireProjectAction(projectId, "jira:manage");
     const row = await db.jiraConfig.findUnique({ where: { projectId }, select: { bugTemplate: true } });
     if (!row) throw new UserError("Connect Jira first.");
-    await db.jiraConfig.update({ where: { projectId }, data: { bugTemplate: { ...parseTemplateSettings(row.bugTemplate), on: false } } });
+    await db.jiraConfig.update({ where: { projectId }, data: { bugTemplate: { ...parseTemplateSettings(row.bugTemplate), on: false }, sharedTemplateId: null } });
     revalidatePath(`/p/${project.key}/settings`);
     revalidatePath("/g", "layout");
     await logActivity({ actor: user, kind: "settings", action: "Switched bugs to the plain layout", project });

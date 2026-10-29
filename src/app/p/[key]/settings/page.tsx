@@ -10,6 +10,7 @@ import Link from "next/link";
 import { MembersPanel, ProjectDetailsForm } from "@/components/members";
 import { Card, PageHeader } from "@/components/ui";
 import { parseTemplateSettings } from "@/lib/bug-template";
+import { bugTemplateView } from "@/lib/shared-template-data";
 import { canOpen } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { memberInviteInfo } from "@/lib/invites";
@@ -45,7 +46,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
     select: { siteUrl: true, email: true, jiraProjectKey: true, issueType: true, tokenEncrypted: true, bugTemplate: true, stories: true, severity: true },
   });
   // Under an umbrella: where the library, Jira and team come from.
-  const parent = project.groupId ? await db.projectGroup.findUnique({ where: { id: project.groupId }, include: { hub: { select: { id: true, key: true, jira: { select: { jiraProjectKey: true, siteUrl: true, bugTemplate: true } } } } } }) : null;
+  const parent = project.groupId ? await db.projectGroup.findUnique({ where: { id: project.groupId }, include: { hub: { select: { id: true, key: true, jira: { select: { jiraProjectKey: true, siteUrl: true, bugTemplate: true, sharedTemplateId: true } } } } } }) : null;
   const umbrella = parent?.hub
     ? {
         id: parent.id,
@@ -53,13 +54,14 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
         hubKey: parent.hub.key,
         jiraKey: parent.hub.jira?.jiraProjectKey ?? null,
         site: parent.hub.jira?.siteUrl.replace(/^https?:\/\//, "") ?? null,
-        template: parseTemplateSettings(parent.hub.jira?.bugTemplate).on,
+        template: parseTemplateSettings(parent.hub.jira?.bugTemplate).on || !!parent.hub.jira?.sharedTemplateId,
       }
     : null;
   const archive = await archiveCardData(user, parent?.hub ? parent.id : null, can(who, "cycle:archive") ? { id: project.id, name: project.name, archived: !!project.archivedAt && !project.archivedWithUmbrella } : null);
   const fromUmbrella = members.filter((m) => m.fromUmbrella).length;
   // Slack: a test cycle in an umbrella follows its channels (or picks); one outside an umbrella has its own card.
   const [slackOwn, slackUmbrella] = await Promise.all([slackChannelsOf({ projectId: project.id }), umbrella ? slackChannelsOf({ groupId: umbrella.id }) : []]);
+  const templateView = await bugTemplateView(project.id, user.email);
   const jira = jiraRow && { siteUrl: jiraRow.siteUrl, email: jiraRow.email, jiraProjectKey: jiraRow.jiraProjectKey, issueType: jiraRow.issueType, tokenReadable: canOpen(jiraRow.tokenEncrypted) };
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -115,7 +117,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
           <details>
             <summary className="cursor-pointer text-sm text-accent-700 hover:underline">Use a different Jira for this test cycle only</summary>
             <div className="mt-3">
-              <JiraSettings projectId={project.id} current={null} template={parseTemplateSettings(null)} okoLayout={parent?.hub ? parent.okoLayout : true} />
+              <JiraSettings projectId={project.id} current={null} template={parseTemplateSettings(null)} />
             </div>
           </details>
         </Card>
@@ -127,7 +129,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
                 This test cycle files bugs into its own Jira project, {jiraRow.jiraProjectKey}. Disconnect it below to use {umbrella.name}&apos;s instead.
               </p>
             )}
-            <JiraSettings projectId={project.id} current={jira} template={parseTemplateSettings(jiraRow?.bugTemplate)} stories={parseStoriesConfig(jiraRow?.stories)} okoLayout={parent?.hub ? parent.okoLayout : true} severity={parseSeverityConfig(jiraRow?.severity)} />
+            <JiraSettings projectId={project.id} current={jira} template={templateView.template} shared={templateView.shared} stories={parseStoriesConfig(jiraRow?.stories)} severity={parseSeverityConfig(jiraRow?.severity)} />
           </>
         )
       )}

@@ -69,6 +69,20 @@ export function parseTemplateSettings(v: unknown): TemplateSettings {
 }
 
 /**
+ * What a project's bugs use when it points at a company template (ver_96): the shared layout,
+ * with this project's own defaults (client tag, team, clients) wherever the shared one has none.
+ */
+export function effectiveTemplate(own: unknown, shared: unknown | null | undefined): TemplateSettings {
+  const mine = parseTemplateSettings(own);
+  if (!shared) return mine;
+  const t = parseTemplateSettings(shared);
+  return { ...t, on: true, clientTag: t.clientTag || mine.clientTag, team: t.team || mine.team, clients: t.clients.length ? t.clients : mine.clients, olyEnv: t.olyEnv.length ? t.olyEnv : mine.olyEnv };
+}
+
+/** Whether an email may use a template shared with these endings ("magnopus.com"). */
+export const emailMatches = (email: string | null | undefined, domains: string[]) => !!email && domains.some((d) => email.toLowerCase().endsWith(`@${d.toLowerCase().replace(/^@/, "")}`));
+
+/**
  * The title shape of an example bug: "[MOBILE] - Login - Password hidden" has a
  * tag and a feature before the summary; "Login - Password hidden" only a feature.
  */
