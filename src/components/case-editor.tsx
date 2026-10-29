@@ -15,7 +15,7 @@ import {
   useState,
   useTransition,
 } from "react";
-import { PersonaForm } from "./personas";
+import { PersonaForm, TestPersonaPicker } from "./personas";
 import {
   BLANK_CHARTER,
   missionLine,
@@ -367,7 +367,7 @@ export function CaseEditor(props: CaseEditorProps) {
         <div
           className={cx(
             "grid gap-4 sm:grid-cols-2",
-            isCharter ? "lg:grid-cols-4" : moreFields ? "lg:grid-cols-5" : "lg:grid-cols-3",
+            isCharter ? "lg:grid-cols-3" : moreFields ? "lg:grid-cols-5" : "lg:grid-cols-3",
           )}
         >
           <Field label="Folder" htmlFor="folder">
@@ -462,7 +462,7 @@ export function CaseEditor(props: CaseEditorProps) {
               </Field>
             </>
           )}
-          {(isCharter || moreFields) && <Field label="Persona" htmlFor="persona">
+          {!isCharter && moreFields && <Field label="Persona" htmlFor="persona">
             <Select
               id="persona"
               value={personaId}
@@ -538,6 +538,17 @@ export function CaseEditor(props: CaseEditorProps) {
       {isCharter ? (
         <>
           <CharterFields charter={charter} onChange={setCharterField} />
+          <TestPersonaPicker
+            projectId={projectId}
+            personas={personas}
+            value={personaId}
+            canCreate={props.canManageShared}
+            onChange={(id) => {
+              setPersonaId(id);
+              touch();
+            }}
+            onCreated={(p) => setPersonas((list) => [...list, p].sort((a, b) => a.name.localeCompare(b.name)))}
+          />
           <section aria-label="Reminders" className="mt-4">
             <h3 className="text-sm font-medium text-slate-700">
               Reminders{" "}

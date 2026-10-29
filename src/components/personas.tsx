@@ -9,13 +9,13 @@ import { Button, Card, cx, ErrorText, Field, Input, LinkButton, Textarea } from 
 
 export type PersonaRow = { id: string; name: string; emoji: string; description: string; archived: boolean; charters: number; cases: number };
 
-const EMOJIS = ["🧑", "🧓", "👵", "🧒", "🎮", "📱", "💼", "🧑‍💻", "♿", "🌍", "🐢", "⚡"];
+const EMOJIS = ["🧑", "🧓", "👵", "🧒", "👶", "🎮", "📱", "💼", "🧑‍💻", "♿", "🌍", "🐢", "⚡"];
 
 /** Where "Write charter" goes: New charter with this persona already picked. */
 export const newCharterHref = (projectKey: string, personaId: string) => `/p/${projectKey}/cases/new?charter=1&persona=${personaId}`;
 
 /** The Personas page: who testers pretend to be, with a quick way to write a charter as each one. */
-export function PersonasBoard({ projectId, projectKey, personas, canManage, canArchive = canManage, canWrite }: { projectId: string; projectKey: string; personas: PersonaRow[]; canManage: boolean; canArchive?: boolean; canWrite: boolean }) {
+export function PersonasBoard({ projectId, projectKey, personas, canManage, canArchive = canManage, canWrite, embedded = false }: { projectId: string; projectKey: string; personas: PersonaRow[]; canManage: boolean; canArchive?: boolean; canWrite: boolean; /** On the Charters page's Personas tab (ver_96): no page heading of its own. */ embedded?: boolean }) {
   const [editing, setEditing] = useState<PersonaRow | "new" | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [pending, start] = useTransition();
@@ -23,15 +23,20 @@ export function PersonasBoard({ projectId, projectKey, personas, canManage, canA
   const active = personas.filter((p) => !p.archived);
   const archived = personas.filter((p) => p.archived);
   const shown = showArchived ? personas : active;
-  const filtered = (p: PersonaRow, type: string) => `/p/${projectKey}/cases?persona=${p.id}&type=${type}`;
+  // Charters open the Charters page filtered to the persona (ver_96); cases the Case library.
+  const filtered = (p: PersonaRow, type: string) => (type === "EXPLORATORY" ? `/p/${projectKey}/charters?persona=${p.id}` : `/p/${projectKey}/cases?persona=${p.id}`);
 
   return (
     <div role="region" aria-label="Personas">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900">Personas</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Who you test as. Tag charters and cases with one, and write a charter straight from a persona.</p>
-        </div>
+        {embedded ? (
+          <p className="text-sm text-slate-500">Pretend users you test as. Tag a charter with one so whoever explores it thinks like that person.</p>
+        ) : (
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900">Personas</h1>
+            <p className="mt-0.5 text-sm text-slate-500">Who you test as. Tag charters and cases with one, and write a charter straight from a persona.</p>
+          </div>
+        )}
         <div className="flex items-center gap-3">
           {archived.length > 0 && (
             <button type="button" className="text-sm text-slate-500 hover:underline" onClick={() => setShowArchived(!showArchived)}>
@@ -49,7 +54,7 @@ export function PersonasBoard({ projectId, projectKey, personas, canManage, canA
         <Card className="p-8 text-center">
           <p className="font-medium text-slate-800">No personas yet</p>
           <p className="mt-1 text-sm text-slate-500">
-            {canManage ? "Add one, like a first-time player or a screen reader user." : "A lead or admin can add them, like a first-time player or a screen reader user."}
+            {canManage ? "Add one, like a first-time player or a screen reader user." : "Someone with edit rights can add them, like a first-time player or a screen reader user."}
           </p>
         </Card>
       ) : (
@@ -81,7 +86,7 @@ export function PersonasBoard({ projectId, projectKey, personas, canManage, canA
                 <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
                   {canWrite && !p.archived && (
                     <LinkButton size="sm" variant="primary" href={newCharterHref(projectKey, p.id)} aria-label={`Write charter as ${p.name}`}>
-                      + Write charter
+                      + Write a charter as them
                     </LinkButton>
                   )}
                   {canManage && (
@@ -201,5 +206,82 @@ export function PersonaForm({
         </div>
       </form>
     </Modal>
+  );
+}
+
+/**
+ * New and edit charter (ver_96): "Create a test persona (optional)", right under the
+ * mission. Pick one, or Nobody in particular; + New persona makes one on the spot.
+ */
+export function TestPersonaPicker({ projectId, personas, value, onChange, onCreated, canCreate }: { projectId: string; personas: { id: string; name: string; emoji: string }[]; value: string; onChange: (id: string) => void; onCreated: (p: { id: string; name: string; emoji: string }) => void; canCreate: boolean }) {
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+  const [emoji, setEmoji] = useState("🧑");
+  const [description, setDescription] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const chip = (on: boolean) => cx("rounded-full border px-3 py-1 text-sm", on ? "border-violet-500 bg-white font-medium text-violet-800 ring-1 ring-violet-500" : "border-violet-200 bg-white/70 text-slate-700 hover:border-violet-400");
+  return (
+    <section aria-label="Test persona" className="mt-4 rounded-lg border border-violet-200 bg-violet-50/70 p-4" data-testid="test-persona">
+      <h3 className="text-sm font-semibold text-slate-900">
+        Create a test persona <span className="font-normal text-slate-500">(optional)</span>
+      </h3>
+      <p className="text-xs text-slate-600">Pretend to be this person while you explore, so you navigate and think like them.</p>
+      <div className="mt-2.5 flex flex-wrap gap-2" role="radiogroup" aria-label="Test persona">
+        <button type="button" role="radio" aria-checked={!value} className={chip(!value)} onClick={() => onChange("")}>
+          Nobody in particular
+        </button>
+        {personas.map((p) => (
+          <button key={p.id} type="button" role="radio" aria-checked={value === p.id} className={chip(value === p.id)} onClick={() => onChange(p.id)}>
+            {p.emoji} {p.name}
+          </button>
+        ))}
+        {canCreate && !adding && (
+          <button type="button" className="rounded-full border border-dashed border-violet-400 px-3 py-1 text-sm text-violet-800 hover:bg-white" onClick={() => setAdding(true)}>
+            + New persona
+          </button>
+        )}
+      </div>
+      {adding && (
+        <div className="mt-3 space-y-2 rounded-md border border-violet-200 bg-white p-3">
+          <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Look">
+            <span className="mr-1 text-xs font-medium text-slate-600">Look</span>
+            {EMOJIS.map((e) => (
+              <button key={e} type="button" role="radio" aria-checked={emoji === e} aria-label={e} onClick={() => setEmoji(e)} className={cx("flex size-8 items-center justify-center rounded-full text-base ring-1 ring-inset", emoji === e ? "bg-violet-50 ring-violet-500" : "ring-slate-200 hover:bg-slate-50")}>
+                {e}
+              </button>
+            ))}
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Input aria-label="Persona name" placeholder="Name, like First-time player" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            <Input aria-label="Who they are (optional)" placeholder="Who they are (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+          <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+          <div className="flex justify-end gap-2">
+            <Button size="sm" onClick={() => setAdding(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={pending || !name.trim()}
+              onClick={() =>
+                start(async () => {
+                  const r = await savePersona(projectId, null, { name, emoji, description });
+                  if (!r.ok) return setError(r.error);
+                  onCreated({ id: r.id, name: r.name, emoji: r.emoji });
+                  onChange(r.id);
+                  setAdding(false);
+                  setName("");
+                  setDescription("");
+                })
+              }
+            >
+              Add
+            </Button>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

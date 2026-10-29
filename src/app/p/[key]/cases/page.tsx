@@ -88,7 +88,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
     where.tags = { hasEvery: real };
   }
   if (sp.priority && (PRIORITIES as string[]).includes(sp.priority)) where.priority = sp.priority as Prisma.TestCaseWhereInput["priority"];
-  if (sp.type === "EXPLORATORY") redirect(`/p/${project.key}/charters`);
+  if (sp.type === "EXPLORATORY") redirect(`/p/${project.key}/charters${sp.persona ? `?persona=${sp.persona}` : ""}`);
   // Old links (?type=) still work; the filter is "Who runs it" since ver_95.
   const runsBy = sp.runs ?? (sp.type === "MANUAL" ? "hand" : sp.type === "AUTOMATED" ? "auto" : "");
   // The count line ignores "Who runs it", so it always shows the whole split.

@@ -40,11 +40,10 @@ export function UmbrellaNav({ u }: { u: NavData }) {
       label: "Library",
       items: [
         { href: `${hub}/cases`, id: "cases", label: "Case library", count: u.counts.cases, tip: `Whole test cases every ${u.name} test cycle runs` },
-        { href: `${hub}/charters`, id: "charters", label: "Charters", count: u.counts.charters, tip: "Missions to explore without steps, from scratch or from a tour or checklist" },
+        { href: `${hub}/charters`, id: "charters", label: "Charters", count: u.counts.charters, tip: "Missions to explore without steps, and the test personas you explore as" },
         { href: `${hub}/stories`, id: "stories", label: "Requirements", tip: "Jira stories, Epics and other requirements, and which cases test them" },
         { href: `${hub}/suites`, id: "suites", label: "Test suites", count: u.counts.suites },
         { href: `${hub}/shared-steps`, id: "shared", label: "Shared steps", count: u.counts.shared, tip: "Extra steps you add to new or existing cases" },
-        { href: `${hub}/personas`, id: "personas", label: "Personas", count: u.counts.personas },
       ],
     },
     {

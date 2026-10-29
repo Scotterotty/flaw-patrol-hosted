@@ -18,16 +18,17 @@ export async function teamTemplates(homeId: string) {
 }
 
 /** The Charters page list (ver_93): every charter, with its persona, time box and last session. */
-export async function charterRows(projectId: string, opts: { archived?: boolean; q?: string } = {}) {
+export async function charterRows(projectId: string, opts: { archived?: boolean; q?: string; persona?: string } = {}) {
   const q = opts.q?.trim();
   const cases = await db.testCase.findMany({
-    where: { projectId, type: "EXPLORATORY", archived: !!opts.archived },
+    // Persona filter (ver_96): a persona's id, or "none".
+    where: { projectId, type: "EXPLORATORY", archived: !!opts.archived, ...(opts.persona ? { personaId: opts.persona === "none" ? null : opts.persona } : {}) },
     orderBy: { number: "asc" },
     select: {
       id: true,
       number: true,
       title: true,
-      persona: { select: { name: true, emoji: true } },
+      persona: { select: { id: true, name: true, emoji: true } },
       versions: { orderBy: { version: "desc" }, take: 1, select: { charter: true } },
       project: { select: { key: true } },
     },

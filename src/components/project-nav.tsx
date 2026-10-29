@@ -30,11 +30,10 @@ export function ProjectNav({ projectKey, projectName, quests = false, counts, li
           ]
         : [
             { href: `${base}/cases`, id: "cases", label: "Test cases", count: counts.cases },
-            { href: `${base}/charters`, id: "charters", label: "Charters", count: counts.charters, tip: "Missions to explore without steps, from scratch or from a tour or checklist" },
+            { href: `${base}/charters`, id: "charters", label: "Charters", count: counts.charters, tip: "Missions to explore without steps, and the test personas you explore as" },
             { href: `${base}/stories`, id: "stories", label: "Requirements" },
             { href: `${base}/suites`, id: "suites", label: "Test suites", count: counts.suites },
             { href: `${base}/shared-steps`, id: "shared", label: "Shared steps", count: counts.shared },
-            { href: `${base}/personas`, id: "personas", label: "Personas", count: counts.personas },
           ],
     },
     {

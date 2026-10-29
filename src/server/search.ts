@@ -61,7 +61,7 @@ const UMBRELLA_PAGES: { label: string; path: (g: string, hub: string) => string;
   { label: "Case library", path: (_, h) => `/p/${h}/cases`, words: "case library cases tests" },
   { label: "Test suites", path: (_, h) => `/p/${h}/suites`, words: "test suites suite plans" },
   { label: "Shared steps", path: (_, h) => `/p/${h}/shared-steps`, words: "shared steps reusable" },
-  { label: "Personas", path: (_, h) => `/p/${h}/personas`, words: "personas charters exploratory" },
+  { label: "Personas", path: (_, h) => `/p/${h}/charters?tab=personas`, words: "personas test persona charters exploratory" },
   { label: "Charters", path: (_, h) => `/p/${h}/charters`, words: "charters exploratory sessions tours checklists" },
   { label: "Test runs", path: (g) => `/g/${g}/runs`, words: "test runs runs automated" },
   { label: "Bug bashes", path: (_, h) => `/p/${h}/bashes`, words: "bug bashes bash blitz hunt" },
