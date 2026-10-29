@@ -56,7 +56,7 @@ export async function createCasesForStory(projectId: string, storyKey: string, i
       if (!r.ok) throw new UserError(r.error);
       numbers.push(r.number);
     }
-    const made = await linkAndFlag(projectId, numbers, key, user.name ?? user.email);
+    await linkAndFlag(projectId, numbers, key, user.name ?? user.email);
     revalidatePath(`/p/${project.key}`, "layout");
     return { key: project.key, numbers };
   });
