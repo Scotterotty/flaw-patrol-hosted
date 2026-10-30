@@ -12,10 +12,11 @@ import { LocalDefectStatus, RefreshJiraButton, SendToJiraButton } from "@/compon
 import { refreshDefectStatuses } from "@/lib/jira";
 import { can } from "@/lib/permissions";
 import { sendToJiraData } from "@/lib/send-to-jira";
-import { requireUser } from "@/lib/session";
+import { mySpelling, requireUser } from "@/lib/session";
 import { isSevere } from "@/lib/severity";
 import { severityScaleFor } from "@/lib/severity-server";
 import { jiraConfigFor, loadUmbrella, OPEN_BUG, platformColor } from "@/lib/umbrella";
+import { LastCheckLine, type LastCheck } from "@/components/known-bugs-panel";
 
 export const metadata = { title: "Bugs" };
 
@@ -23,6 +24,7 @@ const SEV_BG: Record<Severity, string> = { SHOWSTOPPER: "#b91c1c", CRITICAL: "#e
 
 /** Every bug filed from any project under the umbrella, once each: a Jira issue filed from two platforms shows once with both. */
 export default async function UmbrellaBugsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ q?: string; all?: string; rc?: string; platform?: string; sev?: string; jira?: string }> }) {
+  const spelling = await mySpelling();
   const { id } = await params;
   const sp = await searchParams;
   const user = await requireUser();
@@ -40,7 +42,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
     where: { projectId: { in: projects.map((p) => p.id) }, ...(showAll ? {} : OPEN_BUG), ...(sp.jira === "local" ? { externalKey: null } : {}) },
     orderBy: { createdAt: "asc" },
     take: 2000,
-    include: { links: { select: { result: { select: { caseId: true, run: { select: { release: true } } } } } } },
+    include: { links: { select: { result: { select: { caseId: true, run: { select: { release: true } } } } } }, checks: { orderBy: { createdAt: "desc" }, take: 1, select: { outcome: true, byName: true, createdAt: true, run: { select: { number: true } } } } },
   });
   const cases = await db.testCase.findMany({
     where: { id: { in: [...new Set(defects.flatMap((d) => d.links.map((l) => l.result.caseId)))] } },
@@ -54,11 +56,11 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
   const rcOf = (d: (typeof defects)[number]) => byId.get(d.projectId)?.rcName || d.links.map((l) => l.result.run.release).find(Boolean) || "";
 
   // One row per Jira issue (or per bug when it isn't in Jira), oldest filing first.
-  type Row = { key: string; first: (typeof defects)[number]; platforms: string[]; rcs: string[]; cases: string[] };
+  type Row = { key: string; first: (typeof defects)[number]; platforms: string[]; rcs: string[]; cases: string[]; check: LastCheck | null };
   const rows = new Map<string, Row>();
   for (const d of defects) {
     const k = d.externalKey ?? d.id;
-    const row = rows.get(k) ?? { key: k, first: d, platforms: [], rcs: [], cases: [] };
+    const row = rows.get(k) ?? { key: k, first: d, platforms: [], rcs: [], cases: [], check: null };
     const p = byId.get(d.projectId);
     if (p?.platform && !row.platforms.includes(p.platform)) row.platforms.push(p.platform);
     const rc = rcOf(d);
@@ -67,6 +69,8 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
       const ck = caseById.get(l.result.caseId);
       if (ck && !row.cases.includes(ck)) row.cases.push(ck);
     }
+    const c = d.checks[0];
+    if (c && (!row.check || c.createdAt > row.check.createdAt)) row.check = c;
     rows.set(k, row);
   }
   // Forgiving search (ver_96): exact matches, then close ones under their own label.
@@ -179,6 +183,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
                       )}
                       <span className="block text-xs text-slate-500">{[d.externalKey ?? `${home?.key}-D${d.number}`, r.cases.length ? `from ${r.cases.join(", ")}` : ""].filter(Boolean).join(" · ")}</span>
                       {jira && canRun && !d.externalKey && <span className="block text-xs text-slate-500">Saved before Jira was connected</span>}
+                      <LastCheckLine check={r.check} spelling={spelling} />
                     </td>
                     <td className="px-4 py-2.5">
                       <span className="flex flex-wrap gap-x-2 gap-y-0.5">

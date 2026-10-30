@@ -39,6 +39,8 @@ import { runFieldsFor } from "@/lib/run-fields-server";
 import { runRegressions } from "@/lib/regression-data";
 import { againstLabel, regressionTip } from "@/lib/regression";
 import { CompareWith } from "@/components/regression";
+import { knownBugsForRun } from "@/lib/known-bugs";
+import { KnownBugsHeadsUp, KnownBugsPanel, type RunKnown } from "@/components/known-bugs-panel";
 
 export const metadata = { title: "Test run" };
 
@@ -93,6 +95,9 @@ export default async function RunPage({ params, searchParams }: { params: Promis
     defectsByEntry.set(l.result.entryId, s);
   }
   const defects = [...new Map(defectLinks.map((l) => [l.defectId, l.defect])).values()];
+  // Known bugs from earlier runs (ver_96), for runs tested by hand.
+  const knownMap = run.automated ? new Map<string, RunKnown["bug"][]>() : await knownBugsForRun(run.id, run.entries.map((e) => ({ id: e.id, caseId: e.caseId, steps: e.steps })));
+  const knownList: RunKnown[] = run.entries.flatMap((e) => (knownMap.get(e.id) ?? []).map((bug) => ({ bug, caseKey: caseKey(e.testCase.project.key, e.testCase.number) })));
   const steps = Object.fromEntries(stepAgg.map((s) => [s.status, Number(s.n)]));
   const byTester = members
     .map((m) => {
@@ -223,6 +228,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         </div>
       )}
 
+      <KnownBugsHeadsUp list={knownList} />
       <div className="mb-5 grid gap-4 md:grid-cols-[1fr_1fr_1fr]">
         <Card className="p-4 md:col-span-2">
           <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
@@ -287,6 +293,8 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         </Card>
       )}
 
+      <KnownBugsPanel list={knownList} spelling={spelling} />
+
       {reg.settings.on && reg.comparedWith && (
         <CompareWith
           label={againstLabel(reg.comparedWith)}
@@ -319,6 +327,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           assigneeId: e.assigneeId,
           lastTestedAt: e.lastTestedAt?.toISOString() ?? null,
           defects: defectsByEntry.get(e.id)?.size ?? 0,
+          known: knownMap.get(e.id)?.length ?? 0,
           flaky: flaky.get(e.caseId),
           regression: reg.flagged.has(e.id) ? regressionTip(reg.against.get(e.id)!, spelling) : undefined,
           progress:

@@ -39,6 +39,7 @@ import { DEFAULT_STORIES, parseStoriesConfig, storyInfo } from "@/lib/stories";
 import { can } from "@/lib/permissions";
 import { entryComparison } from "@/lib/regression-data";
 import { againstLabel } from "@/lib/regression";
+import { knownBugsForRun } from "@/lib/known-bugs";
 
 export const metadata = { title: "Testing" };
 
@@ -343,6 +344,7 @@ export default async function ExecutePage({
           keepQuery={keep}
           takeBar={takeBar}
           tagColors={tagColors}
+          knownBugs={(await knownBugsForRun(run.id, [{ id: entry.id, caseId: entry.caseId, steps: entry.steps }])).get(entry.id) ?? []}
           entry={{
             id: entry.id,
             caseKey: caseKey(entry.testCase.project.key, entry.testCase.number),

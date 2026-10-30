@@ -34,6 +34,8 @@ export type EntryRow = {
   assigneeId: string | null;
   lastTestedAt: string | null;
   defects: number;
+  /** Known bugs from earlier runs (ver_96). */
+  known?: number;
   /** Flaky: how often its result flipped in its last 10 runs. */
   flaky?: number;
   /** Regression (ver_93): where it passed before, for the badge's hover. */
@@ -96,6 +98,7 @@ export function RunEntries({
     query,
     (r) => `${r.caseKey} ${r.title} ${r.folderPath} ${r.tags.join(" ")}`,
   );
+  const hasKnown = rows.some((r) => r.known);
   const shown = [...found.exact, ...found.close];
   const closeStart = found.close.length ? found.exact.length : -1;
   const shownIds = new Set(shown.map((r) => r.id));
@@ -215,6 +218,7 @@ export function RunEntries({
               <th className="w-20 px-3 py-2 font-medium">Priority</th>
               <th className="hidden w-36 px-3 py-2 font-medium md:table-cell">Assigned to</th>
               <th className="w-24 px-3 py-2 font-medium">Status</th>
+              {hasKnown && <th className="hidden px-3 py-2 font-medium whitespace-nowrap lg:table-cell">Known bugs</th>}
               <th className="w-16 px-3 py-2">
                 <span className="sr-only">Actions</span>
               </th>
@@ -283,6 +287,15 @@ export function RunEntries({
                     r.lastTestedAt && <p className="mt-0.5 text-[11px] text-slate-400" suppressHydrationWarning>{relativeTime(new Date(r.lastTestedAt), spelling)}</p>
                   )}
                 </td>
+                {hasKnown && (
+                  <td className="hidden px-3 py-2 lg:table-cell">
+                    {r.known ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900" title={`${r.known} ${r.known === 1 ? "bug" : "bugs"} from earlier runs on this case`}>
+                        {r.known}
+                      </span>
+                    ) : null}
+                  </td>
+                )}
                 <td className="px-3 py-2 text-right">
                   <Link href={`/p/${projectKey}/runs/${runNumber}/execute?entry=${r.id}`} className="text-xs font-medium text-accent-700 hover:underline">
                     {r.status === "UNTESTED" ? "Test" : r.status === "IN_PROGRESS" ? "Continue" : "Retest"}
@@ -293,7 +306,7 @@ export function RunEntries({
             ))}
             {shown.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-sm text-slate-500">
+                <td colSpan={8} className="px-3 py-6 text-center text-sm text-slate-500">
                   Nothing matches these filters.
                 </td>
               </tr>

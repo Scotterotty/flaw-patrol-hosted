@@ -7,6 +7,7 @@ import { useEffect, useState, useTransition } from "react";
 import { browserContext, orderFiles, stamp, type TemplateBug } from "@/lib/bug-template";
 import { DEFAULT_SEVERITY, defaultSeverityOf, PLAIN_SCALE, type SeverityScale } from "@/lib/severity";
 import type { ImportedDraft, LinkedDefect, ReporterInfo } from "@/server/jira";
+import type { KnownBug } from "@/lib/known-bugs";
 import { importedTitle } from "@/lib/bug-template";
 import { createLocalDefect, fileJiraBug, linkJiraIssue, previewJiraBug, searchJira } from "@/server/jira";
 import { uploadAttachment } from "@/server/results";
@@ -44,6 +45,8 @@ export function BugDialog({
   recent,
   suggested,
   stories = [],
+  known = [],
+  onKnownStill,
   linkStories = true,
   fromDefect,
   prefill,
@@ -78,6 +81,9 @@ export function BugDialog({
   recent: LinkedDefect[];
   /** A title made from the screen, used when Jira isn't connected (Jira's preview makes its own). */
   suggested?: string;
+  /** Known bugs on this step (ver_96): "It's this one" marks it Still happens instead of filing. */
+  known?: KnownBug[];
+  onKnownStill?: (b: KnownBug) => void;
   /** The case's Jira stories: each gets a "Link to story" tick. */
   stories?: { key: string; title: string }[];
   /** Whether those ticks start ticked (Settings → Jira → Stories). */
@@ -86,6 +92,8 @@ export function BugDialog({
   fromDefect?: { id: string; label: string; title: string; severity: Severity };
 }) {
   const [linkTo, setLinkTo] = useState<Set<string>>(new Set());
+  // Known bugs the tester said this isn't (ver_96): the new bug links to them as related instead.
+  const [notThis, setNotThis] = useState<string[]>([]);
   const [markReg, setMarkReg] = useState(true);
   const [tab, setTab] = useState<"new" | "link">("new");
   const [summary, setSummary] = useState("");
@@ -165,6 +173,7 @@ export function BugDialog({
     setSentryList(sentryErrors);
     setSentrySearch(false);
     setLinkTo(new Set(linkStories ? stories.map((x) => x.key) : []));
+    setNotThis([]);
     if (!jiraConnected) {
       setSummary(prefill?.title ?? suggested ?? (stepIndex === null ? "" : `${stepLabel} failed`));
       if (prefill) setSeverity(prefill.severity);
@@ -313,6 +322,47 @@ export function BugDialog({
           <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
 
           {tab === "new" ? (
+            <>
+            {!fromDefect && known.filter((b) => !notThis.includes(b.id)).length > 0 && (
+              <div className="mt-3 space-y-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm" data-testid="known-in-dialog">
+                <p className="font-semibold text-amber-950">This step already has a known bug</p>
+                {known
+                  .filter((b) => !notThis.includes(b.id))
+                  .map((b) => (
+                    <div key={b.id} className="flex flex-wrap items-center gap-2">
+                      <span className="min-w-0 flex-1 basis-56">
+                        <span className="font-mono text-xs font-semibold">{b.key}</span> <span className="text-slate-900">{b.title}</span>{" "}
+                        <span className="text-xs text-slate-600">({b.status})</span>
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => {
+                          onKnownStill?.(b);
+                          onClose();
+                        }}
+                      >
+                        It&apos;s this one: Still happens
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setNotThis((n) => [...n, b.id]);
+                          if (b.externalKey && jiraConnected) setLinkTo((s) => new Set([...s, b.externalKey!]));
+                        }}
+                      >
+                        No, it&apos;s a different bug
+                      </Button>
+                    </div>
+                  ))}
+                <p className="text-xs text-amber-900">Marking it Still happens saves a second copy of the same bug.</p>
+              </div>
+            )}
+            {notThis.some((id) => known.find((b) => b.id === id)?.externalKey) && jiraConnected && (
+              <p className="mt-2 text-xs text-slate-500">
+                The new bug will link to {known.filter((b) => notThis.includes(b.id) && b.externalKey).map((b) => b.key).join(", ")} as related.
+              </p>
+            )}
             <form
               className="mt-3 space-y-3"
               onSubmit={(e) => {
@@ -459,6 +509,7 @@ export function BugDialog({
                 </Button>
               </div>
             </form>
+            </>
           ) : (
             <div className="mt-3 space-y-3">
               {recent.length > 0 && (

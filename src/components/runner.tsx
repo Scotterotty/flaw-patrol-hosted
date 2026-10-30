@@ -30,6 +30,9 @@ import { bugTitle } from "@/lib/jira-format";
 import { RegressionNote } from "./regression";
 import { SentryStepBox, type StepSentry } from "./sentry-box";
 import { sentryForStep } from "@/server/sentry";
+import type { KnownBug } from "@/lib/known-bugs";
+import { checkKnownBug } from "@/server/known-bugs";
+import { KnownBugsBox, KnownStepTag, type KnownCheck } from "./known-bugs";
 
 /** Regression flag (ver_93): the earlier release this case passed in, and which of its steps passed there. */
 export type RunnerRegression = { label: string; when: string; passed: boolean[]; resultId: string; off: boolean; jiraLabel: string };
@@ -102,7 +105,10 @@ export function Runner({
   regression = null,
   sentryOn = false,
   tagColors,
+  knownBugs = [],
 }: {
+  /** Bugs found on this case in earlier runs (ver_96). */
+  knownBugs?: KnownBug[];
   /** Sentry is connected (ver_96): Failed and Blocked steps show the errors it caught. */
   sentryOn?: boolean;
   tagColors?: TagColors;
@@ -402,6 +408,36 @@ export function Runner({
   }, [statuses, sentryOn]);
   const sentryPicked = (i: number | null) =>
     Object.entries(sentry).flatMap(([k, v]) => (i === null || Number(k) === i ? v.errors.filter((e) => v.picked.includes(e.id)).map((e) => ({ ...e, stepIndex: Number(k) })) : []));
+
+  // Known bugs (ver_96): Still happens fails its step, links the bug and says so in the comment; Didn't happen just records it.
+  const [checks, setChecks] = useState<Record<string, KnownCheck | undefined>>(() => Object.fromEntries(knownBugs.map((b) => [b.id, b.check?.outcome])));
+  const before = useRef<Record<string, { status: ResultStatus | null; line: string }>>({});
+  const checkKnown = (b: KnownBug, outcome: KnownCheck | null) => {
+    const was = checks[b.id];
+    setChecks((c) => ({ ...c, [b.id]: outcome ?? undefined }));
+    if (was === "still") {
+      // Undo: take back what Still happens did.
+      const prev = before.current[b.id];
+      setDefects((all) => all.filter((d) => d.defect.id !== b.id));
+      if (prev && b.stepIndex !== null && prev.status) setStatuses((all) => all.map((x, j) => (j === b.stepIndex ? prev.status! : x)));
+      if (prev) setComment((c) => c.replace(prev.line, "").replace(/\n{2,}/g, "\n").trim());
+      delete before.current[b.id];
+    }
+    if (outcome === "still") {
+      const line = `${b.key} still happens (same as R${b.found.run}).`;
+      before.current[b.id] = { status: b.stepIndex === null ? null : statusesRef.current[b.stepIndex], line };
+      setDefects((all) => (all.some((d) => d.defect.id === b.id) ? all : [...all, { defect: { id: b.id, number: b.number, title: b.title, externalKey: b.externalKey, externalUrl: b.url, status: b.status }, stepIndex: b.stepIndex }]));
+      if (b.stepIndex !== null) {
+        setStep(b.stepIndex, "FAILED");
+        setCurrent(b.stepIndex);
+      }
+      setComment((c) => (c.includes(line) ? c : [c.trim(), line].filter(Boolean).join("\n")));
+    }
+    start(async () => {
+      const r = await checkKnownBug(projectId, entry.id, b.id, outcome);
+      if (!r.ok) setError(r.error);
+    });
+  };
 
   // "Bug still occurs" in the history panel: copy that execution's step
   // results and bugs into this case, so a known bug is re-reported in one click.
@@ -737,6 +773,8 @@ export function Runner({
           </p>
         )}
 
+        <KnownBugsBox bugs={knownBugs} checks={checks} onCheck={checkKnown} disabled={runClosed} steps={entry.steps} />
+
         {entry.preconditions && (
           <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             <span className="font-medium">Preconditions: </span>
@@ -796,6 +834,15 @@ export function Runner({
                         className={cx("min-w-0 text-sm text-slate-900 md:pr-3", selCell && selCell !== `a${i}` && "select-none")}
                       >
                         <span className="block text-[11px] font-medium tracking-wide text-slate-400 uppercase select-none">Step</span>
+                        {knownBugs.some((b) => b.stepIndex === i) && (
+                          <span className="mb-1 flex flex-wrap gap-1 select-none">
+                            {knownBugs
+                              .filter((b) => b.stepIndex === i)
+                              .map((b) => (
+                                <KnownStepTag key={b.id} bug={b} />
+                              ))}
+                          </span>
+                        )}
                         <StepText text={step.action} className="whitespace-pre-wrap wrap-anywhere" />
                       </div>
                       <div
@@ -1119,6 +1166,8 @@ export function Runner({
         projectId={projectId}
         entryId={entry.id}
         stepIndex={bugFor ?? null}
+        known={bugFor === undefined ? [] : knownBugs.filter((b) => b.state !== "expected" && b.stepIndex === (bugFor ?? null) && checks[b.id] !== "still")}
+        onKnownStill={(b) => checkKnown(b, "still")}
         stepLabel={bugFor === null || bugFor === undefined ? "whole case" : `step ${entry.steps[bugFor]?.number}`}
         actual={bugFor === null || bugFor === undefined ? comment : actuals[bugFor]}
         suggested={bugTitle(entry.title, bugFor === null || bugFor === undefined ? null : (entry.steps[bugFor] ?? null), bugFor === null || bugFor === undefined ? comment : (actuals[bugFor] ?? ""))}

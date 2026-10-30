@@ -12,6 +12,7 @@ import { SEVERITY_TONE } from "@/lib/severity";
 import { severityScaleFor } from "@/lib/severity-server";
 import { sendToJiraData } from "@/lib/send-to-jira";
 import { redirect } from "next/navigation";
+import { LastCheckLine } from "@/components/known-bugs-panel";
 import { hubGroupId, jiraConfigFor } from "@/lib/umbrella";
 
 export const metadata = { title: "Bugs" };
@@ -43,6 +44,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
       links: {
         include: { result: { select: { createdAt: true, entryId: true, run: { select: { number: true, name: true, release: true } }, entry: { select: { title: true, testCase: { select: { number: true, project: { select: { key: true } } } } } } } } },
       },
+      checks: { orderBy: { createdAt: "desc" }, take: 1, select: { outcome: true, byName: true, createdAt: true, run: { select: { number: true } } } },
     },
   });
 
@@ -125,6 +127,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
                       )}{" "}
                       <span className="text-slate-900">{d.title}</span>
                       {canSend && !d.externalKey && <span className="mt-0.5 block text-xs text-slate-500">Saved before Jira was connected</span>}
+                      <LastCheckLine check={d.checks[0]} spelling={spelling} />
                     </td>
                     <td className="px-4 py-2">
                       {d.externalKey ? (

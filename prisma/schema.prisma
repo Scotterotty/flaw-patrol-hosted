@@ -685,6 +685,7 @@ model TestRun {
   entries        RunEntry[]
   results        TestResult[]
   bugBash        BugBash?
+  defectChecks   DefectCheck[]
 
   @@unique([projectId, number])
   @@index([projectId, createdAt])
@@ -831,6 +832,7 @@ model Defect {
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   links            DefectLink[]
+  checks           DefectCheck[]
 
   @@unique([projectId, number])
   @@index([projectId, externalKey])
@@ -845,6 +847,26 @@ model DefectLink {
   stepIndex Int?
 
   @@id([defectId, resultId])
+}
+
+/**
+ * Known bugs (ver_96): a run's check on a bug found on the same case in an earlier run.
+ * "still" (Still happens) or "gone" (Didn't happen). Never changes Jira.
+ */
+model DefectCheck {
+  id        String   @id @default(cuid())
+  defect    Defect   @relation(fields: [defectId], references: [id], onDelete: Cascade)
+  defectId  String
+  run       TestRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  runId     String
+  entryId   String
+  outcome   String
+  byId      String?
+  byName    String   @default("")
+  createdAt DateTime @default(now())
+
+  @@unique([defectId, entryId])
+  @@index([runId])
 }
 
 // Screenshots and logs. Stored in Postgres for now; move to object storage when volumes grow.
