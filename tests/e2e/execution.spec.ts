@@ -64,7 +64,7 @@ test("suites, runs, Jira bugs and reports", async ({ page }) => {
 
   // Version 2 adds case 2
   await page.getByRole("link", { name: "Edit" }).click();
-  await page.getByRole("button", { name: /Add all 1 shown/ }).click();
+  await page.getByRole("button", { name: "Tick all 2" }).click();
   await page.getByLabel("What changed? (optional)").fill("Added discount case");
   await page.getByRole("button", { name: "Save suite" }).click();
   await expect(page.getByText("Added discount case")).toBeVisible();
@@ -74,7 +74,6 @@ test("suites, runs, Jira bugs and reports", async ({ page }) => {
   await page.getByRole("button", { name: "Start test run" }).click();
   await page.getByLabel("Release", { exact: true }).fill("2.4.0-rc1");
   await page.getByLabel("Build").fill("#1482");
-  await page.getByLabel("Open the first case when it starts").uncheck();
   await page.getByRole("button", { name: "Start run", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${KEY}/runs/1$`));
   await page.getByRole("link", { name: "Start testing" }).click();

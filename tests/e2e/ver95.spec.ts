@@ -56,7 +56,7 @@ test("one Start a run button: pick the kind, add a kind, make the test cycle on 
 
   await page.getByRole("button", { name: /Start a run/ }).first().click();
   const box = page.getByRole("dialog");
-  await expect(box.getByRole("heading", { name: "What kind of run?" })).toBeVisible();
+  await expect(box.getByRole("heading", { name: "1. What kind of run?" })).toBeVisible();
   await expect(box.getByRole("button", { name: /^Smoke test.*Usually runs Smoke/ })).toBeVisible();
   await expect(box.getByRole("button", { name: /^Release candidate/ })).toBeVisible();
 
@@ -66,17 +66,17 @@ test("one Start a run button: pick the kind, add a kind, make the test cycle on 
   await box.getByRole("button", { name: "Add and use it" }).click();
   await expect(box.getByTestId("kind-picked")).toContainText("Regression");
 
-  // Pick Smoke test instead: its usual suite fills in what to run.
+  // Pick Smoke test instead: its usual suite is offered, not picked (ver_99).
   await box.getByTestId("kind-picked").getByRole("button", { name: "Change" }).click();
   await box.getByRole("button", { name: /^Smoke test/ }).click();
+  await expect(box.getByRole("button", { name: "Start smoke test" })).toBeDisabled();
+  await box.getByTestId("usual-suite").getByRole("button", { name: "Use it" }).click();
   await expect(box.getByRole("radio", { name: /Smoke/ })).toBeChecked();
-  // Where it goes: the newest test cycle is ticked, and + New test cycle is made on Start.
-  await expect(box.getByRole("checkbox", { name: `Demo RC 1 ${TAG}` })).toBeChecked();
-  await box.getByRole("checkbox", { name: `Demo RC 1 ${TAG}` }).uncheck();
+  // Test cycle: nothing is ticked for you, and + New test cycle is made on Start.
+  await expect(box.getByRole("checkbox", { name: `Demo RC 1 ${TAG}` })).not.toBeChecked();
   await box.getByRole("button", { name: "＋ New test cycle" }).click();
   await box.getByLabel("Name", { exact: true }).fill(`Sprint 14 ${TAG}`);
-  await expect(box.getByText(`Sprint 14 ${TAG} (new)`)).toBeVisible();
-  await box.getByLabel("Open the first case").uncheck();
+  await expect(box.getByText(`Goes in Sprint 14 ${TAG} (new)`)).toBeVisible();
   await box.getByRole("button", { name: "Start smoke test" }).click();
   await expect(page).toHaveURL(/\/runs\/1$/, { timeout: 60_000 });
 

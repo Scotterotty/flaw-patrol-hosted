@@ -79,15 +79,12 @@ export async function runBoxOptions(scope: RunBoxScope) {
       db.testCase.count({ where: { projectId: umbrella ? umbrella.hub.id : library.id, archived: false } }),
     ]);
     const colorOf = (platform: string) => (umbrella ? platformColor(umbrella.platforms, platform) : "#94a3b8");
-    // The newest test cycle is ticked for you (ver_95), unless the box opened inside one.
-    const newest = cycles.length ? await db.project.findFirst({ where: { id: { in: cycles.map((c) => c.id) } }, orderBy: { createdAt: "desc" }, select: { id: true } }) : null;
     // Run kinds (ver_95): what kind of run it is, asked first in an umbrella.
     const kinds = umbrella ? parseRunKinds(umbrella.group.runKinds).filter((k) => !k.hidden) : [];
     return {
       umbrella: umbrella ? { id: umbrella.group.id, name: umbrella.group.name, hubKey: umbrella.hub.key } : null,
       // The test cycle the box was opened from, ticked for you (ver_85).
       hereId: here?.id ?? null,
-      newestId: newest?.id ?? null,
       newCycle,
       kinds: kinds.map((k) => ({ id: k.id, name: k.name, suiteId: k.suiteId, builtIn: k.builtIn })),
       // Release candidate opens the release box, which needs the umbrella:rc permission.
@@ -122,11 +119,13 @@ const startSchema = z.object({
   description: z.string().max(5000).default(""),
   assigneeId: z.string().nullable().default(null),
   fields: z.record(z.string(), z.string().max(200)).default({}),
+  /** "Use each test cycle's own" release (ver_99): a blank release otherwise stays blank. */
+  cycleRelease: z.boolean().default(false),
   /** The run kind picked first (ver_95). */
   runKind: z.string().trim().max(40).default(""),
 });
 
-/** Start one run in each ticked test cycle. A blank release uses each test cycle's own. */
+/** Start one run in each ticked test cycle. Each test cycle's own release only when asked for (ver_99). */
 export async function startRuns(input: z.input<typeof startSchema>) {
   return attempt(async () => {
     const data = startSchema.parse(input);
@@ -160,7 +159,7 @@ export async function startRuns(input: z.input<typeof startSchema>) {
         cspVersion: data.cspVersion,
         fields: data.fields,
         environment: data.environment,
-        release: data.release || project.rcName,
+        release: data.release || (data.cycleRelease ? project.rcName : ""),
         runKind: data.runKind,
         assigneeId: member ? data.assigneeId : null,
       });

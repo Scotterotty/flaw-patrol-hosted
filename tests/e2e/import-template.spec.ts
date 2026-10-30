@@ -66,7 +66,6 @@ test("import a bug template from an example Jira bug", async ({ page }) => {
   await page.getByRole("button", { name: "Start test run" }).click();
   await page.getByLabel("Release", { exact: true }).fill("4.12");
   await page.getByLabel("Build").fill("4.12.0.88");
-  await page.getByLabel("Open the first case when it starts").uncheck();
   await page.getByRole("button", { name: "Start run", exact: true }).click();
   await page.getByRole("link", { name: "Start testing" }).click();
   await page.getByRole("group", { name: "Step 1 status" }).getByRole("button", { name: "Failed" }).click();

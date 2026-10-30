@@ -26,10 +26,9 @@ test("quest maps are opt-in, and the pawn walks as cases get results", async ({ 
   }
   await page.goto(`/p/${KEY}/suites/new`);
   await page.getByLabel("Name", { exact: true }).fill("Road");
-  await page.getByRole("button", { name: /^Add all/ }).click();
+  await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
   await page.getByRole("button", { name: "Start test run" }).click();
-  await page.getByLabel("Open the first case when it starts").uncheck();
   await page.getByRole("button", { name: "Start run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
   const runUrl = page.url();

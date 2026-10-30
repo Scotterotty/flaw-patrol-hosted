@@ -36,7 +36,7 @@ test("a test cycle's suites, Start a run and reports use the umbrella's Case lib
   // A shared suite in the library.
   await page.goto(`/p/${HUB}/suites/new`);
   await page.getByLabel("Name", { exact: true }).fill("Shared smoke");
-  await page.getByRole("button", { name: /^Add all/ }).click();
+  await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
   await expect(page).not.toHaveURL(/\/suites\/new/);
 
@@ -47,7 +47,7 @@ test("a test cycle's suites, Start a run and reports use the umbrella's Case lib
   await expect(page.getByText(`Checkout ${TAG}`)).toBeVisible();
   await expect(page.getByText(`Sign in ${TAG}`)).toBeHidden();
   await page.getByLabel("Search cases").fill(`${HUB}-`);
-  await expect(page.getByRole("button", { name: "Add all 2 shown" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Tick all 2" })).toBeVisible();
   await page.getByLabel("Search cases").fill("");
   await page.getByRole("checkbox", { name: new RegExp(`Checkout ${TAG}`) }).check();
   await page.getByRole("button", { name: "Create suite" }).click();

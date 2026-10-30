@@ -24,7 +24,6 @@ test("assignments show up live on other people's screens", async ({ browser }) =
   await a.getByRole("button", { name: "Start test run" }).click();
   // New runs leave every case unassigned unless you pick someone.
   await expect(a.getByLabel("Assign every case to").locator("option:checked")).toHaveText("Nobody yet");
-  await a.getByLabel("Open the first case when it starts").uncheck();
   await a.getByRole("button", { name: "Start run", exact: true }).click();
   await expect(a).toHaveURL(new RegExp(`/p/${KEY}/runs/1$`));
   const row = a.getByRole("row").filter({ hasText: "Log in" });

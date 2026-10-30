@@ -15,12 +15,11 @@ test("a run's details can be edited after it starts", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Only case" })).toBeVisible();
   await page.goto(`/p/${KEY}/suites/new`);
   await page.getByLabel("Name", { exact: true }).fill("Smoke");
-  await page.getByRole("button", { name: /^Add all/ }).click();
+  await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
   await page.getByRole("button", { name: "Start test run" }).click();
   await page.getByLabel("Run name").fill("Typo run");
   await page.getByLabel("Release", { exact: true }).fill("2.4.0-rc1");
-  await page.getByLabel("Open the first case when it starts").uncheck();
   await page.getByRole("button", { name: "Start run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
   await expect(page.getByText(/Release 2\.4\.0-rc1/)).toBeVisible();

@@ -17,7 +17,7 @@ test("the runner shows the case's history, and a known bug can be re-reported in
   await expect(page.getByRole("heading", { name: "Bing" })).toBeVisible();
   await page.goto(`/p/${KEY}/suites/new`);
   await page.getByLabel("Name", { exact: true }).fill("Smoke");
-  await page.getByRole("button", { name: /^Add all/ }).click();
+  await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
   await expect(page.getByRole("button", { name: "Start test run" })).toBeVisible();
   const suiteUrl = page.url();
@@ -25,7 +25,6 @@ test("the runner shows the case's history, and a known bug can be re-reported in
   const startRun = async () => {
     await page.goto(suiteUrl);
     await page.getByRole("button", { name: "Start test run" }).click();
-    await page.getByLabel("Open the first case when it starts").uncheck();
     await page.getByRole("button", { name: "Start run", exact: true }).click();
     await expect(page).toHaveURL(/\/runs\/\d+$/);
     await page.getByRole("link", { name: "Start testing" }).click();

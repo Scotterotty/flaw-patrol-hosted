@@ -24,7 +24,7 @@ export function NewRunButton({
   members,
   label = "Start test run",
   variant = "primary",
-  defaults,
+  suggest,
   disabled,
   releases,
   suiteVersion,
@@ -42,7 +42,8 @@ export function NewRunButton({
   members: Member[];
   label?: string;
   variant?: "primary" | "secondary";
-  defaults?: { build?: string; cspVersion?: string; environment?: string; release?: string; fields?: Record<string, string> };
+  /** An earlier run's details, offered as "Use R19's" instead of filled in (ver_99). */
+  suggest?: { from: string; build?: string; cspVersion?: string; environment?: string; release?: string; fields?: Record<string, string> };
   /** The umbrella's run fields (ver_89); CSP version outside an umbrella. */
   fields?: RunField[];
   disabled?: boolean;
@@ -57,12 +58,27 @@ export function NewRunButton({
   const [error, setError] = useState<string | null>(null);
   // Nothing carries over from the last run (ver_77): cases start unassigned.
   const [assignee, setAssignee] = useState("");
-  const [goTest, setGoTest] = useState(true);
   const openFresh = () => {
     setAssignee("");
-    setGoTest(true);
     setError(null);
     setOpen(true);
+  };
+  const handed = !!assignee && assignee !== meId;
+  // "Use R19's": fills the empty boxes with that run's details, only when asked (ver_99).
+  const offered = suggest
+    ? [
+        ["run-release", suggest.release],
+        ["run-env", suggest.environment],
+        ["run-build", suggest.build],
+        ["run-csp", suggest.cspVersion],
+        ...Object.entries(suggest.fields ?? {}).map(([id, v]) => [`run-f-${id}`, v]),
+      ].filter((x): x is [string, string] => !!x[1]?.trim())
+    : [];
+  const useSuggested = () => {
+    for (const [id, v] of offered) {
+      const el = document.getElementById(id) as HTMLInputElement | null;
+      if (el && !el.value.trim()) el.value = v;
+    }
   };
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -76,8 +92,9 @@ export function NewRunButton({
           className="space-y-3"
           action={(fd) =>
             start(async () => {
+              const goTest = fd.get("go") === "test";
               const res = await createRun(projectId, source, {
-                name: String(fd.get("name")),
+                name: String(fd.get("name") ?? "").trim() || defaultName,
                 description: String(fd.get("description") ?? ""),
                 build: String(fd.get("build") ?? ""),
                 environment: String(fd.get("environment") ?? ""),
@@ -88,18 +105,27 @@ export function NewRunButton({
               if (!res.ok) return setError(res.error);
               setOpen(false);
               // Handed to someone else (ver_85): land on the run page with a link to send them.
-              const handed = assignee && assignee !== meId ? `?handed=${assignee}` : "";
-              router.push(`/p/${projectKey}/runs/${res.number}${openRunner || goTest ? "/execute" : handed}`);
+              router.push(`/p/${projectKey}/runs/${res.number}${openRunner || goTest ? "/execute" : handed ? `?handed=${assignee}` : ""}`);
             })
           }
         >
           <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
-          <Field label="Run name" htmlFor="run-name">
-            <Input id="run-name" name="name" required defaultValue={defaultName} autoFocus />
+          <Field label="Run name (optional)" htmlFor="run-name" hint="Leave it blank to use the suggested name shown.">
+            <Input id="run-name" name="name" placeholder={defaultName} autoFocus />
           </Field>
-          <div className="grid gap-3 sm:grid-cols-2">
+          {offered.length > 0 && (
+            <p className="flex flex-wrap items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs text-sky-900" data-testid="run-suggest">
+              <span>
+                {suggest!.from} used {offered.map(([, v]) => v).join(", ")}.
+              </span>
+              <Button size="sm" onClick={useSuggested}>
+                Use {suggest!.from}&apos;s
+              </Button>
+            </p>
+          )}
+          <div className="grid items-start gap-3 sm:grid-cols-2">
             <Field label="Release" htmlFor="run-release">
-              <Input id="run-release" name="release" defaultValue={defaults?.release} placeholder="e.g. 2.1 or RC 22" list="known-releases" />
+              <Input id="run-release" name="release" placeholder="e.g. 2.1 or RC 22" list="known-releases" />
               <datalist id="known-releases">
                 {releases?.map((r) => (
                   <option key={r} value={r} />
@@ -107,12 +133,12 @@ export function NewRunButton({
               </datalist>
             </Field>
             <Field label="Environment" htmlFor="run-env">
-              <Input id="run-env" name="environment" defaultValue={defaults?.environment} placeholder="Where you're testing" />
+              <Input id="run-env" name="environment" placeholder="Where you're testing" />
             </Field>
             <Field label="Build" htmlFor="run-build">
-              <Input id="run-build" name="build" defaultValue={defaults?.build} placeholder="Build number" />
+              <Input id="run-build" name="build" placeholder="Build number" />
             </Field>
-            <RunFieldInputs fields={fields} prefix="run" values={{ csp: defaults?.cspVersion ?? "", ...defaults?.fields }} />
+            <RunFieldInputs fields={fields} prefix="run" />
           </div>
           {suiteVersion && <p className="text-xs text-slate-500">Runs version {suiteVersion} of the suite.</p>}
           <Field label="Assign every case to" htmlFor="run-assignee" hint="Or leave it and share cases out on the run page: tick cases, then Assign selected to…">
@@ -120,11 +146,7 @@ export function NewRunButton({
               id="run-assignee"
               name="assignee"
               value={assignee}
-              onChange={(e) => {
-                setAssignee(e.target.value);
-                // Every case going to someone else: you're handing it off, not testing it.
-                setGoTest(!e.target.value || e.target.value === meId);
-              }}
+              onChange={(e) => setAssignee(e.target.value)}
             >
               <option value="">Nobody yet</option>
               {meId && members.some((m) => m.id === meId) && <option value={meId}>Me ({members.find((m) => m.id === meId)!.name})</option>}
@@ -140,17 +162,25 @@ export function NewRunButton({
           <Field label="Notes" htmlFor="run-desc">
             <Textarea id="run-desc" name="description" rows={2} />
           </Field>
-          {!openRunner && (
-            <label className="flex items-center gap-2 text-sm text-slate-700">
-              <input type="checkbox" className="accent-accent-600" checked={goTest} onChange={(e) => setGoTest(e.target.checked)} />
-              Open the first case when it starts
-            </label>
-          )}
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="primary" disabled={pending}>
-              {pending ? "Starting…" : openRunner ? "Start session" : "Start run"}
-            </Button>
+            {openRunner ? (
+              <Button type="submit" variant="primary" disabled={pending}>
+                {pending ? "Starting…" : "Start session"}
+              </Button>
+            ) : (
+              <>
+                <Button type="submit" name="go" value="page" disabled={pending}>
+                  Start run
+                </Button>
+                {/* Handing every case to someone else: no "test now" for you. */}
+                {!handed && (
+                  <Button type="submit" name="go" value="test" variant="primary" disabled={pending}>
+                    {pending ? "Starting…" : "Start and test now"}
+                  </Button>
+                )}
+              </>
+            )}
           </div>
         </form>
       </Modal>

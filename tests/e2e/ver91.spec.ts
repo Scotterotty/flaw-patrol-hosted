@@ -62,9 +62,11 @@ test("Start next release: Choose from folders, Same N cases, and who gets what",
   await openReleaseBox(page);
   const box = page.getByRole("dialog");
   await box.getByLabel("Release", { exact: true }).fill("RC2");
-  await box.getByRole("button", { name: "What Web runs" }).click();
+  // ver_99: nothing ticked; ticking Web opens its dropdown with last release's cases offered.
+  await box.getByRole("checkbox", { name: "Web", exact: true }).check();
   const menu = box.getByRole("group", { name: "Choose what Web runs" });
-  await expect(menu.getByText("Same 2 cases as RC1")).toBeVisible();
+  await menu.getByRole("button", { name: /Same 2 cases as RC1/ }).click();
+  await box.getByRole("button", { name: "What Web runs" }).click();
   await menu.getByRole("button", { name: /Choose from folders/ }).click();
   const picker = box.getByRole("group", { name: "Choose Web's cases" });
   await expect(picker.getByText("2 cases picked.")).toBeVisible();
@@ -72,7 +74,8 @@ test("Start next release: Choose from folders, Same N cases, and who gets what",
   await expect(picker.getByText("3 cases picked.")).toBeVisible();
   await picker.getByRole("button", { name: "Done" }).click();
 
-  // Carry-over names each tester's cases for this platform.
+  // Carry-over names each tester's cases for this platform, once it's ticked (ver_99).
+  await box.getByRole("checkbox", { name: /Same testers on the same cases/ }).check();
   await box.getByRole("button", { name: "See who gets what" }).click();
   await expect(box.getByTestId("who-gets-what")).toContainText(`Sam Tester: ${HUB}-1, ${HUB}-2`);
   await expect(box.getByTestId("who-gets-what")).toContainText("Unassigned: 1 case");

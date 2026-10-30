@@ -11,6 +11,8 @@ import { startKind } from "@/lib/start-kind";
 import { addRunKind, createCycleFromRunBox, runBoxOptions, startRuns, type RunBoxOptions, type RunBoxScope } from "@/server/start-run";
 import { Modal } from "./modal";
 import { RunFieldInputs } from "./run-field-inputs";
+import { CantFindCase, FolderList, inFolder } from "./folder-list";
+import { PlatformPicker } from "./platform-picker";
 import { Button, cx, ErrorText, Field, InfoTip, Input, Select, Textarea } from "./ui";
 
 type What = "all" | "suite" | "cases";
@@ -113,39 +115,41 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
   const [what, setWhat] = useState<What | null>(preset?.what ?? null);
   const [suiteId, setSuiteId] = useState(preset?.what === "suite" ? preset.suiteId : "");
   const [picked, setPicked] = useState<string[]>(preset?.what === "cases" ? preset.caseIds.filter((id) => opts.cases.some((c) => c.id === id)) : []);
-  // Ticked for you when there's no choice to make, or when the box opened inside a test cycle (ver_85).
-  const [cycles, setCycles] = useState<string[]>(
-    opts.hereId && opts.cycles.some((c) => c.id === opts.hereId) ? [opts.hereId] : opts.newestId ? [opts.newestId] : opts.cycles.length === 1 ? [opts.cycles[0].id] : [],
-  );
+  // Nothing ticked for you (Scott, ver_99), except the test cycle the box was opened from (ver_85).
+  const [cycles, setCycles] = useState<string[]>(opts.hereId && opts.cycles.some((c) => c.id === opts.hereId) ? [opts.hereId] : []);
   const [q, setQ] = useState("");
   const [folder, setFolder] = useState("");
   const [tag, setTag] = useState("");
   const [priority, setPriority] = useState("");
   const [showOlder, setShowOlder] = useState(false);
   const [more, setMore] = useState(false);
-  const [goTest, setGoTest] = useState(true);
   const [assignee, setAssignee] = useState("");
-  const [release, setRelease] = useState<string | null>(null);
+  const [release, setRelease] = useState("");
+  // "Use each test cycle's own" release, when the ticked test cycles have different ones (ver_99).
+  const [cycleRelease, setCycleRelease] = useState(false);
+  // Bumped as run fields are typed in, so the still-needed list keeps up.
+  const [, setTyped] = useState(0);
   const presetName = defaultName ?? (preset?.what === "suite" ? `${opts.suites.find((s) => s.id === preset.suiteId)?.name ?? "Suite"} ${today()}` : preset?.what === "cases" ? `Picked cases ${today()}` : "");
-  // The name follows What to run until someone types their own (ver_96).
-  const [typedName, setName] = useState<string | null>(null);
+  // The name box starts empty; the gray name is used if it's left blank (ver_99).
+  const [typedName, setName] = useState("");
 
   const suite = opts.suites.find((s) => s.id === suiteId);
   // A test cycle's own suite only runs there.
   const onlyCycle = what === "suite" && suite && !suite.shared && opts.cycles.some((c) => c.id === suite.ownerId) ? suite.ownerId : null;
   const ticked = cycles.filter((id) => !onlyCycle || id === onlyCycle);
   const chosen = opts.cycles.filter((c) => ticked.includes(c.id));
-  const rcs = [...new Set(chosen.map((c) => c.rcName))];
-  const releaseValue = release ?? (rcs.length === 1 ? rcs[0] : "");
+  // Each ticked test cycle's release, offered as a "Use 2.1" suggestion, never filled in (ver_99).
+  const rcs = [...new Set(chosen.map((c) => c.rcName.trim()).filter(Boolean))];
   const autoName = kind ? `${kind.name} ${today()}` : what === "all" ? `Full library ${today()}` : what === "suite" ? `${suite?.name ?? "Suite"} ${today()}` : what === "cases" ? `Picked cases ${today()}` : "";
   const samePick = !!preset && what === preset.what && (preset.what !== "suite" || suiteId === preset.suiteId);
-  const name = typedName ?? (samePick && presetName ? presetName : autoName);
+  const grayName = samePick && presetName ? presetName : autoName;
+  const name = typedName.trim() || grayName;
 
   // Forgiving search (ver_96): exact matches, then close ones under their own label.
   const { visible, closeStart } = useMemo(() => {
-    const folderIds = folder ? new Set(opts.folders.find((f) => f.id === folder)?.ids ?? []) : null;
+    const inPicked = inFolder(opts.folders, folder);
     const found = forgivingFilter(
-      opts.cases.filter((c) => (!folderIds || (c.folderId && folderIds.has(c.folderId))) && (!tag || c.tags.includes(tag)) && (!priority || c.priority === priority)),
+      opts.cases.filter((c) => inPicked(c) && (!tag || c.tags.includes(tag)) && (!priority || c.priority === priority)),
       q,
       (c) => `${c.key} ${c.title} ${c.tags.join(" ")}`,
     );
@@ -171,15 +175,31 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
       if (!startKind(id)) router.push(id === "rc" ? `/g/${opts.umbrella!.id}?start=rc` : `/p/${opts.umbrella!.hubKey}/bashes?bash=start`);
       return;
     }
+    // A kind's usual suite is offered as "Use it" under What to run, not picked for you (ver_99).
     setKindId(id);
-    // A kind's usual suite fills in what to run, unless something was already picked.
-    const k = kinds.find((x) => x.id === id);
-    if (k?.suiteId && !preset && opts.suites.some((x) => x.id === k.suiteId)) {
-      setWhat("suite");
-      setSuiteId(k.suiteId);
-    }
   };
-  const submit = () =>
+  const usual = kind?.suiteId ? opts.suites.find((x) => x.id === kind.suiteId) : undefined;
+  // Required run fields still empty, for the still-needed list.
+  const missingFields = opts.runFields.filter((f) => f.required && !value(fieldId(f)).trim());
+  const handed = !!members.length && !!assignee && assignee !== opts.meId;
+  const todo: [boolean, string][] = [
+    ...(askKind ? [[kindId !== null, kind ? `Kind: ${kind.name}` : "Pick what kind of run"] as [boolean, string]] : []),
+    [!!what && count > 0, what === "suite" && !suite ? "Pick a suite" : what === "cases" && !count ? "Tick some cases" : what ? `${count === 1 ? "1 case" : `${count} cases`}` : "Pick what to run"],
+    [
+      runCount > 0,
+      runCount === 0
+        ? newCycle.open
+          ? "Name the new test cycle"
+          : "Tick a test cycle"
+        : (() => {
+            const where = [...chosen.map((c) => c.name), ...(makingCycle ? [`${newCycle.name.trim()} (new)`] : [])];
+            return where.length > 1 ? `One run in each: ${where.join(", ")}` : `Goes in ${where[0]}`;
+          })(),
+    ],
+    ...missingFields.map((f): [boolean, string] => [false, `Fill in ${f.name}`]),
+  ];
+  const ready = todo.every(([ok]) => ok);
+  const submit = (goTest: boolean) =>
     what &&
     start(async () => {
       setError(null);
@@ -196,7 +216,8 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
         suiteId: what === "suite" ? suiteId : undefined,
         caseIds: what === "cases" ? picked : undefined,
         name: name.trim() || autoName,
-        release: releaseValue,
+        release: release.trim(),
+        cycleRelease: !release.trim() && cycleRelease,
         build: more ? value("rb-build") : "",
         // Required fields show outside "more", so they're always sent.
         fields: Object.fromEntries(opts.runFields.filter((f) => more || f.required).map((f) => [f.id, value(fieldId(f))])),
@@ -210,8 +231,7 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
       const [first] = res.runs;
       router.refresh();
       // Handed to someone else (ver_85): land on the run page with a link to send them.
-      const handed = members.length && assignee && assignee !== opts.meId ? `?handed=${assignee}` : "";
-      if (res.runs.length === 1) router.push(`/p/${first.key}/runs/${first.number}${goTest ? "/execute" : handed}`);
+      if (res.runs.length === 1) router.push(`/p/${first.key}/runs/${first.number}${goTest ? "/execute" : handed ? `?handed=${assignee}` : ""}`);
       else router.push(opts.umbrella ? `/g/${opts.umbrella.id}/runs` : `/p/${first.key}/runs`);
     });
 
@@ -227,8 +247,10 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
     </button>
   );
 
+  // Steps are numbered from the kind question when it's asked.
+  const step = (n: number) => n + (askKind ? 1 : 0);
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" onInput={() => setTyped((t) => t + 1)}>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       {askKind && (
         <KindStep
@@ -250,8 +272,24 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
       <>
       <section aria-labelledby="rb-what">
         <h3 id="rb-what" className="mb-1.5 text-xs font-semibold text-slate-600">
-          1. What to run
+          {step(1)}. What to run
         </h3>
+        {usual && !(what === "suite" && suiteId === usual.id) && (
+          <p className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs text-sky-900" data-testid="usual-suite">
+            <span>
+              {kind!.name} usually runs <b>{usual.name}</b> ({usual.cases} {usual.cases === 1 ? "case" : "cases"}).
+            </span>
+            <Button
+              size="sm"
+              onClick={() => {
+                setWhat("suite");
+                setSuiteId(usual.id);
+              }}
+            >
+              Use it
+            </Button>
+          </p>
+        )}
         <div className="grid gap-2 sm:grid-cols-3">
           {choice("all", opts.umbrella ? "Whole Case library" : "Every case", `All ${opts.allCount} active cases`)}
           {choice("suite", "A suite", opts.suites.length ? opts.suites.map((s) => s.name).join(", ") : "No suites yet")}
@@ -285,16 +323,6 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
         <div className="overflow-hidden rounded-md border border-slate-200">
           <div className="flex flex-wrap gap-2 border-b border-slate-200 bg-slate-50 p-2">
             <Input className="h-8 min-w-32 flex-1" placeholder="Search title or key" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search cases" />
-            {opts.folders.length > 0 && (
-              <Select className="h-8 w-auto max-w-48" value={folder} onChange={(e) => setFolder(e.target.value)} aria-label="Folder">
-                <option value="">All folders</option>
-                {opts.folders.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.label}
-                  </option>
-                ))}
-              </Select>
-            )}
             {opts.tags.length > 0 && (
               <Select className="h-8 w-auto" value={tag} onChange={(e) => setTag(e.target.value)} aria-label="Tag">
                 <option value="">Any tag</option>
@@ -334,7 +362,18 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
               </Button>
             )}
           </div>
-          <ul className="max-h-56 divide-y divide-slate-100 overflow-y-auto" aria-label="Cases to pick">
+          {opts.bracketTitles > 0 && (
+            <p className="border-b border-slate-200 bg-sky-50 px-3 py-1.5 text-xs text-sky-900">
+              Looking for [UNITY] or [WEB]? Words in [brackets] at the start of a title aren&apos;t tags yet. Turn them into tags with <b>Review…</b> in the Case library.
+            </p>
+          )}
+          <div className={cx("grid", opts.folders.length > 0 && "sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)]")}>
+          {opts.folders.length > 0 && (
+            <div className="border-b border-slate-200 sm:border-r sm:border-b-0">
+              <FolderList folders={opts.folders} cases={opts.cases} value={folder} onChange={setFolder} />
+            </div>
+          )}
+          <ul className="max-h-72 min-w-0 divide-y divide-slate-100 overflow-y-auto" aria-label="Cases to pick">
             {visible.slice(0, 300).map((c, i) => (
               <li key={c.id}>
                 {i === closeStart && (
@@ -354,8 +393,30 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
               </li>
             ))}
             {visible.length > 300 && <li className="px-3 py-2 text-xs text-slate-500">Showing 300 of {visible.length}. Search or pick a folder to narrow it down.</li>}
-            {visible.length === 0 && <li className="px-3 py-4 text-center text-sm text-slate-500">No cases match.</li>}
+            {visible.length === 0 && (
+              <li className="px-3 py-4 text-center text-sm text-slate-500">
+                {tag || priority ? (
+                  <>
+                    No cases here match the tag or priority filter.{" "}
+                    <button
+                      type="button"
+                      className="font-medium text-accent-700 underline"
+                      onClick={() => {
+                        setTag("");
+                        setPriority("");
+                      }}
+                    >
+                      Clear filters
+                    </button>
+                  </>
+                ) : (
+                  "No cases match."
+                )}
+              </li>
+            )}
           </ul>
+          </div>
+          <CantFindCase archived={opts.archived} bracketTitles={opts.bracketTitles} umbrellaName={opts.umbrellaName} libraryKey={opts.libraryKey} />
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
             <span>
               {picked.length} picked
@@ -379,7 +440,7 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
 
       <section aria-labelledby="rb-where">
         <h3 id="rb-where" className="mb-1.5 text-xs font-semibold text-slate-600">
-          2. Where it goes <span className="font-normal text-slate-500">· one run in each test cycle you tick</span>
+          {step(2)}. Test cycle <span className="font-normal text-slate-500">· Where the chosen test cases will go</span>
         </h3>
         {opts.newCycle?.empty && !newCycle.open && (
           <p className="mb-2 text-sm text-slate-600">
@@ -414,18 +475,15 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
           )}
         </div>
         {newCycle.open && opts.newCycle?.canCreate && (
-          <div className="mt-2 grid gap-2 rounded-md border border-dashed border-slate-300 bg-slate-50 p-3 sm:grid-cols-[1fr_12rem]" data-testid="new-cycle">
+          <div className="mt-2 grid gap-2 rounded-md border border-dashed border-slate-300 bg-slate-50 p-3 sm:grid-cols-2" data-testid="new-cycle">
             <Field label="Name" htmlFor="rb-cycle-name">
               <Input id="rb-cycle-name" value={newCycle.name} onChange={(e) => setNewCycle((n) => ({ ...n, name: e.target.value }))} placeholder="e.g. Sprint 14 smoke" />
             </Field>
-            <Field label="Platform (optional)" htmlFor="rb-cycle-platform">
-              <Input id="rb-cycle-platform" list="rb-cycle-platforms" value={newCycle.platform} onChange={(e) => setNewCycle((n) => ({ ...n, platform: e.target.value }))} />
-              <datalist id="rb-cycle-platforms">
-                {opts.newCycle.platforms.map((p) => (
-                  <option key={p} value={p} />
-                ))}
-              </datalist>
-            </Field>
+            <div className="sm:col-span-2">
+              <Field label="Platform (optional)" htmlFor="rb-cycle-platform">
+                <PlatformPicker id="rb-cycle-platform" platforms={opts.newCycle.platforms} umbrella={opts.umbrella?.name ?? "the umbrella"} value={newCycle.platform} onChange={(platform) => setNewCycle((n) => ({ ...n, platform }))} />
+              </Field>
+            </div>
             <p className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-2">
               Made when you press Start, with this run in it.
               <InfoTip text={`A test cycle is the folder a run goes in, like "Sprint 14". It uses ${opts.umbrella?.name}'s cases, Jira, bug template and team.`} />
@@ -434,20 +492,52 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
         )}
       </section>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Run name" htmlFor="rb-name">
-          <Input id="rb-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={autoName} />
-          {typedName === null && <p className="mt-1 text-xs text-slate-500">Changes with what you pick, until you type your own.</p>}
+      <div className="grid items-start gap-3 sm:grid-cols-2">
+        <Field label="Run name (optional)" htmlFor="rb-name" hint={grayName ? "Leave it blank to use the suggested name shown." : undefined}>
+          <Input id="rb-name" value={typedName} onChange={(e) => setName(e.target.value)} placeholder={grayName || "Pick what to run first"} />
         </Field>
-        <Field label="Release (optional)" htmlFor="rb-release" hint={rcs.length > 1 && release === null ? "Blank uses each test cycle's own." : undefined}>
-          <Input id="rb-release" aria-label="Release" value={releaseValue} onChange={(e) => setRelease(e.target.value)} placeholder="e.g. 2.1" />
+        <Field
+          label="Release (optional)"
+          htmlFor="rb-release"
+          hint={
+            !release.trim() && rcs.length > 0 && !(rcs.length > 1 && cycleRelease) ? (
+              <span className="flex flex-wrap items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-sky-900" data-testid="release-suggest">
+                {rcs.length === 1 ? (
+                  <>
+                    <span>
+                      {chosen.find((c) => c.rcName.trim() === rcs[0])!.name} is release {rcs[0]}.
+                    </span>
+                    <Button size="sm" onClick={() => setRelease(rcs[0])}>
+                      Use {rcs[0]}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <span>These test cycles have releases {rcs.join(", ")}.</span>
+                    <Button size="sm" onClick={() => setCycleRelease(true)}>
+                      Use each one&apos;s own
+                    </Button>
+                  </>
+                )}
+              </span>
+            ) : !release.trim() && cycleRelease && rcs.length > 1 ? (
+              <span>
+                Each run gets its test cycle&apos;s release.{" "}
+                <button type="button" className="text-accent-700 underline" onClick={() => setCycleRelease(false)}>
+                  Undo
+                </button>
+              </span>
+            ) : undefined
+          }
+        >
+          <Input id="rb-release" aria-label="Release" value={release} onChange={(e) => setRelease(e.target.value)} placeholder="e.g. 2.1" />
         </Field>
         <RunFieldInputs fields={opts.runFields.filter((f) => f.required)} prefix="rb" />
       </div>
 
       <div>
         <button type="button" className="text-xs text-slate-600 hover:underline" aria-expanded={more} onClick={() => setMore((m) => !m)}>
-          {more ? "▾" : "▸"} {["Build", ...opts.runFields.filter((f) => !f.required).map((f) => (f.id === "csp" ? "CSP" : f.name)), "environment, assign to, notes"].join(", ")}
+          {more ? "▾" : "▸"} More details (optional): {["build", ...opts.runFields.filter((f) => !f.required).map((f) => (f.id === "csp" ? "CSP" : f.name)), "environment, assign to, notes"].join(", ")}
         </button>
         {more && (
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
@@ -463,11 +553,7 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
                 id="rb-assignee"
                 value={members.length ? assignee : ""}
                 disabled={!members.length}
-                onChange={(e) => {
-                  setAssignee(e.target.value);
-                  // Every case going to someone else: you're handing it off, not testing it.
-                  setGoTest(!e.target.value || e.target.value === opts.meId);
-                }}
+                onChange={(e) => setAssignee(e.target.value)}
               >
                 <option value="">Nobody yet</option>
                 <option value={opts.meId}>Me</option>
@@ -493,35 +579,41 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-3">
-        <p className="text-sm text-slate-600" aria-live="polite">
-          {kindId === null ? (
-            "Pick what kind of run it is."
-          ) : !what ? (
-            "Pick what to run."
-          ) : what === "suite" && !suite ? (
-            "Pick a suite."
-          ) : runCount ? (
-            <>
-              Starts <b>{runCount === 1 ? "1 run" : `${runCount} runs`}</b> with <b>{count === 1 ? "1 case" : `${count} cases`}</b> in{" "}
-              {[...chosen.map((c) => c.name), ...(makingCycle ? [`${newCycle.name.trim()} (new)`] : [])].join(", ")}
-            </>
-          ) : (
-            "Tick a test cycle to start."
-          )}
-        </p>
-        <div className="flex items-center gap-3">
-          {runCount === 1 && kindId !== null && (
-            <label className="flex items-center gap-1.5 text-xs text-slate-600">
-              <input type="checkbox" checked={goTest} onChange={(e) => setGoTest(e.target.checked)} />
-              Open the first case
-            </label>
-          )}
+        {/* What's still needed (ver_99), so it's clear why Start is grayed out. */}
+        <ul className="space-y-0.5 text-xs" aria-live="polite" data-testid="run-todo">
+          {todo.map(([ok, text]) => (
+            <li key={text} className={ok ? "text-slate-700" : "text-slate-500"}>
+              <span className={cx("mr-1", ok ? "text-emerald-600" : "text-slate-400")} aria-hidden>
+                {ok ? "✓" : "○"}
+              </span>
+              {text}
+            </li>
+          ))}
+        </ul>
+        <div className="flex flex-wrap items-center gap-2">
           <Button onClick={onClose}>Cancel</Button>
-          {kindId !== null && (
-            <Button variant="primary" disabled={pending || !runCount || !count} onClick={submit}>
-              {pending ? "Starting…" : runCount > 1 ? `Start ${runCount} ${session ? "sessions" : "runs"}` : session ? "Start session" : kind ? `Start ${kind.name.toLowerCase()}` : "Start run"}
-            </Button>
-          )}
+          {kindId !== null &&
+            (runCount > 1 ? (
+              <Button variant="primary" disabled={pending || !ready} onClick={() => submit(false)}>
+                {pending ? "Starting…" : `Start ${runCount} ${session ? "sessions" : "runs"}`}
+              </Button>
+            ) : session ? (
+              <Button variant="primary" disabled={pending || !ready} onClick={() => submit(true)}>
+                {pending ? "Starting…" : "Start session"}
+              </Button>
+            ) : (
+              <>
+                <Button disabled={pending || !ready} onClick={() => submit(false)}>
+                  {kind ? `Start ${kind.name.toLowerCase()}` : "Start run"}
+                </Button>
+                {/* Handing every case to someone else: no "test now" for you. */}
+                {!handed && (
+                  <Button variant="primary" disabled={pending || !ready} onClick={() => submit(true)}>
+                    {pending ? "Starting…" : "Start and test now"}
+                  </Button>
+                )}
+              </>
+            ))}
         </div>
       </div>
     </div>
@@ -532,7 +624,7 @@ type Kind = RunBoxOptions["kinds"][number];
 
 /**
  * "What kind of run?" (ver_95): Smoke test, Release candidate, the umbrella's own kinds,
- * Bug bash and "+ New kind…". A kind's usual suite fills in what to run.
+ * Bug bash and "+ New kind…". A kind's usual suite is offered under What to run (ver_99).
  */
 function KindStep({
   kinds,
@@ -592,7 +684,7 @@ function KindStep({
   return (
     <section aria-labelledby="rb-kind">
       <h3 id="rb-kind" className="mb-1.5 text-xs font-semibold text-slate-600">
-        What kind of run?
+        1. What kind of run?
       </h3>
       <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Kind of run">
         {shown.map((k) => (

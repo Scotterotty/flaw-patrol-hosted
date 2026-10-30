@@ -42,15 +42,19 @@ test("one Start a run box: whole library, a suite or picked cases, in one or mor
   const box = page.getByRole("dialog", { name: "Start a run" });
   await pickKind(page);
   // The box opens fresh: nothing picked, no test cycle ticked.
-  await expect(box.getByText("Pick what to run.")).toBeVisible();
+  await expect(box.getByTestId("run-todo")).toContainText("Pick what to run");
+  await expect(box.getByTestId("run-todo")).toContainText("Tick a test cycle");
   for (const name of [/Whole Case library/, /A suite/, /Pick cases/]) await expect(box.getByRole("button", { name })).toHaveAttribute("aria-pressed", "false");
   await box.getByRole("button", { name: /Pick cases/ }).click();
   await box.getByLabel("Search cases").fill("Log");
   await box.getByRole("button", { name: "Tick all 2" }).click();
-  // ver_95: the newest test cycle starts ticked.
+  // ver_99: no test cycle is ticked for you.
+  await expect(box.getByRole("checkbox", { name: `${NAME} Web RC4` })).not.toBeChecked();
+  await expect(box.getByRole("checkbox", { name: `${NAME} Unity RC4` })).not.toBeChecked();
   await box.getByRole("checkbox", { name: `${NAME} Web RC4` }).check();
   await box.getByRole("checkbox", { name: `${NAME} Unity RC4` }).check();
-  await expect(box.getByText(/Starts 2 runs with 2 cases/)).toBeVisible();
+  await expect(box.getByTestId("run-todo")).toContainText(`One run in each: ${NAME} Web RC4, ${NAME} Unity RC4`);
+  await expect(box.getByTestId("run-todo")).toContainText("2 cases");
   await box.getByLabel("Run name").fill(`Login check ${TAG}`);
   await box.getByRole("button", { name: "Start 2 runs" }).click();
   await expect(page).toHaveURL(new RegExp(`${home.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/runs`));
@@ -65,10 +69,9 @@ test("one Start a run box: whole library, a suite or picked cases, in one or mor
   await page.getByRole("button", { name: "Run 1 selected…" }).click();
   await pickKind(page);
   await expect(box.getByText("1 picked")).toBeVisible();
-  // ver_95: the newest test cycle starts ticked; run it in Web only.
-  await box.getByRole("checkbox", { name: `${NAME} Unity RC4` }).uncheck();
+  // Run it in Web only, and go straight to testing.
   await box.getByRole("checkbox", { name: `${NAME} Web RC4` }).check();
-  await box.getByRole("button", { name: /^Start (run|smoke test)$/ }).click();
+  await box.getByRole("button", { name: "Start and test now" }).click();
   await expect(page).toHaveURL(/\/runs\/2\/execute/);
   await expect(page.getByText(`Join a space ${TAG}`).first()).toBeVisible();
 
@@ -88,9 +91,11 @@ test("one Start a run box: whole library, a suite or picked cases, in one or mor
   // Opened from the Unity test cycle, so Unity is ticked for you (ver_85).
   await expect(box.getByRole("checkbox", { name: `${NAME} Unity RC4` })).toBeChecked();
   await expect(box.getByRole("checkbox", { name: `${NAME} Web RC4` })).not.toBeChecked();
-  await expect(box.getByText(/Starts 1 run with 3 cases/)).toBeVisible();
+  await expect(box.getByTestId("run-todo")).toContainText("3 cases");
+  // ver_99: the release is offered, not filled in.
+  await expect(box.getByLabel("Release", { exact: true })).toHaveValue("");
+  await box.getByRole("button", { name: "Use RC4" }).click();
   await expect(box.getByLabel("Release", { exact: true })).toHaveValue("RC4");
-  await box.getByRole("checkbox", { name: "Open the first case" }).uncheck();
   await box.getByRole("button", { name: /^Start (run|smoke test)$/ }).click();
   await expect(page).toHaveURL(/\/runs\/2$/);
 

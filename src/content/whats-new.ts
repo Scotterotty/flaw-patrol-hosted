@@ -22,6 +22,28 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 99,
+    date: "2026-10-30",
+    items: [
+      {
+        kind: "better",
+        title: "Nothing is picked for you when you start a run",
+        text: "Start a run and Release candidate now open blank: you pick what to run, the test cycle, the platforms and anything carried over from last time. Last time's choices show up as blue suggestions, like Use 2.1 or Use Demo RC 2. A list at the bottom shows what's still needed, and Start and test now opens the first case.",
+        link: "/g/{umbrella}",
+      },
+      {
+        kind: "better",
+        title: "Clearer New test suite page",
+        text: "Numbered steps, the Case library folders listed beside the cases with Tick all, and a Can't find a case? tip that explains why a case might not show up. Pick cases in Start a run has the same folder list.",
+      },
+      {
+        kind: "new",
+        title: "Type a new CSP version, or add a new platform, right where you pick",
+        text: "Pick-list run fields like CSP version now take a typed value too. Wherever you pick a platform there's a New platform button, and the new platform shows up across the whole umbrella.",
+      },
+    ],
+  },
+  {
     version: 98,
     date: "2026-10-30",
     items: [

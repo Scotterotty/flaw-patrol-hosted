@@ -25,6 +25,19 @@ export async function openReleaseBox(page: Page) {
   await expect(page.getByRole("dialog").getByLabel("Release", { exact: true })).toBeVisible();
 }
 
+/**
+ * Release candidate (ver_99): nothing is ticked for you. Tick a platform and pick what it runs
+ * from its dropdown: an option button ("Run RC4's suites again", "No runs yet") or a suite's checkbox.
+ */
+export async function choosePlatform(page: Page, platform: string, pick: RegExp | string) {
+  const rc = page.getByRole("dialog");
+  await rc.getByRole("checkbox", { name: platform, exact: true }).check();
+  const menu = rc.getByRole("group", { name: `Choose what ${platform} runs` });
+  await menu.getByRole("button", { name: pick }).or(menu.getByRole("checkbox", { name: pick })).first().click();
+  if (await menu.isVisible()) await menu.getByRole("button", { name: "Done" }).click();
+  await expect(menu).toHaveCount(0);
+}
+
 /** Start a run inside an umbrella asks the kind first (ver_95). Picks one so the rest of the box shows. */
 export async function pickKind(page: Page, name = "Smoke test") {
   const box = page.getByRole("dialog");

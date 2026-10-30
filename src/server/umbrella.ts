@@ -13,7 +13,8 @@ import { can, type Action } from "@/lib/permissions";
 import { requireProjectAction, requireUser } from "@/lib/session";
 import { type CarryOver, MAX_SHORTCUTS, OPEN_BUG, parsePlatforms, parseShortcuts, SHORTCUT_ICONS, syncUmbrellaMembers, unionMembers } from "@/lib/umbrella";
 import { attempt, UserError } from "./result";
-import { MAX_RUN_FIELDS, type RunField } from "@/lib/run-fields";
+import { MAX_RUN_FIELDS, parseRunFields, type RunField } from "@/lib/run-fields";
+import { fieldsOrFail } from "./run-field-input";
 import { buildEntries } from "./snapshot";
 
 // Umbrellas: a project group with a hub project holding the shared library, Jira
@@ -395,7 +396,9 @@ export async function rcPlan(groupId: string) {
     allSuites: suites.map((s) => ({ id: s.id, name: s.name, cases: s.cases.length, caseIds: s.cases.map((c) => c.caseId) })),
     library: { folders, cases: cases.map((c) => ({ id: c.id, key: `${hub.key}-${c.number}`, title: c.title, folderId: c.folderId })) },
     lastRc,
+    // Offered as "Use Demo RC 2" next to the empty Release box, never filled in (ver_99).
     suggested: (lastRc && nextRc(lastRc)) || "",
+    runFields: parseRunFields(group.runFields),
   };
 }
 
@@ -411,8 +414,11 @@ async function openBugCaseIds(projectIds: string[]) {
 const rcSchema = z.object({
   rc: z.string().trim().min(1, "Name the release you're testing").max(30),
   platforms: z.array(z.string()).min(1, "Pick at least one platform."),
-  carryAssignments: z.boolean().default(true),
-  recheckBugs: z.boolean().default(true),
+  // Nothing carries over unless it's ticked (ver_99).
+  carryAssignments: z.boolean().default(false),
+  recheckBugs: z.boolean().default(false),
+  /** The umbrella's run fields for every run made (ver_99), by field id. "csp" fills cspVersion. */
+  fields: z.record(z.string(), z.string().max(200)).default({}),
   /** Close the last release's open runs on these platforms (ver_85). */
   closeOld: z.boolean().default(false),
   /**
@@ -443,6 +449,7 @@ export async function startNextRc(groupId: string, input: z.input<typeof rcSchem
     const { user, role, group, hub } = await requireUmbrella(groupId, "umbrella:rc");
     notArchived(group);
     const data = rcSchema.parse(input);
+    const typed = await fieldsOrFail(hub.id, data.fields, { defs: parseRunFields(group.runFields) });
     const all = parsePlatforms(group.platforms);
     const chosen = all.filter((p) => data.platforms.includes(p.name));
     if (!chosen.length) throw new UserError("Pick at least one platform.");
@@ -545,6 +552,8 @@ export async function startNextRc(groupId: string, input: z.input<typeof rcSchem
                 name: s.name,
                 release: data.rc,
                 kind: "rc",
+                cspVersion: typed.cspVersion ?? "",
+                fields: typed.fields,
                 description: recheck.size ? "Cases with bugs still open from the last run are first, so they get re-checked early." : "",
                 createdById: user.id,
                 createdBy: user.name ?? user.email,

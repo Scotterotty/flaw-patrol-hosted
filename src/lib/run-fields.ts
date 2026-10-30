@@ -70,7 +70,7 @@ export function pickValues(run: { cspVersion: string; fields?: unknown }, defs: 
 /**
  * Check what someone typed against the fields and turn it into what's stored.
  * CSP version goes to its own column; the rest are kept with their names.
- * Throws a plain message when a required field is empty or a choice isn't in the list.
+ * Throws a plain message when a required field is empty.
  */
 export function readFieldInput(defs: RunField[], input: Record<string, string>, opts: { strict?: boolean } = {}) {
   const fields: RunFieldValue[] = [];
@@ -78,7 +78,7 @@ export function readFieldInput(defs: RunField[], input: Record<string, string>, 
   for (const d of defs) {
     const value = (input[d.id] ?? "").trim().slice(0, 200);
     if (opts.strict !== false && d.required && !value) throw new Error(`Fill in ${d.name}.`);
-    if (value && d.type === "list" && d.choices.length && !d.choices.includes(value)) throw new Error(`${value} isn't one of the ${d.name} choices.`);
+    // Pick-list fields take a typed value too (ver_99), for a version nobody has added yet.
     if (d.id === CSP_FIELD.id) cspVersion = value;
     else fields.push({ id: d.id, name: d.name, value });
   }

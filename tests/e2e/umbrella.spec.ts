@@ -47,7 +47,7 @@ test("umbrella: shared library, platforms, Start next release, bugs and shortcut
   // A shared suite, and a platform that runs it.
   await page.goto(`/p/${HUB}/suites/new`);
   await page.getByLabel("Name", { exact: true }).fill("Smoke");
-  await page.getByRole("button", { name: /^Add all/ }).click();
+  await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
   await expect(page).not.toHaveURL(/\/suites\/new/);
   // Start next release adds the platform on the spot (ver_86: no Platforms row in Settings)

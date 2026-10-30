@@ -50,7 +50,6 @@ test("bug reporter is the tester, and plain Save stays on the case", async ({ pa
   await page.getByRole("button", { name: "Create suite" }).click();
   await page.getByRole("button", { name: "Start test run" }).click();
   await page.getByLabel("Release", { exact: true }).fill("rc1");
-  await page.getByLabel("Open the first case when it starts").uncheck();
   await page.getByRole("button", { name: "Start run", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${KEY}/runs/1$`));
   await page.getByRole("link", { name: "Start testing" }).click();

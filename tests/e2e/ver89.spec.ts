@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
-import { openReleaseBox, pickKind } from "./projects";
+import { choosePlatform, openReleaseBox, pickKind } from "./projects";
 
 // ver_89: custom run fields per umbrella (new umbrellas start with none, no OKO layout),
 // the Start RC platform picker (every platform can be ticked and chooses what it runs),
@@ -52,7 +52,9 @@ test("run fields, the RC platform picker, pips that open runs and ✕ on popups"
   await openReleaseBox(page);
   const box = page.getByRole("dialog");
   await box.getByLabel("Release", { exact: true }).fill("RC1");
-  await expect(box.getByLabel("Web", { exact: true })).toBeChecked();
+  // ver_99: no platform is ticked for you.
+  await expect(box.getByLabel("Web", { exact: true })).not.toBeChecked();
+  await choosePlatform(page, "Web", "Smoke");
   await expect(box.getByRole("button", { name: "Start RC1 · 1 platform" })).toBeVisible();
   await box.getByLabel("Unity", { exact: true }).check();
   const menu = box.getByRole("group", { name: "Choose what Unity runs" });
@@ -62,6 +64,10 @@ test("run fields, the RC platform picker, pips that open runs and ✕ on popups"
   await menu.getByRole("button", { name: "Done" }).click();
   await expect(box.getByRole("button", { name: "What Unity runs" })).toContainText("Smoke · 1 case");
   await expect(box.getByText(`${NAME} Unity RC1`)).toBeVisible();
+  // ver_99: the release box asks the umbrella's run fields too, and a pick list takes a typed value.
+  await expect(box.getByTestId("rc-todo")).toContainText("Fill in Region");
+  await expect(box.getByRole("button", { name: "Start RC1 · 2 platforms" })).toBeDisabled();
+  await box.getByLabel("Region *").fill("APAC");
   await box.getByRole("button", { name: "Start RC1 · 2 platforms" }).click();
   await expect(box).toBeHidden({ timeout: 30_000 });
 
@@ -75,6 +81,9 @@ test("run fields, the RC platform picker, pips that open runs and ✕ on popups"
     expect(JSON.stringify(group.platforms)).toContain("Unity");
     const web = await db.project.findFirstOrThrow({ where: { groupId, platform: "Web" } });
     webKey = web.key;
+    // The RC's runs got the Region typed in the box.
+    const rcRun = await db.testRun.findFirstOrThrow({ where: { projectId: web.id } });
+    expect(JSON.stringify(rcRun.fields)).toContain("APAC");
   } finally {
     await db.$disconnect();
   }
@@ -84,7 +93,7 @@ test("run fields, the RC platform picker, pips that open runs and ✕ on popups"
   await pickKind(page);
   await expect(start.getByLabel("Region *")).toBeVisible();
   await expect(start.getByLabel("CSP version")).toHaveCount(0);
-  await start.getByLabel("Region *").selectOption("EU");
+  await start.getByLabel("Region *").fill("EU");
   await page.keyboard.press("Escape");
 
   // Pips: the case's Execution history pip opens the run it came from.

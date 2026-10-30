@@ -71,7 +71,6 @@ test("bugs follow the team template", async ({ page }) => {
   await page.getByLabel("Environment").fill("o2QA");
   await page.getByLabel("Build").fill("2.22.0.4417");
   await page.getByLabel("CSP version").fill("0.22.1");
-  await page.getByLabel("Open the first case when it starts").uncheck();
   await page.getByRole("button", { name: "Start run", exact: true }).click();
   await page.getByRole("link", { name: "Start testing" }).click();
   await expect(page).toHaveURL(/\/execute\?entry=/);

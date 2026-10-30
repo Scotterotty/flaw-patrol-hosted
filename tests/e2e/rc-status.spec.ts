@@ -13,7 +13,6 @@ async function startRun(page: Page, name: string, release: string, build: string
   await page.getByLabel("Release", { exact: true }).fill(release);
   await page.getByLabel("Build").fill(build);
   await page.getByLabel("CSP version").fill("7.0.0");
-  await page.getByLabel("Open the first case when it starts").uncheck();
   await page.getByRole("button", { name: "Start run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
   return page.url();
@@ -34,7 +33,7 @@ test("Release status gathers each client's run of a release, ready for Confluenc
   }
   await page.goto(`/p/${KEY}/suites/new`);
   await page.getByLabel("Name", { exact: true }).fill("Both");
-  await page.getByRole("button", { name: /^Add all/ }).click();
+  await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
   await expect(page).not.toHaveURL(/\/suites\/new/);
 

@@ -67,7 +67,7 @@ test("a charter with a persona runs as a timed session with a log, bugs and an o
   // It goes in a suite like any case.
   await page.goto(`/p/${KEY}/suites/new`);
   await page.getByLabel("Name", { exact: true }).fill("Exploring");
-  await page.getByRole("button", { name: /^Add all/ }).click();
+  await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
   await expect(page.getByText("Charter").first()).toBeVisible();
 

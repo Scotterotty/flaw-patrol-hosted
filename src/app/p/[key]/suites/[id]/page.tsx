@@ -133,7 +133,7 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
               source={{ kind: "suite", suiteId: suite.id }}
               defaultName={`${suite.name} ${new Date().toISOString().slice(0, 10)}`}
               members={members}
-              defaults={latest ? { build: "", environment: latest.environment, release: latest.release } : undefined}
+              suggest={latest ? { from: `R${latest.number}`, environment: latest.environment, release: latest.release } : undefined}
               disabled={activeCases.length === 0}
               releases={releases}
               suiteVersion={suite.currentVersion}

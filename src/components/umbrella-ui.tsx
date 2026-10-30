@@ -1,5 +1,8 @@
 "use client";
 
+import { PlatformPicker } from "./platform-picker";
+import { RunFieldInputs } from "./run-field-inputs";
+import type { RunField } from "@/lib/run-fields";
 import { forgivingFilter } from "@/lib/fuzzy";
 import { CloseMatchesLabel } from "./close-matches";
 import { onStartKind } from "@/lib/start-kind";
@@ -653,6 +656,8 @@ export type RcPlan = {
   hubKey: string;
   suggested: string;
   lastRc: string;
+  /** The umbrella's run fields, asked in the box (ver_99). */
+  runFields: RunField[];
   allSuites: { id: string; name: string; cases: number; caseIds: string[] }[];
   /** The Case library as folders and cases, for Choose from folders… (ver_91). */
   library: { folders: { id: string; parentId: string | null; name: string }[]; cases: PickerCase[] };
@@ -711,29 +716,22 @@ export function StartRcButton({
     if (asked) setOpen(true);
   }, [asked]);
   useEffect(() => onStartKind("rc", () => setOpen(true)), []);
-  const [rc, setRc] = useState(plan.suggested);
-  // Every platform can be ticked (ver_89). Ones with saved suites start ticked, running them again;
-  // ones that ran cases without a suite start on the same cases as last release (ver_91).
-  const startChoice = (p: RcPlan["platforms"][number]): RcChoice | null =>
-    // The suites the last test cycle really ran come first (ver_95), so you see "Same suite as Demo RC 1".
-    p.lastSuiteIds.length ? { kind: "suites", ids: p.lastSuiteIds } : p.suiteIds.length ? { kind: "suites", ids: p.suiteIds } : p.lastCaseIds.length ? { kind: "cases", ids: p.lastCaseIds } : p.remembered.length ? { kind: "cases", ids: p.remembered } : null;
-  const [picked, setPicked] = useState(() => new Set(plan.platforms.filter((p) => startChoice(p)).map((p) => p.name)));
-  const [choices, setChoices] = useState<Record<string, RcChoice>>(() =>
-    Object.fromEntries(plan.platforms.flatMap((p) => {
-      const c = startChoice(p);
-      return c ? [[p.name, c]] : [];
-    })),
-  );
+  // Nothing is picked for you (Scott, ver_99): the release name, platforms, what each runs and the
+  // carry-over all start empty. Last release's choices are offered in each dropdown and as "Use Demo RC 2".
+  const [rc, setRc] = useState("");
+  const [picked, setPicked] = useState<Set<string>>(() => new Set());
+  const [choices, setChoices] = useState<Record<string, RcChoice>>({});
+  // Bumped as run fields are typed in, so the still-needed list keeps up.
+  const [, setTyped] = useState(0);
   const [menu, setMenu] = useState<string | null>(null);
   // The platform whose folder tree is open (ver_91).
   const [tree, setTree] = useState<string | null>(null);
   const [whoGets, setWhoGets] = useState(false);
-  const [carry, setCarry] = useState(true);
-  const [recheck, setRecheck] = useState(true);
-  const [closeOld, setCloseOld] = useState(true);
-  // Platforms added here, each with the suite it runs.
-  const firstSuite = plan.allSuites[0]?.id ?? "";
-  const [added, setAdded] = useState<{ name: string; suiteId: string }[]>(() => (plan.platforms.length || !canManage ? [] : [{ name: "", suiteId: firstSuite }]));
+  const [carry, setCarry] = useState(false);
+  const [recheck, setRecheck] = useState(false);
+  const [closeOld, setCloseOld] = useState(false);
+  // Platforms added here, each with the suite it runs (picked, not defaulted).
+  const [added, setAdded] = useState<{ name: string; suiteId: string }[]>(() => (plan.platforms.length || !canManage ? [] : [{ name: "", suiteId: "" }]));
   // Platform changes save as they're made (ver_86): ⋯ Rename, ⋯ Remove (with Undo).
   const [renaming, setRenaming] = useState<{ from: string; to: string } | null>(null);
   const [removed, setRemoved] = useState<{ at: number; name: string; suiteIds: string[]; color: string }[]>([]);
@@ -824,6 +822,7 @@ export function StartRcButton({
     );
   };
   const newOnes = added.filter((a) => a.name.trim() && a.suiteId);
+  const fieldValue = (f: RunField) => (document.getElementById(f.id === "csp" ? "rc-csp" : `rc-f-${f.id}`) as HTMLInputElement | null)?.value.trim() ?? "";
   const chosen = plan.platforms.filter((p) => ready(p.name));
   const waiting = plan.platforms.filter((p) => picked.has(p.name) && !ready(p.name));
   const starting = [...chosen.map((p) => p.name), ...newOnes.map((a) => a.name.trim())];
@@ -834,7 +833,8 @@ export function StartRcButton({
       if (!saved.ok) return saved;
     }
     const sent = Object.fromEntries(chosen.map((p) => [p.name, choices[p.name]]));
-    return startNextRc(groupId, { rc, platforms: starting, carryAssignments: carry, recheckBugs: recheck, closeOld: closeOld && openRuns > 0, choices: sent });
+    const fields = Object.fromEntries(plan.runFields.map((f) => [f.id, fieldValue(f)]));
+    return startNextRc(groupId, { rc, platforms: starting, carryAssignments: carry, recheckBugs: recheck, closeOld: closeOld && openRuns > 0, choices: sent, fields });
   };
   // Removed platforms stay in the list, crossed out, until the box closes, so Undo is right there.
   const rows: ({ kind: "live"; p: RcPlan["platforms"][number] } | { kind: "gone"; r: (typeof removed)[number] })[] = plan.platforms.map((p) => ({ kind: "live" as const, p }));
@@ -876,6 +876,17 @@ export function StartRcButton({
   const nothing = [bugs === 0 && "no open bugs", openRuns === 0 && "no open runs"].filter(Boolean) as string[];
   // What can't carry over, as one plain sentence (ver_95): "Nobody was assigned in Demo RC 1 and it has no open bugs, so…"
   const facts = [!anyAssigned && `nobody was assigned in ${last}`, nothing.length && `${anyAssigned ? last : "it"} has ${list(nothing)}`].filter(Boolean) as string[];
+  const missingFields = open ? plan.runFields.filter((f) => f.required && !fieldValue(f)) : [];
+  const halfAdded = added.filter((a) => !!a.name.trim() !== !!a.suiteId);
+  // What's still needed before Start works (ver_99).
+  const todo: [boolean, string][] = [
+    [!!rc.trim(), rc.trim() ? `Release: ${rc.trim()}` : "Name the release"],
+    [starting.length > 0 || waiting.length > 0, starting.length || waiting.length ? `Platforms: ${list([...plan.platforms.filter((p) => picked.has(p.name)).map((p) => p.name), ...newOnes.map((a) => a.name.trim())])}` : "Tick a platform"],
+    ...waiting.map((p): [boolean, string] => [false, `Choose what ${p.name} runs`]),
+    ...halfAdded.map((a): [boolean, string] => [false, a.name.trim() ? `Pick the suite ${a.name.trim()} runs` : "Name the new platform"]),
+    ...missingFields.map((f): [boolean, string] => [false, `Fill in ${f.name}`]),
+  ];
+  const allReady = todo.every(([ok]) => ok);
   const leftover = facts.length ? `${cap(facts.join(" and "))}, so there\u2019s nothing ${anyAssigned || bugs > 0 || openRuns > 0 ? "else " : ""}to carry over.` : "";
   const summary = (p: RcPlan["platforms"][number]) => {
     const c = choices[p.name];
@@ -951,18 +962,28 @@ export function StartRcButton({
           </p>
         ) : (
           <>
-            <div className="mt-3 max-w-xs">
-              <Field label="Release" htmlFor="rc-name">
-                <Input
-                  id="rc-name"
-                  value={rc}
-                  onChange={(e) => setRc(e.target.value)}
-                  placeholder="e.g. 2.1 or RC 22"
-                />
+            <div className="mt-3 max-w-md">
+              <Field
+                label="Release"
+                htmlFor="rc-name"
+                hint={
+                  plan.suggested && rc.trim() !== plan.suggested ? (
+                    <span className="flex flex-wrap items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-sky-900" data-testid="rc-suggest">
+                      <span>
+                        The last one was <b>{plan.lastRc}</b>.
+                      </span>
+                      <Button size="sm" onClick={() => setRc(plan.suggested)}>
+                        Use {plan.suggested}
+                      </Button>
+                    </span>
+                  ) : undefined
+                }
+              >
+                <Input id="rc-name" value={rc} onChange={(e) => setRc(e.target.value)} placeholder="e.g. 2.1 or RC 22" />
               </Field>
             </div>
             <p className="mt-4 mb-1.5 text-sm font-medium text-slate-700">
-              Platforms
+              Platforms <span className="font-normal text-slate-500">· tick the ones testing this release</span>
             </p>
             <div className="space-y-2">
               {rows.map((row) => {
@@ -1183,21 +1204,22 @@ export function StartRcButton({
                     className="w-44"
                   />
                   <SuitePick label="Suite it runs" suites={plan.allSuites} value={a.suiteId} onChange={(id) => setAdded((l) => l.map((x, j) => (j === i ? { ...x, suiteId: id } : x)))} />
+                  <span className="basis-full text-xs text-slate-500">Added to {plan.umbrella}&apos;s platforms, so it shows up everywhere you pick a platform.</span>
                   <Button size="sm" variant="ghost" onClick={() => setAdded((l) => l.filter((_, j) => j !== i))} aria-label="Remove this platform">
                     ✕
                   </Button>
                 </div>
               ))}
               {canManage && plan.allSuites.length > 0 && (
-                <Button size="sm" variant="ghost" onClick={() => setAdded((l) => [...l, { name: "", suiteId: firstSuite }])}>
-                  ＋ Add platform
+                <Button size="sm" variant="ghost" onClick={() => setAdded((l) => [...l, { name: "", suiteId: "" }])}>
+                  ＋ New platform
                 </Button>
               )}
             </div>
             {plan.platforms.some((p) => p.prev) && (
               <>
                 <p className="mt-4 mb-1.5 text-sm font-medium text-slate-700">
-                  Carry over from {last}
+                  Bring anything from {last}? <span className="font-normal text-slate-500">(optional)</span>
                 </p>
                 {chosen.length === 0 ? (
                   <p className="px-0.5 text-sm text-slate-500">Tick a platform to see what carries over.</p>
@@ -1311,14 +1333,25 @@ export function StartRcButton({
                 </ul>
               </div>
             )}
-            {waiting.length > 0 && (
-              <p className="mt-3 text-sm text-amber-700">
-                Choose what {list(waiting.map((p) => p.name))} {waiting.length === 1 ? "runs" : "run"}, or untick {waiting.length === 1 ? "it" : "them"}.
-              </p>
+            {plan.runFields.length > 0 && (
+              <div className="mt-4 grid items-start gap-3 sm:grid-cols-2" onInput={() => setTyped((t) => t + 1)} data-testid="rc-fields">
+                <RunFieldInputs fields={plan.runFields} prefix="rc" />
+              </div>
             )}
           </>
         )}
-        <div className="mt-4 flex justify-end gap-2 border-t border-slate-100 pt-3">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
+          <ul className="space-y-0.5 text-xs" aria-live="polite" data-testid="rc-todo">
+            {todo.map(([ok, text]) => (
+              <li key={text} className={ok ? "text-slate-700" : "text-slate-500"}>
+                <span className={cx("mr-1", ok ? "text-emerald-600" : "text-slate-400")} aria-hidden>
+                  {ok ? "✓" : "○"}
+                </span>
+                {text}
+              </li>
+            ))}
+          </ul>
+          <div className="flex gap-2">
           <Button
             onClick={() => {
               setOpen(false);
@@ -1330,7 +1363,7 @@ export function StartRcButton({
           </Button>
           <Button
             variant="primary"
-            disabled={pending || !starting.length || !rc.trim() || waiting.length > 0}
+            disabled={pending || !allReady}
             onClick={() =>
               run(
                 start,
@@ -1344,6 +1377,7 @@ export function StartRcButton({
           >
             {pending ? "Starting…" : `Start ${rc.trim() || "release"}${starting.length ? ` · ${plural(starting.length, "platform")}` : ""}`}
           </Button>
+          </div>
         </div>
       </Modal>
     </>
@@ -1480,16 +1514,15 @@ export function AddUmbrellaProject({
 
 /**
  * New project in an umbrella: one platform, one round of testing. It gets the umbrella's cases, Jira and team.
- * Pick a platform chip or type a new name; a new name joins the umbrella's platforms (ver_86).
+ * Pick a platform chip or add a new one; a new name joins the umbrella's platforms (ver_86).
+ * Nothing is picked for you (ver_99).
  */
-function NewUmbrellaProject({ groupId, umbrella, platforms, colors, onClose }: { groupId: string; umbrella: string; platforms: string[]; colors: string[]; onClose: () => void }) {
-  const [typed, setTyped] = useState("");
-  const [picked, setPicked] = useState(platforms[0] ?? "");
-  const platform = typed.trim() || picked;
-  const isNew = !!typed.trim() && !platforms.some((p) => p.toLowerCase() === typed.trim().toLowerCase());
-  // The name follows the platform, and the key follows the name, until someone types their own.
-  const [name, setName] = useState<string | null>(null);
-  const shownName = name ?? (platform ? `${umbrella} ${platform}` : "");
+function NewUmbrellaProject({ groupId, umbrella, platforms, onClose }: { groupId: string; umbrella: string; platforms: string[]; colors: string[]; onClose: () => void }) {
+  const [platform, setPlatform] = useState("");
+  // The name box starts empty; the gray name (from the platform) is used if it's left blank. The key follows the name.
+  const [name, setName] = useState("");
+  const grayName = platform ? `${umbrella} ${platform}` : "";
+  const shownName = name.trim() || grayName;
   const [key, setKey] = useState<string | null>(null);
   const { pending, error, setError, run, router } = useAction();
   const shownKey = key ?? keyFromName(shownName);
@@ -1497,55 +1530,14 @@ function NewUmbrellaProject({ groupId, umbrella, platforms, colors, onClose }: {
     <Modal open onClose={onClose} title={`New test cycle in ${umbrella}`}>
       <p className="text-sm text-slate-500">Testing a release candidate on every platform? Start a run, then Release candidate, makes one test cycle per platform in one go.</p>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <Field label="Platform" htmlFor="ap-platform">
-          <Input
-            id="ap-platform"
-            value={typed}
-            onChange={(e) => setTyped(e.target.value)}
-            placeholder={platforms.length ? "Pick below or type a new one" : "Platform name, such as Web"}
-            autoComplete="off"
-            maxLength={30}
-            autoFocus
-          />
+      <div className="mt-3 space-y-3">
+        <Field label="Platform (optional)" htmlFor="ap-platform">
+          <PlatformPicker id="ap-platform" platforms={platforms} umbrella={umbrella} value={platform} onChange={setPlatform} />
         </Field>
-        <Field label="Name" htmlFor="ap-name">
-          <Input id="ap-name" value={shownName} onChange={(e) => setName(e.target.value)} placeholder="Name this round of testing" />
+        <Field label="Name" htmlFor="ap-name" hint={grayName && !name.trim() ? "Leave it blank to use the suggested name shown." : undefined}>
+          <Input id="ap-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={grayName || "Name this round of testing, like Sprint 14"} />
         </Field>
       </div>
-      {platforms.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Pick a platform">
-          {platforms.map((p, i) => {
-            const on = !typed.trim() && picked === p;
-            return (
-              <button
-                key={p}
-                type="button"
-                aria-pressed={on}
-                onClick={() => {
-                  setPicked(p);
-                  setTyped("");
-                }}
-                className={cx("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs text-slate-800", on ? "border-accent-500 bg-accent-50" : "border-slate-200 bg-surface hover:border-accent-500")}
-              >
-                {colors[i] && <span aria-hidden className="size-2 rounded-full" style={{ background: colors[i] }} />}
-                {p}
-              </button>
-            );
-          })}
-        </div>
-      )}
-      <p className={cx("mt-2 text-xs", isNew ? "text-emerald-700" : "text-slate-500")} data-testid="platform-hint">
-        {isNew ? (
-          <>
-            ✓ <b>{typed.trim()}</b> is new. It joins {umbrella}&apos;s platforms, so it shows in <b>Start a run → Release candidate</b> and the platform filters.
-          </>
-        ) : platforms.length ? (
-          "Pick one, or type a new platform name."
-        ) : (
-          `Optional. A platform typed here joins ${umbrella}'s platforms.`
-        )}
-      </p>
       <div className="mt-3 max-w-[8rem]">
         <Field label="Key" htmlFor="ap-key">
           <Input id="ap-key" value={shownKey} onChange={(e) => setKey(e.target.value.toUpperCase())} maxLength={10} />
@@ -1561,7 +1553,7 @@ function NewUmbrellaProject({ groupId, umbrella, platforms, colors, onClose }: {
         <Button onClick={onClose}>Cancel</Button>
         <Button
           variant="primary"
-          disabled={pending}
+          disabled={pending || !shownName}
           onClick={() =>
             run(
               () => addUmbrellaProject(groupId, { name: shownName, key: shownKey, platform }),

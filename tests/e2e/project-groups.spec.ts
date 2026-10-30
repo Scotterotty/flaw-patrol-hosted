@@ -20,7 +20,7 @@ async function suiteAndRun(page: Page, key: string, suite: string, run: string) 
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
   await page.goto(`/p/${key}/suites/new`);
   await page.getByLabel("Name", { exact: true }).fill(suite);
-  await page.getByRole("button", { name: /^Add all/ }).click();
+  await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
   await expect(page).not.toHaveURL(/\/suites\/new/);
   await page.goto(`/p/${key}/suites`);
@@ -29,7 +29,6 @@ async function suiteAndRun(page: Page, key: string, suite: string, run: string) 
   await page.getByLabel("Run name").fill(run);
   await page.getByLabel("Release", { exact: true }).fill(RC);
   await page.getByLabel("Build").fill("1.0.0");
-  await page.getByLabel("Open the first case when it starts").uncheck();
   await page.getByRole("button", { name: "Start run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
 }

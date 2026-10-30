@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
-import { openReleaseBox, pickKind } from "./projects";
+import { choosePlatform, openReleaseBox, pickKind } from "./projects";
 
 // ver_85 (full test findings #6, #7, #27, A1): Start a run ticks the test cycle you're in,
 // handing a run to someone else lands on the run page with a link for them,
@@ -60,10 +60,10 @@ test("start a run in the test cycle you're in, hand it off, close it with the ne
 
   // #7: every case to Dana: the box stops opening the runner and the run page has her link.
   await box.getByRole("button", { name: /Whole Case library/ }).click();
-  await expect(box.getByLabel("Open the first case")).toBeChecked();
-  await box.getByRole("button", { name: /Build, .*environment, assign to, notes/ }).click();
+  await expect(box.getByRole("button", { name: "Start and test now" })).toBeVisible();
+  await box.getByRole("button", { name: /More details \(optional\)/ }).click();
   await box.getByLabel("Assign every case to").selectOption({ label: "Dana Lead" });
-  await expect(box.getByLabel("Open the first case")).not.toBeChecked();
+  await expect(box.getByRole("button", { name: "Start and test now" })).toHaveCount(0);
   await box.getByRole("button", { name: /^Start (run|smoke test)$/ }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${web}/runs/1\\?handed=`));
   const note = page.getByTestId("hand-off");
@@ -101,8 +101,11 @@ test("start a run in the test cycle you're in, hand it off, close it with the ne
   await openReleaseBox(page);
   const rc = page.getByRole("dialog");
   await rc.getByLabel("Release", { exact: true }).fill("RC5");
+  await choosePlatform(page, "Web", /suites again/);
+  // ver_99: nothing carries over unless you tick it.
   const close = rc.getByRole("checkbox", { name: /Close RC4's 1 open run/ });
-  await expect(close).toBeChecked();
+  await expect(close).not.toBeChecked();
+  await close.check();
   await expect(rc.getByText(`In ${NAME} Web RC4. Each can be reopened from its run page's More menu.`)).toBeVisible();
   await rc.getByRole("button", { name: "Start RC5" }).click();
   await expect(page).toHaveURL(/\/runs$/);

@@ -28,7 +28,6 @@ test("step results show up live, merge, and a part-done case saves as In progres
   await a.getByRole("checkbox").first().check();
   await a.getByRole("button", { name: "Create suite" }).click();
   await a.getByRole("button", { name: "Start test run" }).click();
-  await a.getByLabel("Open the first case when it starts").uncheck();
   await a.getByRole("button", { name: "Start run", exact: true }).click();
   await expect(a).toHaveURL(new RegExp(`/p/${KEY}/runs/1$`));
 

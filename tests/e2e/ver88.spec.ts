@@ -40,7 +40,9 @@ test("What's new opens once after a new version, filtered by role, and can be op
   await expect(win.getByRole("heading", { name: "What's new in Flaw Patrol" })).toBeVisible();
   // The window shows the newest versions (up to five); older ones fold under the newest.
   await expect(win).toContainText(`Version ${WHATS_NEW[0].version}`);
-  await win.locator("summary", { hasText: `Version ${WHATS_NEW[1].version}` }).click();
+  // The next version with something for everyone (game-only versions are hidden while the game is off).
+  const older = WHATS_NEW.slice(1).find((e) => e.items.some((i) => !i.game && (i.who ?? "all") === "all"))!;
+  await win.locator("summary", { hasText: `Version ${older.version}` }).click();
   // Esc counts as seen, like Got it.
   await page.keyboard.press("Escape");
   await expect(win).toBeHidden();
@@ -63,7 +65,7 @@ test("What's new opens once after a new version, filtered by role, and can be op
   await setSeen("tester@example.com", 91);
   await page.goto("/");
   await expect(win).toBeVisible();
-  await expect(win.getByText("A result for each check in a shared step").first()).toBeVisible();
+  await expect(win.getByText(WHATS_NEW[0].items[0].title).first()).toBeVisible();
   // Workspace and admin-only changes are left out for a tester (version 92 had only those).
   await expect(win.locator("summary", { hasText: "Version 92" })).toHaveCount(0);
   await expect(win.getByText("Company sign-in, invite emails, the activity log")).toHaveCount(0);
@@ -109,10 +111,10 @@ test("the bug box's + Add menu brings in other steps' files, takes a screenshot 
   await expect(page.getByRole("heading", { name: "Checkout" })).toBeVisible();
   await page.goto(`/p/${KEY}/suites/new`);
   await page.getByLabel("Name", { exact: true }).fill("All");
-  await page.getByRole("button", { name: /^Add all/ }).click();
+  await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
   await page.getByRole("button", { name: "Start test run" }).click();
-  await page.getByRole("button", { name: "Start run", exact: true }).click();
+  await page.getByRole("button", { name: "Start and test now" }).click();
   await expect(page.getByRole("heading", { name: "Checkout", level: 1 })).toBeVisible();
 
   // A screenshot on step 1, pasted in as a file.

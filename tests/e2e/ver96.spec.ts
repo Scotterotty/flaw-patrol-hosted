@@ -13,7 +13,6 @@ let suiteUrl = "";
 async function startRun(page: Page) {
   await page.goto(suiteUrl);
   await page.getByRole("button", { name: "Start test run" }).click();
-  await page.getByLabel("Open the first case when it starts").uncheck();
   await page.getByRole("button", { name: "Start run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
 }
@@ -40,7 +39,7 @@ test("bracket tags, New and Updated cases, and known bugs from earlier runs", as
 
   await page.goto(`/p/${KEY}/suites/new`);
   await page.getByLabel("Name", { exact: true }).fill("Login");
-  await page.getByRole("button", { name: /^Add all/ }).click();
+  await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
   await expect(page).toHaveURL(/\/suites\/(?!new$)\w+$/);
   suiteUrl = page.url();

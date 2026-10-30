@@ -1,9 +1,13 @@
 "use client";
 
 import type { RunField } from "@/lib/run-fields";
-import { Field, Input, Select } from "./ui";
+import { Field, Input } from "./ui";
 
-/** The umbrella's run fields in a run form (ver_89). CSP version keeps its old box id. */
+/**
+ * The umbrella's run fields in a run form (ver_89). CSP version keeps its old box id.
+ * A pick list is a text box with its choices as suggestions (ver_99), so a value
+ * nobody has added yet (a brand-new CSP version) can just be typed.
+ */
 export function RunFieldInputs({ fields, values, prefix, editing = false }: { fields: RunField[]; values?: Record<string, string>; prefix: string; editing?: boolean }) {
   return (
     <>
@@ -12,21 +16,25 @@ export function RunFieldInputs({ fields, values, prefix, editing = false }: { fi
         const value = values?.[f.id] ?? "";
         // Editing a run made before a field was required doesn't force it.
         const required = f.required && !editing;
+        const list = f.type === "list" && f.choices.length > 0;
         return (
-          <Field key={f.id} label={f.required ? `${f.name} *` : f.name} htmlFor={id}>
-            {f.type === "list" && f.choices.length ? (
-              <Select id={id} name={`field.${f.id}`} defaultValue={value} required={required}>
-                <option value="">{f.required ? `Pick ${f.name}` : "None"}</option>
-                {/* A value picked before the choices changed stays pickable. */}
-                {value && !f.choices.includes(value) && <option value={value}>{value}</option>}
+          <Field key={f.id} label={f.required ? `${f.name} *` : f.name} htmlFor={id} hint={list ? "Not in the list yet? Just type it." : undefined}>
+            <Input
+              id={id}
+              name={`field.${f.id}`}
+              defaultValue={value}
+              placeholder={list ? "Pick from the list or type a new one" : f.name}
+              list={list ? `${id}-choices` : undefined}
+              autoComplete="off"
+              maxLength={200}
+              required={required}
+            />
+            {list && (
+              <datalist id={`${id}-choices`}>
                 {f.choices.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
+                  <option key={c} value={c} />
                 ))}
-              </Select>
-            ) : (
-              <Input id={id} name={`field.${f.id}`} defaultValue={value} placeholder={f.name} maxLength={200} required={required} />
+              </datalist>
             )}
           </Field>
         );

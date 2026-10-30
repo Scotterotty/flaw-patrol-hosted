@@ -10,9 +10,9 @@ describe("run fields", () => {
   it("leaves CSP alone when the umbrella has no CSP field", () => {
     expect(readFieldInput([], { csp: "1" }).cspVersion).toBeUndefined();
   });
-  it("asks for required fields and checks list choices", () => {
+  it("asks for required fields and takes a typed value for a pick list (ver_99)", () => {
     expect(() => readFieldInput([region], {})).toThrow("Fill in Region.");
-    expect(() => readFieldInput([region], { "region-ab12": "Mars" })).toThrow("isn't one of the Region choices");
+    expect(readFieldInput([region], { "region-ab12": "Mars" }).fields[0].value).toBe("Mars");
     expect(readFieldInput([region], {}, { strict: false }).fields[0].value).toBe("");
   });
   it("shows filled fields on a run, and picks the ones for RC status or Jira", () => {

@@ -200,7 +200,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
               members={members}
               label={`Retest ${failedish} not passed`}
               variant="secondary"
-              defaults={{ environment: run.environment, release: run.release }}
+              suggest={{ from: `R${run.number}`, environment: run.environment, release: run.release }}
               fields={runFields}
             />
             </span>

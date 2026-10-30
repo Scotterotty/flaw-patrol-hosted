@@ -2,7 +2,8 @@ import "server-only";
 import { db } from "./db";
 import { badgeOf } from "./game";
 import { buildTree, flattenTree, pathOf, subtreeIds } from "./folders";
-import { libraryProjectIds } from "./umbrella";
+import { libraryProjectIds, umbrellaOf } from "./umbrella";
+import { hasBracketTitle } from "./tags";
 
 /**
  * Cases a suite can hold: the project's own, plus its umbrella's Case library.
@@ -10,7 +11,7 @@ import { libraryProjectIds } from "./umbrella";
  */
 export async function suitePickerData(project: { id: string; groupId: string | null }) {
   const ids = await libraryProjectIds(project);
-  const [folders, cases, tagRows, keys] = await Promise.all([
+  const [folders, cases, tagRows, keys, archived, umbrella] = await Promise.all([
     db.folder.findMany({ where: { projectId: { in: ids } }, select: { id: true, parentId: true, name: true, projectId: true } }),
     db.testCase.findMany({
       where: { projectId: { in: ids }, archived: false },
@@ -19,6 +20,9 @@ export async function suitePickerData(project: { id: string; groupId: string | n
     }),
     db.$queryRaw<{ tag: string }[]>`SELECT DISTINCT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ANY(${ids}) AND archived = false ORDER BY tag`,
     db.project.findMany({ where: { id: { in: ids } }, select: { id: true, key: true } }),
+    // For "Can't find a case?" (ver_99): archived cases never show in a picker.
+    db.testCase.count({ where: { projectId: { in: ids }, archived: true } }),
+    umbrellaOf(project),
   ]);
   const keyOf = new Map(keys.map((p) => [p.id, p.key]));
   const shared = (projectId: string) => projectId !== project.id;
@@ -35,8 +39,15 @@ export async function suitePickerData(project: { id: string; groupId: string | n
       .map(({ projectId, ...c }) => ({ ...c, key: `${keyOf.get(projectId)}-${c.number}`, folderPath: label(c.folderId, projectId) })),
     folders: byProject
       .sort((a, b) => order(a.projectId) - order(b.projectId))
-      .map((f) => ({ id: f.id, label: label(f.id, f.projectId), ids: subtreeIds(folders, f.id) })),
+      // name and depth (ver_99) draw the folder list beside the cases; group splits the library from a test cycle's own folders.
+      .map((f) => ({ id: f.id, label: label(f.id, f.projectId), name: f.name, depth: f.depth, group: ids.length > 1 ? (shared(f.projectId) ? "Case library" : "This test cycle only") : "", ids: subtreeIds(folders, f.id) })),
     tags: tagRows.map((t) => t.tag),
+    archived,
+    // [UNITY] at the start of a title isn't a tag until Case library → Review… makes it one.
+    bracketTitles: cases.filter((c) => hasBracketTitle(c.title)).length,
+    // Where archived cases and Review… live: the umbrella's Case library, or the project itself.
+    libraryKey: keyOf.get(ids[ids.length - 1]) ?? "",
+    umbrellaName: umbrella?.group.name ?? null,
   };
 }
 

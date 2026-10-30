@@ -139,11 +139,14 @@ test("platforms are added and changed in Add test cycle and Start next release, 
   await page.getByRole("button", { name: /Add test cycle/ }).first().click();
   await page.getByRole("button", { name: /^New test cycle/ }).click();
   const box = page.getByRole("dialog", { name: `New test cycle in ${NAME}` });
-  await expect(box.getByRole("button", { name: "Web", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(box.getByTestId("platform-hint")).toHaveText("Pick one, or type a new platform name.");
-  await box.getByRole("textbox", { name: "Platform", exact: true }).fill("Switch");
-  await expect(box.getByTestId("platform-hint")).toContainText("Switch is new. It joins");
-  await expect(box.getByLabel("Name", { exact: true })).toHaveValue(`${NAME} Switch`);
+  // ver_99: no platform is picked for you; + New platform adds one to the umbrella.
+  await expect(box.getByRole("radio", { name: "Web", exact: true })).toHaveAttribute("aria-checked", "false");
+  await box.getByRole("button", { name: "＋ New platform" }).click();
+  await expect(box.getByText(`Added to ${NAME}'s platforms`)).toBeVisible();
+  await box.getByLabel("New platform name").fill("Switch");
+  await box.getByRole("button", { name: "Add platform" }).click();
+  await expect(box.getByRole("radio", { name: /Switch/ })).toHaveAttribute("aria-checked", "true");
+  await expect(box.getByLabel("Name", { exact: true })).toHaveAttribute("placeholder", `${NAME} Switch`);
   await box.getByLabel("Key").fill(`S${TAG}`);
   await box.getByRole("button", { name: `Create test cycle in ${NAME}` }).click();
   await expect(page).toHaveURL(new RegExp(`/p/S${TAG}`));
