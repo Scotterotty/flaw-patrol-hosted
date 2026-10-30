@@ -1,4 +1,5 @@
 import { CrumbName } from "@/components/crumb-name";
+import { caseNewsForRun } from "@/lib/case-news-data";
 import { AutomatedResults, type AutoFileKind, type AutoRow } from "@/components/automated-results";
 import { parseSteps } from "@/lib/automation-files";
 import { DeleteRunFiles } from "@/components/automation-storage";
@@ -52,7 +53,7 @@ export async function AutomatedRun({ project, runId, who }: { project: { id: str
     },
   });
   const caseIds = run.entries.map((e) => e.caseId);
-  const [flaky, jira, earlier] = await Promise.all([
+  const [flaky, jira, earlier, news] = await Promise.all([
     flakyCases({ caseIds }),
     jiraConfigFor(project.id),
     // Each case's result in the run before this one, for "passed in R13".
@@ -62,6 +63,8 @@ export async function AutomatedRun({ project, runId, who }: { project: { id: str
       distinct: ["caseId"],
       select: { caseId: true, status: true, run: { select: { number: true } } },
     }),
+    // New and Updated tests (ver_96).
+    caseNewsForRun(run, run.entries),
   ]);
   const before = new Map(earlier.map((r) => [r.caseId, r]));
   const counts = countStatuses(run.entries.map((e) => e.status));
@@ -81,6 +84,7 @@ export async function AutomatedRun({ project, runId, who }: { project: { id: str
       output: r?.output ?? "",
       durationMs: r?.durationMs ?? null,
       flaky: flaky.get(e.caseId) ?? 0,
+      news: news.get(e.id)?.kind,
       before: prev ? { status: prev.status, run: prev.run.number } : null,
       files: (r?.attachments ?? []).map((a) => ({ ...a, kind: a.kind as AutoFileKind })),
       steps: parseSteps(r?.testSteps),

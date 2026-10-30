@@ -40,6 +40,8 @@ import { runRegressions } from "@/lib/regression-data";
 import { againstLabel, regressionTip } from "@/lib/regression";
 import { CompareWith } from "@/components/regression";
 import { knownBugsForRun } from "@/lib/known-bugs";
+import { caseNewsForRun } from "@/lib/case-news-data";
+import { shortDate } from "@/lib/spelling";
 import { KnownBugsHeadsUp, KnownBugsPanel, type RunKnown } from "@/components/known-bugs-panel";
 
 export const metadata = { title: "Test run" };
@@ -97,6 +99,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   const defects = [...new Map(defectLinks.map((l) => [l.defectId, l.defect])).values()];
   // Known bugs from earlier runs (ver_96), for runs tested by hand.
   const knownMap = run.automated ? new Map<string, RunKnown["bug"][]>() : await knownBugsForRun(run.id, run.entries.map((e) => ({ id: e.id, caseId: e.caseId, steps: e.steps })));
+  const news = await caseNewsForRun(run, run.entries);
   const knownList: RunKnown[] = run.entries.flatMap((e) => (knownMap.get(e.id) ?? []).map((bug) => ({ bug, caseKey: caseKey(e.testCase.project.key, e.testCase.number) })));
   const steps = Object.fromEntries(stepAgg.map((s) => [s.status, Number(s.n)]));
   const byTester = members
@@ -328,6 +331,16 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           lastTestedAt: e.lastTestedAt?.toISOString() ?? null,
           defects: defectsByEntry.get(e.id)?.size ?? 0,
           known: knownMap.get(e.id)?.length ?? 0,
+          news: (() => {
+            const n = news.get(e.id);
+            if (!n) return undefined;
+            if (n.kind === "new") return { kind: "new" as const, why: `Added by ${n.addedBy}, ${shortDate(new Date(n.addedAt), spelling)}` };
+            return {
+              kind: "updated" as const,
+              why: n.what,
+              href: `/p/${e.testCase.project.key}/cases/${e.testCase.number}/versions/${n.version}?from=${n.since.version}`,
+            };
+          })(),
           flaky: flaky.get(e.caseId),
           regression: reg.flagged.has(e.id) ? regressionTip(reg.against.get(e.id)!, spelling) : undefined,
           progress:

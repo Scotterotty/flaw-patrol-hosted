@@ -33,6 +33,9 @@ import { sentryForStep } from "@/server/sentry";
 import type { KnownBug } from "@/lib/known-bugs";
 import { checkKnownBug } from "@/server/known-bugs";
 import { KnownBugsBox, KnownStepTag, type KnownCheck } from "./known-bugs";
+import { CaseNewsNote, StepChangeTag } from "./case-news-note";
+import { NewsTag } from "./case-news-tag";
+import type { CaseNews } from "@/lib/case-news";
 
 /** Regression flag (ver_93): the earlier release this case passed in, and which of its steps passed there. */
 export type RunnerRegression = { label: string; when: string; passed: boolean[]; resultId: string; off: boolean; jiraLabel: string };
@@ -106,7 +109,13 @@ export function Runner({
   sentryOn = false,
   tagColors,
   knownBugs = [],
+  news = null,
+  newsHref,
 }: {
+  /** New or Updated since its last run (ver_96). */
+  news?: CaseNews | null;
+  /** Compare with the last run's copy. */
+  newsHref?: string;
   /** Bugs found on this case in earlier runs (ver_96). */
   knownBugs?: KnownBug[];
   /** Sentry is connected (ver_96): Failed and Blocked steps show the errors it caught. */
@@ -698,6 +707,7 @@ export function Runner({
                 </span>
               )}
               {entry.title}
+              {news && <NewsTag kind={news.kind} className="ml-2 align-[3px]" />}
             </h1>
             {!!entry.stories?.length && (
               <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
@@ -773,6 +783,8 @@ export function Runner({
           </p>
         )}
 
+        <CaseNewsNote news={news} href={newsHref} />
+
         <KnownBugsBox bugs={knownBugs} checks={checks} onCheck={checkKnown} disabled={runClosed} steps={entry.steps} />
 
         {entry.preconditions && (
@@ -843,6 +855,7 @@ export function Runner({
                               ))}
                           </span>
                         )}
+                        {news?.kind === "updated" && <StepChangeTag change={news.steps[i]} />}
                         <StepText text={step.action} className="whitespace-pre-wrap wrap-anywhere" />
                       </div>
                       <div

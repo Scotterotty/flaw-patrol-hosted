@@ -23,13 +23,15 @@ function describe(item: CaseStepItem, defs: Map<string, SharedStepDef>) {
   return { action: `Shared: ${name}${params.length ? ` (${params.map(([k, v]) => `${k}=${v}`).join(", ")})` : ""}`, expected: "", shared: true };
 }
 
-export default async function CaseVersionPage({ params }: { params: Promise<{ key: string; number: string; version: string }> }) {
+export default async function CaseVersionPage({ params, searchParams }: { params: Promise<{ key: string; number: string; version: string }>; searchParams: Promise<{ from?: string }> }) {
   const { key, number, version } = await params;
+  // ?from=N (ver_96): compare with the copy a run used, from a case's What was updated link.
+  const { from } = await searchParams;
   const { project, who } = await projectAccess(key);
   const c = await loadCase(project.id, number);
   const v = c.versions.find((x) => x.version === Number(version));
   if (!v) notFound();
-  const prev = c.versions.find((x) => x.version === v.version - 1);
+  const prev = c.versions.find((x) => x.version === (from && Number(from) < v.version ? Number(from) : v.version - 1));
 
   const items = parseCaseSteps(v.steps);
   const prevItems = prev ? parseCaseSteps(prev.steps) : [];

@@ -1,5 +1,6 @@
 "use server";
 
+import { libraryCaseNews } from "@/lib/case-news-data";
 import { tagColorsFor } from "@/lib/tag-data";
 import { CSP_FIELD, parseRunFields } from "@/lib/run-fields";
 import { kindIdFor, parseRunKinds } from "@/lib/run-kinds";
@@ -101,6 +102,8 @@ export async function runBoxOptions(scope: RunBoxScope) {
       tagColors: await tagColorsFor(library.id),
       suites: suites.map((s) => ({ id: s.id, name: s.name, cases: s._count.cases, ownerId: s.projectId, shared: !!umbrella && s.projectId !== here?.id })),
       ...picker,
+      // New and Updated cases (ver_96), by case id.
+      news: await libraryCaseNews(picker.cases.map((c) => c.id)),
     };
   });
 }

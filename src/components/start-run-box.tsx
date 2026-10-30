@@ -1,6 +1,7 @@
 "use client";
 
 import { TagPills } from "./tag-pill";
+import { NewsTag } from "./case-news-tag";
 import { forgivingFilter, tagHits } from "@/lib/fuzzy";
 import { CloseMatchesLabel } from "./close-matches";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -153,6 +154,10 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
   // Tick all takes the exact matches only, when there are some.
   const tickable = closeStart > 0 ? visible.slice(0, closeStart) : visible;
   const pickedSet = new Set(picked);
+  // New cases (ver_96): a button to tick the ones shown, and a reminder for ones left out of picked folders.
+  const newShown = tickable.filter((c) => opts.news[c.id] === "new" && !pickedSet.has(c.id));
+  const pickedFolders = new Set(opts.cases.filter((c) => pickedSet.has(c.id)).map((c) => c.folderId));
+  const leftOut = opts.cases.filter((c) => opts.news[c.id] === "new" && !pickedSet.has(c.id) && pickedFolders.has(c.folderId));
   const count = what === "all" ? opts.allCount : what === "suite" ? (suite?.cases ?? 0) : what === "cases" ? picked.length : 0;
   const members = chosen.length === 1 ? chosen[0].members : [];
   const shownCycles = opts.cycles.filter((c) => c.current || showOlder || ticked.includes(c.id));
@@ -323,6 +328,11 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
                 </Button>
               );
             })()}
+            {newShown.length > 0 && (
+              <Button size="sm" className="h-8 border-sky-300 text-sky-800 hover:bg-sky-50" onClick={() => setPicked((p) => [...new Set([...p, ...newShown.map((c) => c.id)])])}>
+                Tick the {newShown.length} new {newShown.length === 1 ? "case" : "cases"}
+              </Button>
+            )}
           </div>
           <ul className="max-h-56 divide-y divide-slate-100 overflow-y-auto" aria-label="Cases to pick">
             {visible.slice(0, 300).map((c, i) => (
@@ -337,6 +347,7 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
                   <input type="checkbox" className="mt-1" checked={pickedSet.has(c.id)} onChange={() => setPicked((p) => (p.includes(c.id) ? p.filter((x) => x !== c.id) : [...p, c.id]))} />
                   <span className="min-w-0 flex-1">
                     <span className="font-mono text-xs text-slate-500">{c.key}</span> <TagPills tags={c.tags} colors={opts.tagColors} hits={tagHits(q, c.tags)} /> {c.title}
+                    {opts.news[c.id] && <NewsTag kind={opts.news[c.id]} className="ml-1" title={opts.news[c.id] === "new" ? "Never run before" : "Steps changed since its last run"} />}
                     {c.folderPath && <span className="text-xs text-slate-500"> · {c.folderPath}</span>}
                   </span>
                 </label>
@@ -346,7 +357,17 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
             {visible.length === 0 && <li className="px-3 py-4 text-center text-sm text-slate-500">No cases match.</li>}
           </ul>
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
-            <span>{picked.length} picked</span>
+            <span>
+              {picked.length} picked
+              {leftOut.length > 0 && (
+                <span className="ml-2 text-sky-800" data-testid="new-left-out">
+                  · {leftOut.length} new {leftOut.length === 1 ? "case" : "cases"} in the same {pickedFolders.size === 1 ? "folder" : "folders"} {leftOut.length === 1 ? "is" : "are"} not ticked.{" "}
+                  <button type="button" className="font-medium underline hover:no-underline" onClick={() => setPicked((p) => [...new Set([...p, ...leftOut.map((c) => c.id)])])}>
+                    Tick {leftOut.length === 1 ? "it" : "them"}
+                  </button>
+                </span>
+              )}
+            </span>
             {picked.length > 0 && (
               <button type="button" className="hover:underline" onClick={() => setPicked([])}>
                 Clear

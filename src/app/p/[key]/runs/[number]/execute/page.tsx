@@ -23,6 +23,8 @@ import { parseCharter, parsePersona, parseSessionLog } from "@/lib/charter";
 import { RunnerCaseList } from "@/components/runner-case-list";
 import { flakyCases } from "@/lib/flaky";
 import { RunnerHistory } from "@/components/runner-history";
+import { caseNewsForRun } from "@/lib/case-news-data";
+import { shortDate } from "@/lib/spelling";
 import { TakeCase } from "@/components/take-case";
 import { countStatuses, isOpen, pct, STATUS_STYLE, STATUS_LABEL, totals } from "@/lib/status";
 import { cx } from "@/components/ui";
@@ -103,6 +105,8 @@ export default async function ExecutePage({
     db.defectLink.findMany({ where: { result: { runId: run.id } }, include: { defect: true }, orderBy: { defect: { createdAt: "desc" } } }),
     projectMembers(project.id),
   ]);
+  // New or Updated since its last run (ver_96).
+  const news = (await caseNewsForRun(run, [entry])).get(entry.id) ?? null;
   // The case's Jira stories, for the runner's chip and the bug box's "Link to story" ticks.
   const storyMap = jira && entry.testCase.jiraStories.length ? await storyInfo(project.id, entry.testCase.jiraStories) : null;
   const stories = entry.testCase.jiraStories.map((k) => {
@@ -288,7 +292,7 @@ export default async function ExecutePage({
               }))}
             />
           </div>
-          <RunnerHistory key={entry.id} runs={history} summary={historySummary} projectKey={project.key} canApply={run.state !== "COMPLETED" && entry.kind !== "EXPLORATORY"} />
+          <RunnerHistory key={entry.id} olderNote={news?.kind === "updated" ? `Runs before ${shortDate(new Date(news.at), spelling)} used the older steps.` : undefined} runs={history} summary={historySummary} projectKey={project.key} canApply={run.state !== "COMPLETED" && entry.kind !== "EXPLORATORY"} />
           </RunListFold>
         </div>
       </aside>
@@ -344,6 +348,8 @@ export default async function ExecutePage({
           keepQuery={keep}
           takeBar={takeBar}
           tagColors={tagColors}
+          news={news}
+          newsHref={news?.kind === "updated" ? `/p/${entry.testCase.project.key}/cases/${entry.testCase.number}/versions/${news.version}?from=${news.since.version}` : undefined}
           knownBugs={(await knownBugsForRun(run.id, [{ id: entry.id, caseId: entry.caseId, steps: entry.steps }])).get(entry.id) ?? []}
           entry={{
             id: entry.id,

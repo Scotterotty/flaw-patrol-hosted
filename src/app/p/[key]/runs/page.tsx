@@ -1,6 +1,8 @@
 import { parseRunKinds, shownKind } from "@/lib/run-kinds";
 import { knownBugCounts } from "@/lib/known-bugs";
 import { KnownCountTag } from "@/components/known-bugs-panel";
+import { caseNewsCounts } from "@/lib/case-news-data";
+import { NewsCountTags } from "@/components/case-news-tag";
 import { RunKindTag } from "@/components/run-kind-tag";
 import { umbrellaOf } from "@/lib/umbrella";
 import Link from "next/link";
@@ -43,6 +45,7 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
     db.testRun.count({ where: { projectId: project.id, state: "COMPLETED", automated: false } }),
   ]);
   const known = await knownBugCounts(runs.filter((r) => r.state === "ACTIVE" && !r.automated).map((r) => r.id));
+  const newsCounts = await caseNewsCounts(runs.filter((r) => r.state === "ACTIVE" || r.automated).slice(0, 30).map((r) => r.id));
   const autoCount = await db.testRun.count({ where: { projectId: project.id, automated: true } });
   const canStart = can(who, "run:create");
   const picker = canStart ? <StartRunBox scope={{ projectKey: project.key }} /> : null;
@@ -104,6 +107,7 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
                     )}
                     {shownKind(r) && <RunKindTag kinds={kinds} kind={shownKind(r)} className="ml-2" />}
                     <KnownCountTag count={known.get(r.id)} />
+                    <NewsCountTags count={newsCounts.get(r.id)} />
                     {mine > 0 && (
                       <Badge tone="blue" className="ml-2">
                         {mine} for you

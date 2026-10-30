@@ -1,5 +1,7 @@
 "use client";
 
+import { NewsTag } from "./case-news-tag";
+import { newsLine } from "@/lib/case-news";
 import { useSpelling } from "@/components/spelling";
 import type { Priority, ResultStatus } from "@prisma/client";
 import Link from "next/link";
@@ -34,6 +36,8 @@ export type EntryRow = {
   assigneeId: string | null;
   lastTestedAt: string | null;
   defects: number;
+  /** New or Updated since the case's last run (ver_96), with why and a What was updated link. */
+  news?: { kind: "new" | "updated"; why: string; href?: string };
   /** Known bugs from earlier runs (ver_96). */
   known?: number;
   /** Flaky: how often its result flipped in its last 10 runs. */
@@ -76,6 +80,10 @@ export function RunEntries({
   const spelling = useSpelling();
   const [status, setStatus] = useState("");
   const [onlyReg, setOnlyReg] = useState(false);
+  // All / New / Updated (ver_96).
+  const [news, setNews] = useState<"" | "new" | "updated">("");
+  const newCount = rows.filter((r) => r.news?.kind === "new").length;
+  const updCount = rows.filter((r) => r.news?.kind === "updated").length;
   const regCount = rows.filter((r) => r.regression).length;
   const [who, setWho] = useState("");
   const [query, setQuery] = useState("");
@@ -93,6 +101,7 @@ export function RunEntries({
       (r) =>
         (!status || r.status === status) &&
         (!onlyReg || !!r.regression) &&
+        (!news || r.news?.kind === news) &&
         (!who || (who === "none" ? !r.assigneeId : who === "me" ? r.assigneeId === meId : r.assigneeId === who)),
     ),
     query,
@@ -113,6 +122,28 @@ export function RunEntries({
 
   return (
     <div>
+      {newCount + updCount > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950" data-testid="news-heads-up">
+          <span className="flex-1">
+            <b>{newsLine({ new: newCount, updated: updCount })}</b> since the last run of these cases. Read them carefully: {newCount ? "nobody has run the new ones yet" : "their steps changed"}.
+          </span>
+          <span role="group" aria-label="Show cases" className="inline-flex overflow-hidden rounded-md ring-1 ring-sky-300 ring-inset">
+            {(
+              [
+                ["", `All ${rows.length}`],
+                ["new", `New ${newCount}`],
+                ["updated", `Updated ${updCount}`],
+              ] as const
+            )
+              .filter(([k]) => k === "" || (k === "new" ? newCount : updCount))
+              .map(([k, label]) => (
+                <button key={k} type="button" aria-pressed={news === k} onClick={() => setNews(k)} className={cx("px-2.5 py-1 text-xs font-medium", news === k ? "bg-sky-700 text-white" : "bg-white text-sky-900 hover:bg-sky-100")}>
+                  {label}
+                </button>
+              ))}
+          </span>
+        </div>
+      )}
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <Input
           type="search"
@@ -259,9 +290,23 @@ export function RunEntries({
                   </Link>
                   {r.regression ? <span className="ml-1.5 align-middle"><RegressionBadge tip={r.regression} /></span> : null}
                   {r.flaky ? <span className="ml-1.5 align-middle"><FlakyBadge flips={r.flaky} /></span> : null}
+                  {r.news && <NewsTag kind={r.news.kind} title={r.news.why} className="ml-1.5" />}
                   <p className="text-xs text-slate-500">
                     {r.folderPath}
                     {r.defects > 0 && <span className="ml-2 text-red-600">{r.defects} {r.defects === 1 ? "bug" : "bugs"}</span>}
+                    {r.news && (
+                      <span className={cx("ml-2", r.news.kind === "new" ? "text-sky-800" : "text-amber-800")}>
+                        {r.news.why}
+                        {r.news.href && (
+                          <>
+                            {" · "}
+                            <Link href={r.news.href} className="underline hover:no-underline">
+                              What was updated
+                            </Link>
+                          </>
+                        )}
+                      </span>
+                    )}
                   </p>
                 </td>
                 <td className="px-3 py-2">

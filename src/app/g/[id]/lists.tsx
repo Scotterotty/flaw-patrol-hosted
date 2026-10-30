@@ -1,6 +1,8 @@
 import { mySpelling } from "@/lib/session";
 import { knownBugCounts } from "@/lib/known-bugs";
 import { KnownCountTag } from "@/components/known-bugs-panel";
+import { caseNewsCounts } from "@/lib/case-news-data";
+import { NewsCountTags } from "@/components/case-news-tag";
 import { fieldBits } from "@/lib/run-fields";
 import Link from "next/link";
 import { StatusBar } from "@/components/status";
@@ -26,6 +28,7 @@ export async function Runs({ projectIds, state, kind, kinds = [] }: { projectIds
     include: { project: { select: { key: true, name: true } }, suite: { select: { name: true } }, entries: { select: { status: true, kind: true } } },
   });
   const known = await knownBugCounts(runs.filter((r) => r.state === "ACTIVE" && !r.automated).map((r) => r.id));
+  const newsCounts = await caseNewsCounts(runs.filter((r) => r.state === "ACTIVE" || r.automated).slice(0, 30).map((r) => r.id));
   if (runs.length === 0)
     return state === "automated" ? (
       <EmptyState title="No automated runs yet">Upload automation results to bring in results from your automated tests. Each upload shows here.</EmptyState>
@@ -56,6 +59,7 @@ export async function Runs({ projectIds, state, kind, kinds = [] }: { projectIds
                 )}
                 {shownKind(r) && <RunKindTag kinds={kinds} kind={shownKind(r)} className="ml-1" />}
                 <KnownCountTag count={known.get(r.id)} />
+                <NewsCountTags count={newsCounts.get(r.id)} />
               </p>
               <p className="truncate text-xs text-slate-500">
                 {[r.release && `Release ${r.release}`, r.suite && `${r.suite.name}${r.suiteVersion ? ` v${r.suiteVersion}` : ""}`, r.build && `build ${r.build}`, ...fieldBits(r), `${r.automated ? "uploaded" : "started"} ${relativeTime(r.createdAt, spelling)} by ${r.createdBy}`].filter(Boolean).join(" · ")}

@@ -39,7 +39,10 @@ export function RunnerHistory({
   summary,
   projectKey,
   canApply,
+  olderNote,
 }: {
+  /** Updated cases (ver_96): "Runs before Oct 25 used the older steps." */
+  olderNote?: string;
   runs: HistoryRun[];
   summary: { passRate: string; lastPassed: string | null; flaky: boolean };
   projectKey: string;
@@ -113,6 +116,7 @@ export function RunnerHistory({
               {runs.length} {runs.length === 1 ? "run" : "runs"} · {summary.passRate} passed · {summary.lastPassed ? `last passed ${summary.lastPassed}` : "never passed"}
               {summary.flaky && <span className="rounded bg-amber-50 px-1.5 py-0.5 font-medium text-amber-800 ring-1 ring-amber-200">Flaky</span>}
             </p>
+            {olderNote && <p className="mt-1 text-xs text-amber-800">{olderNote}</p>}
           </>
         ) : (
           <p className="mt-1 text-xs text-slate-500">This case hasn&apos;t been run before.</p>

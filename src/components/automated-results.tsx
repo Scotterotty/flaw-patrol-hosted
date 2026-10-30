@@ -1,5 +1,6 @@
 "use client";
 
+import { NewsTag } from "./case-news-tag";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -44,6 +45,8 @@ export type AutoRow = {
   output: string;
   durationMs: number | null;
   flaky: number;
+  /** New or Updated since its last run (ver_96). */
+  news?: "new" | "updated";
   before: { status: string; run: number } | null;
   bugs: LinkedDefect[];
   /** Screenshots, videos and replays (ver_93). */
@@ -114,6 +117,7 @@ export function AutomatedResults({
                   </Link>
                   <span className="font-medium text-slate-900">{r.title}</span>
                   {r.flaky > 0 && <FlakyBadge flips={r.flaky} />}
+                  {r.news && <NewsTag kind={r.news} title={r.news === "new" ? "First time this test is in a run" : "Steps changed since its last run"} />}
                   <FileIcons files={r.files} />
                   {attemptsIn(r.files).length > 1 && <span className="text-[11px] text-slate-500">· {attemptsIn(r.files).length} attempts</span>}
                 </p>
