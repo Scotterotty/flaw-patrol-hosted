@@ -69,11 +69,11 @@ test("imports a qTest test run CSV with shared blocks", async ({ page }) => {
   await expect(page.getByText("Imported 2 test cases")).toBeVisible();
 
   await page.goto(`/p/${key}/cases/1`);
-  await expect(page.getByRole("heading", { name: "[WEB] - Login" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Login", exact: true })).toBeVisible();
   await expect(page.getByText("PQ-1", { exact: true })).toBeVisible();
   await expect(page.getByText("3.2", { exact: true })).toBeVisible();
   await expect(page.getByText("A user can sign in.")).toBeVisible();
 
   await page.goto(`/p/${key}/cases?q=PQ-2`);
-  await expect(page.getByRole("link", { name: "[WEB] - Assets" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Assets$/ })).toBeVisible();
 });

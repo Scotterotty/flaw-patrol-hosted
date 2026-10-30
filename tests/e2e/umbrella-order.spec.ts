@@ -56,7 +56,8 @@ test("umbrellas: star, move, drag, sort and search", async ({ page }) => {
   await expect(page.getByLabel("Sort umbrellas")).toHaveValue("az");
   // Playwright's mouse drag doesn't start HTML drag and drop here, so the events are sent directly.
   const dt = await page.evaluateHandle(() => new DataTransfer());
-  await page.getByLabel(`Drag to move ${names[0]}`).dispatchEvent("dragstart", { dataTransfer: dt });
+  // Since ver_94 the whole card header is the grip.
+  await page.getByRole("region", { name: `${names[0]} umbrella` }).locator('[draggable="true"]').first().dispatchEvent("dragstart", { dataTransfer: dt });
   const target = page.getByRole("region", { name: `${names[1]} umbrella` });
   await target.dispatchEvent("dragover", { dataTransfer: dt });
   await target.dispatchEvent("drop", { dataTransfer: dt });

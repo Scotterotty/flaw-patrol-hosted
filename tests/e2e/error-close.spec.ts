@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { signIn } from "./auth";
+import { signIn, openAccount } from "./auth";
 test("errors can be closed", async ({ page }) => {
   await signIn(page, "admin@example.com", "Demo Admin");
-  await page.goto("/account");
+  await openAccount(page);
   const pw = page.getByLabel("Current password");
   if (await pw.count()) {
     await pw.fill("wrong wrong wrong");

@@ -31,6 +31,8 @@ async function setSeen(email: string, value: number | null) {
 
 test("What's new opens once after a new version, filtered by role, and can be opened again", async ({ page }) => {
   await signIn(page, "admin@example.com", "Demo Admin");
+  // This test is about the window itself, so stop signIn's helper from closing it.
+  await page.removeLocatorHandler(page.getByTestId("whats-new-window"));
   await setSeen("admin@example.com", null);
   await page.goto("/");
   const win = page.getByTestId("whats-new-window");

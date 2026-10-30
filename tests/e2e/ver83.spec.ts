@@ -113,11 +113,8 @@ test("a tester starts from Your work, and the runner keeps every step result", a
   await expect(
     work.getByText(`· ${NAME} Web RC1 · 2 cases waiting`),
   ).toBeVisible();
-  // Only one umbrella: nothing to reorder.
-  await expect(page.getByLabel(`Drag to move ${NAME}`)).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: `More for ${NAME}` }),
-  ).toHaveCount(0);
+  // Only one umbrella: nothing to reorder. (Its ⋯ menu shows since ver_96's open permissions.)
+  await expect(page.locator('[draggable="true"][title="Drag to move"]')).toHaveCount(0);
   await work.getByRole("link", { name: "Test my cases" }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${CYCLE}/runs/1/execute`));
   await expect(

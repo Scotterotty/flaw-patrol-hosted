@@ -1,12 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { signIn } from "./auth";
+import { signIn, openAccount } from "./auth";
 
 const pick = (page: import("@playwright/test").Page, name: string, value: string) =>
   page.locator("label").filter({ has: page.locator(`input[name="${name}"][value="${value}"]`) });
 
 test("the mini game is opt-in and shows your title next to your name", async ({ page }) => {
   await signIn(page, "lead@example.com", "QA Lead");
-  await page.goto("/account");
+  await openAccount(page);
   const join = page.getByLabel("Play the mini game");
   await join.uncheck();
   await expect(page.getByText(/^Level \d+$/)).toHaveCount(0);
@@ -30,7 +30,7 @@ test("the mini game is opt-in and shows your title next to your name", async ({ 
 test("Early Adopter before launch, and an admin can reset someone's XP", async ({ browser }) => {
   const lead = await browser.newPage();
   await signIn(lead, "lead@example.com", "QA Lead");
-  await lead.goto("/account");
+  await openAccount(lead);
   await lead.getByLabel("Play the mini game").check();
   await pick(lead, "game-title", "early").click();
   await expect(lead.locator("header")).toContainText("Early Adopter");
@@ -65,7 +65,7 @@ test("Early Adopter before launch, and an admin can reset someone's XP", async (
 
 test("five clicks on 'leaderboard' open the secret leaderboard", async ({ page }) => {
   await signIn(page, "lead@example.com", "QA Lead");
-  await page.goto("/account");
+  await openAccount(page);
   await page.getByLabel("Play the mini game").check();
   // Turning the game on refreshes the page; count clicks only after that settles.
   await page.waitForLoadState("networkidle");
@@ -76,6 +76,6 @@ test("five clicks on 'leaderboard' open the secret leaderboard", async ({ page }
   await expect(page).toHaveURL(/\/leaderboard$/);
   await expect(page.getByRole("heading", { name: /Bug of War/ })).toBeVisible();
   await expect(page.getByRole("listitem").filter({ hasText: "(you)" })).toContainText("XP");
-  await page.goto("/account");
+  await openAccount(page);
   await page.getByLabel("Play the mini game").uncheck();
 });

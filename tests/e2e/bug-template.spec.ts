@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
 import { standaloneProject } from "./projects";
+import { useTestOko } from "./shared-oko";
 
 // The team bug template (OB-5292): turned on per project in Settings → Jira,
 // filled in from the run and case, Context and User name & ID remembered per
@@ -15,6 +16,7 @@ const newest = async () => {
   const all = Object.entries((await (await fetch(`${JIRA}/__issues`)).json()) as Record<string, Issue>).filter(([k]) => k.startsWith("OB-"));
   return all.sort(([a], [b]) => Number(a.split("-")[1]) - Number(b.split("-")[1])).at(-1)!;
 };
+useTestOko();
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
 
 test("bugs follow the team template", async ({ page }) => {
@@ -33,10 +35,12 @@ test("bugs follow the team template", async ({ page }) => {
   await page.getByLabel("API token").fill("secret-token");
   await page.getByRole("button", { name: "Connect Jira" }).click();
   await expect(page.getByText("Connected as QA Bot.")).toBeVisible();
-  // The OKO bug layout is a ready-made choice next to Plain and Import (ver_80).
+  // The OKO bug layout is a company template shared by email ending (ver_96): pick it, then set its defaults.
   const settings = page.getByTestId("bug-template-settings");
   await expect(settings.getByLabel("Plain layout")).toBeChecked();
   await settings.getByLabel(/OKO bug layout/).check();
+  await settings.getByRole("button", { name: "Use OKO bug layout" }).click();
+  await expect(settings.getByText("Check this place's defaults below.")).toBeVisible();
   const fields = settings.getByTestId("template-fields");
   await expect(fields.getByText("Client/SKUs")).toBeVisible();
   await expect(fields.getByTestId("fields-written")).toContainText("Bug Workaround");
@@ -45,8 +49,8 @@ test("bugs follow the team template", async ({ page }) => {
   await expect(settings.getByLabel("Team", { exact: true })).toHaveValue("Unreal");
   await expect(settings.getByRole("group", { name: "Default Client/SKUs" }).getByRole("button", { name: "Unreal" })).toHaveAttribute("aria-pressed", "true");
   await settings.getByRole("group", { name: "Default Client/SKUs" }).getByRole("button", { name: "Windows" }).click();
-  await settings.getByRole("button", { name: "Use the OKO bug layout" }).click();
-  await expect(settings.getByText("Saved. New bugs use the OKO bug layout.")).toBeVisible();
+  await settings.getByRole("button", { name: /^(Save defaults|Use the OKO bug layout)$/ }).click();
+  await expect(settings.getByText("Saved. New bugs from here use these defaults.")).toBeVisible();
   await page.reload();
   await expect(settings.getByLabel(/OKO bug layout/)).toBeChecked();
   await expect(settings.getByTestId("template-saved")).toContainText("[UNREAL] - Feature - Brief summary");
@@ -57,7 +61,7 @@ test("bugs follow the team template", async ({ page }) => {
   await page.getByLabel("Step 1 action").fill("Delete the selected asset");
   await page.getByLabel("Step 1 expected result").fill("The asset is removed");
   await page.getByRole("button", { name: "Create case" }).first().click();
-  await expect(page.getByRole("heading", { name: "[UNREAL] - In Space - UI - Assets Panel" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "In Space - UI - Assets Panel" })).toBeVisible();
   await page.goto(`/p/${KEY}/suites/new`);
   await page.getByLabel("Name", { exact: true }).fill("Smoke");
   await page.getByRole("checkbox").first().check();

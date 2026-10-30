@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signIn } from "./auth";
+import { signIn, openAccount } from "./auth";
 import { standaloneProject } from "./projects";
 
 // Bugs filed from Flaw Patrol show the tester as the Jira Reporter (matched by
@@ -98,7 +98,7 @@ test("bug reporter is the tester, and plain Save stays on the case", async ({ pa
   await expect(page.getByRole("group", { name: "Step 1 status" })).toBeVisible();
 
   // 4. No Jira account under your email: warned first, filed as the token owner, named in the description.
-  await page.goto("/account#jira");
+  await openAccount(page, "#jira");
   await page.getByLabel("Jira email (only if different)").fill("nobody@example.com");
   await page.getByRole("button", { name: "Save and check" }).click();
   await expect(page.getByText(`No Jira account on ${JIRA} has the email nobody@example.com`)).toBeVisible();
@@ -121,7 +121,7 @@ test("bug reporter is the tester, and plain Save stays on the case", async ({ pa
 
   // 5. The token owner filing their own bug is matched, even when Jira won't let the token set Reporters.
   await fetch(`${JIRA}/__reporter/off`);
-  await page.goto("/account#jira");
+  await openAccount(page, "#jira");
   await page.getByLabel("Jira email (only if different)").fill("qa-bot@example.com");
   await page.getByRole("button", { name: "Save and check" }).click();
   await expect(page.getByText("Found in Jira: QA Bot")).toBeVisible();
@@ -139,7 +139,7 @@ test("bug reporter is the tester, and plain Save stays on the case", async ({ pa
   await fetch(`${JIRA}/__reporter/on`);
 
   // 6. A different Jira email whose address Jira hides still matches.
-  await page.goto("/account#jira");
+  await openAccount(page, "#jira");
   await page.getByLabel("Jira email (only if different)").fill("hidden@example.com");
   await page.getByRole("button", { name: "Save and check" }).click();
   await expect(page.getByText("Found in Jira: Hidden Email Person")).toBeVisible();

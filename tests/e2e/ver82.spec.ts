@@ -165,12 +165,16 @@ test("automation results upload, Ctrl+K search and the Roles card", async ({ pag
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(new RegExp(`/p/${KEY}/cases/1`));
 
-  // Roles card: Open lets testers do everything except archive and delete.
+  // Roles card (ver_96): Everyone is the default; Tighter saves like any preset.
   await page.goto(`/p/${KEY}/settings`);
   const roles = page.locator("#roles");
-  await roles.getByRole("button", { name: "Members do everything except archive and delete" }).click();
-  await roles.getByRole("button", { name: "Save roles" }).click();
-  await expect(roles.getByText("Saved")).toBeVisible();
+  const fold = roles.getByRole("button", { name: /^What can they do/ });
+  if ((await fold.getAttribute("aria-expanded")) === "false") await fold.click();
+  const preset = roles.getByRole("group", { name: "Preset" });
+  await expect(preset.getByRole("button", { name: /^Everyone/ })).toHaveAttribute("aria-pressed", "true");
+  await preset.getByRole("button", { name: "Tighter" }).click();
+  await roles.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(roles.getByText("Saved", { exact: true })).toBeVisible();
 });
 
 test("an umbrella with no test cycles makes one inside Start a run, and lists Slack in its setup", async ({ page }) => {

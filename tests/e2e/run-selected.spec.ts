@@ -27,7 +27,7 @@ test("run just the cases picked on the run page", async ({ page }) => {
 
   // Search narrows the list by key or title.
   await page.getByLabel("Search cases in this run").fill("thr");
-  await expect(page.getByText("1 of 4")).toBeVisible();
+  await expect(page.getByText("1 match", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: /Three/ })).toBeVisible();
   // Picks survive searching: pick Three, search for Four and pick it with "select all shown", then clear.
   await page.getByLabel(`Select ${KEY}-3`).check();

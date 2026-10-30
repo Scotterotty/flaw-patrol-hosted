@@ -1,10 +1,14 @@
 import { PrismaClient } from "@prisma/client";
 import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
+import { useTestOko } from "./shared-oko";
 
 // ver_84: umbrella Settings rows open their own options right below them, one at a time,
 // and the bug template's field list splits into "filled in Jira" and "written into the description".
 
+
+// The OKO layout is a company template since ver_96; these tests get their own copy.
+useTestOko();
 const TAG = Date.now().toString(36).slice(-4).toUpperCase();
 const HUB = `ZH${TAG}`;
 const NAME = `Rows ${TAG}`;
@@ -57,6 +61,7 @@ test("umbrella settings rows open in place, one at a time, and the field list re
 
   // The OKO layout's field list: ticks for what Jira fills, gray chips for the rest.
   await tpl.getByLabel(/OKO bug layout/).check();
+  await tpl.getByRole("button", { name: "Use OKO bug layout" }).click();
   const fields = tpl.getByTestId("template-fields");
   await expect(fields.getByText(/^Filled straight into Jira \(\d+\)$/)).toBeVisible();
   await expect(fields.getByText(/Written into the description \(\d+\)/)).toBeVisible();

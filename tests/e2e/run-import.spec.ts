@@ -68,15 +68,15 @@ test("a run kept in a sheet imports as an open run with results, testers and wor
   await expect(page.getByRole("heading", { name: "R22 Test Cycle - Unreal" })).toBeVisible();
   await expect(page.getByText("RC22").first()).toBeVisible();
   await expect(page.getByText("Closed", { exact: true })).toHaveCount(0);
-  const rowFor = (t: string) => page.getByRole("row").filter({ hasText: t });
-  await expect(rowFor("[UNREAL] - Assets")).toContainText("Failed");
-  await expect(rowFor("[UNREAL] - Chat")).toContainText("In progress");
-  await expect(rowFor("[UNREAL] - Voice")).toContainText("Untested");
+  const rowFor = (t: RegExp) => page.getByRole("row").filter({ hasText: t });
+  await expect(rowFor(/UNREAL\s*Assets/)).toContainText("Failed");
+  await expect(rowFor(/UNREAL\s*Chat/)).toContainText("In progress");
+  await expect(rowFor(/UNREAL\s*Voice/)).toContainText("Untested");
 
   // The part-done case picks up with the sheet's step results.
   await page.goto(`${runUrl}/execute`);
   await page.getByRole("link", { name: /Chat/ }).first().click();
-  await expect(page.getByRole("heading", { name: "[UNREAL] - Chat", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Chat", level: 1 })).toBeVisible();
   const steps = page.getByRole("group", { name: /^Step .* status$/ });
   await expect(steps.nth(0).getByRole("button", { name: "Passed" })).toHaveAttribute("aria-pressed", "true");
   await expect(steps.nth(1).getByRole("button", { name: "Blocked" })).toHaveAttribute("aria-pressed", "true");

@@ -128,10 +128,11 @@ test("the Risk board guesses, moves a card and plans the RC", async ({ page }) =
   // Plan this release: QA-201's case goes into the run, QA-202 gets a new charter.
   await page.getByRole("button", { name: "Copy for Confluence" }).isVisible();
   await page.getByRole("button", { name: "Plan this release" }).click();
-  const plan = page.getByRole("dialog", { name: /Plan RC 22/ });
-  await expect(plan.getByLabel("Plan for QA-201")).toHaveValue("run");
-  await expect(plan.getByLabel("Plan for QA-202")).toHaveValue("charter");
-  await plan.getByRole("button", { name: "Make the run" }).click();
+  // ver_96: one card per requirement with labeled choices.
+  const plan = page.getByRole("dialog", { name: /Plan a test run for RC 22/ });
+  await expect(plan.getByTestId("plan-QA-201").getByRole("radio", { name: /Run its 1 case/ })).toBeChecked();
+  await expect(plan.getByTestId("plan-QA-202").getByRole("radio", { name: "Explore it with a charter" })).toBeChecked();
+  await plan.getByRole("button", { name: /^Create test run \(\d+ items?\)$/ }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${KEY}/runs/\\d+`));
   await expect(page.getByText("QA-202:").first()).toBeVisible();
 });

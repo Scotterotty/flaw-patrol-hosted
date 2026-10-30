@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { expect, test, type Page } from "@playwright/test";
-import { signIn } from "./auth";
+import { signIn, openAccount } from "./auth";
 
 // ver_92: Workspace settings for workspace admins. Microsoft (and other company)
 // sign-in set from the page, invite emails through the company's mail server, and an
@@ -62,7 +62,7 @@ test("Workspace settings: only admins, Microsoft sign-in tested before it turns 
   const tabs = page.getByRole("navigation", { name: "Workspace sections" });
   for (const t of ["Sign-in", "Email", "Activity log", "Game admin"]) await expect(tabs.getByRole("link", { name: t })).toBeVisible();
   // Game admin moved here from Your account.
-  await page.goto("/account");
+  await openAccount(page);
   await expect(page.getByRole("navigation", { name: "Account sections" }).getByRole("link", { name: "Game admin" })).toHaveCount(0);
 
   // Testers don't get the page or the menu item.

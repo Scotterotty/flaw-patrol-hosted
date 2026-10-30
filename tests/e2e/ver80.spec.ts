@@ -1,11 +1,15 @@
 import { PrismaClient, type ResultStatus } from "@prisma/client";
 import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
+import { useTestOko } from "./shared-oko";
 import { standaloneProject } from "./projects";
 
 // ver_80: Flaky badges and the Flaky only filter, Edit fields… on ticked cases,
 // and the umbrella's Bug template row with Import… / Change… and an empty test cycles box.
 
+
+// The OKO layout is a company template since ver_96; these tests get their own copy.
+useTestOko();
 const run = Date.now().toString(36).slice(-4).toUpperCase();
 const JIRA = `http://localhost:${process.env.MOCK_JIRA_PORT ?? 3199}`;
 
@@ -124,8 +128,8 @@ test("the umbrella's Bug template row leads to the import", async ({ page }) => 
 
   // Picking the OKO layout turns the row into Change….
   await settings.getByLabel(/OKO bug layout/).check();
-  await settings.getByRole("button", { name: "Use the OKO bug layout" }).click();
-  await expect(settings.getByText("Saved. New bugs use the OKO bug layout.")).toBeVisible();
+  await settings.getByRole("button", { name: "Use OKO bug layout" }).click();
+  await expect(settings.getByText(/Saved\. New bugs from here use OKO bug layout\./)).toBeVisible();
   await page.goto(settingsUrl);
   await expect(row).toContainText("OKO bug layout (from OB-5292)");
   await expect(row.getByRole("button", { name: "Change", exact: true })).toBeVisible();

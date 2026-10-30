@@ -2,7 +2,7 @@
 // errors next to a failed step without a real Sentry. Token "good-token" works; any other is refused.
 import http from "node:http";
 
-const port = Number(process.env.MOCK_SENTRY_PORT ?? 3198);
+const port = Number(process.env.MOCK_SENTRY_PORT ?? 3193);
 const now = () => new Date().toISOString();
 const ISSUES = [
   { id: "9001", shortId: "APP-IOS-3F2", title: "TypeError: Cannot read properties of undefined (reading 'last4')", culprit: "PaymentSheet.confirm", project: { slug: "mobile-ios" }, count: "14" },

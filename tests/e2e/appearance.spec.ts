@@ -1,12 +1,12 @@
 import { expect, test } from "@playwright/test";
 import path from "node:path";
-import { signIn } from "./auth";
+import { signIn, openAccount } from "./auth";
 
 const PICTURE = path.join(__dirname, "fixtures", "avatar.png");
 
 test("people pick a theme and a profile picture", async ({ page }) => {
   await signIn(page, "admin@example.com", "Demo Admin");
-  await page.goto("/account");
+  await openAccount(page);
 
   await page.getByText("Dark", { exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signIn, backToRun } from "./auth";
+import { signIn, backToRun, openAccount } from "./auth";
 import { standaloneProject } from "./projects";
 
 const KEY = `Q${Date.now().toString(36).slice(-4).toUpperCase()}`;
@@ -8,7 +8,7 @@ const SHOTS = process.env.QUEST_SHOTS;
 test("quest maps are opt-in, and the pawn walks as cases get results", async ({ page }) => {
   await signIn(page, "admin@example.com", "Demo Admin");
   // Start from quest maps off, even if an earlier run of this test stopped halfway.
-  await page.goto("/account");
+  await openAccount(page);
   const playing = page.getByLabel("Play the mini game");
   if (await playing.isChecked()) {
     const quests = page.getByLabel("Show quest maps");
@@ -40,7 +40,7 @@ test("quest maps are opt-in, and the pawn walks as cases get results", async ({ 
   await page.goto(`/p/${KEY}/quests`);
   await expect(page.getByText("Quest maps are off")).toBeVisible();
 
-  await page.goto("/account");
+  await openAccount(page);
   await page.getByLabel("Play the mini game").check();
   await page.getByLabel("Show quest maps").check();
   await page.goto(runUrl);
@@ -133,7 +133,7 @@ test("quest maps are opt-in, and the pawn walks as cases get results", async ({ 
   await expect(page.getByRole("dialog", { name: "Change gear" }).getByText("🎒 Nothing to wear yet")).toBeVisible();
   await expect(page.getByText(/Nearest item:|No items left ahead|No quests on the road/)).toBeVisible();
 
-  await page.goto("/account");
+  await openAccount(page);
   await page.getByLabel("Show quest maps").uncheck();
   await page.getByLabel("Play the mini game").uncheck();
 });

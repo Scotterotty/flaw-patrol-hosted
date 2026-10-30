@@ -2,8 +2,17 @@ import { expect, type Page } from "@playwright/test";
 
 export const PASSWORD = "flaw patrol e2e password";
 
+const handled = new WeakSet<Page>();
+
 /** Sign in, setting the password first if this account doesn't have one yet. */
 export async function signIn(page: Page, email: string, name = "", password = PASSWORD) {
+  // The What's new window opens once per version after sign-in (ver_88); close it whenever it shows up.
+  if (!handled.has(page)) {
+    handled.add(page);
+    await page.addLocatorHandler(page.getByTestId("whats-new-window"), async (w) => {
+      await w.getByRole("button", { name: "Close", exact: true }).click();
+    });
+  }
   await page.goto("/signin");
   await page.getByLabel("Email").fill(email);
   await page.getByRole("button", { name: "Continue" }).click();
@@ -30,4 +39,16 @@ export async function backToRun(page: Page) {
   }).toPass();
   if (!/\/runs\/\d+$/.test(new URL(page.url()).pathname)) await page.goto(page.url().replace(/\/execute.*$/, ""));
   await expect(page).toHaveURL(/\/runs\/\d+$/);
+}
+
+/** Account cards fold to one line (ver_96): open the page with every card, and the Mini game's sections, open. */
+export async function openAccount(page: Page, hash = "") {
+  await page.goto(`/account${hash}`);
+  const openAll = page.getByRole("button", { name: "Open all", exact: true });
+  await expect(openAll.or(page.getByRole("button", { name: "Close all", exact: true })).first()).toBeVisible();
+  // The account's Open all first, then any inside the Mini game card.
+  for (let i = 0; i < 3 && (await openAll.count()) > 0; i++) {
+    await openAll.first().click();
+    await page.waitForTimeout(200);
+  }
 }

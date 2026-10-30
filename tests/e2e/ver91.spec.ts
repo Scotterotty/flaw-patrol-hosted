@@ -231,5 +231,5 @@ test("Import keeps the file's folders and TestRail Type values; roles summary ma
   await expect(page.getByTestId("type-tags-note")).toContainText("Functional, Negative");
 
   await page.goto(`/g/${groupId}/settings#roles`);
-  await expect(page.getByTestId("role-summary")).toContainText("Members write cases, run tests, file bugs and move requirements on the risk board. Leads also import, organize folders");
+  await expect(page.getByTestId("role-summary")).toContainText("Everyone can use every feature. Only admins archive, delete, change members and roles");
 });

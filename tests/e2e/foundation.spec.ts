@@ -95,7 +95,7 @@ test("foundation milestone end to end", async ({ page, context }) => {
   await expect(page.getByRole("link", { name: "Coupon applies" })).toBeVisible();
   await expect(page.getByText("Checkout / Discounts")).toBeVisible();
 
-  // Invite a tester; testers can edit cases but not reach import
+  // Invite a tester; with open permissions (ver_96) testers can edit and import cases
   await page.goto(`/p/${KEY}/settings`);
   const testerEmail = `tester-${run.toLowerCase()}@example.com`;
   await page.getByLabel("Add someone by email").fill(testerEmail);
@@ -106,9 +106,9 @@ test("foundation milestone end to end", async ({ page, context }) => {
   await signIn(page, testerEmail, "New Tester");
   await page.goto(`/p/${KEY}/cases`);
   await expect(page.getByRole("link", { name: "New case" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Import" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Import" })).toBeVisible();
   const res = await page.goto(`/p/${KEY}/import`);
-  expect(res?.status()).toBe(404);
+  expect(res?.status()).toBe(200);
 });
 
 test("uninvited people can't sign in", async ({ page }) => {

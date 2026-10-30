@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { signIn } from "./auth";
+import { signIn, openAccount } from "./auth";
 
 test("people can make text bigger and turn on display aids", async ({ page }) => {
   await signIn(page, "lead@example.com", "QA Lead");
-  await page.goto("/account");
+  await openAccount(page);
   const html = page.locator("html");
   const rootSize = () => page.evaluate(() => getComputedStyle(document.documentElement).fontSize);
   expect(await rootSize()).toBe("16px");

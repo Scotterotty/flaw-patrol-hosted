@@ -1,3 +1,4 @@
+import { PrismaClient } from "@prisma/client";
 import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
 import { standaloneProject } from "./projects";
@@ -5,6 +6,9 @@ import { standaloneProject } from "./projects";
 const KEY = `N${Date.now().toString(36).slice(-4).toUpperCase()}`;
 
 test("left menu is grouped and marks the page you are on", async ({ page }) => {
+  // The default menu: no menu order or quest maps left over from other specs.
+  const db = new PrismaClient();
+  await db.user.update({ where: { email: "admin@example.com" }, data: { navOrder: {}, questMap: false } }).finally(() => db.$disconnect());
   await signIn(page, "admin@example.com", "Demo Admin");
   await standaloneProject(page, `Menu ${KEY}`, KEY);
   await page.goto(`/p/${KEY}/suites`);

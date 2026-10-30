@@ -338,7 +338,8 @@ function importedDraft(t: ImportedTemplate, entry: Entry, ctx: BugContext, meta:
   const run = entry.run;
   return {
     title: t.title,
-    tag: tagOf(entry.title) || clientIn(`${run.name} ${run.project.name}`).toUpperCase(),
+    // Since ver_96 a leading [IOS] is a case tag, not part of the title.
+    tag: tagOf(entry.title) || (ctx.titleTags?.[0] ?? "").toUpperCase() || clientIn(`${run.name} ${run.project.name}`).toUpperCase(),
     feature: featureOf(entry.title),
     sections: t.sections.filter((x) => x.source !== "empty").map((x) => ({ heading: x.heading, source: x.source, text: sectionText(x.source, ctx) })),
     fields: t.fields
@@ -355,7 +356,7 @@ function importedDraft(t: ImportedTemplate, entry: Entry, ctx: BugContext, meta:
 function templateDefaults(t: TemplateSettings, entry: Entry, ctx: BugContext, meta: MetaField[] | null, profileRaw: unknown) {
   const run = entry.run;
   const word = clientIn(`${run.name} ${run.project.name}`) || clientIn(entry.title);
-  const clientTag = t.clientTag || tagOf(entry.title) || word.toUpperCase();
+  const clientTag = t.clientTag || tagOf(entry.title) || (ctx.titleTags?.[0] ?? "").toUpperCase() || word.toUpperCase();
   const clientName = word || clientTag;
   const options = {
     clients: findField(meta, FIELD.clients)?.options ?? [],

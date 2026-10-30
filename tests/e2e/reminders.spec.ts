@@ -27,8 +27,8 @@ test("reminders on a charter and in a session go off by the session clock", asyn
 
   // Fake the clock so a minute passes in a moment.
   await page.clock.install();
-  await page.getByRole("button", { name: "▶ Start session now" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Start session", exact: true }).click();
+  await page.getByRole("button", { name: "▶ Start exploring" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Start exploring", exact: true }).click();
   await expect(page).toHaveURL(/\/execute/);
   const timer = page.getByRole("region", { name: "Timer" });
   await expect(timer).toContainText("At 1:00 · Switch to mobile data");
@@ -41,7 +41,7 @@ test("reminders on a charter and in a session go off by the session clock", asyn
   await timer.getByRole("button", { name: "Done" }).click();
   await expect(timer).toContainText("Every 2 min · Check memory");
 
-  await page.getByRole("button", { name: "Start session" }).click();
+  await page.getByRole("button", { name: "Start exploring" }).click();
   await page.clock.fastForward("01:05");
   const alert = page.getByRole("alert").filter({ hasText: "Switch to mobile data" });
   await expect(alert).toContainText("1:00");

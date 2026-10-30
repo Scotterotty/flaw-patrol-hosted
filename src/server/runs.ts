@@ -138,7 +138,8 @@ export async function createRun(projectId: string, from: z.input<typeof source>,
 export async function updateRun(projectId: string, runId: string, input: RunInput) {
   return attempt(async () => {
     const { project } = await requireProjectAction(projectId, "run:create");
-    const { assigneeId: _ignored, fields: input2, cspVersion, ...data } = runSchema.parse(input); // eslint-disable-line @typescript-eslint/no-unused-vars
+    // The kind and assignee are picked when a run starts; Edit details doesn't change them.
+    const { assigneeId: _ignored, runKind: _kind, fields: input2, cspVersion, ...data } = runSchema.parse(input); // eslint-disable-line @typescript-eslint/no-unused-vars
     const run = await db.testRun.findFirst({ where: { id: runId, projectId }, select: { fields: true } });
     if (!run) throw new UserError("Run not found.");
     const typed = await fieldsOrFail(projectId, { csp: cspVersion, ...input2 }, { strict: false });

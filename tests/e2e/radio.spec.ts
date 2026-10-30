@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { signIn } from "./auth";
+import { signIn, openAccount } from "./auth";
 
 test("the radio is off until someone turns it on, and stays with them", async ({ page }) => {
   await signIn(page, "lead@example.com", "QA Lead");
-  await page.goto("/account");
+  await openAccount(page);
   // Start from off, in case an earlier run stopped halfway.
   await page.getByLabel("Show the radio player").uncheck();
   await page.waitForTimeout(500);
@@ -87,7 +87,7 @@ test("the radio is off until someone turns it on, and stays with them", async ({
   await page.goto("/");
   await expect(player.getByLabel("Station")).toHaveValue("groovesalad");
 
-  await page.goto("/account");
+  await openAccount(page);
   await page.getByLabel("Show the radio player").uncheck();
   await expect(player).toHaveCount(0);
   await page.reload();

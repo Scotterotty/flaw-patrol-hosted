@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { signIn } from "./auth";
+import { signIn, openAccount } from "./auth";
 import { standaloneProject } from "./projects";
 
 const run = Date.now().toString(36).slice(-4).toUpperCase();
@@ -72,7 +72,7 @@ test("passwords: first-time setup, wrong password, admin link, change", async ({
   await expect(m).not.toHaveURL(/signin/);
 
   // Change it from Your account.
-  await m.goto("/account");
+  await openAccount(m);
   await m.getByLabel("Current password").fill("second password");
   await m.getByLabel("New password", { exact: true }).fill("third password");
   await m.getByLabel("Confirm new password").fill("third password");
