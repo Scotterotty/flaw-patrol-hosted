@@ -15,14 +15,19 @@ export async function recordVisit(userId: string, projectId: string) {
   }
 }
 
-/** Last time anything happened in each project: a case saved, a run started or a result recorded. */
+/**
+ * Last time anything happened in each project: a case saved, a run started or a result recorded.
+ * Each max reads one end of an index (ver_100), so it stays quick however many results pile up.
+ */
 export async function lastActivity(projectIds: string[]) {
   if (!projectIds.length) return new Map<string, Date>();
   const rows = await db.$queryRaw<{ id: string; at: Date | null }[]>`
     select p.id, greatest(
       (select max("updatedAt") from "TestCase" where "projectId" = p.id),
       (select max("createdAt") from "TestRun" where "projectId" = p.id),
-      (select max(t."createdAt") from "TestResult" t join "TestRun" r on r.id = t."runId" where r."projectId" = p.id)
+      (select max(last.at) from "TestRun" r cross join lateral (
+        select max(t."createdAt") as at from "TestResult" t where t."runId" = r.id
+      ) last where r."projectId" = p.id)
     ) as at
     from "Project" p where p.id = any(${projectIds})`;
   return new Map(rows.filter((r) => r.at).map((r) => [r.id, r.at!]));

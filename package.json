@@ -1,6 +1,6 @@
 {
   "name": "flaw-patrol",
-  "version": "0.3.0-alpha.99",
+  "version": "0.3.0-alpha.100",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -12,6 +12,7 @@
     "test:e2e": "playwright test",
     "e2e:preflight": "node scripts/e2e-preflight.mjs",
     "e2e:all": "node scripts/e2e-all.mjs",
+    "check:cards": "node --conditions=react-server --import tsx scripts/check-umbrella-cards.ts",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",

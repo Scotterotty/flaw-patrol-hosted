@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 100,
+    date: "2026-10-30",
+    items: [
+      {
+        kind: "better",
+        title: "Faster Umbrellas page after you sign in",
+        text: "The Umbrellas page now loads all its umbrella cards at the same time and works out each card's release line, like RC 22 · 1 of 3 done, with a quick count instead of the whole Release status report. Everything on the cards looks the same, it just shows up sooner.",
+      },
+    ],
+  },
+  {
     version: 99,
     date: "2026-10-30",
     items: [

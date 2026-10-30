@@ -1,117 +1,106 @@
 import { type GroupChoice } from "@/components/group-dialogs";
-import {
-  ProjectsBrowser,
-  type UmbrellaEntry,
-} from "@/components/projects-browser";
+import { ProjectsBrowser } from "@/components/projects-browser";
 import { cookies } from "next/headers";
 import { parseUmbrellaSort, UMBRELLA_SORT_COOKIE } from "@/lib/project-list";
 import { TopBar } from "@/components/top-bar";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { db } from "@/lib/db";
 import { relativeTime } from "@/lib/format";
+import { startTiming } from "@/lib/timing";
+import { umbrellaCards } from "@/lib/umbrella-cards";
 import { canMakeUmbrellas, canManageGroups, visibleGroups } from "@/lib/groups";
-import { lastActivity } from "@/lib/project-visits";
 import { requireUser, mySpelling } from "@/lib/session";
 import { NewUmbrellaButton } from "@/components/umbrella-ui";
 import { can } from "@/lib/permissions";
-import { loadUmbrella, parseShortcuts } from "@/lib/umbrella";
-import {
-  defaultShortcuts,
-  freshShortcut,
-  rcGlance,
-  shortcutChoices,
-} from "@/lib/umbrella-pages";
 
 export default async function HomePage() {
   const user = await requireUser();
-  // Umbrella hubs show as their umbrella's card, never as projects of their own.
-  const projects = await db.project.findMany({
-    where: {
-      hubOf: null,
-      ...(user.isAdmin ? {} : { members: { some: { userId: user.id } } }),
-    },
-    include: {
-      members: { where: { userId: user.id } },
-      pins: { where: { userId: user.id } },
-      _count: {
-        select: {
-          cases: { where: { archived: false } },
-          suites: { where: { archived: false } },
-          members: true,
-          runs: { where: { state: "ACTIVE" } },
+  const t = startTiming("Umbrellas page");
+  const mine = user.isAdmin ? {} : { members: { some: { userId: user.id } } };
+  // Everything the page needs before its cards, sent together (ver_100).
+  const [
+    projects,
+    runTotals,
+    spelling,
+    manager,
+    maker,
+    umbrellaRows,
+    myRuns,
+    sortCookie,
+  ] = await t.step(
+    "page setup (sent together)",
+    Promise.all([
+      // Umbrella hubs show as their umbrella's card, never as projects of their own.
+      db.project.findMany({
+        where: { hubOf: null, ...mine },
+        include: {
+          members: { where: { userId: user.id } },
+          pins: { where: { userId: user.id } },
+          _count: {
+            select: {
+              cases: { where: { archived: false } },
+              suites: { where: { archived: false } },
+              members: true,
+              runs: { where: { state: "ACTIVE" } },
+            },
+          },
         },
-      },
-    },
-    orderBy: { name: "asc" },
-  });
-  const runTotals = await db.testRun.groupBy({
-    by: ["projectId"],
-    where: { projectId: { in: projects.map((p) => p.id) } },
-    _count: true,
-  });
-  const activity = await lastActivity(projects.map((p) => p.id));
+        orderBy: { name: "asc" },
+      }),
+      db.testRun.groupBy({
+        by: ["projectId"],
+        where: { project: { hubOf: null, ...mine } },
+        _count: true,
+      }),
+      mySpelling(),
+      canManageGroups(user),
+      canMakeUmbrellas(user),
+      db.projectGroup.findMany({
+        where: {
+          hubProjectId: { not: null },
+          ...(user.isAdmin ? {} : { hub: mine }),
+        },
+        orderBy: { name: "asc" },
+        select: { id: true, pins: { where: { userId: user.id } } },
+      }),
+      // Runs with cases waiting for this person, so a tester can start from the first page.
+      db.testRun.findMany({
+        where: {
+          state: "ACTIVE",
+          project: {
+            archivedAt: null,
+            ...mine,
+          },
+          entries: {
+            some: {
+              assigneeId: user.id,
+              status: { in: ["UNTESTED", "RETEST", "IN_PROGRESS"] },
+            },
+          },
+        },
+        include: {
+          project: { select: { key: true, name: true } },
+          entries: { where: { assigneeId: user.id }, select: { status: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 8,
+      }),
+      cookies(),
+    ]),
+  );
   const now = new Date();
-  const spelling = await mySpelling();
-  const manager = await canManageGroups(user);
-  const maker = await canMakeUmbrellas(user);
-  const groups = await visibleGroups(user, manager);
+  const [groups, { cards: umbrellas, activity }] = await Promise.all([
+    t.step("groups", visibleGroups(user, manager)),
+    umbrellaCards(
+      user,
+      umbrellaRows,
+      projects.map((p) => p.id),
+      spelling,
+      now,
+      t,
+    ),
+  ]);
   const groupName = new Map(groups.map((g) => [g.id, g.name]));
-  const umbrellaRows = await db.projectGroup.findMany({
-    where: {
-      hubProjectId: { not: null },
-      ...(user.isAdmin
-        ? {}
-        : { hub: { members: { some: { userId: user.id } } } }),
-    },
-    orderBy: { name: "asc" },
-    select: { id: true, pins: { where: { userId: user.id } } },
-  });
-  const umbrellas: UmbrellaEntry[] = [];
-  for (const row of umbrellaRows) {
-    const u = await loadUmbrella(row.id, user);
-    if (!u) continue;
-    const at = [
-      ...(
-        await lastActivity([u.hub.id, ...u.projects.map((p) => p.id)])
-      ).values(),
-    ].reduce<number | null>((m, d) => Math.max(m ?? 0, d.getTime()), null);
-    const choices = await shortcutChoices(u, await rcGlance(u));
-    const fresh = new Map(
-      choices.flatMap((c) => c.items).map((i) => [i.href, i]),
-    );
-    const picked = parseShortcuts(u.group.shortcuts).map((s) =>
-      freshShortcut(u, s),
-    );
-    umbrellas.push({
-      id: u.group.id,
-      name: u.group.name,
-      tagline: `Umbrella · ${at ? `Last activity ${relativeTime(new Date(at), spelling, now)}` : "No activity yet"}`,
-      // Counts in a shortcut's subtitle are refreshed from the page it points at.
-      shortcuts: (picked.length ? picked : defaultShortcuts(u)).map((s) => ({
-        ...s,
-        sub: fresh.get(s.href)?.sub ?? s.sub,
-      })),
-      choices: can(u.who, "umbrella:shortcuts") ? choices : null,
-      archived: !!u.group.archivedAt,
-      // A bug bash on now (ver_93): the card says so, with Join.
-      live: u.live ? { href: `/p/${u.hub.key}/bashes/${u.live.id}/join`, endsAt: u.live.endsAt } : null,
-      restore:
-        u.group.archivedAt && can(u.who, "umbrella:archive")
-          ? u.current.filter((p) => p.archivedWithUmbrella).map((p) => p.name)
-          : null,
-      starred: row.pins[0]?.starred ?? false,
-      position: row.pins[0]?.position ?? null,
-      hidden: row.pins[0]?.hidden ?? false,
-      canArchive: can(u.who, "umbrella:archive"),
-      activity: at,
-      cycles: u.projects.map((p) => ({
-        id: p.id,
-        key: p.key,
-        name: p.name,
-        archived: !!p.archivedAt,
-      })),
-    });
-  }
   const liveUmbrellas = umbrellas.filter((u) => !u.archived);
   const umbrellaIds = new Set(umbrellas.map((u) => u.id));
   const empty =
@@ -131,28 +120,6 @@ export default async function HomePage() {
   // Projects made before umbrellas (or moved out of one) sit under their own heading.
   const loose = projects.some((p) => !p.groupId || !umbrellaIds.has(p.groupId));
 
-  // Runs with cases waiting for this person, so a tester can start from the first page.
-  const myRuns = await db.testRun.findMany({
-    where: {
-      state: "ACTIVE",
-      project: {
-        archivedAt: null,
-        ...(user.isAdmin ? {} : { members: { some: { userId: user.id } } }),
-      },
-      entries: {
-        some: {
-          assigneeId: user.id,
-          status: { in: ["UNTESTED", "RETEST", "IN_PROGRESS"] },
-        },
-      },
-    },
-    include: {
-      project: { select: { key: true, name: true } },
-      entries: { where: { assigneeId: user.id }, select: { status: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 8,
-  });
   const yourWork = myRuns.map((r) => ({
     href: `/p/${r.project.key}/runs/${r.number}/execute?mine=1`,
     run: `R${r.number} ${r.name}`,
@@ -165,6 +132,7 @@ export default async function HomePage() {
     ).length,
   }));
 
+  t.done();
   const subtitle =
     "Each umbrella is one product, with its test cases, Jira and team. Its test cycles are where you run tests, one for each round of testing.";
 
@@ -196,11 +164,9 @@ export default async function HomePage() {
           <ProjectsBrowser
             subtitle={subtitle}
             yourWork={yourWork}
-            newButton={
-              maker ? <NewUmbrellaButton choices={choices} /> : null
-            }
+            newButton={maker ? <NewUmbrellaButton choices={choices} /> : null}
             sort={parseUmbrellaSort(
-              (await cookies()).get(UMBRELLA_SORT_COOKIE)?.value,
+              sortCookie.get(UMBRELLA_SORT_COOKIE)?.value,
             )}
             umbrellaCards={umbrellas}
             canManageGroups={manager}

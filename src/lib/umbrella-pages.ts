@@ -2,8 +2,7 @@ import "server-only";
 import { db } from "./db";
 import { isSevere } from "./severity";
 import { severityScaleFor } from "./severity-server";
-import { stateOf } from "./rc-status";
-import { listReleases, rcStatus } from "@/server/rc-status";
+import { rcGlanceLine } from "@/server/rc-status";
 import { OPEN_BUG, type Shortcut, type Umbrella } from "./umbrella";
 
 /** The numbers on the umbrella home's shortcut row, for one viewer. */
@@ -19,26 +18,28 @@ export async function hubCounts(u: Umbrella, userId: string) {
   return { mine, critical, flagged };
 }
 
-/** The umbrella's latest RC at a glance, such as "RC 22 · 1 of 3 done". */
-export async function rcGlance(u: Umbrella) {
-  // Scoped to the umbrella's own projects, so any viewer of the umbrella sees the same thing.
-  const scope = { projectIds: [u.hub.id, ...u.projects.map((p) => p.id)], addAnywhere: false };
-  const viewer = { id: "", isAdmin: true };
-  const [latest] = await listReleases(viewer, scope);
-  if (!latest) return "No releases yet";
-  const { columns } = await rcStatus(viewer, latest, { hide: [], add: [] }, scope);
-  return `${latest} · ${columns.filter((c) => stateOf(c).label === "DONE").length} of ${columns.length} done`;
-}
+/** The umbrella's latest RC at a glance, such as "RC 22 · 1 of 3 done": counted, not the whole report (ver_100). */
+export const rcGlance = (u: Umbrella) =>
+  rcGlanceLine(
+    [u.hub.id, ...u.projects.map((p) => p.id)],
+    u.platforms.map((p) => p.name),
+  );
 
 /** Saved shortcuts from before ver_70 point at the old all-projects Release status page. */
 export const freshShortcut = (u: Umbrella, s: Shortcut): Shortcut =>
   s.href === "/rc" ? { ...s, label: "Release status", href: `/g/${u.group.id}/rc` } : s.label === "RC status" ? { ...s, label: "Release status" } : s; // RC status became Release status in ver_94
 
 /** Every page the shortcut editor offers: the hub's, each current project's, their active runs and shared saved reports. */
-export async function shortcutChoices(u: Umbrella, rc = "Quick view of each release") {
+export async function shortcutChoices(u: Umbrella, release: string | Promise<string> = "Quick view of each release") {
   const g = `/g/${u.group.id}`;
   const hub = `/p/${u.hub.key}`;
   const n = (count: number, word: string) => `${count} ${word}`;
+  // The release line can still be loading (ver_100): it's waited for alongside this page's own queries.
+  const [runs, saved, rc] = await Promise.all([
+    db.testRun.findMany({ where: { projectId: { in: u.current.map((p) => p.id) }, state: "ACTIVE" }, orderBy: { createdAt: "desc" }, select: { projectId: true, number: true, name: true } }),
+    db.savedReport.findMany({ where: { projectId: { in: [u.hub.id, ...u.current.map((p) => p.id)] }, shared: true }, select: { projectId: true, name: true, query: true } }),
+    release,
+  ]);
   const sections: { section: string; items: Shortcut[] }[] = [
     {
       section: `${u.group.name} hub`,
@@ -58,10 +59,6 @@ export async function shortcutChoices(u: Umbrella, rc = "Quick view of each rele
       ],
     },
   ];
-  const [runs, saved] = await Promise.all([
-    db.testRun.findMany({ where: { projectId: { in: u.current.map((p) => p.id) }, state: "ACTIVE" }, orderBy: { createdAt: "desc" }, select: { projectId: true, number: true, name: true } }),
-    db.savedReport.findMany({ where: { projectId: { in: [u.hub.id, ...u.current.map((p) => p.id)] }, shared: true }, select: { projectId: true, name: true, query: true } }),
-  ]);
   for (const p of u.current) {
     const short = p.platform || p.name;
     const base = `/p/${p.key}`;

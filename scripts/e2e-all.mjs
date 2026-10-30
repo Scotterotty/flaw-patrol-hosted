@@ -1,10 +1,11 @@
 // The whole end-to-end run in one command (`npm run e2e:all`):
 //   1. the preflight (scripts/e2e-preflight.mjs), which stops early if setup is wrong
 //   2. every spec on the production build, stopping after 15 failures (a run that's failing that much is a setup problem)
-//   3. the specs that need next dev (DEV_ONLY in playwright.config.ts)
+//   3. the Umbrellas page card check (ver_100) on the database the specs just filled
+//   4. the specs that need next dev (DEV_ONLY in playwright.config.ts)
 // Pass --no-build to reuse the last production build. Prints how long each part took.
 import { spawnSync } from "node:child_process";
-import { rmSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { freePorts, root } from "./e2e-preflight.mjs";
 
@@ -25,6 +26,8 @@ let ok = pre;
 if (pre) {
   ok = part("All specs on the production build", "npx", ["playwright", "test", "--max-failures=15"], { E2E_SERVER: "prod" }) && ok;
   await freePorts();
+  // Every umbrella card the old way and the ver_100 way must match exactly.
+  ok = part("Umbrella card check", "npm", ["run", "check:cards"], { DATABASE_URL: readFileSync(join(root, ".e2e-database"), "utf8").trim() }) && ok;
   // next dev can't share the production build's .next folder.
   rmSync(join(root, ".next"), { recursive: true, force: true });
   ok = part("Specs that need next dev", "npx", ["playwright", "test", ...DEV_ONLY], { E2E_SERVER: "dev" }) && ok;

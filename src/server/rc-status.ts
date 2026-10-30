@@ -43,6 +43,52 @@ function clientOf(...texts: string[]) {
   return null;
 }
 
+/** The column a run adds up in: its test cycle's platform, else the client its names mention. */
+function columnLabel(run: { name: string; environment: string; project: { name: string; platform: string } }, platforms: string[]) {
+  const p = run.project.platform;
+  const platform = platforms.find((x) => x.toLowerCase() === p.trim().toLowerCase()) ?? p.trim();
+  return platform || clientOf(run.name, run.environment, run.project.name) || run.environment || run.name;
+}
+
+/**
+ * The umbrella card's release line, such as "RC 22 · 1 of 3 done" (ver_100). The same columns
+ * as the umbrella's Release status report with nothing ticked or unticked, but only counted:
+ * no bugs, automation or regressions, so the Umbrellas page doesn't run the whole report.
+ */
+export async function rcGlanceLine(projectIds: string[], platforms: string[]) {
+  const [newest, fetched] = await Promise.all([
+    db.testRun.findFirst({ where: { release: { not: "" }, projectId: { in: projectIds } }, select: { release: true }, orderBy: { createdAt: "desc" } }),
+    db.testRun.findMany({
+      where: { automated: false, projectId: { in: projectIds } },
+      select: { id: true, name: true, release: true, kind: true, environment: true, project: { select: { name: true, platform: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+    }),
+  ]);
+  const latest = newest?.release.trim();
+  if (!latest) return "No releases yet";
+  const key = releaseKey(latest);
+  const marked = fetched.filter((r) => r.release && releaseKey(r.release) === key && countsForRelease(r.kind));
+  const ids = marked.map((r) => r.id);
+  const [bashes, counts] = await Promise.all([
+    db.bugBash.findMany({ where: { runId: { in: fetched.map((r) => r.id) } }, select: { runId: true } }),
+    db.runEntry.groupBy({ by: ["runId", "status"], where: { runId: { in: ids } }, _count: { _all: true } }),
+  ]);
+  // Bug bashes stay out, as on the report with Include bug bashes off.
+  const bashIds = new Set(bashes.map((b) => b.runId));
+  const runs = marked.filter((r) => !bashIds.has(r.id));
+  const label = new Map(runs.map((r) => [r.id, columnLabel(r, platforms)]));
+  const columns = new Map<string, { total: number; done: number }>([...new Set([...label.values(), ...platforms])].map((l) => [l, { total: 0, done: 0 }]));
+  for (const c of counts) {
+    const col = label.has(c.runId) ? columns.get(label.get(c.runId)!) : undefined;
+    if (!col) continue;
+    col.total += c._count._all;
+    if (DONE.includes(c.status)) col.done += c._count._all;
+  }
+  const done = [...columns.values()].filter((c) => c.total > 0 && c.done === c.total).length;
+  return `${latest} · ${done} of ${columns.size} done`;
+}
+
 /**
  * One column per run marked with this release, from every project the viewer is in,
  * less any they untick, plus any other runs they add.
@@ -115,13 +161,7 @@ export async function rcStatus(
 
   // One column per client: two runs on the same client (a suite run and an exploratory
   // session, say) add up in one column, with their names listed under it (ver_86).
-  const perRun = runs.map((run) => ({
-    run,
-    label: bashIds.has(run.id) ? "Bug bash" : platformOf(run.project.platform) || clientOf(run.name, run.environment, run.project.name) || run.environment || run.name,
-  }));
-  function platformOf(p: string) {
-    return platforms.find((x) => x.toLowerCase() === p.trim().toLowerCase()) ?? p.trim();
-  }
+  const perRun = runs.map((run) => ({ run, label: bashIds.has(run.id) ? "Bug bash" : columnLabel(run, platforms) }));
   const labels = [...new Set([...perRun.map((r) => r.label), ...platforms])];
   // Run fields ticked "Show on Release status cards" (ver_89), per test cycle.
   const defsOf = new Map(await Promise.all([...new Set(runs.map((r) => r.projectId))].map(async (id) => [id, await runFieldsFor(id)] as const)));

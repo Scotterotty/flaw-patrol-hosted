@@ -147,6 +147,11 @@ connection string.
 
 Next time, just run `node start.mjs` again. Add `--demo` for a sample project.
 
+To see how long the Umbrellas page takes to load, add `FP_TIMING=1` to `.env`
+(or run `$env:FP_TIMING="1"` in PowerShell first) and start Flaw Patrol. Each
+time the page loads, the terminal window prints how many milliseconds each step
+took. Take the line out to turn it off.
+
 ## Try it on your computer (Docker only)
 
 Needs only [Docker Desktop](https://www.docker.com/products/docker-desktop/).
@@ -191,7 +196,8 @@ npm test             # unit tests (Vitest): import parsing, steps, permissions, 
 npm run test:e2e     # browser tests (Playwright) against `next dev` and a mock Jira (tests/e2e/mock-jira.mjs)
 npm run lint && npm run typecheck
 npm run e2e:preflight  # 2-minute check before a full browser test run (below)
-npm run e2e:all        # preflight, every browser test on a production build, then the 2 that need next dev
+npm run e2e:all        # preflight, every browser test on a production build, the card check, then the 2 that need next dev
+npm run check:cards    # every Umbrellas page card built the old way and the ver_100 way must match exactly
 ```
 
 Before a full browser test run, `npm run e2e:preflight` stops with a plain message

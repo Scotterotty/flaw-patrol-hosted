@@ -494,6 +494,8 @@ model TestCase {
 
   @@unique([projectId, number])
   @@index([projectId, folderId])
+  // Last activity on the Umbrellas page (ver_100).
+  @@index([projectId, updatedAt])
 }
 
 // Immutable snapshot. `steps` is CaseStepItem[] (see src/lib/steps.ts): plain
@@ -734,6 +736,8 @@ model RunEntry {
 
   @@unique([runId, caseId])
   @@index([caseId])
+  // Your work on the Umbrellas page: cases assigned to you still to test (ver_100).
+  @@index([assigneeId, status])
 }
 
 // Every time someone records an outcome. History is never overwritten.
@@ -776,6 +780,8 @@ model TestResult {
   @@index([entryId, createdAt])
   @@index([caseId, createdAt])
   @@index([runId])
+  // Newest result per run, for last activity (ver_100).
+  @@index([runId, createdAt])
 }
 
 // The answer to a question logged in an exploratory session (a note in
