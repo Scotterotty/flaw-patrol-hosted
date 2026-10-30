@@ -150,7 +150,7 @@ const SHORT_WORDS: Record<string, string> = {
   archlib: "archive and delete",
   delfolders: "archive and delete",
   delruns: "archive and delete",
-  archcycles: "archive test cycles",
+  archcycles: "archive and delete",
 };
 
 const listOf = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
