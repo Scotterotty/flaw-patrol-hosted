@@ -22,6 +22,28 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 97,
+    date: "2026-10-30",
+    items: [
+      {
+        kind: "new",
+        title: "A result for each check in a shared step",
+        text: "When a shared step lists several checks under its name, each check gets its own P F B R S buttons in the runner. One failed check fails the step, and the step's own buttons fill the checks you haven't marked. Rows in capitals show as headings that need no result.",
+      },
+      {
+        kind: "better",
+        title: "Anyone can make a new umbrella",
+        text: "New umbrella is on the Umbrellas page for everyone except Viewers. Whoever makes an umbrella becomes its Admin.",
+        link: "/",
+      },
+      {
+        kind: "fix",
+        title: "Account cards stay open or folded",
+        text: "Opening or folding a card on Your account and leaving the page right away now keeps your choice.",
+      },
+    ],
+  },
+  {
     version: 96,
     date: "2026-10-30",
     items: [

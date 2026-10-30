@@ -1,8 +1,18 @@
 import { defineConfig } from "@playwright/test";
+import { existsSync, readFileSync } from "node:fs";
 
-// End-to-end tests run against `next dev`.
+// End-to-end tests run against `next dev`, or with E2E_SERVER=prod against a production build
+// (`next build` first), which is faster and never restarts mid-test. `npm run e2e:all` does it all:
+// preflight (scripts/e2e-preflight.mjs), every spec on the production build, then DEV_ONLY on next dev.
+const server = process.env.E2E_SERVER ?? "dev";
+// These post to localhost hooks, which production builds refuse on purpose.
+export const DEV_ONLY = ["run-sheet.spec.ts", "ver82.spec.ts"];
+// The preflight makes a fresh database for each run and names it here; the servers and specs use it instead of .env's.
+if (existsSync(".e2e-database")) process.env.DATABASE_URL = readFileSync(".e2e-database", "utf8").trim();
+
 export default defineConfig({
   testDir: "tests/e2e",
+  ...(server === "prod" ? { testIgnore: DEV_ONLY.map((f) => `**/${f}`) } : {}),
   timeout: 180_000,
   // The dev server compiles each page on first visit.
   expect: { timeout: 20_000 },
@@ -16,7 +26,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "npx next dev -p 3100",
+      command: server === "prod" ? "npx next start -p 3100" : "npx next dev -p 3100",
       // Pull from GitHub talks to the stand-in below instead of GitHub.
       // Microsoft sign-in talks to the stand-in in mock-sso.mjs (ver_92).
       // AUTH_URL: sign-in sends people back to this server, not the 3000 one in .env.

@@ -378,9 +378,10 @@ export default async function ExecutePage({
                   comment: last.comment,
                   stepStatuses: ((last.stepResults as { status: ResultStatus }[]) ?? []).map((s) => s.status),
                   defects: last.defects.map((l) => ({ key: l.defect.externalKey ?? `D-${l.defect.number}`, url: l.defect.externalUrl, title: l.defect.title })),
-                  stepResults: ((Array.isArray(last.stepResults) ? last.stepResults : []) as { status: ResultStatus; actual?: string }[]).map((r) => ({
+                  stepResults: ((Array.isArray(last.stepResults) ? last.stepResults : []) as { status: ResultStatus; actual?: string; checks?: ResultStatus[] }[]).map((r) => ({
                     status: r.status,
                     actual: r.actual ?? "",
+                    ...(Array.isArray(r.checks) ? { checks: r.checks } : {}),
                   })),
                   attachments: last.attachments,
                   links: last.defects.map((l) => ({

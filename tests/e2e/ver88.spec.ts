@@ -40,9 +40,7 @@ test("What's new opens once after a new version, filtered by role, and can be op
   await expect(win.getByRole("heading", { name: "What's new in Flaw Patrol" })).toBeVisible();
   // The window shows the newest versions (up to five); older ones fold under the newest.
   await expect(win).toContainText(`Version ${WHATS_NEW[0].version}`);
-  await win.locator("summary", { hasText: "Version 92" }).click();
-  // Workspace admins see Workspace settings (ver_92).
-  await expect(win.getByText("Company sign-in, invite emails, the activity log")).toBeVisible();
+  await win.locator("summary", { hasText: `Version ${WHATS_NEW[1].version}` }).click();
   // Esc counts as seen, like Got it.
   await page.keyboard.press("Escape");
   await expect(win).toBeHidden();
@@ -56,6 +54,8 @@ test("What's new opens once after a new version, filtered by role, and can be op
   await page.getByRole("menuitem", { name: "What's new" }).click();
   await expect(page).toHaveURL(/\/whats-new$/);
   await expect(page.getByRole("region", { name: "Version 88" })).toContainText("No wrong reporter warning when the Jira token is yours");
+  // Workspace admins see Workspace settings (ver_92).
+  await expect(page.getByRole("region", { name: "Version 92" })).toContainText("Company sign-in, invite emails, the activity log");
 
   // A tester doesn't see admin-only changes; Got it closes it.
   await page.context().clearCookies();
@@ -63,7 +63,7 @@ test("What's new opens once after a new version, filtered by role, and can be op
   await setSeen("tester@example.com", 91);
   await page.goto("/");
   await expect(win).toBeVisible();
-  await expect(win.getByText("Bug bashes").first()).toBeVisible();
+  await expect(win.getByText("A result for each check in a shared step").first()).toBeVisible();
   // Workspace and admin-only changes are left out for a tester (version 92 had only those).
   await expect(win.locator("summary", { hasText: "Version 92" })).toHaveCount(0);
   await expect(win.getByText("Company sign-in, invite emails, the activity log")).toHaveCount(0);

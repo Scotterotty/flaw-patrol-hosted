@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { pathOf } from "@/lib/folders";
-import { groupableProjectIds } from "@/lib/groups";
+import { canMakeUmbrellas, groupableProjectIds } from "@/lib/groups";
 import { can, type Action } from "@/lib/permissions";
 import { requireProjectAction, requireUser } from "@/lib/session";
 import { type CarryOver, MAX_SHORTCUTS, OPEN_BUG, parsePlatforms, parseShortcuts, SHORTCUT_ICONS, syncUmbrellaMembers, unionMembers } from "@/lib/umbrella";
@@ -17,7 +17,7 @@ import { MAX_RUN_FIELDS, type RunField } from "@/lib/run-fields";
 import { buildEntries } from "./snapshot";
 
 // Umbrellas: a project group with a hub project holding the shared library, Jira
-// and team. Workspace admins make them; the hub's leads and admins run them.
+// and team. Anyone but a Viewer makes them (ver_97); the hub's leads and admins run them.
 
 const keySchema = z
   .string()
@@ -70,7 +70,7 @@ const newProjectSchema = z.object({
 /**
  * A new umbrella. It can make its first projects on the spot (one per platform,
  * named "<umbrella> <platform> <RC>" unless renamed) and take in projects that
- * already exist, whose libraries can come along. Workspace admins only, since it makes projects.
+ * already exist, whose libraries can come along. Everyone except Viewers (ver_97); the maker becomes its Admin.
  */
 export async function createUmbrella(input: {
   name: string;
@@ -83,7 +83,7 @@ export async function createUmbrella(input: {
 }) {
   return attempt(async () => {
     const user = await requireUser();
-    if (!user.isAdmin) throw new UserError("Only workspace admins can make umbrellas.");
+    if (!(await canMakeUmbrellas(user))) throw new UserError("Viewers can't make umbrellas. Ask an admin to make one, or to change your role.");
     const name = nameSchema.parse(input.name);
     const key = keySchema.parse(input.key);
     const description = z.string().trim().max(500).parse(input.description ?? "");

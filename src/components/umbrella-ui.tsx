@@ -135,7 +135,7 @@ type NewRow = { id: number; platform: string; name: string | null };
 const autoName = (umbrella: string, platform: string, rc: string) => [umbrella.trim(), platform.trim(), rc.trim()].filter(Boolean).join(" ");
 
 /**
- * "New umbrella" on the Projects page, for workspace admins. It's the only way to
+ * "New umbrella" on the Projects page, for everyone but Viewers (ver_97). It's the only way to
  * start new work: the box can make the umbrella's first projects (one per platform)
  * and take in projects that aren't in an umbrella yet, cases and all.
  */

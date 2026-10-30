@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition, type ReactNode } from "react";
+import { Fragment, useEffect, useState, useTransition, type ReactNode } from "react";
 import type { Role } from "@prisma/client";
 import { ROLE_LABEL, ROLES_PICK } from "@/lib/permissions";
 import { setQuestMap } from "@/server/account";
@@ -75,7 +75,8 @@ export function InviteTeam({
           ×
         </button>
       </div>
-      {nudge}
+      {/* nudge is built on the server page, so it needs a key to sit among these children (React warned otherwise) */}
+      {nudge && <Fragment key="nudge">{nudge}</Fragment>}
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <form
         className="mt-3 flex flex-wrap items-center gap-2"

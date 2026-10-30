@@ -88,7 +88,7 @@ type Props = {
   subtitle: string;
   /** Runs with cases assigned to the viewer that still need testing. */
   yourWork?: { href: string; run: string; cycle: string; left: number }[];
-  /** New umbrella, for workspace admins. */
+  /** New umbrella, for everyone but Viewers. */
   newButton: React.ReactNode;
   sort: UmbrellaSort;
   umbrellaCards: UmbrellaEntry[];

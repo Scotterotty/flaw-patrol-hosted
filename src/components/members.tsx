@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import type { Role } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -187,7 +187,8 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
           </li>
         ))}
       </ul>
-      {canManage && nudge}
+      {/* nudge is built on the server page, so it needs a key to sit among these children (React warned otherwise) */}
+      {canManage && nudge && <Fragment key="nudge">{nudge}</Fragment>}
       {canManage && (
         <form
           className="mt-4 flex flex-wrap items-end gap-2 border-t border-slate-100 pt-4"

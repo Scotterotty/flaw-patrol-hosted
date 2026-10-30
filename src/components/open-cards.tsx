@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { setOpenCards } from "@/server/account";
 import { FoldCard } from "./fold-card";
 
@@ -13,11 +13,9 @@ const OpenCards = createContext<Ctx | null>(null);
  */
 export function OpenCardsProvider({ initial, children }: { initial: string[]; children: ReactNode }) {
   const [open, setOpen] = useState(() => new Set(initial));
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const save = useCallback((next: Set<string>) => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => void setOpenCards([...next]), 400);
-  }, []);
+  // Saved straight away (ver_97): with a short wait, leaving the page right after a click lost it.
+  // Next runs server actions one at a time, so quick clicks still save in order.
+  const save = useCallback((next: Set<string>) => void setOpenCards([...next]), []);
   const value = useMemo<Ctx>(
     () => ({
       isOpen: (id) => open.has(id),

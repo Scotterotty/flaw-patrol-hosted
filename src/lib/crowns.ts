@@ -129,7 +129,8 @@ export async function refreshCrowns(groupId: string) {
     let next = holder && held >= def.need ? holder : null;
     if (best && (!next || best[1].n > held)) next = best[0];
     const json = Object.fromEntries([...m.entries()].map(([id, c]) => [id, c.n])) as Prisma.InputJsonValue;
-    if (!row) await db.crown.create({ data: { groupId, key: def.key, label: def.label, userId: next, counts: json } });
+    // upsert: two saves at once can both find no row and both try to make it.
+    if (!row) await db.crown.upsert({ where: { groupId_key: { groupId, key: def.key } }, create: { groupId, key: def.key, label: def.label, userId: next, counts: json }, update: { label: def.label, counts: json } });
     else await db.crown.update({ where: { id: row.id }, data: { label: def.label, counts: json, ...(next !== holder ? { userId: next, since: new Date() } : {}) } });
     if (holder && next !== holder) await takeOff(holder, groupId, def.key);
   }

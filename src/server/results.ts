@@ -22,7 +22,8 @@ const statusEnum = z.enum(["UNTESTED", "PASSED", "FAILED", "BLOCKED", "RETEST", 
 
 const resultSchema = z.object({
   status: statusEnum.exclude(["UNTESTED"]),
-  stepResults: z.array(z.object({ status: statusEnum, actual: z.string().max(10000).default("") })).max(1000),
+  // checks: one result per check inside a shared step (ver_97, src/lib/step-checks.ts).
+  stepResults: z.array(z.object({ status: statusEnum, actual: z.string().max(10000).default(""), checks: z.array(statusEnum).max(500).optional() })).max(1000),
   comment: z.string().max(10000).default(""),
   elapsedSec: z.number().int().min(0).max(86400 * 7).nullable().default(null),
   attachmentIds: z.array(z.string()).max(200).default([]),

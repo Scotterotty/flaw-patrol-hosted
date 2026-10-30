@@ -187,7 +187,19 @@ For Google sign-in create an OAuth client with redirect URI
 npm test             # unit tests (Vitest): import parsing, steps, permissions, diff
 npm run test:e2e     # browser tests (Playwright) against `next dev` and a mock Jira (tests/e2e/mock-jira.mjs)
 npm run lint && npm run typecheck
+npm run e2e:preflight  # 2-minute check before a full browser test run (below)
+npm run e2e:all        # preflight, every browser test on a production build, then the 2 that need next dev
 ```
+
+Before a full browser test run, `npm run e2e:preflight` stops with a plain message
+if something would make every test fail. It closes old servers on the test ports
+(3000, 3100, 3193 to 3199), checks `.env` (local database only, AUTH_SECRET set),
+looks for button and label names the tests use that were renamed since the last
+commit (`scripts/e2e-stale-names.mjs`), makes a brand-new database with every
+migration and the demo data (named in `.e2e-database`, which Playwright then
+uses), makes a production build (`--no-build` reuses the last one) and runs
+`tests/e2e/smoke.spec.ts`. Run with `E2E_SERVER=prod` to test a production build
+by hand; `run-sheet` and `ver82` need `next dev`.
 
 `.github/workflows/ci.yml` runs all of these with a Postgres service once the
 code is in a GitHub repository. Set `PW_CHROMIUM_PATH` to use an already

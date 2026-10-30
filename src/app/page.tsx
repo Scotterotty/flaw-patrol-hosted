@@ -9,7 +9,7 @@ import { TopBar } from "@/components/top-bar";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { db } from "@/lib/db";
 import { relativeTime } from "@/lib/format";
-import { canManageGroups, visibleGroups } from "@/lib/groups";
+import { canMakeUmbrellas, canManageGroups, visibleGroups } from "@/lib/groups";
 import { lastActivity } from "@/lib/project-visits";
 import { requireUser, mySpelling } from "@/lib/session";
 import { NewUmbrellaButton } from "@/components/umbrella-ui";
@@ -53,6 +53,7 @@ export default async function HomePage() {
   const now = new Date();
   const spelling = await mySpelling();
   const manager = await canManageGroups(user);
+  const maker = await canMakeUmbrellas(user);
   const groups = await visibleGroups(user, manager);
   const groupName = new Map(groups.map((g) => [g.id, g.name]));
   const umbrellaRows = await db.projectGroup.findMany({
@@ -177,7 +178,7 @@ export default async function HomePage() {
             <EmptyState
               title="Start with an umbrella"
               action={
-                user.isAdmin ? (
+                maker ? (
                   <NewUmbrellaButton
                     choices={choices}
                     label="Make your first umbrella"
@@ -188,7 +189,7 @@ export default async function HomePage() {
               An umbrella holds one product&apos;s test cases, Jira settings and
               team. Then you add a test cycle for each round of testing, such as
               one release on one platform.
-              {user.isAdmin ? "" : " Ask an admin to add you to one."}
+              {maker ? "" : " Ask an admin to add you to one."}
             </EmptyState>
           </>
         ) : (
@@ -196,7 +197,7 @@ export default async function HomePage() {
             subtitle={subtitle}
             yourWork={yourWork}
             newButton={
-              user.isAdmin ? <NewUmbrellaButton choices={choices} /> : null
+              maker ? <NewUmbrellaButton choices={choices} /> : null
             }
             sort={parseUmbrellaSort(
               (await cookies()).get(UMBRELLA_SORT_COOKIE)?.value,

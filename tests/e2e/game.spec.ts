@@ -13,6 +13,8 @@ test("the mini game is opt-in and shows your title next to your name", async ({ 
 
   await join.check();
   await expect(page.getByText(/^Level \d+$/)).toBeVisible();
+  // The Mini game's sections start folded for someone who just joined (ver_96).
+  await openAccount(page);
   await expect(page.getByRole("cell", { name: /Cases run/ })).toBeVisible();
   await expect(page.getByRole("cell", { name: /Cases written/ })).toBeVisible();
   await expect(page.locator('input[name="game-title"][value="guardian"]')).toBeDisabled();

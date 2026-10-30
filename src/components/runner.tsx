@@ -15,6 +15,7 @@ import type { Draft } from "@/lib/run-draft";
 import { mapHistorySteps, SHOW_HISTORY_EVENT, STILL_OCCURS_EVENT, type HistoryRun } from "@/lib/run-history";
 import { relativeTime } from "@/lib/format";
 import { deriveCaseStatus, SETTABLE, STATUS_HELP, STATUS_LABEL, STATUS_STYLE } from "@/lib/status";
+import { fillChecks, rollUp, stepChecks } from "@/lib/step-checks";
 import type { ExpandedStep } from "@/lib/steps";
 import type { LinkedDefect } from "@/server/jira";
 import { saveDraft, submitResult, uploadAttachment } from "@/server/results";
@@ -83,13 +84,19 @@ export type PreviousResult = {
   stepStatuses: ResultStatus[];
   defects: { key: string; url: string | null; title: string }[];
   /** The saved step results and bugs, shown again when the case is reopened. */
-  stepResults: { status: ResultStatus; actual: string }[];
+  stepResults: { status: ResultStatus; actual: string; checks?: ResultStatus[] }[];
   links: PendingDefect[];
   /** Files saved with that result: screenshots, recordings and other attachments. */
   attachments: Attachment[];
 };
 
 const LIVE_MS = 2000;
+
+/** The step opens a shared step's run of steps (the first of 3.1, 3.2…). */
+const firstOfShared = (steps: ExpandedStep[], i: number) =>
+  !!steps[i].shared && (i === 0 || steps[i - 1].shared?.id !== steps[i].shared!.id || steps[i - 1].number.split(".")[0] !== steps[i].number.split(".")[0]);
+/** Step results without the headings (ver_97), which take none. */
+const withoutHeadings = <T,>(steps: ExpandedStep[], list: T[]) => list.filter((_, i) => !steps[i] || stepChecks(steps[i], firstOfShared(steps, i))?.kind !== "heading");
 
 export function Runner({
   projectId,
@@ -148,7 +155,7 @@ export function Runner({
     !draft && previous && previous.stepResults.length === n
       ? {
           stepResults: previous.stepResults,
-          override: n && deriveCaseStatus(previous.stepResults.map((s) => s.status)) === previous.status ? null : previous.status,
+          override: n && deriveCaseStatus(withoutHeadings(entry.steps, previous.stepResults.map((s) => s.status))) === previous.status ? null : previous.status,
           comment: previous.comment,
           defects: previous.links,
           attachments: previous.attachments,
@@ -190,10 +197,47 @@ export function Runner({
     };
   }, []);
   const reopened = useRef(saved !== null).current;
+  // Shared steps with several checks in them get a result per check (ver_97); rows in capitals are headings with no result.
+  const parsed = useMemo(
+    () =>
+      entry.steps.map((s, i) => stepChecks(s, firstOfShared(entry.steps, i))),
+    [entry.steps],
+  );
+  const heading = useCallback((i: number) => parsed[i]?.kind === "heading", [parsed]);
+  const checkCount = useCallback((i: number) => (parsed[i]?.kind === "checks" ? (parsed[i] as { count: number }).count : 0), [parsed]);
+  const [checkResults, setCheckResults] = useState<ResultStatus[][]>(() =>
+    parsed.map((p, i) => {
+      if (p?.kind !== "checks") return [];
+      const was = start0?.stepResults[i];
+      if (was?.checks?.length === p.count) return was.checks;
+      // A result saved before the step had checks: every check takes the step's result.
+      return Array(p.count).fill(was?.status ?? "UNTESTED");
+    }),
+  );
+  // Within a step with checks, the check the keys mark next.
+  const [curCheck, setCurCheck] = useState(0);
+  /** The next step that takes a result, skipping headings, or -1. */
+  const stepAfter = useCallback(
+    (i: number, dir: 1 | -1 = 1) => {
+      for (let j = i + dir; j >= 0 && j < n; j += dir) if (!heading(j)) return j;
+      return -1;
+    },
+    [n, heading],
+  );
   const [statuses, setStatuses] = useState<ResultStatus[]>(() => start0?.stepResults.map((s) => s.status) ?? Array(n).fill("UNTESTED"));
   const [actuals, setActuals] = useState<string[]>(() => start0?.stepResults.map((s) => s.actual) ?? Array(n).fill(""));
   // Pick up at the first step without a result.
-  const [current, setCurrent] = useState(() => Math.max(0, draft ? draft.stepResults.findIndex((s) => s.status === "UNTESTED") : 0));
+  const [current, setCurrent] = useState(() => {
+    const at = draft ? draft.stepResults.findIndex((s, i) => s.status === "UNTESTED" && !heading(i)) : 0;
+    return Math.max(0, at >= 0 && heading(at) ? stepAfter(at) : at);
+  });
+  // A step with checks takes its result from them.
+  useEffect(() => {
+    setStatuses((prev) => {
+      const next = prev.map((s, i) => (checkCount(i) ? rollUp(checkResults[i]) : s));
+      return same(next, prev) ? prev : next;
+    });
+  }, [checkResults, checkCount]);
   const [override, setOverride] = useState<ResultStatus | null>(start0?.override ?? null);
   // Save and next on a case with no step marked asks first.
   const [askSkip, setAskSkip] = useState(false);
@@ -229,7 +273,11 @@ export function Runner({
   const finished = useRef(false);
   const payload = useRef<Draft | null>(null);
   payload.current = {
-    stepResults: statuses.map((status, i) => ({ status: status as Draft["stepResults"][number]["status"], actual: actuals[i] })),
+    stepResults: statuses.map((status, i) => ({
+      status: status as Draft["stepResults"][number]["status"],
+      actual: actuals[i],
+      ...(checkCount(i) ? { checks: checkResults[i] as Draft["stepResults"][number]["status"][] } : {}),
+    })),
     override: override as Draft["override"],
     comment,
     elapsedSec: Math.floor((Date.now() - startedAt.current) / 1000),
@@ -262,6 +310,7 @@ export function Runner({
     base.current = remote;
     if (contentOf(next) === contentOf(cur)) return;
     setStatuses(next.stepResults.map((s) => s.status));
+    setCheckResults((prev) => prev.map((c, i) => (c.length && next.stepResults[i]?.checks?.length === c.length ? next.stepResults[i].checks! : c)));
     setActuals(next.stepResults.map((s) => s.actual));
     setOverride(next.override);
     setComment(next.comment);
@@ -380,19 +429,48 @@ export function Runner({
   useEffect(() => publishLiveSteps(entry.id, statuses), [entry.id, statuses]);
   useEffect(() => () => publishLiveSteps(entry.id, null), [entry.id]);
 
-  const derived = n ? deriveCaseStatus(statuses) : "UNTESTED";
+  // Headings take no result, so they don't hold the case back.
+  const resultSteps = statuses.filter((_, i) => !heading(i));
+  const derived = resultSteps.length ? deriveCaseStatus(resultSteps) : "UNTESTED";
   const caseStatus = override ?? derived;
   // No case result yet: saving keeps the progress and the case stays In progress.
   const partial = caseStatus === "UNTESTED";
 
   const setStep = useCallback(
     (i: number, s: ResultStatus) => {
+      if (heading(i)) return;
+      // A step with checks: its own buttons fill the empty checks, or set them all when none are empty.
+      if (checkCount(i)) setCheckResults((prev) => prev.map((c, j) => (j === i ? fillChecks(c, s) : c)));
       // A status always sets that status, never toggles it off (pressing P twice used to clear a pass). U or Clear empties it.
-      setStatuses((prev) => prev.map((x, j) => (j === i ? s : x)));
+      else setStatuses((prev) => prev.map((x, j) => (j === i ? s : x)));
       // Move on after a pass; stay put on a problem so the tester can describe it.
-      if (s === "PASSED" && i < n - 1) setCurrent(i + 1);
+      if (s === "PASSED" && stepAfter(i) >= 0) {
+        setCurrent(stepAfter(i));
+        setCurCheck(0);
+      }
     },
-    [n],
+    [heading, checkCount, stepAfter],
+  );
+  /** One check's result. Pressing the one it already has clears it. Keys move on to the next check. */
+  const setCheck = useCallback(
+    (i: number, k: number, s: ResultStatus, fromKey = false) => {
+      setCheckResults((prev) => prev.map((c, j) => (j === i ? c.map((x, m) => (m === k ? (!fromKey && x === s ? "UNTESTED" : s) : x)) : c)));
+      if (!fromKey) return;
+      if (k + 1 < checkCount(i)) setCurCheck(k + 1);
+      else if (stepAfter(i) >= 0) {
+        setCurrent(stepAfter(i));
+        setCurCheck(0);
+      }
+    },
+    [checkCount, stepAfter],
+  );
+  /** Sets every step's result at once; a step with checks gives all of them that result. */
+  const applyStatuses = useCallback(
+    (next: ResultStatus[]) => {
+      setCheckResults((prev) => prev.map((c, i) => (c.length && rollUp(c) !== next[i] ? c.map(() => next[i] ?? "UNTESTED") : c)));
+      setStatuses(next);
+    },
+    [],
   );
 
   // Sentry (ver_96): the clock for a step starts when it's opened.
@@ -428,7 +506,7 @@ export function Runner({
       // Undo: take back what Still happens did.
       const prev = before.current[b.id];
       setDefects((all) => all.filter((d) => d.defect.id !== b.id));
-      if (prev && b.stepIndex !== null && prev.status) setStatuses((all) => all.map((x, j) => (j === b.stepIndex ? prev.status! : x)));
+      if (prev && b.stepIndex !== null && prev.status) applyStatuses(statusesRef.current.map((x, j) => (j === b.stepIndex ? prev.status! : x)));
       if (prev) setComment((c) => c.replace(prev.line, "").replace(/\n{2,}/g, "\n").trim());
       delete before.current[b.id];
     }
@@ -470,10 +548,10 @@ export function Runner({
         if (i >= 0 && nextStatuses[i] === "UNTESTED") nextStatuses[i] = "FAILED";
         return { defect: d.defect, stepIndex: i >= 0 ? i : null };
       });
-      setStatuses(nextStatuses);
+      applyStatuses(nextStatuses);
       setActuals(nextActuals);
       setDefects(bugs.filter((b, k) => bugs.findIndex((x) => x.defect.id === b.defect.id && x.stepIndex === b.stepIndex) === k));
-      setOverride(n && deriveCaseStatus(nextStatuses) === past.status ? null : past.status === "UNTESTED" ? null : past.status);
+      setOverride(n && deriveCaseStatus(withoutHeadings(entry.steps, nextStatuses)) === past.status ? null : past.status === "UNTESTED" ? null : past.status);
       const keys = [...new Set(past.defects.map((d) => d.defect.externalKey ?? `D-${d.defect.number}`))].join(", ");
       setComment((c) => c || `Bug still occurs: ${keys} (same as R${past.runNumber}).`);
       const firstProblem = nextStatuses.findIndex((x) => x !== "UNTESTED" && x !== "PASSED" && x !== "SKIPPED");
@@ -482,7 +560,7 @@ export function Runner({
     };
     window.addEventListener(STILL_OCCURS_EVENT, apply);
     return () => window.removeEventListener(STILL_OCCURS_EVENT, apply);
-  }, [entry.steps, n, runClosed]);
+  }, [entry.steps, n, runClosed, applyStatuses]);
 
   const upload = useCallback(
     async (files: File[], stepIndex: number | null) => {
@@ -631,26 +709,39 @@ export function Runner({
       const t = e.target as HTMLElement;
       if (t.closest("input, textarea, select, dialog") || e.ctrlKey || e.metaKey || e.altKey) return;
       const k = e.key.toLowerCase();
+      // Arrows go check by check inside a step with checks, and skip headings.
+      const many = checkCount(current);
       if (k === "arrowdown" || k === "j") {
         e.preventDefault();
-        setCurrent((c) => Math.min(n - 1, c + 1));
+        if (many && curCheck < many - 1) setCurCheck(curCheck + 1);
+        else if (stepAfter(current) >= 0) {
+          setCurrent(stepAfter(current));
+          setCurCheck(0);
+        }
       } else if (k === "arrowup" || k === "k") {
         e.preventDefault();
-        setCurrent((c) => Math.max(0, c - 1));
+        if (many && curCheck > 0) setCurCheck(curCheck - 1);
+        else if (stepAfter(current, -1) >= 0) {
+          const to = stepAfter(current, -1);
+          setCurrent(to);
+          setCurCheck(Math.max(0, checkCount(to) - 1));
+        }
       } else if (k === "u" && n) {
         e.preventDefault();
-        setStep(current, "UNTESTED");
+        if (many) setCheck(current, curCheck, "UNTESTED", true);
+        else setStep(current, "UNTESTED");
       } else {
         const hit = SETTABLE.find((s) => s.key === k);
         if (hit && n) {
           e.preventDefault();
-          setStep(current, hit.status);
+          if (many) setCheck(current, curCheck, hit.status, true);
+          else setStep(current, hit.status);
         }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [current, n, setStep, submit]);
+  }, [current, curCheck, n, setStep, setCheck, checkCount, stepAfter, submit]);
 
   // Paste a screenshot anywhere to attach it to the current step.
   useEffect(() => {
@@ -673,9 +764,11 @@ export function Runner({
 
   const stepCounts = useMemo(() => {
     const c: Partial<Record<ResultStatus, number>> = {};
-    for (const s of statuses) c[s] = (c[s] ?? 0) + 1;
+    for (const s of resultSteps) c[s] = (c[s] ?? 0) + 1;
     return c;
-  }, [statuses]);
+    // resultSteps is a fresh array each render; statuses and headings are what it comes from.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statuses, heading]);
 
   const recent = useMemo(() => {
     const seen = new Set(defects.map((d) => d.defect.id));
@@ -808,7 +901,10 @@ export function Runner({
             <button
               type="button"
               className="text-accent-700 hover:underline"
-              onClick={() => setStatuses((prev) => prev.map((s) => (s === "UNTESTED" ? "PASSED" : s)))}
+              onClick={() => {
+                setCheckResults((prev) => prev.map((c) => c.map((x) => (x === "UNTESTED" ? "PASSED" : x))));
+                setStatuses((prev) => prev.map((s, i) => (s === "UNTESTED" && !heading(i) && !checkCount(i) ? "PASSED" : s)));
+              }}
             >
               Pass all remaining steps
             </button>
@@ -821,14 +917,28 @@ export function Runner({
             const problem = s !== "UNTESTED" && s !== "PASSED" && s !== "SKIPPED";
             const stepDefects = defects.filter((d) => d.stepIndex === i);
             const stepFiles = attachments.filter((a) => a.stepIndex === i);
-            const firstOfShared = step.shared && (i === 0 || entry.steps[i - 1].shared?.id !== step.shared.id || entry.steps[i - 1].number.split(".")[0] !== step.number.split(".")[0]);
+            const read = parsed[i];
+            const sharedLabel = firstOfShared(entry.steps, i) && (
+              <p className="mt-3 mb-1 text-xs text-violet-700">
+                Shared step: <span className="font-medium">{step.shared!.name}</span> v{step.shared!.version}
+              </p>
+            );
+            if (read?.kind === "heading")
+              return (
+                <li key={i} data-step={i}>
+                  {sharedLabel}
+                  <div className="flex items-baseline gap-3 border-b border-violet-200 px-3 pt-2 pb-1">
+                    <span className="w-9 shrink-0 font-mono text-sm font-semibold text-slate-400">{step.number}</span>
+                    <span className="text-xs font-semibold tracking-wide text-violet-800 uppercase">{read.text}</span>
+                    <span className="text-xs text-slate-400 italic">heading, no result needed</span>
+                  </div>
+                </li>
+              );
+            const many = read?.kind === "checks" ? read : null;
+            const marked = many ? checkResults[i].filter((c) => c !== "UNTESTED").length : 0;
             return (
               <li key={i} data-step={i}>
-                {firstOfShared && (
-                  <p className="mt-3 mb-1 text-xs text-violet-700">
-                    Shared step: <span className="font-medium">{step.shared!.name}</span> v{step.shared!.version}
-                  </p>
-                )}
+                {sharedLabel}
                 <div
                   onClick={() => setCurrent(i)}
                   className={cx(
@@ -856,7 +966,18 @@ export function Runner({
                           </span>
                         )}
                         {news?.kind === "updated" && <StepChangeTag change={news.steps[i]} />}
-                        <StepText text={step.action} className="whitespace-pre-wrap wrap-anywhere" />
+                        {many ? (
+                          <span className="block">
+                            <span className="font-medium">{many.title}</span>
+                            {many.notOn.map((p) => (
+                              <span key={p} className="ml-1.5 inline-block rounded bg-slate-100 px-1.5 py-0.5 align-middle text-[11px] text-slate-600 ring-1 ring-slate-200 ring-inset">
+                                Not on {p}
+                              </span>
+                            ))}
+                          </span>
+                        ) : (
+                          <StepText text={step.action} className="whitespace-pre-wrap wrap-anywhere" />
+                        )}
                       </div>
                       <div
                         data-sel
@@ -867,7 +988,7 @@ export function Runner({
                         )}
                       >
                         <span className="block text-[11px] font-medium tracking-wide text-slate-400 uppercase select-none">Expected</span>
-                        {step.expected ? <StepText text={step.expected} className="whitespace-pre-wrap wrap-anywhere" /> : "–"}
+                        {(many ? many.expected : step.expected) ? <StepText text={many ? many.expected : step.expected} className="whitespace-pre-wrap wrap-anywhere" /> : "–"}
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-1 select-none max-2xl:basis-full max-2xl:pl-12" role="group" aria-label={`Step ${step.number} status`}>
@@ -892,6 +1013,11 @@ export function Runner({
                           {STATUS_LABEL[status]}
                         </button>
                       ))}
+                      {many && (
+                        <span className="basis-full text-right text-[11px] text-slate-500 max-2xl:text-left">
+                          {marked === many.count ? "Set from its checks" : `${marked} of ${many.count} checks`}
+                        </span>
+                      )}
                       {s !== "UNTESTED" && !runClosed && (
                         <button
                           type="button"
@@ -908,6 +1034,55 @@ export function Runner({
                       )}
                     </div>
                   </div>
+                  {many && (
+                    <ul className="mt-2 divide-y divide-slate-100 border-t border-slate-100 pl-12" aria-label={`Step ${step.number} checks`}>
+                      {(() => {
+                        let k = -1;
+                        return many.lines.map((line, li) => {
+                          if ("label" in line)
+                            return (
+                              <li key={li} className="pt-2 pb-0.5 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
+                                {line.label}
+                              </li>
+                            );
+                          const c = ++k;
+                          const r = checkResults[i][c];
+                          const here = current === i && curCheck === c;
+                          return (
+                            <li key={li} className={cx("flex flex-wrap items-center gap-2 py-1 text-sm", here && "-mx-1 rounded bg-accent-50 px-1")}>
+                              <span data-sel className="min-w-0 flex-1 text-slate-800 wrap-anywhere">
+                                {line.text}
+                              </span>
+                              <span className="flex shrink-0 gap-0.5 select-none" role="group" aria-label={`Check: ${line.text}`}>
+                                {SETTABLE.map(({ status, key }) => (
+                                  <button
+                                    key={status}
+                                    type="button"
+                                    title={STATUS_LABEL[status]}
+                                    aria-label={STATUS_LABEL[status]}
+                                    aria-pressed={r === status}
+                                    disabled={runClosed}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setCurrent(i);
+                                      setCurCheck(c);
+                                      setCheck(i, c, status);
+                                    }}
+                                    className={cx(
+                                      "h-6 w-6 rounded text-[11px] font-semibold ring-1 ring-inset transition",
+                                      r === status ? cx(STATUS_STYLE[status].solid, "ring-transparent") : "bg-surface text-slate-500 ring-slate-200 hover:bg-slate-50",
+                                    )}
+                                  >
+                                    {key.toUpperCase()}
+                                  </button>
+                                ))}
+                              </span>
+                            </li>
+                          );
+                        });
+                      })()}
+                    </ul>
+                  )}
                   {(problem || actuals[i] || stepDefects.length > 0 || stepFiles.length > 0 || recorder.rec?.stepIndex === i) && (
                     <div className="mt-3 space-y-2 pl-12">
                       {s === "FAILED" && regression && regression.passed.length === n && regression.passed[i] && (
@@ -988,7 +1163,7 @@ export function Runner({
             <>
               {caseStatus === "UNTESTED" ? (
                 <span className="text-sm text-slate-500">
-                  {(stepCounts.UNTESTED ?? 0) === n ? "Mark the steps above" : `${stepCounts.UNTESTED} ${stepCounts.UNTESTED === 1 ? "step" : "steps"} left`}
+                  {(stepCounts.UNTESTED ?? 0) === resultSteps.length ? "Mark the steps above" : `${stepCounts.UNTESTED} ${stepCounts.UNTESTED === 1 ? "step" : "steps"} left`}
                 </span>
               ) : (
                 <StatusChip status={caseStatus} solid />
@@ -1088,7 +1263,7 @@ export function Runner({
                 variant="primary"
                 onClick={() => {
                   setAskSkip(false);
-                  setStatuses((prev) => prev.map(() => "PASSED"));
+                  applyStatuses(statuses.map((_, i) => (heading(i) ? "UNTESTED" : "PASSED")));
                   setPassThenNext(true);
                 }}
               >
