@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import type { WhatsNewEntry, WhatsNewItem } from "@/content/whats-new";
 import { shortDate } from "@/lib/whats-new";
 import { markWhatsNewSeen } from "@/server/whats-new";
-import { useSpelling } from "./spelling";
+import { useSpell, useSpelling } from "./spelling";
 import { Badge, Button, InfoTip, type Tone } from "./ui";
 
 const TAG: Record<WhatsNewItem["kind"], { label: string; tone: Tone }> = {
@@ -17,14 +17,16 @@ const TAG: Record<WhatsNewItem["kind"], { label: string; tone: Tone }> = {
 
 /** One change: its tag, a one-line title, a short note and, when it has a place to go, Show me. */
 export function WhatsNewLine({ i, showMe, onGo }: { i: WhatsNewItem; showMe?: boolean; onGo?: () => void }) {
+  // Written in American English; UK English readers get colour, and so on.
+  const sp = useSpell();
   return (
     <li className="flex gap-3 py-2.5" data-testid="whats-new-item">
       <Badge tone={TAG[i.kind].tone} className="mt-0.5 h-fit w-14 shrink-0 justify-center">
         {TAG[i.kind].label}
       </Badge>
       <div className="min-w-0">
-        <p className="text-sm font-medium text-slate-900">{i.title}</p>
-        {i.text && <p className="mt-0.5 text-sm text-slate-600">{i.text}</p>}
+        <p className="text-sm font-medium text-slate-900">{sp(i.title)}</p>
+        {i.text && <p className="mt-0.5 text-sm text-slate-600">{sp(i.text)}</p>}
         {showMe && i.link && (
           <Link href={i.link} onClick={onGo} className="mt-1 inline-block text-sm text-accent-700 hover:underline">
             Show me

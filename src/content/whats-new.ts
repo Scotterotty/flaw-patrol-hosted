@@ -7,6 +7,7 @@
  * (workspace admins only, for Workspace settings). game: only for
  * people with the mini game on. link: where Show me goes; {umbrella} becomes
  * the person's umbrella, and the link is left out when they have none.
+ * Titles and text are shown through spell(), so UK English readers see colour.
  */
 export type WhatsNewItem = {
   kind: "new" | "better" | "fix";
@@ -20,6 +21,85 @@ export type WhatsNewItem = {
 export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
+  {
+    version: 96,
+    date: "2026-10-30",
+    items: [
+      {
+        kind: "better",
+        title: "Everyone can use every feature by default",
+        text: "Members can now do what only leads could before, like importing, making suites and closing runs. Archiving and deleting stay with admins, and Viewers still only look. Admins can tighten this in What can they do, in umbrella Settings.",
+      },
+      {
+        kind: "new",
+        title: "Colors for color blindness",
+        text: "Account → Appearance → Color vision: red-green safe, blue-yellow safe or no color, with shapes and patterns so Passed and Failed never rely on color alone.",
+        link: "/account",
+      },
+      {
+        kind: "better",
+        title: "Tidier Account page",
+        text: "Each Account card folds to a one-line summary. Open the ones you need, and they stay open the next time.",
+      },
+      {
+        kind: "new",
+        title: "Crowns",
+        text: "Hold the most results on a platform or in a folder over the last 30 days and you wear its crown, like Ruler of the Web. See them under Account → Mini game.",
+        game: true,
+      },
+      {
+        kind: "new",
+        title: "Sentry errors while you test",
+        text: "Connect Sentry in umbrella Settings. When you fail or block a step, the runner shows the errors Sentry caught during that step, and you can put them straight on the bug.",
+        who: "lead",
+      },
+      {
+        kind: "new",
+        title: "[WEB] in a title becomes a colored tag",
+        text: "Leading [brackets] in case titles turn into tags you can click to filter. A banner in the Case library converts the titles you already have.",
+      },
+      {
+        kind: "better",
+        title: "Search forgives typos",
+        text: "Every search box finds close spellings too, under a Close matches label, so “wb” still finds “web”. Searching a tag name finds cases with that tag.",
+      },
+      {
+        kind: "better",
+        title: "Clearer exploring",
+        text: "Start exploring opens a small box, sessions end with Finish exploring, and exploring counts as Explored instead of Passed or Failed. Test personas moved to a tab on the Charters page.",
+      },
+      {
+        kind: "new",
+        title: "Company bug templates",
+        text: "Workspace admins can share a bug template with everyone whose email ends a certain way. It shows under Shared with you in every umbrella's Bug template section. The OKO layout is shared this way.",
+      },
+      {
+        kind: "new",
+        title: "Write new cases from a requirement",
+        text: "On Requirements, + New case and + New charter make cases already linked to the requirement. Type several titles at once and write their steps one after another.",
+      },
+      {
+        kind: "new",
+        title: "Bug bashes: see what others find as they find it",
+        text: "Live finds next to the log box shows everyone's bugs, questions, notes and ideas in your area, so nobody logs the same bug twice. Add to a find, +1 it, or answer a question. Areas can link to Jira issues, pull requests and web pages, and the Risk board can start a bash.",
+      },
+      {
+        kind: "new",
+        title: "Known bugs from earlier runs",
+        text: "A case shows the bugs found on it in earlier runs, with Still happens and Didn't happen. Report bug asks if it's the same bug before you file a second copy.",
+      },
+      {
+        kind: "new",
+        title: "New and Updated cases in runs",
+        text: "Cases never run before get a New tag, and cases whose steps changed get an Updated tag with the old wording crossed out.",
+      },
+      {
+        kind: "better",
+        title: "Plan this release is easier to follow",
+        text: "The Risk board's Plan box explains each choice, and can add to a run that's already in progress.",
+      },
+    ],
+  },
   {
     version: 95,
     date: "2026-10-29",
