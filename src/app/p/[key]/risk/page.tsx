@@ -6,6 +6,7 @@ import { cx, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { BUILT_IN } from "@/lib/charter-templates";
 import { charterHome, teamTemplates } from "@/lib/charter-data";
 import { can } from "@/lib/permissions";
+import { bashedRequirements, startBoxData } from "@/lib/bash-data";
 import { riskBoard } from "@/lib/risk-data";
 import { projectAccess } from "@/lib/session";
 import { forgetStories } from "@/lib/stories";
@@ -35,6 +36,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
   const board = release ? await riskBoard({ homeId: project.id, release, columns: cycles.map((c) => ({ id: c.id, key: c.key, name: c.name })) }) : null;
   const canPlan = can(who, "run:create");
   const team = canPlan ? await teamTemplates(project.id) : [];
+  const [bashData, bashed] = canPlan ? await Promise.all([startBoxData(project), bashedRequirements(project.id)]) : [undefined, {}];
   const runCycles = full?.current.length ? full.current.map((c) => ({ id: c.id, name: c.name })) : [{ id: project.id, name: project.name }];
   const header = (
     <PageHeader
@@ -75,7 +77,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
       </div>
       {board.jiraError && <p className="mb-3 rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-900">Couldn&apos;t read the release from Jira: {board.jiraError}</p>}
       {board.cards.length ? (
-        <RiskBoard key={release} homeId={project.id} release={release!} cards={board.cards} canMove={can(who, "risk:move")} canPlan={canPlan} cycles={runCycles} templates={[...BUILT_IN, ...team]} />
+        <RiskBoard key={release} homeId={project.id} release={release!} cards={board.cards} canMove={can(who, "risk:move")} canPlan={canPlan} cycles={runCycles} templates={[...BUILT_IN, ...team]} bash={bashData} bashed={bashed} />
       ) : (
         <EmptyState title="Nothing in this release">Jira has no requirements in {release}. Pick another release above.</EmptyState>
       )}

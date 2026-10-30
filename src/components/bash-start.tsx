@@ -4,13 +4,16 @@ import { onStartKind } from "@/lib/start-kind";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { LENGTHS } from "@/lib/bash";
+import { LENGTHS, type BashLink } from "@/lib/bash";
 import type { StartBoxData } from "@/lib/bash-data";
 import { startBugBash } from "@/server/bashes";
 import { Modal } from "./modal";
 import { Button, cx, ErrorText, Field, InfoTip, Input, Select } from "./ui";
 
-type Area = { name: string; template: string | null };
+type Area = { name: string; template: string | null; links?: BashLink[] };
+
+/** Start a bug bash from the Risk board (ver_96): its requirements, riskiest first; High ones ticked. */
+export type RiskPreset = { name: string; picks: { key: string; title: string; url: string; level: "High" | "Med" | "Low"; cases: number }[] };
 
 /**
  * Start a bug bash (ver_93): name, length and areas, about 20 seconds. Everything else
@@ -22,8 +25,12 @@ export function StartBashButton({
   size,
   again,
   hideButton = false,
+  preset,
+  label,
 }: {
   data: StartBoxData;
+  preset?: RiskPreset;
+  label?: string;
   variant?: "primary" | "secondary";
   size?: "sm" | "md";
   again?: { name: string; areas: string[]; minutes: number };
@@ -35,14 +42,14 @@ export function StartBashButton({
   return (
     <>
       {!hideButton && <Button variant={variant} size={size} onClick={() => setOpen(true)}>
-        {again ? "Run it again" : (
+        {again ? "Run it again" : label ?? (
           <>
             <span aria-hidden>🐞</span> Start a bug bash
           </>
         )}
       </Button>}
       <Modal open={open} onClose={() => setOpen(false)} title="Start a bug bash" wide>
-        {open && <StartBashForm data={data} again={again} onClose={() => setOpen(false)} />}
+        {open && <StartBashForm data={data} again={again} preset={preset} onClose={() => setOpen(false)} />}
       </Modal>
     </>
   );
@@ -63,11 +70,13 @@ export function StartBashAuto({ data }: { data: StartBoxData }) {
   );
 }
 
-function StartBashForm({ data, again, onClose }: { data: StartBoxData; again?: { name: string; areas: string[]; minutes: number }; onClose: () => void }) {
+function StartBashForm({ data, again, preset, onClose }: { data: StartBoxData; again?: { name: string; areas: string[]; minutes: number }; preset?: RiskPreset; onClose: () => void }) {
   const router = useRouter();
-  const [name, setName] = useState(again ? `${again.name} (again)` : "");
+  const riskArea = (p: RiskPreset["picks"][number]): Area => ({ name: p.title || p.key, template: null, links: [{ kind: "jira", key: p.key, title: p.title, url: p.url }] });
+  const [name, setName] = useState(again ? `${again.name} (again)` : (preset?.name ?? ""));
   const [minutes, setMinutes] = useState(again?.minutes ?? 60);
-  const [areas, setAreas] = useState<Area[]>(again ? again.areas.map((a) => ({ name: a, template: null })) : []);
+  const [areas, setAreas] = useState<Area[]>(again ? again.areas.map((a) => ({ name: a, template: null })) : preset ? preset.picks.filter((p) => p.level === "High").map(riskArea) : []);
+  const isPicked = (key: string) => areas.some((a) => a.links?.some((l) => l.kind === "jira" && l.key === key));
   const [draft, setDraft] = useState("");
   const [more, setMore] = useState(false);
   const [later, setLater] = useState("");
@@ -81,12 +90,12 @@ function StartBashForm({ data, again, onClose }: { data: StartBoxData; again?: {
   const [done, setDone] = useState<{ id: string; key: string; posted: string[]; later: boolean } | null>(null);
 
   const has = (n: string) => areas.some((a) => a.name.toLowerCase() === n.toLowerCase());
-  const addArea = (n: string) => {
+  const addArea = (n: string, links?: BashLink[]) => {
     const v = n.trim();
     if (!v || has(v) || areas.length >= 12) return;
-    setAreas((a) => [...a, { name: v, template: null }]);
+    setAreas((a) => [...a, { name: v, template: null, ...(links && { links }) }]);
   };
-  const suggestions = data.suggestions.filter((s) => !has(s.name));
+  const suggestions = data.suggestions.filter((s) => !has(s.name) && !(s.link && isPicked(s.link.key)));
 
   if (done) return <Invite bashId={done.id} homeKey={done.key} posted={done.posted} later={done.later} onClose={onClose} />;
 
@@ -126,14 +135,43 @@ function StartBashForm({ data, again, onClose }: { data: StartBoxData; again?: {
           ))}
         </div>
       </fieldset>
+      {preset && (
+        <fieldset data-testid="risk-picks">
+          <legend className="mb-1.5 text-xs font-semibold text-slate-600">
+            From the Risk board <span className="font-normal text-slate-500">· riskiest first. Each one you tick becomes an area, linked to its Jira issue.</span>
+          </legend>
+          <ul className="max-h-56 space-y-1 overflow-y-auto rounded-md border border-slate-200 p-1.5">
+            {preset.picks.map((p) => (
+              <li key={p.key}>
+                <label className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-slate-50">
+                  <input
+                    type="checkbox"
+                    checked={isPicked(p.key)}
+                    onChange={(e) => (e.target.checked ? setAreas((a) => (a.length >= 12 ? a : [...a, riskArea(p)])) : setAreas((a) => a.filter((x) => !x.links?.some((l) => l.key === p.key))))}
+                  />
+                  <span className={cx("rounded px-1.5 py-0.5 text-[11px] font-semibold", p.level === "High" ? "bg-red-100 text-red-800" : p.level === "Med" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800")}>{p.level === "Med" ? "Medium" : p.level}</span>
+                  <span className="font-mono text-xs text-slate-500">{p.key}</span>
+                  <span className="min-w-0 flex-1 truncate">{p.title}</span>
+                  <span className="text-xs text-slate-500">{p.cases ? `${p.cases} ${p.cases === 1 ? "case" : "cases"}` : "No tests"}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </fieldset>
+      )}
       <div>
         <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
           Areas to explore <InfoTip text="People pick one of these when they join. Each area gets its own charter, so the report shows what each one found." />
         </p>
         <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-slate-300 bg-surface p-1.5">
           {areas.map((a, i) => (
-            <span key={a.name} className="inline-flex items-center gap-1 rounded-full bg-accent-50 px-2.5 py-0.5 text-sm text-accent-800 ring-1 ring-accent-200 ring-inset">
+            <span key={a.name} className="inline-flex items-center gap-1 rounded-full bg-accent-50 px-2.5 py-0.5 text-sm text-accent-800 ring-1 ring-accent-200 ring-inset" title={a.links?.map((l) => `${l.key} ${l.title}`).join(", ")}>
               {a.name}
+              {a.links?.map((l) => (
+                <span key={l.key} className="rounded bg-surface px-1 text-[10px] font-semibold text-slate-600">
+                  {l.key}
+                </span>
+              ))}
               <button type="button" aria-label={`Remove ${a.name}`} className="text-accent-700 hover:text-accent-900" onClick={() => setAreas((all) => all.filter((_, j) => j !== i))}>
                 ×
               </button>
@@ -162,7 +200,7 @@ function StartBashForm({ data, again, onClose }: { data: StartBoxData; again?: {
           <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs" aria-label="Suggestions">
             <span className="text-slate-500">Suggestions, tap to add:</span>
             {suggestions.map((s) => (
-              <button key={s.name} type="button" title={s.why} onClick={() => addArea(s.name)} className="rounded-full border border-dashed border-slate-300 px-2 py-0.5 text-slate-700 hover:border-accent-400 hover:bg-accent-50">
+              <button key={s.name} type="button" title={s.why} onClick={() => addArea(s.name, s.link ? [s.link] : undefined)} className="rounded-full border border-dashed border-slate-300 px-2 py-0.5 text-slate-700 hover:border-accent-400 hover:bg-accent-50">
                 {s.hot && <span aria-label="High risk">🔥 </span>}
                 {s.name}
               </button>
@@ -170,7 +208,7 @@ function StartBashForm({ data, again, onClose }: { data: StartBoxData; again?: {
           </div>
         )}
         {data.last && !again && (
-          <button type="button" className="mt-2 text-xs font-medium text-accent-700 hover:underline" onClick={() => data.last!.areas.forEach(addArea)}>
+          <button type="button" className="mt-2 text-xs font-medium text-accent-700 hover:underline" onClick={() => data.last!.areas.forEach((a) => addArea(a))}>
             Use the same areas as the last bash ({data.last.name})
           </button>
         )}

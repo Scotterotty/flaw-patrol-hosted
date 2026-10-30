@@ -1,7 +1,6 @@
 import "server-only";
 import ExcelJS from "exceljs";
 import { PDFDocument, StandardFonts } from "pdf-lib";
-import { sevLabel } from "./bash";
 import type { BashReport } from "./bash-summary";
 import { MUTED, PdfWriter, safe, type Cell } from "./report-export";
 
@@ -20,13 +19,23 @@ export function bashTables(r: BashReport): { label: string; rows: Cell[][] }[] {
         ["Bugs found", r.bugs.length],
         ["High or Blocker", r.high],
         ["Questions raised", r.questions],
+        ["Questions not answered", r.unanswered],
+        ["Notes", r.notes],
+        ["Ideas", r.ideas],
         ["+1s on bugs", r.plusOnes],
         ["People", r.people],
         ...(r.vsLast ? [[`Bugs vs ${r.vsLast.name}`, `${r.vsLast.diff >= 0 ? "+" : ""}${r.vsLast.diff}`] as Cell[]] : []),
       ],
     },
     { label: "Bugs", rows: [["Bug", "Key", "Severity", "Area", "Logged by", "Also seen by"], ...r.bugs.map((b) => [b.text, keyOf(b) || (b.review === "skip" ? "Left out" : r.bash.wrappedAt ? "Not filed" : ""), r.sevNames[b.severity], area(b.areaId), b.byName, b.plusOnes.map((p) => p.name).join(", ")])] },
-    { label: "Bugs by area", rows: [["Area", "Bugs"], ...r.byArea.map((a) => [a.name, a.bugs])] },
+    { label: "Bugs by area", rows: [["Area", "Bugs", "Links"], ...r.byArea.map((a) => [a.name, a.bugs, (r.areas.find((x) => x.id === a.id)?.links ?? []).map((l) => `${l.key} ${l.url}`.trim()).join("; ")])] },
+    {
+      label: "Everything found",
+      rows: [
+        ["Kind", "Find", "Area", "Logged by", "+1s", "Added or answered", "Key"],
+        ...r.finds.map((f) => [f.kind[0].toUpperCase() + f.kind.slice(1), f.text, area(f.areaId), f.byName, f.plusOnes.map((p) => p.name).join(", "), f.adds.map((a) => `${a.byName}: ${a.text}`).join("; ") || (f.kind === "question" ? "Not answered" : ""), keyOf(f)]),
+      ],
+    },
     { label: "What got covered", rows: [["Area", "Prompts covered", "Notes", "Not touched"], ...r.coverage.map((c) => [c.name, c.prompts ? `${c.covered} of ${c.prompts}` : "Blank charter", c.notes, c.untouched.join("; ")])] },
   ];
 }

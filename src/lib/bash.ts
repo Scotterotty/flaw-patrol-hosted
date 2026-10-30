@@ -51,7 +51,8 @@ export function webLink(raw: string, name = ""): BashLink | null {
     const jira = /\/browse\/([A-Z][A-Z0-9_]*-\d+)/.exec(u.pathname);
     if (jira) return { kind: "jira", key: jira[1], title: name, url: u.toString() };
     const tail = decodeURIComponent(u.pathname.split("/").filter(Boolean).at(-1) ?? "").replace(/[-_]+/g, " ");
-    return { kind: "web", key: (name || tail || u.hostname).slice(0, 120), title: `${u.hostname}${u.pathname === "/" ? "" : u.pathname}`.slice(0, 300), url: u.toString() };
+    const named = name || (tail ? tail[0].toUpperCase() + tail.slice(1) : u.hostname);
+    return { kind: "web", key: named.slice(0, 120), title: `${u.hostname}${u.pathname === "/" ? "" : u.pathname}`.slice(0, 300), url: u.toString() };
   } catch {
     return null;
   }

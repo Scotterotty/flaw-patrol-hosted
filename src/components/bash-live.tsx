@@ -459,8 +459,23 @@ export function AddLink({ bashId, onPick }: { bashId: string; onPick: (l: BashLi
   );
 }
 
-/** What you're testing (ver_96): the area's links and the whole bash's. Whoever started it can edit them. */
-export function WhatYoureTesting({ bashId, areaId, area, bash, canEdit, onSaved }: { bashId: string; areaId: string; area: BashLink[]; bash: BashLink[]; canEdit: boolean; onSaved: () => void }) {
+/**
+ * What you're testing (ver_96): the area's links and the whole bash's. Whoever started it can
+ * edit them, here or on the board (which lists every area).
+ */
+export function WhatYoureTesting({
+  bashId,
+  groups,
+  canEdit,
+  onSaved,
+  title = "What you're testing",
+}: {
+  bashId: string;
+  groups: { title: string; areaId: string | null; links: BashLink[] }[];
+  canEdit: boolean;
+  onSaved: () => void;
+  title?: string;
+}) {
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -471,20 +486,10 @@ export function WhatYoureTesting({ bashId, areaId, area, bash, canEdit, onSaved 
       if (!r.ok) return setError(r.error);
       onSaved();
     });
-  const group = (title: string, links: BashLink[], which: string | null) => (
-    <div className="space-y-1">
-      {title && <p className="text-[11px] font-semibold text-slate-500 uppercase">{title}</p>}
-      {links.map((l, i) => (
-        <LinkRow key={`${l.kind}${l.key}${i}`} l={l} onRemove={editing ? () => save(which, links.filter((_, j) => j !== i)) : undefined} />
-      ))}
-      {!links.length && <p className="text-xs text-slate-500">{which ? "No links for this area yet." : "None"}</p>}
-      {editing && <AddLink bashId={bashId} onPick={(l) => !links.some((x) => x.kind === l.kind && x.key === l.key) && save(which, [...links, l])} />}
-    </div>
-  );
   return (
-    <div className="space-y-2 border-t border-slate-100 pt-3" data-testid="what-youre-testing">
+    <div className="space-y-2" data-testid="what-youre-testing">
       <p className="flex items-center justify-between text-xs font-semibold text-slate-700">
-        What you&apos;re testing
+        {title}
         {canEdit && (
           <button type="button" className="font-medium text-accent-700 hover:underline" onClick={() => setEditing((e) => !e)}>
             {editing ? "Done" : "Edit"}
@@ -492,8 +497,16 @@ export function WhatYoureTesting({ bashId, areaId, area, bash, canEdit, onSaved 
         )}
       </p>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
-      {group("", area, areaId)}
-      {group("Whole bash", bash, null)}
+      {groups.map((g) => (
+        <div key={g.areaId ?? "bash"} className="space-y-1">
+          {g.title && <p className="text-[11px] font-semibold text-slate-500 uppercase">{g.title}</p>}
+          {g.links.map((l, i) => (
+            <LinkRow key={`${l.kind}${l.key}${i}`} l={l} onRemove={editing ? () => save(g.areaId, g.links.filter((_, j) => j !== i)) : undefined} />
+          ))}
+          {!g.links.length && <p className="text-xs text-slate-500">{g.areaId ? "No links for this area yet." : "None"}</p>}
+          {editing && <AddLink bashId={bashId} onPick={(l) => !g.links.some((x) => x.kind === l.kind && x.key === l.key) && save(g.areaId, [...g.links, l])} />}
+        </div>
+      ))}
       {editing && <p className="text-[11px] text-slate-500">{pending ? "Saving…" : "You started this bash, so you can change links. Everyone sees the change right away."}</p>}
     </div>
   );

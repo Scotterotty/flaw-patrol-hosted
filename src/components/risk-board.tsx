@@ -9,6 +9,10 @@ import { moveRisk, planRc, resetRisk } from "@/server/risk";
 import { copyRich, tableClip } from "./export-menu";
 import { Modal } from "./modal";
 import { Button, Card, cx, InfoTip, Select } from "./ui";
+import type { StartBoxData } from "@/lib/bash-data";
+import { shortDate } from "@/lib/spelling";
+import { StartBashButton } from "./bash-start";
+import { useSpelling } from "./spelling";
 
 const LEVELS: Level[] = [1, 2, 3];
 const CELL: Record<RiskLevel, string> = { High: "bg-red-50", Med: "bg-amber-50", Low: "bg-emerald-50/60" };
@@ -19,8 +23,31 @@ export function RiskChip({ level }: { level: RiskLevel }) {
 }
 
 /** The 3×3 board (ver_93): likelihood up the side, impact along the bottom. Drag or click a card to move it. */
-export function RiskBoard({ homeId, release, cards: start, canMove, cycles, templates, canPlan }: { homeId: string; release: string; cards: RiskCard[]; canMove: boolean; cycles: { id: string; name: string }[]; templates: CharterTemplateInfo[]; canPlan: boolean }) {
+export function RiskBoard({
+  homeId,
+  release,
+  cards: start,
+  canMove,
+  cycles,
+  templates,
+  canPlan,
+  bash,
+  bashed = {},
+}: {
+  homeId: string;
+  release: string;
+  cards: RiskCard[];
+  canMove: boolean;
+  cycles: { id: string; name: string }[];
+  templates: CharterTemplateInfo[];
+  canPlan: boolean;
+  /** Start a bug bash from the board (ver_96), for people who can start runs. */
+  bash?: StartBoxData;
+  /** When each requirement was last bashed, and what its area found. */
+  bashed?: Record<string, { at: string; bugs: number }>;
+}) {
   const router = useRouter();
+  const spelling = useSpelling();
   const [cards, setCards] = useState(start);
   const [open, setOpen] = useState<string | null>(null);
   const [drag, setDrag] = useState<string | null>(null);
@@ -84,9 +111,21 @@ export function RiskBoard({ homeId, release, cards: start, canMove, cycles, temp
             Copy for Confluence
           </Button>
           {canPlan && (
-            <Button variant="primary" size="sm" onClick={() => setPlan(true)} disabled={!cards.length}>
+            <Button variant="secondary" size="sm" onClick={() => setPlan(true)} disabled={!cards.length}>
               Plan this release
             </Button>
+          )}
+          {bash && cards.length > 0 && (
+            <StartBashButton
+              data={bash}
+              size="sm"
+              variant="primary"
+              label="Start a bug bash"
+              preset={{
+                name: `${release} risk bash`,
+                picks: [...cards].sort((a, b) => riskScore(b.likelihood, b.impact) - riskScore(a.likelihood, a.impact)).map((c) => ({ key: c.key, title: c.title, url: c.url ?? "", level: c.level, cases: c.cases })),
+              }}
+            />
           )}
         </div>
       </div>
@@ -129,6 +168,11 @@ export function RiskBoard({ homeId, release, cards: start, canMove, cycles, temp
                           {!c.cases && <span className="ml-1 rounded bg-slate-800 px-1 text-[10px] font-medium text-white">No tests</span>}
                           {c.moved && <span className="ml-1 text-[10px] text-slate-400" title={`Moved by ${c.moved.by}`}>✋</span>}
                           <span className="block truncate text-slate-800">{c.title || c.key}</span>
+                          {bashed[c.key] && (
+                            <span className="block text-[10px] text-rose-700">
+                              🐞 Bashed {shortDate(new Date(bashed[c.key].at), spelling)} · {bashed[c.key].bugs} {bashed[c.key].bugs === 1 ? "bug" : "bugs"}
+                            </span>
+                          )}
                         </button>
                       ))}
                     </div>

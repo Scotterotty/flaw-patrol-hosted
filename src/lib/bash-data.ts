@@ -1,5 +1,5 @@
 import "server-only";
-import { parseAreas, phaseOf } from "./bash";
+import { parseAreas, phaseOf, type BashLink } from "./bash";
 import { BUILT_IN } from "./charter-templates";
 import { charterHome, teamTemplates } from "./charter-data";
 import { db } from "./db";
@@ -14,7 +14,7 @@ export type StartBoxData = {
   homeName: string;
   cycles: { id: string; name: string }[];
   defaultCycleId: string;
-  suggestions: { name: string; hot: boolean; why: string }[];
+  suggestions: { name: string; hot: boolean; why: string; link?: BashLink }[];
   last: { name: string; areas: string[] } | null;
   templates: { id: string; name: string; group: string }[];
   slackChannels: number;
@@ -39,13 +39,14 @@ export async function startBoxData(project: { id: string; key: string; name: str
   const charters = await db.testCase.findMany({ where: { projectId: home.id, type: "EXPLORATORY", archived: false, folder: { name: { not: "Bug bashes" } } }, orderBy: { updatedAt: "desc" }, take: 6, select: { title: true } });
   const seen = new Set<string>();
   const suggestions: StartBoxData["suggestions"] = [];
-  const add = (name: string, hot: boolean, why: string) => {
+  const add = (name: string, hot: boolean, why: string, link?: BashLink) => {
     const n = name.trim().slice(0, 120);
     if (!n || seen.has(n.toLowerCase())) return;
     seen.add(n.toLowerCase());
-    suggestions.push({ name: n, hot, why });
+    suggestions.push({ name: n, hot, why, ...(link && { link }) });
   };
-  for (const s of stories) add(s.title, true, `High on the Risk board (${s.key})`);
+  // A risky requirement carries its Jira link into the area (ver_96).
+  for (const s of stories) add(s.title, true, `High on the Risk board (${s.key})`, { kind: "jira", key: s.key, title: s.title, url: s.url ?? "" });
   for (const f of folders) add(f.name, false, "A Case library folder");
   for (const c of charters) add(c.title, false, "An existing charter");
   const team = await teamTemplates(home.id);
@@ -85,4 +86,14 @@ export async function bashList(homeId: string) {
     areas: parseAreas(b.areas).length,
     run: b.run ? { number: b.run.number, key: b.run.project.key } : null,
   }));
+}
+
+/** Risk board (ver_96): when each requirement was last bashed, and the bugs its area found. */
+export async function bashedRequirements(homeId: string) {
+  const bashes = await db.bugBash.findMany({ where: { projectId: homeId }, orderBy: { startsAt: "asc" }, select: { startsAt: true, areas: true, items: { where: { kind: "bug", mergedIntoId: null }, select: { areaId: true } } } });
+  const out = new Map<string, { at: string; bugs: number }>();
+  for (const b of bashes)
+    for (const a of parseAreas(b.areas))
+      for (const l of a.links) if (l.kind === "jira") out.set(l.key, { at: b.startsAt.toISOString(), bugs: b.items.filter((i) => i.areaId === a.id).length });
+  return Object.fromEntries(out);
 }

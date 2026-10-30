@@ -8,7 +8,7 @@ import { BASH_SEVERITIES, sevLabel, similarBugs, type BashSeverity, type ItemKin
 import type { BashView } from "@/lib/bash-summary";
 import { clock } from "@/lib/charter";
 import { bashBugFiled, coverBashPrompt, endBashEarly, joinBash, logBashItem, mergeBashItems, plusOneBash, reviewBashItem, wrapUpBash } from "@/server/bashes";
-import { LiveFinds, useLiveFinds, WhatYoureTesting, type LiveData } from "./bash-live";
+import { FIND_LABEL, KindTag, LinkChips, LiveFinds, useLiveFinds, WhatYoureTesting, type FindKind, type LiveData } from "./bash-live";
 import { uploadAttachment } from "@/server/results";
 import { BugDialog } from "./bug-dialog";
 import { PromptsCard } from "./session-runner";
@@ -99,7 +99,14 @@ export function JoinPicker({ bash }: { bash: BashView }) {
             <input type="radio" name="area" checked={pick === a.id} onChange={() => setPick(a.id)} />
             <span className="min-w-0 flex-1">
               <b className="block text-sm text-slate-900">{a.name}</b>
-              <span className="block text-xs text-slate-500">{a.prompts.length ? `${a.prompts.length} things to try` : "Explore freely"}</span>
+              <span className="block text-xs text-slate-500">
+                {a.prompts.length ? `${a.prompts.length} things to try` : "Explore freely"} · {bash.items.filter((i) => i.areaId === a.id && i.kind !== "covered").length} finds
+              </span>
+              {a.links.length > 0 && (
+                <span className="mt-1 block">
+                  <LinkChips links={a.links} />
+                </span>
+              )}
             </span>
             <span className="text-xs text-slate-600">
               {a.people.length} in{a.people.length === fewest && bash.areas.length > 1 && <span className="ml-1 text-amber-700">· needs people</span>}
@@ -107,6 +114,11 @@ export function JoinPicker({ bash }: { bash: BashView }) {
           </label>
         ))}
       </div>
+      {bash.links.length > 0 && (
+        <p className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+          Whole bash: <LinkChips links={bash.links} />
+        </p>
+      )}
       <div className="mt-4 flex items-center justify-between gap-2">
         <span className="text-xs text-slate-500">You can switch areas any time.</span>
         <Button
@@ -206,9 +218,11 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
   const log = () =>
     start(async () => {
       setError(null);
+      const sent = text;
       const r = await logBashItem(bash.id, { kind, text, details, severity, attachmentIds: files.map((f) => f.id) });
       if (!r.ok) return setError(r.error);
-      setText("");
+      // Only clear what was sent: anything typed while it saved stays (ver_96).
+      setText((t) => (t === sent ? "" : t));
       setDetails("");
       setShowDetails(false);
       setFiles([]);
@@ -383,7 +397,17 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
           <Link href={`/p/${bash.homeKey}/bashes/${bash.id}`} className="block text-xs text-accent-700 hover:underline">
             Watch the board
           </Link>
-          <WhatYoureTesting bashId={bash.id} areaId={area.id} area={liveArea?.links ?? area.links} bash={data.links} canEdit={bash.isOwner && bash.phase !== "wrapped"} onSaved={() => void reload()} />
+          <div className="border-t border-slate-100 pt-3">
+            <WhatYoureTesting
+              bashId={bash.id}
+              groups={[
+                { title: "", areaId: area.id, links: liveArea?.links ?? area.links },
+                { title: "Whole bash", areaId: null, links: data.links },
+              ]}
+              canEdit={bash.isOwner && bash.phase !== "wrapped"}
+              onSaved={() => void reload()}
+            />
+          </div>
         </Card>
         {area.prompts.length > 0 && (
           <PromptsCard
@@ -407,12 +431,16 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
 export function BashBoard({ bash }: { bash: BashView }) {
   const router = useRouter();
   const [show, setShow] = useState<string>("all");
+  const [kind, setKind] = useState<"all" | FindKind>("all");
   const [pending, start] = useTransition();
   const [ending, setEnding] = useState(false);
   const bugs = bash.items.filter((i) => i.kind === "bug" && !i.mergedIntoId);
-  const shown = bugs.filter((b) => show === "all" || (show === "mine" ? b.byId === bash.me.id : b.areaId === show));
-  const plusOnes = bugs.reduce((n, b) => n + b.plusOnes.length, 0);
+  // The board lists every kind of find (ver_96), filtered by kind as well as by area.
+  const finds = bash.items.filter((i) => i.kind !== "covered" && !i.mergedIntoId);
+  const shown = finds.filter((b) => (kind === "all" || b.kind === kind) && (show === "all" || (show === "mine" ? b.byId === bash.me.id : b.areaId === show)));
+  const plusOnes = finds.reduce((n, b) => n + b.plusOnes.length, 0);
   const questions = bash.items.filter((i) => i.kind === "question").length;
+  const unanswered = bash.items.filter((i) => i.kind === "question" && !i.adds.length).length;
   const covered = bash.areas.filter((a) => a.people.length).length;
   const counts = new Map<string, number>();
   for (const b of bugs) if (b.byId) counts.set(b.byId, (counts.get(b.byId) ?? 0) + 1);
@@ -462,40 +490,56 @@ export function BashBoard({ bash }: { bash: BashView }) {
           )}
         </div>
       </div>
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {[
           [bugs.length, "Bugs logged"],
-          [plusOnes, "+1s on existing bugs"],
-          [questions, "Questions"],
+          [plusOnes, "+1s"],
+          [questions, "Questions", unanswered ? `${unanswered} not answered` : ""],
+          [bash.items.filter((i) => i.kind === "note").length, "Notes"],
+          [bash.items.filter((i) => i.kind === "idea").length, "Ideas"],
           [`${covered} / ${bash.areas.length}`, "Areas with someone in"],
-        ].map(([n, label]) => (
+        ].map(([n, label, sub]) => (
           <Card key={label as string} className="p-3">
             <p className="text-2xl font-semibold text-slate-900 tabular-nums">{n}</p>
             <p className="text-xs text-slate-500">{label}</p>
+            {sub && <p className="text-xs text-violet-700">{sub}</p>}
           </Card>
         ))}
       </div>
       <div className="grid gap-4 lg:grid-cols-[1fr_18rem]">
         <Card className="p-4">
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <h2 className="mr-2 text-sm font-semibold text-slate-800">Bug list</h2>
-            {[["all", "All"], ...bash.areas.map((a) => [a.id, a.name]), ["mine", "Mine"]].map(([id, label]) => (
+            <h2 className="mr-2 text-sm font-semibold text-slate-800">Finds</h2>
+            {[["all", "All areas"], ...bash.areas.map((a) => [a.id, a.name]), ["mine", "Mine"]].map(([id, label]) => (
               <button key={id} type="button" aria-pressed={show === id} onClick={() => setShow(id)} className={cx("rounded-full px-2.5 py-0.5 text-xs ring-1 ring-inset", show === id ? "bg-accent-600 text-white ring-accent-600" : "text-slate-700 ring-slate-200 hover:bg-slate-50")}>
                 {label}
               </button>
             ))}
           </div>
+          <div role="group" aria-label="Kind" className="mb-2 flex flex-wrap gap-1">
+            {(["all", "bug", "question", "note", "idea"] as const).map((k) => (
+              <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)} className={cx("rounded-full px-2 py-0.5 text-[11px] ring-1 ring-inset", kind === k ? "bg-slate-800 font-semibold text-slate-50 ring-slate-800" : "text-slate-600 ring-slate-200 hover:bg-slate-50")}>
+                {k === "all" ? "All" : `${FIND_LABEL[k]}s`}
+              </button>
+            ))}
+          </div>
+          {show !== "all" && show !== "mine" && (bash.areas.find((a) => a.id === show)?.links.length ?? 0) > 0 && (
+            <p className="mb-2 text-xs text-slate-500">
+              Testing: <LinkChips links={bash.areas.find((a) => a.id === show)!.links} />
+            </p>
+          )}
           {shown.length === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-500">{bugs.length ? "Nothing here." : "No bugs yet. The first one wins bragging rights."}</p>
+            <p className="py-6 text-center text-sm text-slate-500">{finds.length ? "Nothing here." : "No bugs yet. The first one wins bragging rights."}</p>
           ) : (
-            <ul className="divide-y divide-slate-100" aria-label="Bugs">
+            <ul className="divide-y divide-slate-100" aria-label="Finds">
               {shown.map((b) => (
                 <li key={b.id} className="flex items-center gap-2 py-2 text-sm">
-                  <SevChip s={b.severity} />
+                  {b.kind === "bug" ? <SevChip s={b.severity} /> : <KindTag kind={b.kind as FindKind} />}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-slate-900">{b.text}</span>
                     <span className="block text-xs text-slate-500">
                       {areaName(b.areaId)} · {b.byName} · {time(b.at)}
+                      {b.adds.length > 0 && (b.kind === "question" ? " · Answered" : ` · ${b.adds.length} added`)}
                     </span>
                   </span>
                   {b.plusOnes.length > 0 && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700" title={b.plusOnes.map((p) => p.name).join(", ")}>+{b.plusOnes.length}</span>}
@@ -506,6 +550,17 @@ export function BashBoard({ bash }: { bash: BashView }) {
           )}
         </Card>
         <div className="space-y-4">
+          {(bash.isOwner || bash.links.length > 0 || bash.areas.some((a) => a.links.length)) && (
+            <Card className="p-4">
+              <WhatYoureTesting
+                bashId={bash.id}
+                title="What's being tested"
+                groups={[...bash.areas.map((a) => ({ title: a.name, areaId: a.id, links: a.links })), { title: "Whole bash", areaId: null, links: bash.links }]}
+                canEdit={bash.isOwner && bash.phase === "live"}
+                onSaved={() => router.refresh()}
+              />
+            </Card>
+          )}
           <Card className="p-4">
             <h2 className="mb-2 text-sm font-semibold text-slate-800">Who&apos;s where</h2>
             {bash.people.length === 0 ? (
@@ -728,7 +783,12 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-xs">{areaName(b.areaId)}</td>
+                      <td className="px-3 py-2 text-xs">
+                        {areaName(b.areaId)}
+                        <span className="mt-0.5 block">
+                          <LinkChips links={bash.areas.find((a) => a.id === b.areaId)?.links ?? []} />
+                        </span>
+                      </td>
                       <td className="px-3 py-2">
                         <select aria-label={`Severity of ${b.text}`} disabled={!!b.bug} value={b.severity} onChange={(e) => review(b.id, { severity: e.target.value as BashSeverity })} className="h-7 rounded border border-slate-300 bg-surface px-1 text-xs">
                           {BASH_SEVERITIES.map((s) => (
