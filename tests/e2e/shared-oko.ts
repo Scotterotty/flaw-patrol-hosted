@@ -6,7 +6,7 @@ import { test } from "@playwright/test";
  * Test accounts are @example.com, so a spec that picks it gets its own copy shared with
  * example.com, removed again afterwards so other specs still see a plain-only Bug template.
  */
-export function useTestOko() {
+export function withTestOko() {
   const id = `e2e_oko_${Date.now().toString(36)}`;
   test.beforeAll(async () => {
     const db = new PrismaClient();

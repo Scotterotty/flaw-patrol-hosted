@@ -1,14 +1,14 @@
 import { PrismaClient } from "@prisma/client";
 import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
-import { useTestOko } from "./shared-oko";
+import { withTestOko } from "./shared-oko";
 
 // ver_84: umbrella Settings rows open their own options right below them, one at a time,
 // and the bug template's field list splits into "filled in Jira" and "written into the description".
 
 
 // The OKO layout is a company template since ver_96; these tests get their own copy.
-useTestOko();
+withTestOko();
 const TAG = Date.now().toString(36).slice(-4).toUpperCase();
 const HUB = `ZH${TAG}`;
 const NAME = `Rows ${TAG}`;
@@ -42,6 +42,8 @@ test("umbrella settings rows open in place, one at a time, and the field list re
   await row("jira").getByLabel("API token").fill("secret-token");
   await row("jira").getByRole("button", { name: "Connect Jira" }).click();
   await expect(page.getByText("Connected as QA Bot.")).toBeVisible();
+  // Let Connect's page refresh land first: it rewrites the address and would drop the row's #hash.
+  await page.waitForLoadState("networkidle");
   await expect(row("jira").getByTestId("bug-template-settings")).toHaveCount(0);
   await expect(row("jira").locator("#stories")).toHaveCount(0);
 

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
 import { standaloneProject } from "./projects";
-import { useTestOko } from "./shared-oko";
+import { withTestOko } from "./shared-oko";
 
 // The team bug template (OB-5292): turned on per project in Settings → Jira,
 // filled in from the run and case, Context and User name & ID remembered per
@@ -16,7 +16,7 @@ const newest = async () => {
   const all = Object.entries((await (await fetch(`${JIRA}/__issues`)).json()) as Record<string, Issue>).filter(([k]) => k.startsWith("OB-"));
   return all.sort(([a], [b]) => Number(a.split("-")[1]) - Number(b.split("-")[1])).at(-1)!;
 };
-useTestOko();
+withTestOko();
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
 
 test("bugs follow the team template", async ({ page }) => {

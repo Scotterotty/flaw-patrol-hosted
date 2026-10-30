@@ -1,7 +1,7 @@
 import { PrismaClient, type ResultStatus } from "@prisma/client";
 import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
-import { useTestOko } from "./shared-oko";
+import { withTestOko } from "./shared-oko";
 import { standaloneProject } from "./projects";
 
 // ver_80: Flaky badges and the Flaky only filter, Edit fields… on ticked cases,
@@ -9,7 +9,7 @@ import { standaloneProject } from "./projects";
 
 
 // The OKO layout is a company template since ver_96; these tests get their own copy.
-useTestOko();
+withTestOko();
 const run = Date.now().toString(36).slice(-4).toUpperCase();
 const JIRA = `http://localhost:${process.env.MOCK_JIRA_PORT ?? 3199}`;
 

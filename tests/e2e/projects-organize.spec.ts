@@ -51,12 +51,17 @@ test("projects page: reorder, hide and delete projects", async ({ page }) => {
   await page.getByRole("button", { name: `More for ${names[2]}` }).click();
   await page.getByRole("menuitem", { name: /Move to top/ }).click();
   await expect.poll(async () => (await order()).filter((n) => n.endsWith(TAG))).toEqual([names[2], names[0], names[1]]);
-  await page.getByLabel(`Drag to move ${names[0]}`).dragTo(card(page, names[1]));
+  // Playwright's mouse drag doesn't always start HTML drag and drop, so the events are sent directly.
+  const dt = await page.evaluateHandle(() => new DataTransfer());
+  await page.getByLabel(`Drag to move ${names[0]}`).dispatchEvent("dragstart", { dataTransfer: dt });
+  await card(page, names[1]).dispatchEvent("dragover", { dataTransfer: dt });
+  await card(page, names[1]).dispatchEvent("drop", { dataTransfer: dt });
   await expect.poll(async () => (await order()).filter((n) => n.endsWith(TAG))).toEqual([names[2], names[1], names[0]]);
-  // Let the save finish before reloading.
-  await page.waitForLoadState("networkidle");
-  await page.reload();
-  await expect.poll(async () => (await order()).filter((n) => n.endsWith(TAG))).toEqual([names[2], names[1], names[0]]);
+  // The order is kept after a reload. Saves go one at a time, so reload until the last one is in.
+  await expect(async () => {
+    await page.reload();
+    expect((await order()).filter((n) => n.endsWith(TAG))).toEqual([names[2], names[1], names[0]]);
+  }).toPass({ timeout: 20_000 });
 
   // Hide B: it moves to the Hidden by you fold, and comes back from there.
   await page.getByRole("button", { name: `More for ${names[1]}` }).click();
