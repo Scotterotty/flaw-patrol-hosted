@@ -7,14 +7,14 @@ import type { Severity } from "@prisma/client";
 import { BASH_SEVERITIES, sevLabel, similarBugs, type BashSeverity, type ItemKind } from "@/lib/bash";
 import type { BashView } from "@/lib/bash-summary";
 import { clock } from "@/lib/charter";
-import { bashBugFiled, coverBashPrompt, deleteBashItem, endBashEarly, joinBash, logBashItem, mergeBashItems, plusOneBash, reviewBashItem, wrapUpBash } from "@/server/bashes";
+import { bashBugFiled, coverBashPrompt, endBashEarly, joinBash, logBashItem, mergeBashItems, plusOneBash, reviewBashItem, wrapUpBash } from "@/server/bashes";
+import { LiveFinds, useLiveFinds, WhatYoureTesting, type LiveData } from "./bash-live";
 import { uploadAttachment } from "@/server/results";
 import { BugDialog } from "./bug-dialog";
 import { PromptsCard } from "./session-runner";
 import { takeScreenshot, useCaptureSupport } from "./screen-capture";
 import { Button, Card, cx, ErrorText, InfoTip, Textarea } from "./ui";
 
-type Item = BashView["items"][number];
 
 /**
  * Seconds left until `iso`, ticking every second. Null until the page is running in the
@@ -130,12 +130,15 @@ export function JoinPicker({ bash }: { bash: BashView }) {
 const KIND_LABEL: Record<ItemKind, string> = { bug: "Bug", question: "Question", note: "Note", idea: "Idea", covered: "Covered" };
 
 /**
- * The bash runner (ver_93): a Log a bug box on top (press B to jump to it), one line is
- * enough. As you type it checks the bash's bug list and offers "+1, I see it too".
+ * The bash runner (ver_93, ver_96): Live finds on the left, Log a bug in the middle (press B
+ * to jump to it, one line is enough), and the clock, your area and what you're testing on
+ * the right. As you type it checks everyone's finds and offers to add to one instead.
  */
-export function BashExplore({ bash }: { bash: BashView }) {
+export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }) {
   const router = useRouter();
   const area = bash.areas.find((a) => a.id === bash.me.areaId)!;
+  const { data, reload } = useLiveFinds(bash.id, finds);
+  const [openId, setOpenId] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [details, setDetails] = useState("");
   const [showDetails, setShowDetails] = useState(false);
@@ -147,7 +150,7 @@ export function BashExplore({ bash }: { bash: BashView }) {
   const [note, setNote] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [uploading, setUploading] = useState(false);
-  const box = useRef<HTMLInputElement>(null);
+  const box = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const capture = useCaptureSupport();
   const live = bash.phase === "live";
@@ -190,14 +193,15 @@ export function BashExplore({ bash }: { bash: BashView }) {
     return () => window.removeEventListener("paste", onPaste);
   }, [upload, live]);
 
-  const bugs = bash.items.filter((i) => i.kind === "bug" && !i.mergedIntoId);
-  const match = kind === "bug" && text.trim().length > 8 ? similarBugs(text, bugs.filter((b) => b.byId !== bash.me.id && !different.has(b.id)))[0] : undefined;
-  const mine = bash.items.filter((i) => i.byId === bash.me.id && i.kind !== "covered");
+  // Someone else's find of the same kind that sounds like this one (ver_96: every kind, not only bugs).
+  const match = text.trim().length > 8 ? similarBugs(text, data.items.filter((b) => b.kind === kind && b.byId !== bash.me.id && !different.has(b.id)))[0] : undefined;
   const covered = new Set(bash.items.filter((i) => i.kind === "covered" && i.areaId === area.id && i.byId === bash.me.id).map((i) => i.text));
   const ago = (iso: string) => {
     const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
     return m < 1 ? "just now" : `${m} min ago`;
   };
+  const liveArea = data.areas.find((a) => a.id === area.id);
+  const others = (liveArea?.people ?? area.people).filter((p) => p.id !== bash.me.id);
 
   const log = () =>
     start(async () => {
@@ -209,46 +213,61 @@ export function BashExplore({ bash }: { bash: BashView }) {
       setShowDetails(false);
       setFiles([]);
       setNote(r.filed ? (r.filed.startsWith("Logged") ? r.filed : `Filed as ${r.filed}.`) : null);
+      void reload();
       router.refresh();
       box.current?.focus();
     });
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_20rem]">
-      <div className="min-w-0 space-y-4">
-        <Card className="p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-semibold text-slate-900">Log a {KIND_LABEL[kind].toLowerCase()}</h2>
-            <span className="text-xs text-slate-500">
-              Press <kbd className="rounded border border-slate-300 px-1">B</kbd>
-            </span>
-          </div>
-          <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
-          {note && <p className="mt-2 rounded-md bg-emerald-50 px-3 py-1.5 text-sm text-emerald-800">{note}</p>}
-          <input
-            ref={box}
-            aria-label="What did you find?"
-            autoFocus
-            disabled={!live}
-            className="mt-2 h-11 w-full rounded-md border border-slate-300 bg-surface px-3 text-base focus:border-accent-500 focus:ring-2 focus:ring-accent-200 focus:outline-none"
-            placeholder={kind === "bug" ? "What went wrong? One line is enough" : kind === "question" ? "What do you need to ask?" : kind === "idea" ? "What else is worth trying?" : "What did you notice?"}
-            value={text}
-            maxLength={300}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && text.trim() && !match) {
-                e.preventDefault();
-                log();
-              }
-            }}
-          />
-          {match && (
-            <div className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-200 ring-inset" role="status" data-testid="bash-match">
-              <p>
-                {match.byName} logged “{match.text}” {ago(match.at)}
-                {match.plusOnes.length > 0 && ` · ${match.plusOnes.length} more saw it`}
-              </p>
-              <div className="mt-1.5 flex gap-2">
+    <div className="grid items-start gap-4 lg:grid-cols-[19rem_minmax(0,1fr)] xl:grid-cols-[19rem_minmax(0,1fr)_16rem]">
+      <div className="order-2 lg:order-1 lg:row-span-2">
+        <LiveFinds bashId={bash.id} data={data} reload={reload} meId={bash.me.id} areaId={area.id} draft={text} openId={openId} setOpenId={setOpenId} live={live} />
+      </div>
+      <Card className="order-1 p-4 lg:order-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold text-slate-900">Log a {KIND_LABEL[kind].toLowerCase()}</h2>
+          <span className="text-xs text-slate-500">
+            Press <kbd className="rounded border border-slate-300 px-1">B</kbd>
+          </span>
+        </div>
+        <div role="group" aria-label="Kind" className="mt-2 flex gap-1">
+          {(["bug", "question", "note", "idea"] as const).map((k) => (
+            <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)} className={cx("rounded-full px-2.5 py-0.5 text-xs ring-1 ring-inset", kind === k ? "bg-slate-800 font-semibold text-slate-50 ring-slate-800" : "text-slate-600 ring-slate-200 hover:bg-slate-50")}>
+              {KIND_LABEL[k]}
+            </button>
+          ))}
+        </div>
+        <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+        {note && <p className="mt-2 rounded-md bg-emerald-50 px-3 py-1.5 text-sm text-emerald-800">{note}</p>}
+        <textarea
+          ref={box}
+          aria-label="What did you find?"
+          autoFocus
+          disabled={!live}
+          rows={2}
+          className="mt-2 w-full resize-y rounded-md border border-slate-300 bg-surface px-3 py-2 text-base focus:border-accent-500 focus:ring-2 focus:ring-accent-200 focus:outline-none"
+          placeholder={kind === "bug" ? "What went wrong? One line is enough" : kind === "question" ? "What do you need to ask?" : kind === "idea" ? "What else is worth trying?" : "What did you notice?"}
+          value={text}
+          maxLength={300}
+          onChange={(e) => setText(e.target.value.replace(/\n/g, " "))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              if (text.trim() && !match) log();
+            }
+          }}
+        />
+        {match && (
+          <div className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-200 ring-inset" role="status" data-testid="bash-match">
+            <p>
+              <b className="font-semibold">
+                Looks like {match.byName}&apos;s {KIND_LABEL[match.kind].toLowerCase()}: &ldquo;{match.text}&rdquo;
+              </b>{" "}
+              {ago(match.at)}
+              {match.plusOnes.length > 0 && ` · ${match.plusOnes.length} more saw it`}. It&apos;s highlighted in Live finds.
+            </p>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {match.kind !== "question" && (
                 <Button
                   size="sm"
                   variant="primary"
@@ -258,127 +277,113 @@ export function BashExplore({ bash }: { bash: BashView }) {
                       const r = await plusOneBash(match.id, true);
                       if (!r.ok) return setError(r.error);
                       setText("");
-                      setNote(`Added you to ${match.byName}'s bug.`);
+                      setNote(`Added you to ${match.byName}'s ${KIND_LABEL[match.kind].toLowerCase()}.`);
+                      void reload();
                       router.refresh();
                     })
                   }
                 >
-                  +1, I see it too
+                  {match.kind === "bug" ? "+1, I see it too" : "+1"}
                 </Button>
-                <Button size="sm" onClick={() => setDifferent((d) => new Set(d).add(match.id))}>
-                  It&apos;s different
-                </Button>
-              </div>
+              )}
+              <Button size="sm" onClick={() => setOpenId(match.id)}>
+                Open it{match.kind === "question" ? " to see the answer" : " to add your details"}
+              </Button>
+              <Button size="sm" onClick={() => setDifferent((d) => new Set(d).add(match.id))}>
+                It&apos;s different
+              </Button>
             </div>
-          )}
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <div role="group" aria-label="Kind" className="flex gap-1">
-              {(["bug", "question", "note", "idea"] as const).map((k) => (
-                <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)} className={cx("rounded-full px-2.5 py-0.5 text-xs ring-1 ring-inset", kind === k ? "bg-slate-800 font-semibold text-slate-50 ring-slate-800" : "text-slate-600 ring-slate-200 hover:bg-slate-50")}>
-                  {KIND_LABEL[k]}
-                </button>
-              ))}
-            </div>
-            {kind === "bug" && (
-              <div role="radiogroup" aria-label="How bad?" className="flex items-center gap-1 text-xs">
-                <span className="mr-1 text-slate-500">How bad?</span>
-                {BASH_SEVERITIES.map((s) => (
-                  <button key={s.id} type="button" role="radio" aria-checked={severity === s.id} title={`Files as ${bash.sevNames[s.id]}`} onClick={() => setSeverity(s.id)} className={cx("rounded-full px-2.5 py-0.5 ring-1 ring-inset", severity === s.id ? "bg-accent-600 font-semibold text-white ring-accent-600" : "text-slate-700 ring-slate-200 hover:bg-slate-50")}>
-                    {s.label}
-                  </button>
-                ))}
-                <span className="ml-1 text-slate-500" data-testid="bash-files-as">Files as {bash.sevNames[severity]}</span>
-              </div>
-            )}
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-slate-500">📋 Paste a screenshot, or</span>
-            <Button size="sm" disabled={!live || uploading || !capture.ok} title={capture.ok ? undefined : capture.why} onClick={async () => {
-              try {
-                const f = await takeScreenshot(`bash-${Date.now()}.png`);
-                if (f) await upload([f]);
-              } catch {
-                setError("The screen couldn't be captured. Paste a screenshot instead.");
-              }
-            }}>
-              Capture screen
-            </Button>
-            <Button size="sm" disabled={!live || uploading} onClick={() => fileInput.current?.click()}>
-              Attach file
-            </Button>
-            <input ref={fileInput} type="file" multiple hidden onChange={(e) => { const l = [...(e.target.files ?? [])]; e.target.value = ""; if (l.length) void upload(l); }} />
-            {uploading && <span className="text-slate-500">Uploading…</span>}
-            {files.map((f) => (
-              <span key={f.id} className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-slate-700">
-                📎 {f.fileName}
-                <button type="button" aria-label={`Remove ${f.fileName}`} onClick={() => setFiles((a) => a.filter((x) => x.id !== f.id))}>
-                  ×
-                </button>
-              </span>
+        )}
+        {kind === "bug" && (
+          <div role="radiogroup" aria-label="How bad?" className="mt-3 flex flex-wrap items-center gap-1 text-xs">
+            <span className="mr-1 text-slate-500">How bad?</span>
+            {BASH_SEVERITIES.map((s) => (
+              <button key={s.id} type="button" role="radio" aria-checked={severity === s.id} title={`Files as ${bash.sevNames[s.id]}`} onClick={() => setSeverity(s.id)} className={cx("rounded-full px-2.5 py-0.5 ring-1 ring-inset", severity === s.id ? "bg-accent-600 font-semibold text-white ring-accent-600" : "text-slate-700 ring-slate-200 hover:bg-slate-50")}>
+                {s.label}
+              </button>
             ))}
-            <button type="button" className="ml-auto font-medium text-accent-700 hover:underline" aria-expanded={showDetails} onClick={() => setShowDetails((v) => !v)}>
-              Add steps and details
-            </button>
+            <span className="ml-1 text-slate-500" data-testid="bash-files-as">Files as {bash.sevNames[severity]}</span>
           </div>
-          {showDetails && <Textarea className="mt-2" rows={3} aria-label="Steps and details" value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Steps to see it, what you expected, anything else" />}
-          <div className="mt-3 flex items-center justify-between gap-2">
-            <span className="text-xs text-slate-500">Area, time and your name are filled in for you.</span>
-            <Button variant="primary" disabled={!live || pending || !text.trim()} onClick={log}>
-              Log {KIND_LABEL[kind].toLowerCase()}
-            </Button>
+        )}
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-slate-500">Paste a screenshot, or</span>
+          <Button size="sm" disabled={!live || uploading || !capture.ok} title={capture.ok ? undefined : capture.why} onClick={async () => {
+            try {
+              const f = await takeScreenshot(`bash-${Date.now()}.png`);
+              if (f) await upload([f]);
+            } catch {
+              setError("The screen couldn't be captured. Paste a screenshot instead.");
+            }
+          }}>
+            Capture screen
+          </Button>
+          <Button size="sm" disabled={!live || uploading} onClick={() => fileInput.current?.click()}>
+            Attach file
+          </Button>
+          <input ref={fileInput} type="file" multiple hidden onChange={(e) => { const l = [...(e.target.files ?? [])]; e.target.value = ""; if (l.length) void upload(l); }} />
+          {uploading && <span className="text-slate-500">Uploading…</span>}
+          {files.map((f) => (
+            <span key={f.id} className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-slate-700">
+              {f.fileName}
+              <button type="button" aria-label={`Remove ${f.fileName}`} onClick={() => setFiles((a) => a.filter((x) => x.id !== f.id))}>
+                ×
+              </button>
+            </span>
+          ))}
+          <button type="button" className="ml-auto font-medium text-accent-700 hover:underline" aria-expanded={showDetails} onClick={() => setShowDetails((v) => !v)}>
+            Add steps and details
+          </button>
+        </div>
+        {showDetails && <Textarea className="mt-2" rows={3} aria-label="Steps and details" value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Steps to see it, what you expected, anything else" />}
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <span className="text-xs text-slate-500">Area, time and your name are filled in for you. Everyone in this bash sees what you log.</span>
+          <Button variant="primary" disabled={!live || pending || !text.trim()} onClick={log}>
+            Log {KIND_LABEL[kind].toLowerCase()}
+          </Button>
+        </div>
+      </Card>
+      <aside className="order-3 space-y-4 lg:col-start-2 xl:col-start-3 xl:row-span-2 xl:row-start-1">
+        <Card className="space-y-3 p-4">
+          <div>
+            <p className="text-xs text-slate-500">Bash ends in</p>
+            <Countdown bash={bash} className="text-3xl font-semibold text-slate-900" />
           </div>
-        </Card>
-        <Card className="p-4">
-          <h2 className="mb-2 text-sm font-semibold text-slate-800">Your finds this bash · {mine.length}</h2>
-          {mine.length === 0 ? (
-            <p className="text-sm text-slate-500">Nothing logged yet.</p>
-          ) : (
-            <ul className="divide-y divide-slate-100 text-sm">
-              {mine.map((i) => (
-                <li key={i.id} className="flex items-center gap-2 py-1.5">
-                  <span className="w-12 shrink-0 text-xs text-slate-400 tabular-nums">{clock((new Date(i.at).getTime() - new Date(bash.startsAt).getTime()) / 1000)}</span>
-                  {i.kind === "bug" ? <SevChip s={i.severity} /> : <span className="w-14 shrink-0 text-[11px] font-semibold text-slate-500 uppercase">{KIND_LABEL[i.kind as ItemKind]}</span>}
-                  <span className="min-w-0 flex-1 truncate">{i.text}</span>
-                  {i.plusOnes.length > 0 && <span className="text-xs text-slate-500">+{i.plusOnes.length}</span>}
-                  {i.bug ? (
-                    <span className="font-mono text-xs text-red-700">{i.bug.externalKey ?? `D-${i.bug.number}`}</span>
-                  ) : (
-                    live && (
-                      <button
-                        type="button"
-                        aria-label={`Remove ${i.text}`}
-                        className="text-slate-300 hover:text-slate-700"
-                        onClick={() =>
-                          start(async () => {
-                            await deleteBashItem(i.id);
-                            router.refresh();
-                          })
-                        }
-                      >
-                        ×
-                      </button>
-                    )
-                  )}
-                </li>
+          <div>
+            <p className="text-xs text-slate-500">Your area</p>
+            <p className="text-sm font-medium text-slate-900">{area.name}</p>
+            <label htmlFor="switch-area" className="mt-1 block text-xs text-slate-500">
+              Switch area
+            </label>
+            <select
+              id="switch-area"
+              className="mt-0.5 h-8 w-full rounded-md border border-slate-300 bg-surface px-2 text-sm"
+              value={area.id}
+              disabled={pending || bash.phase === "wrapped"}
+              onChange={(e) => {
+                const to = e.target.value;
+                start(async () => {
+                  const r = await joinBash(bash.id, to);
+                  if (!r.ok) return setError(r.error);
+                  router.refresh();
+                });
+              }}
+            >
+              {bash.areas.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
               ))}
-            </ul>
-          )}
-        </Card>
-      </div>
-      <aside className="space-y-4">
-        <Card className="p-4">
-          <p className="text-xs text-slate-500">Bash ends in</p>
-          <Countdown bash={bash} className="text-3xl font-semibold text-slate-900" />
-          <p className="mt-3 text-xs text-slate-500">Your area</p>
-          <p className="text-sm font-medium text-slate-900">{area.name}</p>
-          <Link href={`/p/${bash.homeKey}/bashes/${bash.id}/join`} className="text-xs font-medium text-accent-700 hover:underline">
-            Switch area
+            </select>
+          </div>
+          <div>
+            <p className="text-xs text-slate-500">In here with you</p>
+            <p className="text-sm text-slate-800">{others.length ? others.map((p) => p.name).join(", ") : "Just you"}</p>
+          </div>
+          <Link href={`/p/${bash.homeKey}/bashes/${bash.id}`} className="block text-xs text-accent-700 hover:underline">
+            Watch the board
           </Link>
-          <p className="mt-3">
-            <Link href={`/p/${bash.homeKey}/bashes/${bash.id}`} className="text-xs text-slate-600 hover:underline">
-              Watch the board
-            </Link>
-          </p>
+          <WhatYoureTesting bashId={bash.id} areaId={area.id} area={liveArea?.links ?? area.links} bash={data.links} canEdit={bash.isOwner && bash.phase !== "wrapped"} onSaved={() => void reload()} />
         </Card>
         {area.prompts.length > 0 && (
           <PromptsCard

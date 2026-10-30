@@ -1,5 +1,5 @@
 import "server-only";
-import { parseAreas, phaseOf, plusOnesOf, sevRank, timeRange } from "./bash";
+import { parseAreas, parseLinks, phaseOf, plusOnesOf, sevRank, timeRange } from "./bash";
 import { parseCharter } from "./charter";
 import { db } from "./db";
 import { severityScaleFor } from "./severity-server";
@@ -25,7 +25,9 @@ export async function loadBashFull(bashId: string) {
   // Each area's run entry, so "File this bug…" can file against the area's charter (ver_94).
   const entries = bash.run ? await db.runEntry.findMany({ where: { runId: bash.run.id, caseId: { in: areas.map((a) => a.caseId) } }, select: { id: true, caseId: true } }) : [];
   const entryOf = Object.fromEntries(areas.flatMap((a) => { const e = entries.find((x) => x.caseId === a.caseId); return e ? [[a.id, e.id] as const] : []; }));
-  const items = bash.items.map((i) => ({
+  // Additions and answers (ver_96) hang off the find they add to.
+  const addsOf = (id: string) => bash.items.filter((a) => a.kind === "add" && a.replyToId === id).reverse().map((a) => ({ id: a.id, byId: a.byId, byName: a.byName, text: a.text, at: a.createdAt }));
+  const items = bash.items.filter((i) => i.kind !== "add").map((i) => ({
     id: i.id,
     areaId: i.areaId,
     kind: i.kind,
@@ -41,6 +43,7 @@ export async function loadBashFull(bashId: string) {
     at: i.createdAt,
     attachments: i.attachments,
     bug: i.defectId ? (defectOf.get(i.defectId) ?? null) : null,
+    adds: addsOf(i.id),
   }));
   return {
     bash,
@@ -48,6 +51,7 @@ export async function loadBashFull(bashId: string) {
     areas: areas.map((a) => ({ ...a, charter: charterOf.get(a.caseId) ?? null, people: bash.people.filter((p) => p.areaId === a.id).map((p) => ({ id: p.userId, name: p.name })) })),
     items,
     entryOf,
+    links: parseLinks(bash.links),
     // The team's own severity names (ver_94), so bash levels show what they file as.
     sevNames: (await severityScaleFor(bash.run?.projectId ?? bash.projectId)).labels,
   };
@@ -85,6 +89,11 @@ export async function bashReport(bashId: string) {
     notFiled: bash.wrappedAt ? counted.filter((b) => !b.bug).length : 0,
     high: counted.filter((b) => b.severity === "CRITICAL" || b.severity === "SHOWSTOPPER").length,
     questions: items.filter((i) => i.kind === "question").length,
+    // Everything found (ver_96): every kind, with what people added.
+    unanswered: items.filter((i) => i.kind === "question" && !i.adds.length).length,
+    notes: items.filter((i) => i.kind === "note").length,
+    ideas: items.filter((i) => i.kind === "idea").length,
+    finds: items.filter((i) => ["bug", "question", "note", "idea"].includes(i.kind) && !i.mergedIntoId),
     plusOnes: bugs.reduce((n, b) => n + b.plusOnes.length, 0),
     vsLast: previous ? { name: previous.name, diff: counted.length - previous.items.length } : null,
     byArea,
@@ -105,6 +114,9 @@ export async function bashSummaryLine(bashId: string) {
     `${r.people} ${r.people === 1 ? "person" : "people"} found ${r.bugs.length} ${r.bugs.length === 1 ? "bug" : "bugs"} in ${length}${r.high ? ` (${r.high} High or Blocker)` : ""}.`,
     top?.bugs ? `Most in ${top.name} (${top.bugs}).` : "",
     worst ? `Worst: ${worst.bug?.externalKey ?? (worst.bug ? `D-${worst.bug.number}` : "")} ${worst.text}`.replace(/\s+/g, " ").trim() : "",
+    r.questions || r.notes || r.ideas
+      ? `Also ${[r.questions && `${r.questions} ${r.questions === 1 ? "question" : "questions"}${r.unanswered ? ` (${r.unanswered} not answered)` : ""}`, r.notes && `${r.notes} ${r.notes === 1 ? "note" : "notes"}`, r.ideas && `${r.ideas} ${r.ideas === 1 ? "idea" : "ideas"}`].filter(Boolean).join(", ")}.`
+      : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -130,9 +142,10 @@ export function bashView(full: BashFull, me: { id: string; canManage: boolean })
     sevNames: full.sevNames,
     runProjectId: bash.run?.projectId ?? bash.projectId,
     runHref: bash.run ? `/p/${bash.run.project.key}/runs/${bash.run.number}` : null,
-    areas: full.areas.map((a) => ({ id: a.id, name: a.name, template: a.template, prompts: a.charter?.prompts ?? [], charterHref: a.charter ? `/p/${a.charter.key}/cases/${a.charter.number}` : null, people: a.people })),
+    areas: full.areas.map((a) => ({ id: a.id, name: a.name, template: a.template, prompts: a.charter?.prompts ?? [], charterHref: a.charter ? `/p/${a.charter.key}/cases/${a.charter.number}` : null, people: a.people, links: a.links })),
+    links: full.links,
     people: bash.people.map((p) => ({ id: p.userId, name: p.name, areaId: p.areaId })),
-    items: full.items.map((i) => ({ ...i, at: i.at.toISOString() })),
+    items: full.items.map((i) => ({ ...i, at: i.at.toISOString(), adds: i.adds.map((a) => ({ ...a, at: a.at.toISOString() })) })),
     me: { id: me.id, areaId: mine?.areaId ?? null },
   };
 }

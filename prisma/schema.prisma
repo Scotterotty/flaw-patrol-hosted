@@ -974,6 +974,8 @@ model BugBash {
   /// Wrap-up done: bugs filed and sessions saved to the run.
   wrappedAt    DateTime?
   areas        Json         @default("[]")
+  /// Links for the whole bash (ver_96): Jira issues, GitHub PRs, web pages. Each area has its own in `areas`.
+  links        Json         @default("[]")
   /// Collect bugs here first and file them at wrap-up (the default), or straight to Jira.
   collectFirst Boolean      @default(true)
   slack        Boolean      @default(true)
@@ -1015,8 +1017,10 @@ model BashItem {
   bash         BugBash      @relation(fields: [bashId], references: [id], onDelete: Cascade)
   bashId       String
   areaId       String
-  /// bug | question | note | idea | covered
+  /// bug | question | note | idea | covered | add (an addition or answer to another find, ver_96)
   kind         String
+  /// For kind "add": the find it adds to.
+  replyToId    String?
   text         String
   details      String       @default("")
   severity     Severity     @default(PROBLEMATIC)
@@ -1032,6 +1036,7 @@ model BashItem {
   attachments  Attachment[]
 
   @@index([bashId, createdAt])
+  @@index([replyToId])
 }
 
 /**

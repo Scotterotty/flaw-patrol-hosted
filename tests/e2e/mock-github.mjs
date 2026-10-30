@@ -47,6 +47,12 @@ createServer((req, res) => {
   const rest = path.slice(base.length);
   if (rest === "") return send(res, 200, read("repo.json"));
   if (rest === "/actions/workflows") return send(res, 200, read("workflows.json"));
+  // Pull requests (ver_96): bug bash area links.
+  if (rest === "/pulls")
+    return send(res, 200, [
+      { number: 418, title: "Lazy-load space thumbnails", state: "open", merged_at: null, html_url: `https://github.com/${REPO}/pull/418`, user: { login: "dana" } },
+      { number: 412, title: "Invite links expire after 7 days", state: "closed", merged_at: "2026-10-28T10:00:00Z", html_url: `https://github.com/${REPO}/pull/412`, user: { login: "sam" } },
+    ]);
   let m = /^\/actions\/workflows\/(\d+)\/runs$/.exec(rest);
   if (m) return send(res, 200, runs);
   m = /^\/actions\/runs\/(\d+)$/.exec(rest);

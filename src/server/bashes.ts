@@ -6,7 +6,11 @@ import { Prisma, type Severity } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity";
-import { logSchema, parseAreas, phaseOf, plusOnesOf, sevRank, startSchema, type BashArea, type StartInput } from "@/lib/bash";
+import { linkSchema, logSchema, parseAreas, parseLinks, phaseOf, plusOnesOf, sevRank, startSchema, webLink, type BashArea, type BashLink, type StartInput } from "@/lib/bash";
+import { open } from "@/lib/crypto";
+import { GitHubClient } from "@/lib/github";
+import { jiraFor } from "@/lib/jira";
+import { storiesConfigFor } from "@/lib/stories";
 import { bashSummaryLine } from "@/lib/bash-summary";
 import { BLANK_CHARTER, type SessionNote } from "@/lib/charter";
 import { templateById } from "@/lib/charter-templates";
@@ -102,7 +106,7 @@ export async function startBugBash(homeId: string, input: StartInput) {
             });
             caseId = created.id;
           }
-          areas.push({ id: `a${i + 1}`, name: a.name, caseId, template: tpl?.id ?? null });
+          areas.push({ id: `a${i + 1}`, name: a.name, caseId, template: tpl?.id ?? null, links: a.links });
         }
         const entries = await buildEntries(tx, library, areas.map((a) => a.caseId), null);
         const { runSeq } = await tx.project.update({ where: { id: cycle.id }, data: { runSeq: { increment: 1 } } });
@@ -225,9 +229,101 @@ export async function deleteBashItem(itemId: string) {
     const { bash, user } = await requireIn(item.bashId);
     if (item.byId !== user.id) throw new UserError("Only whoever logged it can remove it.");
     if (item.defectId) throw new UserError("It's already filed, so it stays.");
-    await db.bashItem.delete({ where: { id: itemId } });
+    await db.$transaction([db.bashItem.deleteMany({ where: { replyToId: itemId } }), db.bashItem.delete({ where: { id: itemId } })]);
     refresh(bash.project.key);
     return {};
+  });
+}
+
+const addSchema = z.string().trim().min(1, "Type what to add.").max(1000);
+
+/**
+ * Add to it / Answer (ver_96): one line on someone's find, like "Also on Safari" or the answer
+ * to a question. Goes into the Jira description when the bug is filed.
+ */
+export async function addToBashItem(itemId: string, text: string) {
+  return attempt(async () => {
+    const parent = await db.bashItem.findUnique({ where: { id: itemId }, select: { bashId: true, areaId: true, kind: true, mergedIntoId: true } });
+    if (!parent || !["bug", "question", "note", "idea"].includes(parent.kind)) throw new UserError("That find isn't here anymore.");
+    const { bash, user } = await requireIn(parent.bashId);
+    if (phaseOf(bash) === "wrapped") throw new UserError("This bash is wrapped up.");
+    const add = await db.bashItem.create({ data: { bashId: parent.bashId, areaId: parent.areaId, kind: "add", replyToId: parent.mergedIntoId ?? itemId, text: addSchema.parse(text), byId: user.id, byName: nameOf(user) } });
+    refresh(bash.project.key);
+    return { id: add.id };
+  });
+}
+
+/** Edit your own find's line or details while the bash is on. */
+export async function editBashItem(itemId: string, input: { text: string; details?: string }) {
+  return attempt(async () => {
+    const item = await db.bashItem.findUnique({ where: { id: itemId }, select: { bashId: true, byId: true, defectId: true } });
+    if (!item) throw new UserError("That find isn't here anymore.");
+    const { bash, user } = await requireIn(item.bashId);
+    if (item.byId !== user.id) throw new UserError("Only whoever logged it can change it.");
+    if (item.defectId) throw new UserError("It's already filed, so change it in Jira.");
+    const data = z.object({ text: z.string().trim().min(1, "Say what you found, in one line.").max(300), details: z.string().trim().max(5000).optional() }).parse(input);
+    await db.bashItem.update({ where: { id: itemId }, data });
+    refresh(bash.project.key);
+    return {};
+  });
+}
+
+/**
+ * What you're testing → Edit (ver_96): the starter (or a lead) changes an area's links, or
+ * the whole bash's (areaId null). Everyone sees the change on their next refresh.
+ */
+export async function setBashLinks(bashId: string, areaId: string | null, links: BashLink[]) {
+  return attempt(async () => {
+    const { bash } = await requireOwner(bashId);
+    if (phaseOf(bash) === "wrapped") throw new UserError("This bash is wrapped up.");
+    const list = z.array(linkSchema).max(10, "Up to 10 links.").parse(links);
+    if (areaId === null) await db.bugBash.update({ where: { id: bashId }, data: { links: list as Prisma.InputJsonValue } });
+    else {
+      const areas = parseAreas(bash.areas);
+      if (!areas.some((a) => a.id === areaId)) throw new UserError("That area isn't in this bash.");
+      await db.bugBash.update({ where: { id: bashId }, data: { areas: areas.map((a) => (a.id === areaId ? { ...a, links: list } : a)) as Prisma.InputJsonValue } });
+    }
+    refresh(bash.project.key);
+    return {};
+  });
+}
+
+/**
+ * + Add a link: a pasted web address as it is, else Jira issues (like + Link requirement)
+ * and open or recently merged PRs in the umbrella's connected GitHub repos.
+ */
+export async function searchBashLinks(bashId: string, q: string) {
+  return attempt(async () => {
+    const { bash } = await requireIn(bashId);
+    const text = z.string().trim().max(300).parse(q);
+    if (/^https?:\/\//i.test(text)) {
+      const l = webLink(text);
+      return { links: l ? [l] : [], note: "" };
+    }
+    const found: BashLink[] = [];
+    const notes: string[] = [];
+    const setup = await storiesConfigFor(bash.projectId).catch(() => null);
+    if (setup && text) {
+      try {
+        const issues = await (await jiraFor(bash.projectId))!.searchStories(setup.config, text);
+        for (const i of issues.slice(0, 6)) found.push({ kind: "jira", key: i.key, title: i.summary, url: i.url ?? "", state: i.status });
+      } catch {
+        notes.push("Couldn't search Jira.");
+      }
+    }
+    const groupId = bash.project.groupId ?? (await db.projectGroup.findFirst({ where: { hubProjectId: bash.projectId }, select: { id: true } }))?.id;
+    const repos = groupId ? await db.gitHubRepo.findMany({ where: { groupId }, select: { fullName: true, tokenEncrypted: true } }) : [];
+    const words = text.toLowerCase().replace(/^#/, "");
+    for (const r of repos) {
+      try {
+        const pulls = await new GitHubClient(r.fullName, open(r.tokenEncrypted)).pulls();
+        for (const p of pulls.filter((p) => p.state !== "closed" && (!words || String(p.number) === words || p.title.toLowerCase().includes(words))).slice(0, 6))
+          found.push({ kind: "pr", key: `#${p.number}`, title: `${p.title}${repos.length > 1 ? ` (${r.fullName})` : ""}`, url: p.url, state: `${p.state === "merged" ? "Merged" : "Open"}${p.author ? ` · ${p.author}` : ""}` });
+      } catch {
+        notes.push(`Couldn't read pull requests in ${r.fullName}. The token may need "Pull requests: Read-only".`);
+      }
+    }
+    return { links: found, note: notes.join(" ") };
   });
 }
 
@@ -292,6 +388,7 @@ export async function mergeBashItems(itemIds: string[]) {
       db.bashItem.update({ where: { id: keep.id }, data: { plusOnes: [...people.values()] as Prisma.InputJsonValue, details: [keep.details, ...rest.map((r) => `Also logged by ${r.byName}: ${r.text}${r.details ? `\n${r.details}` : ""}`)].filter(Boolean).join("\n\n").slice(0, 5000) } }),
       db.bashItem.updateMany({ where: { id: { in: rest.map((r) => r.id) } }, data: { mergedIntoId: keep.id, review: "skip" } }),
       db.attachment.updateMany({ where: { bashItemId: { in: rest.map((r) => r.id) } }, data: { bashItemId: keep.id } }),
+      db.bashItem.updateMany({ where: { replyToId: { in: rest.map((r) => r.id) } }, data: { replyToId: keep.id } }),
     ]);
     refresh(bash.project.key);
     return { into: keep.id };
@@ -319,13 +416,21 @@ async function fileItem(bash: Awaited<ReturnType<typeof loadBash>>, itemId: stri
   const entry = await db.runEntry.findFirst({ where: { runId: bash.run.id, caseId: area?.caseId ?? "" }, select: { id: true } });
   if (!entry) throw new UserError("That area's charter isn't in the run anymore.");
   const seen = plusOnesOf(item.plusOnes);
+  // Additions (ver_96) and what was being tested: PRs and pages in the description, Jira issues as "relates to".
+  const adds = await db.bashItem.findMany({ where: { replyToId: item.id, kind: "add" }, orderBy: { createdAt: "asc" }, select: { byName: true, text: true } });
+  const links = [...(area?.links ?? []), ...parseLinks(bash.links)];
   const actual = [
     item.details || item.text,
+    adds.length ? `Added during the bash:\n${adds.map((a) => `- ${a.byName}: ${a.text}`).join("\n")}` : "",
+    links.some((l) => l.kind !== "jira") ? `What was being tested:\n${links.filter((l) => l.kind !== "jira").map((l) => `- ${l.key}${l.title ? ` ${l.title}` : ""}: ${l.url}`).join("\n")}` : "",
     `Found in the bug bash ${bash.name}, area ${area?.name ?? ""}, by ${item.byName}${seen.length ? `. Also seen by ${seen.map((p) => p.name).join(", ")}` : ""}.`,
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  const stories = [...new Set(links.filter((l) => l.kind === "jira").map((l) => l.key))].slice(0, 10);
   let defectId: string, key: string;
   if (await jiraConfigFor(bash.run.projectId)) {
-    const r = await fileJiraBug(bash.run.projectId, entry.id, { summary: item.text.slice(0, 250), severity: item.severity, stepIndex: null, actual, attachmentIds: item.attachments.map((a) => a.id) });
+    const r = await fileJiraBug(bash.run.projectId, entry.id, { summary: item.text.slice(0, 250), severity: item.severity, stepIndex: null, actual, attachmentIds: item.attachments.map((a) => a.id), stories });
     if (!r.ok) throw new UserError(r.error);
     defectId = r.defect.id;
     key = r.defect.externalKey ?? `D-${r.defect.number}`;
@@ -351,7 +456,11 @@ export async function wrapUpBash(bashId: string, anyway = false) {
     if (bash.wrappedAt) throw new UserError("It's already wrapped up.");
     if (phaseOf(bash) === "live" || phaseOf(bash) === "scheduled") await db.bugBash.update({ where: { id: bashId }, data: { endedAt: new Date() } });
     const areas = parseAreas(bash.areas);
-    const items = await db.bashItem.findMany({ where: { bashId }, orderBy: { createdAt: "asc" }, include: { attachments: { select: { id: true, fileName: true, contentType: true } } } });
+    const all = await db.bashItem.findMany({ where: { bashId }, orderBy: { createdAt: "asc" }, include: { attachments: { select: { id: true, fileName: true, contentType: true } } } });
+    // Additions (ver_96) ride along in the line they add to, so sessions stay one line per find.
+    const addsTo = new Map<string, string[]>();
+    for (const a of all) if (a.kind === "add" && a.replyToId) addsTo.set(a.replyToId, [...(addsTo.get(a.replyToId) ?? []), `${a.byName}: ${a.text}`]);
+    const items = all.filter((i) => i.kind !== "add").map((i) => (addsTo.has(i.id) ? { ...i, details: [i.details, `Added: ${addsTo.get(i.id)!.join("; ")}`].filter(Boolean).join("\n") } : i));
     const entries = await db.runEntry.findMany({ where: { runId: bash.run.id }, select: { id: true, caseId: true, caseVersion: true } });
     const people = await db.bashPerson.findMany({ where: { bashId } });
 

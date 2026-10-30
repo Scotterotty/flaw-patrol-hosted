@@ -4,13 +4,57 @@ import { z } from "zod";
 // Bug bashes (ver_93): a short, timed session where anyone picks an area and logs bugs.
 // Client-safe rules and words; the saving lives in src/server/bashes.ts.
 
-export type BashArea = { id: string; name: string; caseId: string; template: string | null };
+/**
+ * What a bash area (or the whole bash) is testing (ver_96): a Jira issue, a GitHub PR or any
+ * web page. `key` is what shows first: PRJ-12, #418, or a page's name.
+ */
+export type BashLink = { kind: "jira" | "pr" | "web"; key: string; title: string; url: string; state?: string };
+export const LINK_KIND_LABEL: Record<BashLink["kind"], string> = { jira: "Jira", pr: "GitHub PR", web: "Web page" };
+
+export const linkSchema = z.object({
+  kind: z.enum(["jira", "pr", "web"]),
+  key: z.string().trim().min(1).max(120),
+  title: z.string().trim().max(300).default(""),
+  url: z
+    .string()
+    .trim()
+    .max(2000)
+    .refine((u) => u === "" || /^https?:\/\//i.test(u), "Links start with http:// or https://.")
+    .default(""),
+  state: z.string().trim().max(40).optional(),
+});
+
+export function parseLinks(v: unknown): BashLink[] {
+  if (!Array.isArray(v)) return [];
+  return v.flatMap((l) => {
+    const r = linkSchema.safeParse(l);
+    return r.success ? [r.data] : [];
+  });
+}
+
+export type BashArea = { id: string; name: string; caseId: string; template: string | null; links: BashLink[] };
 
 export function parseAreas(v: unknown): BashArea[] {
   if (!Array.isArray(v)) return [];
   return v
     .filter((a) => a && typeof a === "object" && typeof a.id === "string" && typeof a.name === "string")
-    .map((a) => ({ id: a.id, name: a.name, caseId: typeof a.caseId === "string" ? a.caseId : "", template: typeof a.template === "string" ? a.template : null }));
+    .map((a) => ({ id: a.id, name: a.name, caseId: typeof a.caseId === "string" ? a.caseId : "", template: typeof a.template === "string" ? a.template : null, links: parseLinks(a.links) }));
+}
+
+/** A pasted web address as a link: its host and path stand in for a name until someone gives one. */
+export function webLink(raw: string, name = ""): BashLink | null {
+  try {
+    const u = new URL(raw.trim());
+    if (!/^https?:$/.test(u.protocol)) return null;
+    const pr = /^\/([^/]+\/[^/]+)\/pull\/(\d+)/.exec(u.pathname);
+    if (u.hostname === "github.com" && pr) return { kind: "pr", key: `#${pr[2]}`, title: name || pr[1], url: u.toString() };
+    const jira = /\/browse\/([A-Z][A-Z0-9_]*-\d+)/.exec(u.pathname);
+    if (jira) return { kind: "jira", key: jira[1], title: name, url: u.toString() };
+    const tail = decodeURIComponent(u.pathname.split("/").filter(Boolean).at(-1) ?? "").replace(/[-_]+/g, " ");
+    return { kind: "web", key: (name || tail || u.hostname).slice(0, 120), title: `${u.hostname}${u.pathname === "/" ? "" : u.pathname}`.slice(0, 300), url: u.toString() };
+  } catch {
+    return null;
+  }
 }
 
 export const LENGTHS = [30, 60, 90] as const;
@@ -19,7 +63,7 @@ export const startSchema = z.object({
   name: z.string().trim().min(1, "Give the bash a name.").max(120),
   minutes: z.number().int().min(10).max(480),
   areas: z
-    .array(z.object({ name: z.string().trim().min(1).max(120), template: z.string().max(60).nullable().default(null) }))
+    .array(z.object({ name: z.string().trim().min(1).max(120), template: z.string().max(60).nullable().default(null), links: z.array(linkSchema).max(10).default([]) }))
     .min(1, "Add at least one area to explore.")
     .max(12, "Up to 12 areas."),
   /** ISO time; empty or in the past means now. */

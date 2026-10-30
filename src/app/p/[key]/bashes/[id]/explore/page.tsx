@@ -3,6 +3,7 @@ import { BashExplore } from "@/components/bash";
 import { CrumbName } from "@/components/crumb-name";
 import { LiveRefresh } from "@/components/live-refresh";
 import { bashPageData } from "@/lib/bash-page";
+import { bashFinds } from "@/lib/bash-live";
 
 export const metadata = { title: "Bug bash" };
 
@@ -13,8 +14,9 @@ export default async function ExploreBashPage({ params }: { params: Promise<{ ke
   if (view.phase === "wrapped") redirect(`/p/${view.homeKey}/bashes/${id}/report`);
   if (!view.me.areaId) redirect(`/p/${view.homeKey}/bashes/${id}/join`);
   const area = view.areas.find((a) => a.id === view.me.areaId);
+  const { projectId: _p, ...finds } = (await bashFinds(id))!; // eslint-disable-line @typescript-eslint/no-unused-vars
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-7xl">
       <CrumbName href={`/p/${view.homeKey}/bashes/${id}/explore`} label={`${view.name} · ${area?.name ?? ""}`} />
       <LiveRefresh url={`/api/live/bashes/${id}`} />
       <h1 className="mb-4 text-xl font-semibold tracking-tight text-slate-900">
@@ -22,7 +24,7 @@ export default async function ExploreBashPage({ params }: { params: Promise<{ ke
       </h1>
       {view.phase === "ended" && <p className="mb-3 rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">Time&apos;s up. Your finds are saved, and {view.createdBy} is wrapping up.</p>}
       {view.phase === "scheduled" && <p className="mb-3 rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">The bash hasn&apos;t started yet. Logging opens when it does.</p>}
-      <BashExplore bash={view} />
+      <BashExplore bash={view} finds={finds} />
     </div>
   );
 }

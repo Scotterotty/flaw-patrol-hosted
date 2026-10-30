@@ -31,6 +31,8 @@ export function repoName(input: string) {
   return m ? `${m[1]}/${m[2]}` : null;
 }
 
+export type GitHubPull = { number: number; title: string; state: string; url: string; author: string };
+
 export class GitHubClient {
   constructor(
     readonly fullName: string,
@@ -83,6 +85,12 @@ export class GitHubClient {
   async workflows(): Promise<GitHubWorkflow[]> {
     const r = await this.get<{ workflows: { id: number; name: string; path: string; state: string }[] }>(`/repos/${this.fullName}/actions/workflows?per_page=100`);
     return r.workflows.filter((w) => w.state === "active").map((w) => ({ id: String(w.id), name: w.name, path: w.path }));
+  }
+
+  /** Open and recently closed pull requests, newest activity first (ver_96, bug bash links). */
+  async pulls(count = 30): Promise<GitHubPull[]> {
+    const r = await this.get<{ number: number; title: string; state: string; merged_at: string | null; html_url: string; user?: { login?: string } }[]>(`/repos/${this.fullName}/pulls?state=all&sort=updated&direction=desc&per_page=${count}`);
+    return r.map((p) => ({ number: p.number, title: p.title, state: p.merged_at ? "merged" : p.state, url: p.html_url, author: p.user?.login ?? "" }));
   }
 
   /** A workflow's newest runs, newest first. */
