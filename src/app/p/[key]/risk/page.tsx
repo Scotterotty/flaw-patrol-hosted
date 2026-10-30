@@ -12,6 +12,10 @@ import { projectAccess } from "@/lib/session";
 import { forgetStories } from "@/lib/stories";
 import { newestRcNames, storyReleases, testedRelease } from "@/lib/story-coverage";
 import { loadUmbrella, umbrellaOf } from "@/lib/umbrella";
+import { db } from "@/lib/db";
+import { parseRunKinds, kindLabel } from "@/lib/run-kinds";
+import { countStatuses, totals } from "@/lib/status";
+import type { PlanData } from "@/components/risk-board";
 
 export const metadata = { title: "Risk board" };
 
@@ -38,6 +42,31 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
   const team = canPlan ? await teamTemplates(project.id) : [];
   const [bashData, bashed] = canPlan ? await Promise.all([startBoxData(project), bashedRequirements(project.id)]) : [undefined, {}];
   const runCycles = full?.current.length ? full.current.map((c) => ({ id: c.id, name: c.name })) : [{ id: project.id, name: project.name }];
+  // Plan this release (ver_96): run kinds, test personas and open runs to add to.
+  const kinds = parseRunKinds(full?.group.runKinds).filter((k) => !k.hidden && k.id !== "bash");
+  const planData: PlanData | undefined = canPlan && release
+    ? await (async () => {
+        const [personas, open] = await Promise.all([
+          db.persona.findMany({ where: { projectId: project.id, archived: false }, orderBy: { name: "asc" }, select: { id: true, name: true, emoji: true } }),
+          db.testRun.findMany({
+            where: { projectId: { in: runCycles.map((c) => c.id) }, state: "ACTIVE", automated: false, kind: { not: "bash" } },
+            orderBy: { createdAt: "desc" },
+            take: 40,
+            select: { id: true, name: true, kind: true, release: true, project: { select: { name: true } }, entries: { select: { status: true } } },
+          }),
+        ]);
+        const label = (r: (typeof open)[number]) => {
+          const t = totals(countStatuses(r.entries.map((e) => e.status)));
+          return [r.name, r.project.name, kindLabel(kinds, r.kind), `${t.tested} of ${t.total} done`].join(" · ");
+        };
+        return {
+          homeKey: project.key,
+          kinds: kinds.map((k) => ({ id: k.id, name: k.name })),
+          personas,
+          openRuns: [...open.filter((r) => r.release === release), ...open.filter((r) => r.release !== release)].map((r) => ({ id: r.id, label: label(r) })),
+        };
+      })()
+    : undefined;
   const header = (
     <PageHeader
       title="Risk board"
@@ -77,7 +106,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
       </div>
       {board.jiraError && <p className="mb-3 rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-900">Couldn&apos;t read the release from Jira: {board.jiraError}</p>}
       {board.cards.length ? (
-        <RiskBoard key={release} homeId={project.id} release={release!} cards={board.cards} canMove={can(who, "risk:move")} canPlan={canPlan} cycles={runCycles} templates={[...BUILT_IN, ...team]} bash={bashData} bashed={bashed} />
+        <RiskBoard key={release} homeId={project.id} release={release!} cards={board.cards} canMove={can(who, "risk:move")} canPlan={canPlan} cycles={runCycles} templates={[...BUILT_IN, ...team]} bash={bashData} bashed={bashed} planData={planData} />
       ) : (
         <EmptyState title="Nothing in this release">Jira has no requirements in {release}. Pick another release above.</EmptyState>
       )}

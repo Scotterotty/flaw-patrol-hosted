@@ -726,6 +726,8 @@ model RunEntry {
   /// Regression flag turned off for this case in this run (ver_93), and by whom.
   regressionOff   Boolean      @default(false)
   regressionOffBy String       @default("")
+  /// Added to the run after it started (ver_96), like "Added from the Risk board by Sam".
+  addedNote       String       @default("")
   results         TestResult[]
 
   @@unique([runId, caseId])

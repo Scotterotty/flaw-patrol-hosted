@@ -33,7 +33,10 @@ export function RiskBoard({
   canPlan,
   bash,
   bashed = {},
+  planData,
 }: {
+  /** Plan this release's names, kinds, personas and open runs (ver_96). */
+  planData?: PlanData;
   homeId: string;
   release: string;
   cards: RiskCard[];
@@ -193,8 +196,8 @@ export function RiskBoard({
       <Modal open={!!openCard} onClose={() => setOpen(null)} title={openCard ? `${openCard.key} · ${openCard.title}` : ""}>
         {openCard && <CardDetail c={openCard} canMove={canMove} onMove={(l, i) => move(openCard.key, l, i)} onReset={() => reset(openCard.key)} />}
       </Modal>
-      <Modal open={plan} onClose={() => setPlan(false)} title={`Plan ${release}, riskiest first`} wide>
-        {plan && <PlanRc homeId={homeId} release={release} cards={cards} cycles={cycles} templates={templates} onClose={() => setPlan(false)} />}
+      <Modal open={plan && !!planData} onClose={() => setPlan(false)} title={`Plan a test run for ${release}`} wide>
+        {plan && planData && <PlanRc homeId={homeId} release={release} cards={cards} cycles={cycles} templates={templates} data={planData} onClose={() => setPlan(false)} />}
       </Modal>
     </div>
   );
@@ -260,24 +263,79 @@ function CardDetail({ c, canMove, onMove, onReset }: { c: RiskCard; canMove: boo
   );
 }
 
-type Pick = { action: PlanAction; minutes: number; template: string };
+type Pick = { action: PlanAction; minutes: number; template: string; persona: string };
 
-function PlanRc({ homeId, release, cards, cycles, templates, onClose }: { homeId: string; release: string; cards: RiskCard[]; cycles: { id: string; name: string }[]; templates: CharterTemplateInfo[]; onClose: () => void }) {
+/** What Plan this release needs besides the cards (ver_96). */
+export type PlanData = {
+  homeKey: string;
+  kinds: { id: string; name: string }[];
+  personas: { id: string; name: string; emoji: string }[];
+  /** Open runs to add to, this release's first. */
+  openRuns: { id: string; label: string }[];
+};
+
+const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
+
+/** Radio pills for one labeled question in a requirement card. */
+function Pills<T extends string | number>({ name, value, options, onChange }: { name: string; value: T; options: [T, string][]; onChange: (v: T) => void }) {
+  return (
+    <span className="flex flex-wrap gap-1.5">
+      {options.map(([v, label]) => (
+        <label key={String(v)} className={cx("cursor-pointer rounded-full border px-2.5 py-0.5 text-xs", value === v ? "border-accent-600 bg-accent-50 font-medium text-accent-800" : "border-slate-200 text-slate-700 hover:bg-slate-50")}>
+          <input type="radio" className="sr-only" name={name} checked={value === v} onChange={() => onChange(v)} />
+          {label}
+        </label>
+      ))}
+    </span>
+  );
+}
+
+function Question({ label, tip, children }: { label: string; tip?: string; children: React.ReactNode }) {
+  return (
+    <div className="grid gap-1 sm:grid-cols-[7.5rem_1fr] sm:items-center">
+      <span className="flex items-center gap-1 text-xs font-medium text-slate-500">
+        {label}
+        {tip && <InfoTip text={tip} />}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+function PlanRc({ homeId, release, cards, cycles, templates, data, onClose }: { homeId: string; release: string; cards: RiskCard[]; cycles: { id: string; name: string }[]; templates: CharterTemplateInfo[]; data: PlanData; onClose: () => void }) {
   const router = useRouter();
   const sorted = useMemo(() => [...cards].sort((a, b) => riskScore(b.likelihood, b.impact) - riskScore(a.likelihood, a.impact)), [cards]);
-  const [picks, setPicks] = useState<Record<string, Pick>>(() => Object.fromEntries(sorted.map((c) => [c.key, { action: defaultAction(c.level, c.cases), minutes: charterMinutes(c.level), template: "" }])));
+  const [picks, setPicks] = useState<Record<string, Pick>>(() => Object.fromEntries(sorted.map((c) => [c.key, { action: defaultAction(c.level, c.cases), minutes: charterMinutes(c.level), template: "", persona: "" }])));
+  const [into, setInto] = useState<"new" | "add">("new");
+  const [runId, setRunId] = useState(data.openRuns[0]?.id ?? "");
+  const [name, setName] = useState(`${release} · riskiest first`);
   const [cycleId, setCycleId] = useState(cycles[0]?.id ?? "");
+  const [kind, setKind] = useState(data.kinds.some((k) => k.id === "rc") ? "rc" : "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const set = (key: string, p: Partial<Pick>) => setPicks((all) => ({ ...all, [key]: { ...all[key], ...p } }));
-  const runCases = sorted.filter((c) => picks[c.key]?.action === "run").reduce((n, c) => n + c.cases, 0);
-  const charters = sorted.filter((c) => picks[c.key]?.action === "charter").length;
+  const run = sorted.filter((c) => picks[c.key]?.action === "run");
+  const explore = sorted.filter((c) => picks[c.key]?.action === "charter");
+  const skip = sorted.filter((c) => picks[c.key]?.action === "skip");
+  const runCases = run.reduce((n, c) => n + c.cases, 0);
+  const items = runCases + explore.length;
+  const adding = into === "add";
+  const target = data.openRuns.find((r) => r.id === runId);
   const cycleName = cycles.find((c) => c.id === cycleId)?.name ?? "";
+  const kindName = data.kinds.find((k) => k.id === kind)?.name;
+  const tplName = (id: string) => templates.find((t) => t.id === id)?.name;
 
   const make = async () => {
     setBusy(true);
     setError(null);
-    const res = await planRc(homeId, { release, cycleId, picks: sorted.map((c) => ({ key: c.key, action: picks[c.key].action, minutes: picks[c.key].minutes, template: picks[c.key].template || null })) });
+    const res = await planRc(homeId, {
+      release,
+      cycleId,
+      name: name.trim() || undefined,
+      kind,
+      runId: adding ? runId : null,
+      picks: sorted.map((c) => ({ key: c.key, action: picks[c.key].action, minutes: picks[c.key].minutes, template: picks[c.key].template || null, persona: picks[c.key].persona || null })),
+    });
     setBusy(false);
     if (!res.ok) return setError(res.error);
     onClose();
@@ -285,82 +343,180 @@ function PlanRc({ homeId, release, cards, cycles, templates, onClose }: { homeId
   };
 
   return (
-    <div className="space-y-3 text-sm">
-      <p className="text-slate-600">Requirements with cases go into one run. Ones with none can get a new charter, filled in from the Jira summary, so someone explores them instead.</p>
-      <Card className="max-h-[50vh] overflow-auto">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-surface text-left text-xs text-slate-500">
-            <tr>
-              <th className="px-3 py-1.5 font-medium">Requirement</th>
-              <th className="px-2 py-1.5 font-medium">Risk</th>
-              <th className="px-2 py-1.5 font-medium">Has</th>
-              <th className="px-3 py-1.5 font-medium">Plan</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {sorted.map((c) => {
-              const p = picks[c.key];
-              return (
-                <tr key={c.key}>
-                  <td className="px-3 py-1.5">
-                    <span className="font-mono text-xs text-slate-500">{c.key}</span> {c.title}
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <RiskChip level={c.level} />
-                  </td>
-                  <td className="px-2 py-1.5 text-xs whitespace-nowrap text-slate-600">{c.cases ? `${c.cases} ${c.cases === 1 ? "case" : "cases"}` : "Nothing"}</td>
-                  <td className="px-3 py-1.5">
-                    <div className="flex flex-wrap gap-1.5">
-                      <Select aria-label={`Plan for ${c.key}`} value={p.action} onChange={(e) => set(c.key, { action: e.target.value as PlanAction })}>
-                        {c.cases > 0 && <option value="run">Run its {c.cases} {c.cases === 1 ? "case" : "cases"}</option>}
-                        <option value="charter">New charter</option>
-                        <option value="skip">Skip</option>
-                      </Select>
-                      {p.action === "charter" && (
-                        <>
-                          <Select aria-label="Time limit" value={p.minutes} onChange={(e) => set(c.key, { minutes: Number(e.target.value) })}>
-                            {[15, 30, 45, 60, 90].map((m) => (
-                              <option key={m} value={m}>
-                                {m} min
-                              </option>
-                            ))}
-                          </Select>
-                          <Select aria-label="Tour or checklist" value={p.template} onChange={(e) => set(c.key, { template: e.target.value })}>
-                            <option value="">Blank charter</option>
-                            {templates.map((t) => (
-                              <option key={t.id} value={t.id}>
-                                {t.name}
-                              </option>
-                            ))}
-                          </Select>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </Card>
-      {cycles.length > 1 && (
+    <div className="space-y-3 text-sm" data-testid="plan-release">
+      <p className="text-slate-600">
+        This builds <b>one test run</b> for release <b>{release}</b>. Its requirements are listed riskiest first. For each one, choose what to do. Nothing is created until you press the button at the bottom.
+      </p>
+      <div className="max-h-[46vh] space-y-2.5 overflow-auto pr-1">
+        {sorted.map((c) => {
+          const p = picks[c.key];
+          const id = c.key.replace(/\W/g, "");
+          const persona = data.personas.find((x) => x.id === p.persona);
+          return (
+            <div key={c.key} className={cx("space-y-2 rounded-lg border border-slate-200 p-3", p.action === "skip" && "bg-slate-50 opacity-75")} data-testid={`plan-${c.key}`}>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-xs text-slate-500">{c.key}</span>
+                <span className="min-w-0 flex-1 font-medium text-slate-900">{c.title}</span>
+                <span className={cx("rounded px-1.5 py-0.5 text-[11px] font-semibold", CHIP[c.level])}>{c.level} risk</span>
+                <span className="text-xs text-slate-500">{c.cases ? plural(c.cases, "test case") : "No test cases yet"}</span>
+              </div>
+              <Question label="What to do">
+                <Pills
+                  name={`a${id}`}
+                  value={p.action}
+                  onChange={(v) => set(c.key, { action: v })}
+                  options={[...(c.cases ? ([["run", `Run its ${plural(c.cases, "case")}`]] as [PlanAction, string][]) : []), ["charter", "Explore it with a charter"], ["skip", "Leave it out"]]}
+                />
+              </Question>
+              {!c.cases && (
+                <p className="text-xs text-slate-500">
+                  Would rather have step-by-step cases?{" "}
+                  <a href={`/p/${data.homeKey}/stories?release=${encodeURIComponent(release)}&open=${encodeURIComponent(c.key)}`} className="font-medium text-accent-700 hover:underline">
+                    Write test cases instead
+                  </a>
+                </p>
+              )}
+              {p.action === "charter" && (
+                <div className="space-y-2 border-l-2 border-accent-200 pl-3">
+                  <Question label="How long">
+                    <Pills name={`m${id}`} value={p.minutes} onChange={(v) => set(c.key, { minutes: v })} options={[15, 30, 45, 60, 90].map((m) => [m, `${m} min`] as [number, string])} />
+                  </Question>
+                  <Question label="Start from" tip="A tour or checklist adds ready-made prompts to the charter, such as “Lose the network mid-save”.">
+                    <Select aria-label={`Start ${c.key} from`} className="h-8 text-xs" value={p.template} onChange={(e) => set(c.key, { template: e.target.value })}>
+                      <option value="">Blank (just the Jira title)</option>
+                      {templates.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name} · {t.short}
+                        </option>
+                      ))}
+                    </Select>
+                  </Question>
+                  {data.personas.length > 0 && (
+                    <Question label="Test persona">
+                      <Pills name={`p${id}`} value={p.persona} onChange={(v) => set(c.key, { persona: v })} options={[["", "Nobody in particular"], ...data.personas.map((x) => [x.id, `${x.emoji} ${x.name}`] as [string, string])]} />
+                    </Question>
+                  )}
+                  <p className="rounded-md bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600">
+                    The charter will say: <b>Explore</b> {c.title || c.key}
+                    {p.template && tplName(p.template) && (
+                      <>
+                        {" "}
+                        <b>using the</b> {tplName(p.template)}
+                      </>
+                    )}{" "}
+                    · <b>to discover</b> what could break before release
+                    {persona && (
+                      <>
+                        {" "}
+                        · <b>as</b> {persona.emoji} {persona.name}
+                      </>
+                    )}{" "}
+                    · {p.minutes} min
+                  </p>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <Question label="Put them in">
+        <Pills
+          name="plan-into"
+          value={into}
+          onChange={setInto}
+          options={[
+            ["new", "A new test run"],
+            ...(data.openRuns.length ? ([["add", "A run in progress"]] as ["add", string][]) : []),
+          ]}
+        />
+      </Question>
+      {adding ? (
         <label className="block text-xs font-medium text-slate-600">
-          Test cycle for the run
-          <Select className="mt-1 block" value={cycleId} onChange={(e) => setCycleId(e.target.value)}>
-            {cycles.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
+          Which run
+          <Select className="mt-1 block w-full" value={runId} onChange={(e) => setRunId(e.target.value)}>
+            {data.openRuns.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.label}
               </option>
             ))}
           </Select>
+          <span className="mt-1 block font-normal text-slate-500">Only runs that are still open. Runs for {release} are listed first. Cases already in the run are not added twice.</span>
         </label>
+      ) : (
+        <div className="grid gap-2 sm:grid-cols-3">
+          <label className="block text-xs font-medium text-slate-600">
+            Run name
+            <input className="mt-1 block h-9 w-full rounded-md border border-slate-300 bg-surface px-2.5 text-sm" value={name} onChange={(e) => setName(e.target.value)} maxLength={200} />
+          </label>
+          <label className="block text-xs font-medium text-slate-600">
+            Test cycle
+            <Select className="mt-1 block w-full" value={cycleId} onChange={(e) => setCycleId(e.target.value)}>
+              {cycles.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label className="block text-xs font-medium text-slate-600">
+            <span className="flex items-center gap-1">
+              Kind <InfoTip text="Release candidate runs count toward this release's RC status. Change it if this is only a practice run." />
+            </span>
+            <Select className="mt-1 block w-full" value={kind} onChange={(e) => setKind(e.target.value)}>
+              {data.kinds.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.name}
+                </option>
+              ))}
+              <option value="">No kind</option>
+            </Select>
+          </label>
+        </div>
       )}
-      <p className="text-slate-700">
-        {charters ? `Makes ${charters} ${charters === 1 ? "charter" : "charters"} and adds ` : "Adds "}
-        {runCases} {runCases === 1 ? "case" : "cases"}
-        {charters ? ` + ${charters} ${charters === 1 ? "charter" : "charters"}` : ""} to one test run in {release}
-        {cycleName ? ` · ${cycleName}` : ""}.
-      </p>
+
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-950" aria-live="polite" data-testid="plan-summary">
+        <p className="mb-1 text-xs font-semibold tracking-wide uppercase">What you&apos;ll get</p>
+        <ul className="list-disc space-y-0.5 pl-5 text-sm">
+          {items ? (
+            <>
+              <li>
+                {adding ? (
+                  <>
+                    Added to <b>{target?.label.split(" · ")[0]}</b>, which is already in progress. Its existing results stay as they are.
+                  </>
+                ) : (
+                  <>
+                    One new test run, <b>{name.trim() || "Untitled run"}</b>
+                    {kindName && (
+                      <>
+                        , kind <b>{kindName}</b>
+                      </>
+                    )}
+                    , in <b>{cycleName}</b>.
+                  </>
+                )}
+              </li>
+              {runCases > 0 && (
+                <li>
+                  {plural(runCases, "existing test case")} from {run.map((c) => c.key).join(", ")}.
+                </li>
+              )}
+              {explore.length > 0 && (
+                <li>
+                  {plural(explore.length, "new charter")} for {explore.map((c) => c.key).join(", ")}, saved in <b>Charters</b> and linked to the requirement.
+                </li>
+              )}
+              {skip.length > 0 && <li>{skip.map((c) => c.key).join(", ")} left out.</li>}
+              <li>{adding ? "New items show an Added tag in the run, and nobody is assigned yet." : "Nobody is assigned yet. You can assign people on the run page."}</li>
+            </>
+          ) : (
+            <li>
+              Nothing to run yet. Choose <b>Run its cases</b> or <b>Explore it with a charter</b> for at least one requirement.
+            </li>
+          )}
+        </ul>
+      </div>
       {error && (
         <p role="alert" className="text-sm text-red-700">
           {error}
@@ -370,8 +526,8 @@ function PlanRc({ homeId, release, cards, cycles, templates, onClose }: { homeId
         <Button variant="secondary" onClick={onClose}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={make} disabled={busy || (!runCases && !charters)}>
-          {busy ? "Making the run…" : "Make the run"}
+        <Button variant="primary" onClick={make} disabled={busy || !items || (adding && !runId)}>
+          {busy ? (adding ? "Adding…" : "Creating…") : adding ? (items ? `Add ${plural(items, "item")} to the run` : "Add to the run") : items ? `Create test run (${plural(items, "item")})` : "Create test run"}
         </Button>
       </div>
     </div>

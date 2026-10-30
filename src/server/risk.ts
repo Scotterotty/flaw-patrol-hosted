@@ -56,14 +56,29 @@ const planSchema = z.object({
   release: z.string().trim().min(1).max(200),
   cycleId: z.string().max(40),
   picks: z
-    .array(z.object({ key: issueKey, action: z.enum(["run", "charter", "skip"]), minutes: z.number().int().min(10).max(240).optional(), template: z.string().max(60).nullable().optional() }))
+    .array(
+      z.object({
+        key: issueKey,
+        action: z.enum(["run", "charter", "skip"]),
+        minutes: z.number().int().min(10).max(240).optional(),
+        template: z.string().max(60).nullable().optional(),
+        persona: z.string().max(40).nullable().optional(),
+      }),
+    )
     .max(300),
+  // ver_96: the new run's name and kind, or a run in progress to add to instead.
+  name: z.string().trim().max(200).optional(),
+  kind: z.string().max(40).optional(),
+  runId: z.string().max(40).nullable().optional(),
 });
 export type PlanInput = z.input<typeof planSchema>;
 
+const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
+
 /**
- * Plan this release: one test run in the picked test cycle with the cases of every requirement
- * marked "run", and a new charter (linked to the requirement) for each one marked "charter".
+ * Plan this release: the cases of every requirement marked "run", and a new charter (linked
+ * to the requirement) for each one marked "charter", in one new test run in the picked test
+ * cycle, or added to a run in progress (ver_96) without repeating cases it already has.
  */
 export async function planRc(homeId: string, input: PlanInput) {
   return attempt(async () => {
@@ -71,17 +86,27 @@ export async function planRc(homeId: string, input: PlanInput) {
     const h = await home(homeId);
     const homeRow = await db.project.findUniqueOrThrow({ where: { id: h.id }, select: { id: true, hubOf: { select: { id: true } } } });
     const cycles = homeRow.hubOf ? await db.project.findMany({ where: { groupId: homeRow.hubOf.id, archivedAt: null, id: { not: h.id } }, select: { id: true } }) : [];
-    if (data.cycleId !== h.id && !cycles.some((c) => c.id === data.cycleId)) throw new UserError("Pick a test cycle for the run.");
-    const { user, project: cycle } = await requireProjectAction(data.cycleId, "run:create");
+    const inPlace = (id: string) => id === h.id || cycles.some((c) => c.id === id);
+    const target = data.runId ? await db.testRun.findUnique({ where: { id: data.runId }, select: { id: true, projectId: true, state: true, automated: true, number: true, description: true } }) : null;
+    if (data.runId && (!target || !inPlace(target.projectId) || target.state !== "ACTIVE" || target.automated)) throw new UserError("That run is closed or gone. Pick another one.");
+    const cycleId = target?.projectId ?? data.cycleId;
+    if (!inPlace(cycleId)) throw new UserError("Pick a test cycle for the run.");
+    const { user, project: cycle } = await requireProjectAction(cycleId, "run:create");
     const board = await riskBoard({ homeId: h.id, release: data.release, columns: [] });
     const cardOf = new Map(board.cards.map((c) => [c.key, c]));
-    const toRun = data.picks.filter((p) => p.action === "run").flatMap((p) => cardOf.get(p.key)?.caseIds ?? []);
+    const runPicks = data.picks.filter((p) => p.action === "run" && cardOf.has(p.key));
+    const toRun = runPicks.flatMap((p) => cardOf.get(p.key)?.caseIds ?? []);
     const toWrite = data.picks.filter((p) => p.action === "charter" && cardOf.has(p.key));
+    const skipped = data.picks.filter((p) => p.action === "skip" && cardOf.has(p.key)).map((p) => p.key);
     if (toWrite.length) await requireProjectAction(h.id, "case:edit");
-    if (!toRun.length && !toWrite.length) throw new UserError("Nothing to run. Pick Run or New charter for at least one requirement.");
+    if (!toRun.length && !toWrite.length) throw new UserError("Nothing to run. Choose Run its cases or Explore it with a charter for at least one requirement.");
     const team = await teamTemplates(h.id);
+    const personaIds = [...new Set(toWrite.map((p) => p.persona).filter((x): x is string => !!x))];
+    const personas = personaIds.length ? await db.persona.findMany({ where: { id: { in: personaIds }, projectId: h.id }, select: { id: true, name: true } }) : [];
     const by = nameOf(user);
     const library = h.id === cycle.id ? [cycle.id] : [cycle.id, h.id];
+    const note = (cases: number, charters: number) =>
+      [`${[cases ? plural(cases, "case") : "", charters ? plural(charters, "new charter") : ""].filter(Boolean).join(" and ")}.`, skipped.length ? `${plural(skipped.length, "requirement")} left out (${skipped.join(", ")}).` : ""].filter(Boolean).join(" ");
 
     const run = await db.$transaction(
       async (tx) => {
@@ -90,6 +115,7 @@ export async function planRc(homeId: string, input: PlanInput) {
         for (const p of toWrite) {
           const card = cardOf.get(p.key)!;
           const tpl = p.template ? templateById(p.template, team) : null;
+          const persona = personas.find((x) => x.id === p.persona) ?? null;
           const title = `${card.key}: ${card.title || "Explore this requirement"}`.slice(0, 300);
           const charter = { ...BLANK_CHARTER, explore: card.title || card.key, with: tpl?.with ?? "", discover: tpl?.discover ?? "what could break before release", minutes: p.minutes ?? charterMinutes(card.level), prompts: tpl?.prompts ?? [] };
           const { caseSeq } = await tx.project.update({ where: { id: h.id }, data: { caseSeq: { increment: 1 } } });
@@ -102,10 +128,25 @@ export async function planRc(homeId: string, input: PlanInput) {
               type: "EXPLORATORY",
               currentVersion: 1,
               jiraStories: [card.key],
-              versions: { create: { version: 1, title, preconditions: "", priority: card.level === "High" ? "HIGH" : "MEDIUM", type: "EXPLORATORY", tags: [], folderPath: "Risk board", steps: [], charter, authorId: user.id, authorName: by, changeNote: `Made by Plan this release for ${data.release}` } },
+              personaId: persona?.id ?? null,
+              versions: { create: { version: 1, title, preconditions: "", priority: card.level === "High" ? "HIGH" : "MEDIUM", type: "EXPLORATORY", tags: [], folderPath: "Risk board", steps: [], charter, personaName: persona?.name ?? "", authorId: user.id, authorName: by, changeNote: `Made by Plan this release for ${data.release}` } },
             },
           });
           made.push(c.id);
+        }
+        if (target) {
+          // A run in progress: keep its results, skip cases it already has, add the rest at the end.
+          const have = await tx.runEntry.findMany({ where: { runId: target.id }, select: { caseId: true, position: true } });
+          const ids = [...new Set([...toRun, ...made])].filter((id) => !have.some((e) => e.caseId === id));
+          if (!ids.length) throw new UserError("That run already has all of these cases.");
+          const entries = await buildEntries(tx, library, ids, null);
+          const start = have.reduce((m, e) => Math.max(m, e.position), -1) + 1;
+          const addedNote = `Added from the Risk board by ${by}`;
+          await tx.runEntry.createMany({ data: entries.map(({ assigneeId, ...e }, i) => (void assigneeId, { ...e, position: start + i, runId: target.id, addedNote })) });
+          const added = ids.filter((id) => !made.includes(id)).length;
+          const line = `Added from the Risk board by ${by}: ${note(added, made.length)}`;
+          await tx.testRun.update({ where: { id: target.id }, data: { description: [target.description, line].filter(Boolean).join("\n") } });
+          return { number: target.number };
         }
         const ids = [...new Set([...toRun, ...made])];
         const entries = await buildEntries(tx, library, ids, null);
@@ -114,9 +155,9 @@ export async function planRc(homeId: string, input: PlanInput) {
           data: {
             projectId: cycle.id,
             number: runSeq,
-            name: `${data.release} · riskiest first`,
-            kind: "rc",
-            description: `Made from the Risk board: ${toRun.length} ${toRun.length === 1 ? "case" : "cases"} and ${made.length} new ${made.length === 1 ? "charter" : "charters"}.`,
+            name: data.name || `${data.release} · riskiest first`,
+            kind: data.kind ?? "rc",
+            description: `Planned from the Risk board by ${by}: ${note(new Set(toRun).size, made.length)}`,
             release: data.release,
             createdById: user.id,
             createdBy: by,

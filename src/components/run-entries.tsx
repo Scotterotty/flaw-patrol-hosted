@@ -38,6 +38,8 @@ export type EntryRow = {
   defects: number;
   /** New or Updated since the case's last run (ver_96), with why and a What was updated link. */
   news?: { kind: "new" | "updated"; why: string; href?: string };
+  /** Added after the run started (ver_96), like "Added from the Risk board by Sam". */
+  added?: string;
   /** Known bugs from earlier runs (ver_96). */
   known?: number;
   /** Flaky: how often its result flipped in its last 10 runs. */
@@ -291,6 +293,11 @@ export function RunEntries({
                   {r.regression ? <span className="ml-1.5 align-middle"><RegressionBadge tip={r.regression} /></span> : null}
                   {r.flaky ? <span className="ml-1.5 align-middle"><FlakyBadge flips={r.flaky} /></span> : null}
                   {r.news && <NewsTag kind={r.news.kind} title={r.news.why} className="ml-1.5" />}
+                  {r.added && (
+                    <span title={r.added} className="ml-1.5 inline-flex items-center rounded-full bg-violet-50 px-2 py-px align-middle text-[11px] font-semibold text-violet-800 ring-1 ring-violet-200 ring-inset">
+                      Added
+                    </span>
+                  )}
                   <p className="text-xs text-slate-500">
                     {r.folderPath}
                     {r.defects > 0 && <span className="ml-2 text-red-600">{r.defects} {r.defects === 1 ? "bug" : "bugs"}</span>}

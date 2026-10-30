@@ -159,7 +159,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
                 </Fragment>
               ))}
           </p>
-          {run.description && <p className="mt-1 text-sm text-slate-600">{run.description}</p>}
+          {run.description && <p className="mt-1 text-sm whitespace-pre-line text-slate-600">{run.description}</p>}
           {SHEETS_ENABLED && <RunSheetStatus projectId={project.id} runId={run.id} sheet={sheet} />}
         </div>
         <div className="flex flex-wrap items-start gap-2">
@@ -331,6 +331,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           lastTestedAt: e.lastTestedAt?.toISOString() ?? null,
           defects: defectsByEntry.get(e.id)?.size ?? 0,
           known: knownMap.get(e.id)?.length ?? 0,
+          added: e.addedNote || undefined,
           news: (() => {
             const n = news.get(e.id);
             if (!n) return undefined;
