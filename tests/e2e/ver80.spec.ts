@@ -131,7 +131,7 @@ test("the umbrella's Bug template row leads to the import", async ({ page }) => 
   await settings.getByRole("button", { name: "Use OKO bug layout" }).click();
   await expect(settings.getByText(/Saved\. New bugs from here use OKO bug layout\./)).toBeVisible();
   await page.goto(settingsUrl);
-  await expect(row).toContainText("OKO bug layout (from OB-5292)");
+  await expect(row).toContainText("OKO bug layout (shared)");
   await expect(row.getByRole("button", { name: "Change", exact: true })).toBeVisible();
   await expect(page.getByRole("cell").filter({ hasText: "OKO layout" })).toHaveCount(1);
 

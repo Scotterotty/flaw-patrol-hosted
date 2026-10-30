@@ -59,8 +59,11 @@ test("umbrellas: star, move, drag, sort and search", async ({ page }) => {
   // Since ver_94 the whole card header is the grip.
   await page.getByRole("region", { name: `${names[0]} umbrella` }).locator('[draggable="true"]').first().dispatchEvent("dragstart", { dataTransfer: dt });
   const target = page.getByRole("region", { name: `${names[1]} umbrella` });
-  await target.dispatchEvent("dragover", { dataTransfer: dt });
-  await target.dispatchEvent("drop", { dataTransfer: dt });
+  // Drop on the lower half of B's card (ver_94 drops above or below by where the mouse is).
+  const box = (await target.boundingBox())!;
+  const clientY = box.y + box.height * 0.75;
+  await target.dispatchEvent("dragover", { dataTransfer: dt, clientY });
+  await target.dispatchEvent("drop", { dataTransfer: dt, clientY });
   await expect(page.getByLabel("Sort umbrellas")).toHaveValue("mine");
   await expect.poll(() => order(page)).toEqual([names[2], names[1], names[0]]);
   await page.getByRole("button", { name: `Unstar ${names[2]}` }).click();

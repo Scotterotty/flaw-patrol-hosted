@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { signIn } from "./auth";
+import { backToRun, signIn } from "./auth";
 import { standaloneProject } from "./projects";
 
 // ver_96: a [WEB] title word becomes a tag, cases new or edited since their last run are
@@ -8,8 +8,10 @@ import { standaloneProject } from "./projects";
 const run = Date.now().toString(36).slice(-4).toUpperCase();
 const KEY = `NW${run}`;
 
+let suiteUrl = "";
+
 async function startRun(page: Page) {
-  await page.goto(`/p/${KEY}/suites/1`);
+  await page.goto(suiteUrl);
   await page.getByRole("button", { name: "Start test run" }).click();
   await page.getByLabel("Open the first case when it starts").uncheck();
   await page.getByRole("button", { name: "Start run", exact: true }).click();
@@ -40,7 +42,8 @@ test("bracket tags, New and Updated cases, and known bugs from earlier runs", as
   await page.getByLabel("Name", { exact: true }).fill("Login");
   await page.getByRole("button", { name: /^Add all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
-  await expect(page).toHaveURL(/\/suites\/1$/);
+  await expect(page).toHaveURL(/\/suites\/(?!new$)\w+$/);
+  suiteUrl = page.url();
 
   // First run: the case has never been run, so it's New.
   await startRun(page);
@@ -54,8 +57,8 @@ test("bracket tags, New and Updated cases, and known bugs from earlier runs", as
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "Save bug" }).click();
   await expect(dialog).toBeHidden();
-  await page.getByRole("button", { name: "Save", exact: true }).first().click();
-  await expect(page.getByText(/Saved/).first()).toBeVisible();
+  await page.getByRole("button", { name: "Save and finish" }).click();
+  await backToRun(page);
 
   // Edit the case: the next run marks it Updated, with what changed.
   await page.goto(`/p/${KEY}/cases/1/edit`);

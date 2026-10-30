@@ -34,14 +34,17 @@ export function envProviders(): Partial<Record<CompanyProvider | "github", true>
   };
 }
 
-let cache: { at: number; rows: SignInProvider[] } | null = null;
+// Kept on globalThis: a production build bundles this file separately for server actions and the
+// sign-in route, so a module variable would let the route keep a stale copy after Save (ver_96 fix).
+const shared = globalThis as unknown as { fpSignInCache?: { at: number; rows: SignInProvider[] } | null };
 
 /** Saved company sign-ins, read at most every few seconds. */
 export async function savedProviders(): Promise<SignInProvider[]> {
+  const cache = shared.fpSignInCache;
   if (cache && Date.now() - cache.at < 5_000) return cache.rows;
   try {
     const rows = await db.signInProvider.findMany();
-    cache = { at: Date.now(), rows };
+    shared.fpSignInCache = { at: Date.now(), rows };
     return rows;
   } catch {
     // Before the ver_92 migration has run there is no table yet.
@@ -50,7 +53,7 @@ export async function savedProviders(): Promise<SignInProvider[]> {
 }
 
 export function forgetSavedProviders() {
-  cache = null;
+  shared.fpSignInCache = null;
 }
 
 /** A saved sign-in has everything it needs to send someone to its sign-in page. */

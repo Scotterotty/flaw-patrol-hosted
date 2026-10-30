@@ -50,9 +50,10 @@ test("a charter with a persona runs as a timed session with a log, bugs and an o
   // A new persona can be added without leaving New charter.
   await page.goto(`/p/${KEY}/cases/new?charter=1`);
   await page.getByRole("region", { name: "Test persona" }).getByRole("button", { name: "+ New persona" }).click();
-  await page.getByRole("dialog").getByLabel("Name").fill("Screen reader user");
-  await page.getByRole("dialog").getByRole("button", { name: "Add persona" }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  // It's added inline in the Test persona box (ver_96).
+  const personaBox = page.getByRole("region", { name: "Test persona" });
+  await personaBox.getByLabel("Persona name").fill("Screen reader user");
+  await personaBox.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByRole("radiogroup", { name: "Test persona" }).getByRole("radio", { checked: true })).toHaveAccessibleName("🧑 Screen reader user");
   await expect(page.getByRole("heading", { name: "New charter" })).toBeVisible();
 
