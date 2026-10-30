@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { setQuestMap, updateMyGame } from "@/server/account";
+import { setQuestMap, setSeasonalMaps, updateMyGame } from "@/server/account";
 import { Avatar, type AvatarPerson } from "./avatar";
 import type { UnlockDetail } from "@/lib/game";
 import { Button, cx, ErrorText } from "./ui";
@@ -145,9 +145,12 @@ export function GamePanel({
   frame,
   progress,
   questMap = false,
+  seasonalMaps = true,
   pawnHref,
 }: {
   questMap?: boolean;
+  /** Seasonal scenery on quest maps (ver_98). */
+  seasonalMaps?: boolean;
   /** Where the pawn's gear is picked: the Quest map of your latest project. */
   pawnHref?: string | null;
   enabled: boolean;
@@ -162,6 +165,7 @@ export function GamePanel({
   const [pick, setPick] = useState({ title, frame });
   const [on, setOn] = useState(enabled);
   const [quests, setQuests] = useState(questMap);
+  const [seasonal, setSeasonal] = useState(seasonalMaps);
   // The title worn for you when you join, so you can undo it or pick another.
   const [autoTitle, setAutoTitle] = useState<string | null>(null);
   // "Pick another" opens the Titles section.
@@ -317,6 +321,35 @@ export function GamePanel({
               Every test run becomes a quest with its own map. Each case that gets a result moves the team&apos;s pawn a step, and whoever lands it on an
               encounter or item gets it. Adds Quest map to each test cycle&apos;s menu.
             </p>
+            {quests && (
+              <div className="mt-3 ml-7">
+                <label className="flex items-start gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={seasonal}
+                    disabled={pending}
+                    onChange={(e) => {
+                      const next = e.target.checked;
+                      setSeasonal(next);
+                      start(async () => {
+                        const r = await setSeasonalMaps(next);
+                        if (!r.ok) {
+                          setSeasonal(!next);
+                          setError(r.error);
+                        } else router.refresh();
+                      });
+                    }}
+                    aria-describedby="seasonal-about"
+                    className="mt-1 size-4 accent-accent-600"
+                  />
+                  <span className="text-slate-800">Seasonal maps</span>
+                </label>
+                <p id="seasonal-about" className="mt-0.5 ml-7 text-xs text-slate-500">
+                  Dress quest maps up for Halloween, winter and other seasons. Each map keeps the look of the day its run started. Off shows the plain green
+                  map all year.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="divide-y divide-slate-100 border-y border-slate-100">

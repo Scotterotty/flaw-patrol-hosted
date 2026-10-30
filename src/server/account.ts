@@ -198,6 +198,16 @@ export async function setQuestMap(enabled: boolean) {
   });
 }
 
+/** Seasonal quest maps (ver_98): dress maps up for the time of year, or keep the plain green map. */
+export async function setSeasonalMaps(enabled: boolean) {
+  return attempt(async () => {
+    const user = await requireUser();
+    await db.user.update({ where: { id: user.id }, data: { seasonalMaps: enabled } });
+    revalidatePath("/", "layout");
+    return {};
+  });
+}
+
 /** Wear an item from your satchel in a slot, or take it off (itemId null). Looks only. */
 export async function setQuestGear(slot: string, itemId: string | null) {
   return attempt(async () => {

@@ -418,6 +418,74 @@ kbd {
   }
 }
 
+/* Seasonal quest maps (ver_98): falling snow, leaves and petals, bats flying by, bobbing ghosts,
+   twinkling lights. Gentle, and gone for anyone who asks for less motion. */
+@keyframes fx-fall {
+  from {
+    transform: translate(0, -40px) rotate(0deg);
+  }
+  to {
+    transform: translate(var(--drift, 30px), 600px) rotate(240deg);
+  }
+}
+@keyframes fx-fly {
+  from {
+    transform: translate(-80px, 0);
+  }
+  to {
+    transform: translate(1080px, -60px);
+  }
+}
+@keyframes fx-bob {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@keyframes fx-twinkle {
+  50% {
+    opacity: 0.35;
+  }
+}
+@keyframes fx-glow {
+  50% {
+    opacity: 0.55;
+  }
+}
+.fx-fall {
+  animation: fx-fall linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.fx-fly {
+  animation: fx-fly linear infinite;
+}
+.fx-bob {
+  animation: fx-bob 3s ease-in-out infinite;
+  transform-box: fill-box;
+}
+.fx-twinkle {
+  animation: fx-twinkle 1.6s ease-in-out infinite;
+}
+.fx-glow {
+  animation: fx-glow 4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fx-bob,
+  .fx-twinkle,
+  .fx-glow {
+    animation: none;
+  }
+  .fx-layer {
+    display: none;
+  }
+}
+:root[data-motion="reduce"] :is(.fx-bob, .fx-twinkle, .fx-glow) {
+  animation: none;
+}
+:root[data-motion="reduce"] .fx-layer {
+  display: none;
+}
+
 /* Links inside sentences are underlined for everyone (ver_87, A3), so they don't rely on color alone.
    Buttons, chips and menus stay as they are. */
 :is(main, [role="dialog"]) :is(p, dd, label, small, p span) > a:not(.inline-flex, .flex, .block, .grid, [class*="rounded"], [class*="border"]) {

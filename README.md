@@ -41,6 +41,9 @@ suites, step-by-step test runs, Jira bug reporting and reports. Milestones 1
   (an admin XP reset or Go live empties them), the four latest past maps, and
   older quests in a collapsed, searchable list. Nothing is stored;
   it's all worked out from the run's results. Adds Quest map to the project menu.
+  Seasonal maps (ver_98, src/lib/seasons.ts + src/components/quest-scenery.tsx) dress
+  the scenery for spring, summer, fall, Halloween, winter and Winter lights, by the
+  day the run started; Account → Mini game → Seasonal maps turns them off.
   Workspace admins get a Mini game admin card on Your account: reset one person's
   or everyone's XP, and Go live once (type GO LIVE), which restarts all XP and
   locks in the Early Adopter title for everyone who signed in before launch.

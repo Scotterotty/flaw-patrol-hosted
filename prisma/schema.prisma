@@ -59,6 +59,8 @@ model User {
   gameFrame        String?
   // Opt-in quest maps for test runs (src/lib/quest.ts); needs the mini game on.
   questMap         Boolean         @default(false)
+  // Seasonal scenery on quest maps (ver_98, src/lib/seasons.ts): on unless they turn it off.
+  seasonalMaps     Boolean         @default(true)
   // Quest pawn and worn gear (src/lib/quest-gear.ts): looks only, cleared with the satchel on an XP reset.
   questPawn        String          @default("classic")
   questColor       String          @default("accent") @map("questColour")

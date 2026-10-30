@@ -11,6 +11,7 @@ import { foeLine, FOE_OUTCOME_LABEL, foeOutcome, ITEMS, RARITIES, RARITY_LABEL, 
 import { nearestItem, partiesFor, questRecordFor, questsFor } from "@/lib/quest-data";
 import { fitsOf, isSlot, parseGear, PAWNS, pawnUnlocked, photoUrl, type Look } from "@/lib/quest-gear";
 import { projectAccess } from "@/lib/session";
+import { seasonFor } from "@/lib/seasons";
 import { QuestOff } from "./quest-off";
 
 export const metadata = { title: "Quest map" };
@@ -69,8 +70,8 @@ export default async function QuestsPage({ params, searchParams }: { params: Pro
       <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
         <div className="space-y-5">
           {quests.length === 0 && <EmptyState title="No quests yet">Start a test run and its map appears here.</EmptyState>}
-          {active.length > 0 && <QuestGrid title="On the road" projectKey={project.key} quests={active} parties={parties} me={user.id} look={look} />}
-          {finished.length > 0 && <QuestGrid title="Past quests" projectKey={project.key} quests={finished.slice(0, RECENT_PAST)} parties={parties} me={user.id} look={look} />}
+          {active.length > 0 && <QuestGrid title="On the road" projectKey={project.key} quests={active} parties={parties} me={user.id} look={look} seasonal={user.seasonalMaps} />}
+          {finished.length > 0 && <QuestGrid title="Past quests" projectKey={project.key} quests={finished.slice(0, RECENT_PAST)} parties={parties} me={user.id} look={look} seasonal={user.seasonalMaps} />}
           {finished.length > RECENT_PAST && (
             <PastQuests
               projectKey={project.key}
@@ -197,6 +198,7 @@ function QuestGrid({
   parties,
   me,
   look,
+  seasonal,
 }: {
   title: string;
   projectKey: string;
@@ -204,6 +206,7 @@ function QuestGrid({
   parties: Awaited<ReturnType<typeof partiesFor>>;
   me: string;
   look: Look;
+  seasonal: boolean;
 }) {
   return (
     <section>
@@ -212,7 +215,7 @@ function QuestGrid({
         {quests.map((q) => (
           <Link key={q.run.id} href={`/p/${projectKey}/quests/${q.run.number}`} className="group">
             <Card className="overflow-hidden transition group-hover:border-accent-500 group-hover:shadow">
-              <QuestMapView map={q.map} steps={q.steps} position={q.position} rewards={q.rewards} compact party={parties.get(q.run.id)} me={me} waiting={look} teamwork={q.teamwork} />
+              <QuestMapView map={q.map} steps={q.steps} position={q.position} rewards={q.rewards} compact party={parties.get(q.run.id)} me={me} waiting={look} teamwork={q.teamwork} season={seasonal ? seasonFor(q.run.createdAt) : null} />
               <div className="p-3">
                 <p className="truncate text-sm font-medium text-slate-900">
                   <span className="font-mono text-xs text-slate-500">R{q.run.number}</span> {q.run.name}

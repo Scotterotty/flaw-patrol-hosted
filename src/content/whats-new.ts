@@ -22,6 +22,19 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 98,
+    date: "2026-10-30",
+    items: [
+      {
+        kind: "new",
+        title: "Seasonal quest maps",
+        text: "Quest maps now dress up for the time of year: blossoms in spring, sunflowers in summer, falling leaves in fall, a spooky dusk for Halloween, snow in winter and twinkling lights from Dec 15 to Jan 1. Each map keeps the look of the day its run started. Turn it off with Seasonal maps in Account → Mini game.",
+        game: true,
+        link: "/account",
+      },
+    ],
+  },
+  {
     version: 97,
     date: "2026-10-30",
     items: [

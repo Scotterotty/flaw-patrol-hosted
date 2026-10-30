@@ -11,6 +11,7 @@ import { parseGear, pawnFill, photoUrl, rescueLine, troubleLine } from "@/lib/qu
 import { PawnFace } from "@/components/pawn-face";
 import { cx } from "@/components/ui";
 import { projectAccess } from "@/lib/session";
+import { seasonFor } from "@/lib/seasons";
 import { QuestOff } from "../quest-off";
 
 export const metadata = { title: "Quest" };
@@ -82,6 +83,7 @@ export default async function QuestPage({ params }: { params: Promise<{ key: str
           me={user.id}
           waiting={{ userId: user.id, name: user.name ?? user.email, pawn: user.questPawn, color: user.questColor, gear: parseGear(user.questGear), photo: photoUrl(user.id, user.avatarAt) }}
           teamwork={q.teamwork}
+          season={user.seasonalMaps ? seasonFor(q.run.createdAt) : null}
         />
         {party.length > 0 && (
           <ul aria-label="The party" className="flex flex-wrap gap-2 px-2 pt-2 pb-1">

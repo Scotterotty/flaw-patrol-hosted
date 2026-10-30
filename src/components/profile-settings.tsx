@@ -38,6 +38,7 @@ type Me = {
   gameTitle: string | null;
   gameFrame: string | null;
   questMap?: boolean;
+  seasonalMaps?: boolean;
   textSize: string;
   reduceMotion: boolean;
   strongContrast: boolean;

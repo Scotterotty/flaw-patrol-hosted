@@ -13,6 +13,7 @@ type Player = {
   gameTitle: string | null;
   gameFrame: string | null;
   questMap?: boolean;
+  seasonalMaps?: boolean;
 };
 
 /** The mini game: off until you join, then your level, how you earned XP, and what you've unlocked. */
@@ -47,6 +48,7 @@ export async function GameCard({ user, stats: given }: { user: Player; stats?: G
     <GamePanel
       enabled
       questMap={user.questMap}
+      seasonalMaps={user.seasonalMaps ?? true}
       pawnHref={lastProject ? `/p/${lastProject.project.key}/quests?gear=1#your-pawn` : null}
       person={user}
       title={user.gameTitle}

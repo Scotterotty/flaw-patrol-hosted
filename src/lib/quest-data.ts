@@ -57,7 +57,7 @@ function quest<R extends { id: string; questCatalog: number; _count: { entries: 
 
 export type QuestSummary = Awaited<ReturnType<typeof questsFor>>[number];
 
-const RUN_SELECT = { id: true, number: true, name: true, state: true, release: true, automated: true, questCatalog: true, _count: { select: { entries: true } } } as const;
+const RUN_SELECT = { id: true, number: true, name: true, state: true, release: true, automated: true, questCatalog: true, createdAt: true, _count: { select: { entries: true } } } as const;
 
 /** Quests for a project's runs, newest first, with progress and the rewards found so far (unfound ones never leave the server). Automated runs never go on a quest (ver_94). */
 export async function questsFor(projectId: string, take = 60) {

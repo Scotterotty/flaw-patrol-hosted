@@ -1,6 +1,8 @@
 import { RARITY_STYLE } from "./rarity";
 import { foeLine, RARITY_LABEL, MAP_H, MAP_W, walkedPoints, type FoundReward, type QuestMap } from "@/lib/quest";
 import { itemById, pawnFill, pawnOf, pointsBehind, rescueLine, shownParty, SLOT_ANGLE, SLOTS, troubleLine, type Look, type TeamworkEvent } from "@/lib/quest-gear";
+import { SEASON_INFO, type SeasonId } from "@/lib/seasons";
+import { SCENERY, SeasonFx, SeasonGround, TrailLights } from "./quest-scenery";
 
 /** A party member on the map: their look and how many cases they've saved in the run. */
 export type PartyPawn = Look & { cases: number };
@@ -22,6 +24,7 @@ export function QuestMapView({
   me = null,
   waiting = null,
   teamwork = [],
+  season = null,
 }: {
   map: QuestMap;
   steps: number;
@@ -34,16 +37,21 @@ export function QuestMapView({
   /** The viewer's look: until they save a case in this run, their pawn waits faded at the start (ver_94). */
   waiting?: Look | null;
   teamwork?: TeamworkEvent[];
+  /** Seasonal scenery (ver_98), from the day the run started. Null is the plain green map. */
+  season?: SeasonId | null;
 }) {
   const pawn = map.nodes[Math.min(position, map.nodes.length - 1)];
   const walked = walkedPoints(map, position);
   const done = position >= steps && steps > 0;
   const showNodes = !compact && steps <= 80;
   const wait = waiting && !done && !party.some((p) => p.userId === waiting.userId) ? waiting : null;
+  const look = season ? SCENERY[season] : null;
+  const trailColor = look?.trail ?? "var(--color-amber-700)";
+  const end = map.nodes[map.nodes.length - 1];
   return (
-    <svg viewBox={`0 0 ${MAP_W} ${MAP_H}`} className="h-auto w-full rounded-lg" role="img" aria-label={`Quest from ${map.from} to ${map.to}: ${position} of ${steps} steps`}>
-      <rect width={MAP_W} height={MAP_H} rx={14} fill={GROUND} />
-      {map.decor.map((d, i) => (
+    <svg viewBox={`0 0 ${MAP_W} ${MAP_H}`} className="h-auto w-full rounded-lg" role="img" aria-label={`${season ? `${SEASON_INFO[season].name} quest` : "Quest"} from ${map.from} to ${map.to}: ${position} of ${steps} steps`}>
+      {look ? <SeasonGround look={look} decor={map.decor} uid={season!} /> : <rect width={MAP_W} height={MAP_H} rx={14} fill={GROUND} />}
+      {!look && map.decor.map((d, i) => (
         <g key={i} transform={`translate(${d.x.toFixed(0)} ${d.y.toFixed(0)}) scale(${d.size.toFixed(2)})`} aria-hidden>
           {d.kind === "tree" && (
             <>
@@ -62,12 +70,13 @@ export function QuestMapView({
         </g>
       ))}
 
-      <path d={map.path} fill="none" stroke="var(--color-amber-700)" strokeWidth={4} strokeDasharray="2 9" strokeLinecap="round" opacity={0.7} />
+      <path d={map.path} fill="none" stroke={trailColor} strokeWidth={4} strokeDasharray="2 9" strokeLinecap="round" opacity={look ? 0.85 : 0.7} />
+      {look?.lights && <TrailLights trail={map.trail} />}
       {position > 0 && (
         <polyline points={walked} fill="none" stroke="var(--color-accent-600)" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" />
       )}
       {showNodes &&
-        map.nodes.slice(1, -1).map((n, i) => <circle key={i} cx={n.x} cy={n.y} r={3} fill={i + 1 <= position ? "var(--color-accent-600)" : "var(--color-amber-700)"} opacity={0.8} />)}
+        map.nodes.slice(1, -1).map((n, i) => <circle key={i} cx={n.x} cy={n.y} r={3} fill={i + 1 <= position ? "var(--color-accent-600)" : trailColor} opacity={0.8} />)}
 
       {rewards.map((e) => {
         const n = map.nodes[e.step];
@@ -96,8 +105,8 @@ export function QuestMapView({
         );
       })}
 
-      <Place x={map.nodes[0].x} y={map.nodes[0].y} emoji="🏘️" label={map.from} />
-      <Place x={map.nodes[map.nodes.length - 1].x} y={map.nodes[map.nodes.length - 1].y} emoji={done ? "🎉" : "🏰"} label={map.to} />
+      <Place x={map.nodes[0].x} y={map.nodes[0].y} emoji="🏘️" label={map.from} season={season} />
+      <Place x={end.x} y={end.y} emoji={done ? "🎉" : (look?.end ?? "🏰")} label={map.to} season={season} last />
 
       {wait && (
         <g opacity={0.55}>
@@ -120,18 +129,47 @@ export function QuestMapView({
       ) : (
         <Party map={map} position={position} party={party} me={me} hurt={hurtSet(teamwork)} compact={compact} />
       )}
+      {look && !compact && <SeasonFx look={look} />}
     </svg>
   );
 }
 
-function Place({ x, y, emoji, label }: { x: number; y: number; emoji: string; label: string }) {
+/** The start village or the destination. In season it gets a touch: snow on the roof, a bat and a pumpkin at the haunted house, fireworks for the new year. */
+function Place({ x, y, emoji, label, season, last }: { x: number; y: number; emoji: string; label: string; season: SeasonId | null; last?: boolean }) {
+  const look = season ? SCENERY[season] : null;
   return (
     <g>
-      <circle cx={x} cy={y} r={24} fill="var(--color-surface)" stroke="var(--color-amber-700)" strokeWidth={3} />
+      <circle cx={x} cy={y} r={24} fill="var(--color-surface)" stroke={look?.trail ?? "var(--color-amber-700)"} strokeWidth={3} />
       <text x={x} y={y + 9} textAnchor="middle" fontSize={24}>
         {emoji}
       </text>
-      <text x={x} y={y + 44} textAnchor="middle" fontSize={15} fontWeight={600} fill="var(--color-slate-800)" stroke="var(--color-emerald-50)" strokeWidth={4} paintOrder="stroke">
+      {look?.roofSnow && <path d={`M${x - 14} ${y - 9} q7 -6 14 -2 q7 -4 14 2`} stroke="#FFFFFF" strokeWidth={4} fill="none" strokeLinecap="round" aria-hidden />}
+      {last && season === "halloween" && (
+        <g aria-hidden>
+          <text x={x + 22} y={y - 18} fontSize={14}>
+            🦇
+          </text>
+          <text x={x - 34} y={y + 22} fontSize={15}>
+            🎃
+          </text>
+        </g>
+      )}
+      {last && look?.lights && (
+        <text x={x + 20} y={y + 24} fontSize={16} aria-hidden>
+          🎆
+        </text>
+      )}
+      <text
+        x={x}
+        y={y + 44}
+        textAnchor="middle"
+        fontSize={15}
+        fontWeight={600}
+        fill={look?.label ?? "var(--color-slate-800)"}
+        stroke={look?.ground2 ?? "var(--color-emerald-50)"}
+        strokeWidth={4}
+        paintOrder="stroke"
+      >
         {label}
       </text>
     </g>
