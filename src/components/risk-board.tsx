@@ -8,7 +8,7 @@ import type { RiskCard } from "@/lib/risk-data";
 import { moveRisk, planRc, resetRisk } from "@/server/risk";
 import { copyRich, tableClip } from "./export-menu";
 import { Modal } from "./modal";
-import { Button, Card, cx, InfoTip, Select } from "./ui";
+import { Button, cx, InfoTip, Select } from "./ui";
 import type { StartBoxData } from "@/lib/bash-data";
 import { shortDate } from "@/lib/spelling";
 import { StartBashButton } from "./bash-start";
