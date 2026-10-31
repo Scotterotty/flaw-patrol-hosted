@@ -104,6 +104,8 @@ export function SessionRunner({
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [pending, start] = useTransition();
+  // Saved and on the way to the next case: stays busy until it opens (ver_111).
+  const [leaving, setLeaving] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   // The clock only runs while the session is on. Coming back to a half-done
@@ -255,6 +257,7 @@ export function SessionRunner({
   // Finish exploring (ver_96): no pass or fail. Explored, or Blocked when something stopped you.
   const blocked = outcome === "BLOCKED";
   const save = (goNext: boolean) => {
+    if (leaving) return;
     setError(null);
     const base = `/p/${projectKey}/runs/${runNumber}`;
     start(async () => {
@@ -277,8 +280,15 @@ export function SessionRunner({
       }
       showQuestMoments(res.quest);
       // Plain Save stays on this session; the refresh reloads it with the saved result.
-      if (goNext) router.push(nextEntryId ? `${base}/execute?entry=${nextEntryId}${keepQuery}` : base);
-      router.refresh();
+      // Opened just after the save, so Next.js loads the next case once, not twice (ver_111).
+      if (goNext) {
+        setLeaving(true);
+        setTimeout(() => {
+          router.push(nextEntryId ? `${base}/execute?entry=${nextEntryId}${keepQuery}` : base);
+          // The run page may be kept from earlier, so it's refreshed; the next case loads fresh.
+          if (!nextEntryId) router.refresh();
+        }, 0);
+      } else router.refresh();
     });
   };
 
@@ -368,8 +378,8 @@ export function SessionRunner({
               <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
                 <SaveState state={saveState} />
                 <Button onClick={() => setEnding(false)}>Back to exploring</Button>
-                <Button variant="primary" disabled={pending || runClosed} onClick={() => save(true)}>
-                  {pending ? "Saving…" : "Finish"}
+                <Button variant="primary" disabled={pending || leaving || runClosed} onClick={() => save(true)}>
+                  {pending || leaving ? "Saving…" : "Finish"}
                 </Button>
               </div>
             </section>

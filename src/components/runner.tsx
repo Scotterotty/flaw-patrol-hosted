@@ -244,6 +244,9 @@ export function Runner({
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [pending, start] = useTransition();
+  // Saved and on the way to the next case: stays busy until that case opens (ver_111).
+  const [leaving, setLeaving] = useState(false);
+  const saving = pending || leaving;
   const statusesRef = useRef(statuses);
   statusesRef.current = statuses;
   const startedAt = useRef(Date.now() - (draft?.elapsedSec ?? 0) * 1000);
@@ -628,12 +631,22 @@ export function Runner({
 
   const submit = useCallback(
     (goNext: boolean, skipUnmarked = false) => {
+      if (leaving) return;
       setError(null);
       setAskSkip(false);
       if (recording.current) return setError("Stop the screen recording first: Stop and attach, or Discard.");
       const runPath = `/p/${projectKey}/runs/${runNumber}`;
       // Plain Save stays on this case; the refresh below reloads it with the saved result.
       const goOn = () => goNext && router.push(nextEntryId ? `${runPath}/execute?entry=${nextEntryId}${keepQuery}` : runPath);
+      // Opening the next case from inside the save made Next.js load it twice, so it opens just
+      // after. The next case loads fresh; the run page may be kept from earlier, so refresh it (ver_111).
+      const leave = () => {
+        setLeaving(true);
+        setTimeout(() => {
+          goOn();
+          if (!nextEntryId) router.refresh();
+        }, 0);
+      };
       // Not finished: keep the step results (autosave has them) and leave the case In progress.
       if (caseStatus === "UNTESTED") {
         // Nothing marked at all: ask rather than quietly moving on and leaving the case Untested.
@@ -641,8 +654,8 @@ export function Runner({
         start(async () => {
           const ok = timer.current ? await flush() : await (inflight.current ?? true);
           if (ok === false) return;
-          goOn();
-          router.refresh();
+          if (goNext) leave();
+          else router.refresh();
         });
         return;
       }
@@ -673,12 +686,12 @@ export function Runner({
           router.replace(`${runPath}/execute?entry=${entry.id}&finished=1${keepQuery}`);
           return;
         }
-        goOn();
-        router.refresh();
+        if (goNext) leave();
+        else router.refresh();
       });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [caseStatus, statuses, n, projectId, entry.id, comment, attachments, defects, projectKey, runNumber, nextEntryId, keepQuery, router, reopened, flush, sentry],
+    [caseStatus, statuses, n, projectId, entry.id, comment, attachments, defects, projectKey, runNumber, nextEntryId, keepQuery, router, reopened, flush, sentry, leaving],
   );
 
   // Marking any step answers the no-result question.
@@ -1288,11 +1301,11 @@ export function Runner({
               <kbd>Ctrl</kbd>+<kbd>Enter</kbd> saves and opens the next case
             </span>
           </span>
-          <Button disabled={pending || runClosed} onClick={() => submit(false)}>
+          <Button disabled={saving || runClosed} onClick={() => submit(false)}>
             {partial ? "Save progress" : "Save"}
           </Button>
-          <Button variant="primary" disabled={pending || runClosed} onClick={() => submit(true)}>
-            {pending
+          <Button variant="primary" disabled={saving || runClosed} onClick={() => submit(true)}>
+            {saving
               ? "Saving…"
               : partial
                 ? nextEntryId

@@ -4,6 +4,7 @@ import { TagPills } from "@/components/tag-pill";
 import { sentryConnected } from "@/lib/sentry-config";
 import { resultSteps } from "@/lib/result-steps";
 import { headingRows, withoutHeadings } from "@/lib/step-checks";
+import { startTiming } from "@/lib/timing";
 import { CrumbName } from "@/components/crumb-name";
 import { fieldBits } from "@/lib/run-fields";
 import type { ResultStatus } from "@prisma/client";
@@ -53,27 +54,33 @@ export default async function ExecutePage({
   params: Promise<{ key: string; number: string }>;
   searchParams: Promise<{ entry?: string; mine?: string; only?: string; finished?: string }>;
 }) {
-  const spelling = await mySpelling();
+  // FP_TIMING=1 prints how long each part took. Lookups that don't need each other run side by
+  // side instead of one after another, so Save and next opens the next case sooner (ver_111).
+  const timing = startTiming("Runner");
   const { key, number } = await params;
   const sp = await searchParams;
-  const { project, user, who } = await projectAccess(key);
-  const tagColors = await tagColorsFor(project.id);
-  const run = await db.testRun.findUnique({
+  const [spelling, { project, user, who }] = await Promise.all([mySpelling(), timing.step("sign-in and project", projectAccess(key))]);
+  const [tagColors, run, sort, jira, members, sentryOn] = await Promise.all([
+    timing.step("tags", tagColorsFor(project.id)),
+    timing.step("run and its cases", db.testRun.findUnique({
     where: { projectId_number: { projectId: project.id, number: Number(number) || 0 } },
-    include: { entries: { orderBy: { position: "asc" }, select: { id: true, caseId: true, title: true, status: true, priority: true, assigneeId: true, steps: true, draft: true, draftAt: true, draftByName: true, draftById: true, results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true, testerName: true, testerId: true, createdAt: true } }, testCase: { select: { number: true, flag: true, tags: true, project: { select: { key: true } } } } } } },
-  });
+    include: { entries: { orderBy: { position: "asc" }, select: { id: true, caseId: true, kind: true, title: true, status: true, priority: true, assigneeId: true, steps: true, draft: true, draftAt: true, draftByName: true, draftById: true, results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true, testerName: true, testerId: true, createdAt: true } }, testCase: { select: { number: true, flag: true, tags: true, project: { select: { key: true } } } } } } },
+    })),
+    readCaseSort(),
+    timing.step("Jira", jiraConfigFor(project.id)),
+    timing.step("members", projectMembers(project.id)),
+    timing.step("Sentry", sentryConnected(project.id)),
+  ]);
   if (!run) notFound();
   if (!run.entries.length) redirect(`/p/${project.key}/runs/${run.number}`);
 
   // Sorting by priority also changes which case comes next.
-  const sort = await readCaseSort();
   run.entries = sortCases(run.entries, sort, (e) => e.priority, (e) => e.status);
   // ?only=3,5,9 runs just those cases (picked on the run page); ?mine=1 just mine.
   const onlyNumbers = new Set((sp.only ?? "").split(",").map(Number).filter((n) => Number.isInteger(n) && n > 0));
   const selection = onlyNumbers.size ? run.entries.filter((e) => onlyNumbers.has(e.testCase.number)) : null;
   const mineOnly = !selection && sp.mine === "1";
   const list = selection ?? (mineOnly ? run.entries.filter((e) => e.assigneeId === user.id) : run.entries);
-  const flakyIds = await flakyCases({ caseIds: [...new Set(list.map((e) => e.caseId))] });
   const keep = selection ? `&only=${selection.map((e) => e.testCase.number).join(",")}` : mineOnly ? "&mine=1" : "";
   // Default to a case of mine that's half done, then the first untested case assigned to me, then any untested case.
   // When running a selection, start at its first unfinished case.
@@ -95,28 +102,41 @@ export default async function ExecutePage({
     ? (list[idx + 1] ?? null)
     : (after.find((e) => e.status === "UNTESTED" && (!e.assigneeId || e.assigneeId === user.id)) ?? after.find((e) => e.status === "UNTESTED") ?? null);
 
-  const [entry, last, jira, runLinks, members] = await Promise.all([
-    db.runEntry.findUniqueOrThrow({ where: { id: pick.id }, include: { testCase: { select: { id: true, number: true, tags: true, flag: true, flagNote: true, flaggedBy: true, flaggedAt: true, flagRunNumber: true, jiraStories: true, project: { select: { key: true } } } } } }),
-    db.testResult.findFirst({
+  const entryP = timing.step("this case", db.runEntry.findUniqueOrThrow({ where: { id: pick.id }, include: { testCase: { select: { id: true, number: true, tags: true, flag: true, flagNote: true, flaggedBy: true, flaggedAt: true, flagRunNumber: true, jiraStories: true, project: { select: { key: true } } } } } }));
+  const [entry, last, runLinks, flakyIds, news, storyMap, cmp, past, knownBugs] = await Promise.all([
+    entryP,
+    timing.step("last result", db.testResult.findFirst({
       where: { entryId: pick.id },
       orderBy: { createdAt: "desc" },
       include: { defects: { include: { defect: true } }, attachments: { orderBy: { createdAt: "asc" }, select: { id: true, fileName: true, contentType: true, stepIndex: true } } },
-    }),
-    jiraConfigFor(project.id),
-    db.defectLink.findMany({ where: { result: { runId: run.id } }, include: { defect: true }, orderBy: { defect: { createdAt: "desc" } } }),
-    projectMembers(project.id),
+    })),
+    timing.step("bugs filed", db.defectLink.findMany({ where: { result: { runId: run.id } }, include: { defect: true }, orderBy: { defect: { createdAt: "desc" } } })),
+    timing.step("flaky cases", flakyCases({ caseIds: [...new Set(list.map((e) => e.caseId))] })),
+    // New or Updated since its last run (ver_96).
+    timing.step("new or updated", entryP.then(async (e) => (await caseNewsForRun(run, [e])).get(e.id) ?? null)),
+    // The case's Jira stories, for the runner's chip and the bug box's "Link to story" ticks.
+    timing.step("Jira stories", entryP.then((e) => (jira && e.testCase.jiraStories.length ? storyInfo(project.id, e.testCase.jiraStories) : null))),
+    // Regression flag (ver_93): the earlier release this case passed in, so a failed step there gets a note.
+    timing.step("regression", pick.kind === "EXPLORATORY" ? Promise.resolve(null) : entryComparison(project, pick.id)),
+    timing.step("history", db.testResult.findMany({
+      where: { caseId: pick.caseId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: {
+        run: { select: { number: true, name: true, release: true, build: true, cspVersion: true, fields: true, environment: true } },
+        entry: { select: { steps: true } },
+        defects: { include: { defect: true } },
+        attachments: { select: { id: true, fileName: true } },
+      },
+    })),
+    timing.step("known bugs", knownBugsForRun(run.id, [{ id: pick.id, caseId: pick.caseId, steps: pick.steps }]).then((m) => m.get(pick.id) ?? [])),
   ]);
-  // New or Updated since its last run (ver_96).
-  const news = (await caseNewsForRun(run, [entry])).get(entry.id) ?? null;
-  // The case's Jira stories, for the runner's chip and the bug box's "Link to story" ticks.
-  const storyMap = jira && entry.testCase.jiraStories.length ? await storyInfo(project.id, entry.testCase.jiraStories) : null;
+  timing.done();
   const stories = entry.testCase.jiraStories.map((k) => {
     const i = storyMap?.get(k);
     return { key: k, title: i?.title ?? "", status: i?.status ?? "", url: i?.url ?? null };
   });
   const linkStories = (parseStoriesConfig(jira?.stories) ?? DEFAULT_STORIES).linkBugs;
-  // Regression flag (ver_93): the earlier release this case passed in, so a failed step there gets a note.
-  const cmp = entry.kind === "EXPLORATORY" ? null : await entryComparison(project, entry.id);
   const regression = cmp
     ? {
         label: againstLabel(cmp.against),
@@ -127,17 +147,6 @@ export default async function ExecutePage({
         jiraLabel: cmp.settings.label,
       }
     : null;
-  const past = await db.testResult.findMany({
-    where: { caseId: entry.caseId },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-    include: {
-      run: { select: { number: true, name: true, release: true, build: true, cspVersion: true, fields: true, environment: true } },
-      entry: { select: { steps: true } },
-      defects: { include: { defect: true } },
-      attachments: { select: { id: true, fileName: true } },
-    },
-  });
   const history: HistoryRun[] = past.map((r) => {
     const snapshot = (Array.isArray(r.entry.steps) ? r.entry.steps : []) as unknown as ExpandedStep[];
     const stepResults = (Array.isArray(r.stepResults) ? r.stepResults : []) as { status: ResultStatus; actual?: string }[];
@@ -339,7 +348,7 @@ export default async function ExecutePage({
           canCloseRun={can(who, "run:manage")}
           justFinished={sp.finished === "1" && run.state === "ACTIVE" ? run.id : null}
           regression={regression}
-          sentryOn={await sentryConnected(project.id)}
+          sentryOn={sentryOn}
           projectId={project.id}
           projectKey={project.key}
           runNumber={run.number}
@@ -352,7 +361,7 @@ export default async function ExecutePage({
           tagColors={tagColors}
           news={news}
           newsHref={news?.kind === "updated" ? `/p/${entry.testCase.project.key}/cases/${entry.testCase.number}/versions/${news.version}?from=${news.since.version}` : undefined}
-          knownBugs={(await knownBugsForRun(run.id, [{ id: entry.id, caseId: entry.caseId, steps: entry.steps }])).get(entry.id) ?? []}
+          knownBugs={knownBugs}
           entry={{
             id: entry.id,
             caseKey: caseKey(entry.testCase.project.key, entry.testCase.number),

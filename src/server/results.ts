@@ -132,11 +132,13 @@ export async function submitResult(projectId: string, entryId: string, input: Re
       return result;
     });
 
-    revalidatePath(`/p/${project.key}`, "layout");
+    // No revalidatePath here (ver_111): it made the response re-draw the case being left.
+    // The runner refreshes after plain Save, and Save and next loads the next case fresh.
     queueSheetSync(entry.run);
     // Every case now has a result: the runner offers to close the run.
     const runDone = entry.run.state === "ACTIVE" && (await db.runEntry.count({ where: { runId: entry.runId, status: { in: OPEN } } })) === 0;
-    await alertsForResult({ cycle: project, resultId: result.id, status: data.status, comment: data.comment, tester: user.name ?? user.email, entryId, wasOpen: OPEN.includes(entry.status), runDone }).catch((e) => console.warn("Slack alerts failed", e));
+    // Slack alerts look things up first, so they run after the response goes out (ver_111).
+    after(() => alertsForResult({ cycle: project, resultId: result.id, status: data.status, comment: data.comment, tester: user.name ?? user.email, entryId, wasOpen: OPEN.includes(entry.status), runDone }).catch((e) => console.warn("Slack alerts failed", e)));
     // Mini game crowns (ver_96) are counted again after the response goes out.
     after(() => refreshCrownsFor(projectId));
     return { resultId: result.id, runId: entry.runId, runDone, quest: quests ? await questMoments(entry.runId, entryId, result.createdAt) : [] };

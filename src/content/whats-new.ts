@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 111,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "better",
+        title: "Save and next is faster",
+        text: "Saving a case and opening the next one now takes about a third less time. Flaw Patrol no longer reloads the case you just left, loads the next case once instead of up to three times, and looks up its details side by side.",
+      },
+    ],
+  },
+  {
     version: 110,
     date: "2026-10-31",
     items: [
