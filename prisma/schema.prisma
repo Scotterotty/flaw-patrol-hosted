@@ -97,6 +97,8 @@ model User {
   gameTitleBefore  String?
   // Activity log entries this person made (ver_92).
   activity         ActivityEntry[]
+  // Glossary (ver_113): dotted underlines under known terms all over the app; off hides them for this person only.
+  glossaryUnderline Boolean        @default(true)
 }
 
 // Workspace-wide settings, one row (id 1). launchedAt is when an admin launched
@@ -1169,4 +1171,69 @@ model SentryConfig {
   /// Only show errors from the person testing, when Sentry knows their email.
   onlyTester     Boolean  @default(true)
   updatedAt      DateTime @updatedAt
+}
+
+/**
+ * Glossary (ver_113): one shared list of the team's words, each with a plain meaning. A term
+ * with no meaning yet is a question someone asked the team ("Needs an answer"). See
+ * src/lib/glossary.ts. People are plain ids, like Crown, so nothing breaks if someone leaves.
+ */
+model GlossaryTerm {
+  id           String            @id @default(cuid())
+  term         String
+  /// Lowercase term, unique, so the same word can't be added twice.
+  key          String            @unique
+  /// For the term's own link: /glossary/<slug>.
+  slug         String            @unique
+  /// Other names: abbreviations and other spellings, found and underlined too.
+  aliases      String[]          @default([])
+  /// Empty means nobody has answered yet.
+  meaning      String            @default("")
+  /// What the person who asked wanted to know.
+  question     String            @default("")
+  /// Only for one umbrella; null is for everyone.
+  groupId      String?
+  /// Where it was found, e.g. "Risk board · OB-5310", and the page.
+  foundLabel   String            @default("")
+  foundUrl     String            @default("")
+  createdById  String?
+  /// Who answered someone else's question (null when it was added with its meaning).
+  answeredById String?
+  answeredAt   DateTime?
+  /// The person who asked hasn't seen the answer yet: a dot on Glossary in their menu.
+  answerUnseen Boolean           @default(false)
+  updatedById  String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  versions     GlossaryVersion[]
+  lookups      GlossaryLookup[]
+
+  @@index([createdById])
+  @@index([answeredById])
+}
+
+/// Every saved state of a term, for History and putting an older meaning back.
+model GlossaryVersion {
+  id        String       @id @default(cuid())
+  termId    String
+  glossary  GlossaryTerm @relation(fields: [termId], references: [id], onDelete: Cascade)
+  term      String
+  aliases   String[]     @default([])
+  meaning   String       @default("")
+  groupId   String?
+  byId      String?
+  note      String       @default("")
+  createdAt DateTime     @default(now())
+
+  @@index([termId, createdAt])
+}
+
+/// Someone opened a term's meaning (once per person and term), for Terms that helped and Bookworm.
+model GlossaryLookup {
+  termId    String
+  glossary  GlossaryTerm @relation(fields: [termId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime     @default(now())
+
+  @@id([termId, userId])
 }

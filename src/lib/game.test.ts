@@ -24,8 +24,11 @@ describe("levels", () => {
         sharedStepUsed: 1,
         suiteRun: 1,
         streakDay: 1,
+        glossaryTerm: 2,
+        glossaryAnswer: 1,
+        glossaryHelp: 7,
       }),
-    ).toBe(50 + 25 + 20 + 40 + 12 + 15 + 20 + 20 + 3 + 10 + 15 + 10);
+    ).toBe(50 + 25 + 20 + 40 + 12 + 15 + 20 + 20 + 3 + 10 + 15 + 10 + 10 + 10 + 7);
   });
 });
 
@@ -64,6 +67,10 @@ describe("unlock details", () => {
     currentStreak: 0,
     earlyAdopter: 0,
     rescues: 0,
+    glossaryTerm: 0,
+    glossaryAnswer: 0,
+    glossaryHelp: 0,
+    glossaryLookups: 0,
   };
   it("say how a work title was earned, with the count", () => {
     const d = unlockDetail({ stat: "caseRunByOthers", atLeast: 10 }, stats, 4, 720);

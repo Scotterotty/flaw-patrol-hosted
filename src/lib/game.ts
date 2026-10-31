@@ -64,6 +64,22 @@ export const XP_RULES = {
     label: "Streak days",
     hint: "each working day you tested, following one you also tested",
   },
+  // Glossary (ver_113): explaining the team's words. Editing and asking earn nothing.
+  glossaryTerm: {
+    xp: 5,
+    label: "Glossary terms added",
+    hint: "each term you added with a meaning of at least 3 words",
+  },
+  glossaryAnswer: {
+    xp: 10,
+    label: "Questions answered",
+    hint: "each teammate's Glossary question you answered",
+  },
+  glossaryHelp: {
+    xp: 1,
+    label: "Terms that helped",
+    hint: "each teammate who opened the meaning of a term you wrote, up to 10 per term",
+  },
 } as const;
 
 export type XpRule = keyof typeof XP_RULES;
@@ -77,6 +93,8 @@ export type GameStats = XpCounts & {
   earlyAdopter: number;
   /** Teammates rescued on quest maps. No XP; it unlocks Field Medic. */
   rescues: number;
+  /** Teammates who opened the meaning of a term you wrote, with no cap. No XP; it unlocks Bookworm. */
+  glossaryLookups: number;
 };
 
 export function totalXp(c: XpCounts) {
@@ -103,6 +121,8 @@ export const unlockText = (u: Unlock) =>
         ? `Test ${u.atLeast} working days in a row`
         : u.stat === "rescues"
           ? `Rescue ${u.atLeast} teammates on quest maps`
+        : u.stat === "glossaryLookups"
+          ? `Have your Glossary terms looked up ${u.atLeast} times`
         : `${u.atLeast} ${XP_RULES[u.stat as XpRule].label.toLowerCase()}`;
 
 export const TITLES = [
@@ -136,6 +156,9 @@ export const TITLES = [
     unlock: { stat: "bestStreak", atLeast: 5 },
   },
   { id: "medic", label: "Field Medic", unlock: { stat: "rescues", atLeast: 3 } },
+  { id: "wordfinder", label: "Word Finder", unlock: { stat: "glossaryTerm", atLeast: 10 } },
+  { id: "translator", label: "Team Translator", unlock: { stat: "glossaryAnswer", atLeast: 10 } },
+  { id: "dictionary", label: "Walking Dictionary", unlock: { stat: "glossaryTerm", atLeast: 40 } },
 ] as const satisfies readonly { id: string; label: string; unlock: Unlock }[];
 
 export const FRAMES = [
@@ -146,6 +169,7 @@ export const FRAMES = [
   { id: "ink", label: "Octopus ink", unlock: { level: 10 } },
   { id: "bug", label: "Bug hunter", unlock: { stat: "bugFixed", atLeast: 10 } },
   { id: "fresh", label: "Early Adopter Shine", unlock: { stat: "earlyAdopter", atLeast: 1 } },
+  { id: "bookworm", label: "Bookworm", unlock: { stat: "glossaryLookups", atLeast: 100 } },
 ] as const satisfies readonly { id: string; label: string; unlock: Unlock }[];
 
 export type TitleId = (typeof TITLES)[number]["id"];
@@ -238,6 +262,21 @@ const WHAT_COUNTS: Partial<Record<keyof GameStats, { rule: (n: number) => string
     rule: (n) => `Rescue ${n} teammates on quest maps`,
     earned: (h, n) => `You rescued ${h} teammates (needed ${n})`,
     counts: ["On a quest map, a teammate who lands on trouble is stuck until someone else saves the next case in that run. That's a rescue.", "Rescuing yourself doesn't count."],
+  },
+  glossaryTerm: {
+    rule: (n) => `Add ${n} Glossary terms`,
+    earned: (h, n) => `You added ${h} Glossary terms (needed ${n})`,
+    counts: ["Terms you added to the Glossary with a meaning of at least 3 words.", "Asking the team, editing and terms that were deleted don't count."],
+  },
+  glossaryAnswer: {
+    rule: (n) => `Answer ${n} teammates' Glossary questions`,
+    earned: (h, n) => `You answered ${h} Glossary questions (needed ${n})`,
+    counts: ["Questions a teammate asked under Needs an answer that you gave a meaning of at least 3 words.", "Answering your own question counts as adding a term instead."],
+  },
+  glossaryLookups: {
+    rule: (n) => `Have your Glossary terms looked up ${n} times`,
+    earned: (h, n) => `Teammates looked up your terms ${h} times (needed ${n})`,
+    counts: ["Each teammate who opens the meaning of a term you wrote counts once per term.", "Looking up your own terms doesn't count."],
   },
   earlyAdopter: {
     rule: () => "Sign in to Flaw Patrol before it goes live",

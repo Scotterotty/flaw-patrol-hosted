@@ -4,6 +4,8 @@ import { db } from "./db";
 import { parseSessionLog } from "./charter";
 import { SESSION_BUG_CAP, streaks, type GameStats } from "./game";
 import { questRecordFor } from "./quest-data";
+import { glossaryStatsFrom } from "./glossary";
+import { glossaryWork } from "./glossary-data";
 
 const VERDICTS: ResultStatus[] = ["PASSED", "FAILED", "BLOCKED", "EXPLORED"];
 
@@ -111,6 +113,8 @@ export async function gameStats(userId: string): Promise<GameStats> {
   const s = streaks(mine.map((r) => r.createdAt.toISOString().slice(0, 10)));
   // Quest map rescues (Field Medic); no XP, they only unlock the title.
   const quests = mine.length ? await questRecordFor(userId) : null;
+  // Glossary (ver_113): terms whose meaning you wrote, and teammates who opened them.
+  const glossary = glossaryStatsFrom(await glossaryWork({ OR: [{ createdById: userId }, { answeredById: userId }] }), userId, user.xpSince);
 
   return {
     verdict: entries.size,
@@ -129,5 +133,6 @@ export async function gameStats(userId: string): Promise<GameStats> {
     currentStreak: s.current,
     earlyAdopter,
     rescues: quests?.rescues ?? 0,
+    ...glossary,
   };
 }

@@ -9,7 +9,7 @@ import { MenuHead, SideMenu, type MenuGroup, type MenuItem } from "./side-menu";
  * Every page in the umbrella shows it, test cycle pages too: then `u.cycle` is lit under Test cycles,
  * with its Quest map under it and its settings under Settings.
  */
-export function UmbrellaNav({ u }: { u: NavData }) {
+export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: number; unseen: boolean } }) {
   const path = usePathname();
   const g = `/g/${u.id}`;
   const hub = `/p/${u.hubKey}`;
@@ -44,6 +44,7 @@ export function UmbrellaNav({ u }: { u: NavData }) {
         { href: `${hub}/stories`, id: "stories", label: "Requirements", tip: "Jira stories, Epics and other requirements, and which cases test them" },
         { href: `${hub}/suites`, id: "suites", label: "Test suites", count: u.counts.suites },
         { href: `${hub}/shared-steps`, id: "shared", label: "Shared steps", count: u.counts.shared, tip: "Extra steps you add to new or existing cases" },
+        { href: `${hub}/glossary`, id: "glossary", label: "Glossary", count: glossary?.count || undefined, note: glossary?.unseen, tip: "The team's words and what they mean" },
       ],
     },
     {

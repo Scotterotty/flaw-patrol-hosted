@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { TermParts, useTermParts } from "./glossary";
 import { cx } from "./ui";
 
 const URL_RE = /(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]])/g;
@@ -8,6 +9,8 @@ const URL_RE = /(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]])/g;
 /** Step text with its web addresses as links, each with a one-click Copy. */
 export function StepText({ text, className }: { text: string; className?: string }) {
   const parts = text.split(URL_RE);
+  // Glossary terms (ver_113) are underlined once per step, links never.
+  const terms = useTermParts(parts.map((p, i) => (i % 2 === 1 ? "" : p)));
   return (
     <span className={className}>
       {parts.map((part, i) =>
@@ -19,7 +22,7 @@ export function StepText({ text, className }: { text: string; className?: string
             <CopyButton value={part} />
           </span>
         ) : (
-          part
+          <span key={i}>{terms ? <TermParts parts={terms[i]} /> : part}</span>
         ),
       )}
     </span>

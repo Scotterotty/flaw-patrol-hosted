@@ -20,6 +20,8 @@ export const FRAME_STYLES: Record<string, string> = {
   bug: "repeating-conic-gradient(#dc2626 0 12.5%, #16a34a 0 25%)",
   // Early adopters: a turning pearly ring with twinkling stars (.frame-fresh in globals.css).
   fresh: "conic-gradient(from var(--fresh-turn, 0deg), #10b981, #a7f3d0, #3b82f6, #e879f9, #fde047, #ffffff, #10b981)",
+  // Glossary (ver_113): page edges, like a well-thumbed book.
+  bookworm: "repeating-conic-gradient(#7c4a1e 0 6deg, #f5e6c8 6deg 12deg)",
 };
 const FRAME_CLASS: Record<string, string> = { fresh: "frame-fresh" };
 

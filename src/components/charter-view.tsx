@@ -1,4 +1,5 @@
 import { clock, reminderLabel, NOTE_KINDS, NOTE_LABEL, noteCounts, type Charter, type PersonaInfo, type SessionNote } from "@/lib/charter";
+import { GlossaryText } from "./glossary";
 import { cx } from "./ui";
 
 /** A persona as a small chip: icon and name, with what they're like on hover. */
@@ -34,7 +35,7 @@ export function CharterView({ charter, persona, className, hidePrompts }: { char
       {rows.map(([k, v]) => (
         <div key={k} className="contents">
           <dt className="text-xs font-medium text-slate-500">{k}</dt>
-          <dd className={cx("whitespace-pre-wrap wrap-anywhere", v ? "text-slate-800" : "text-slate-400")}>{v || "Not set"}</dd>
+          <dd className={cx("whitespace-pre-wrap wrap-anywhere", v ? "text-slate-800" : "text-slate-400")}>{v ? <GlossaryText text={v} /> : "Not set"}</dd>
         </div>
       ))}
       <dt className="text-xs font-medium text-slate-500">Time limit</dt>

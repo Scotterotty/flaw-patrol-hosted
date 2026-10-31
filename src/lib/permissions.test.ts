@@ -62,7 +62,7 @@ describe("presets", () => {
 describe("roleSummary", () => {
   it("is written from the grid", () => {
     const s = roleSummary();
-    expect(s).toMatch(/^Viewers see everything, flag cases and join bug bashes. Members write cases, import/);
+    expect(s).toMatch(/^Viewers see everything, flag cases, join bug bashes and ask in the Glossary. Members write cases, import/);
     expect(s).toContain("Leads can do the same as Members.");
     expect(s).toContain("manage members and roles");
   });

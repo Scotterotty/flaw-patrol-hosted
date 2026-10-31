@@ -13,10 +13,11 @@ export type NavCounts = { cases: number; charters: number; suites: number; share
  * A test cycle's left menu, shaped like the umbrella menu: name card on top, Library, Testing,
  * Results, then Settings. Test cycles in an umbrella show the umbrella's menu instead (see ProjectMenu).
  */
-export function ProjectNav({ projectKey, projectName, quests = false, counts, library, live }: { projectKey: string; projectName: string; quests?: boolean; counts: NavCounts; library?: NavLibrary; live?: boolean }) {
+export function ProjectNav({ projectKey, projectName, quests = false, counts, library, live, glossary }: { projectKey: string; projectName: string; quests?: boolean; counts: NavCounts; library?: NavLibrary; live?: boolean; glossary?: { count: number; unseen: boolean } }) {
   const path = usePathname();
   const base = `/p/${projectKey}`;
   // Grouped in the order the team works: write tests, run them, then see what broke.
+  const glossaryItem: MenuItem = { href: `${base}/glossary`, id: "glossary", label: "Glossary", count: glossary?.count || undefined, note: glossary?.unseen, tip: "The team's words and what they mean" };
   const groups: MenuGroup[] = [
     { label: "", items: [{ href: base, label: "Overview", exact: true }] },
     {
@@ -27,6 +28,7 @@ export function ProjectNav({ projectKey, projectName, quests = false, counts, li
             // Cases from before the test cycle joined the umbrella stay reachable until they're moved up.
             ...(library.ownCases ? [{ href: `${base}/cases`, id: "own-cases", label: "Cases left here", count: library.ownCases }] : []),
             { href: `${base}/suites`, id: "suites", label: "Test suites", count: counts.suites },
+            glossaryItem,
           ]
         : [
             { href: `${base}/cases`, id: "cases", label: "Test cases", count: counts.cases },
@@ -34,6 +36,7 @@ export function ProjectNav({ projectKey, projectName, quests = false, counts, li
             { href: `${base}/stories`, id: "stories", label: "Requirements" },
             { href: `${base}/suites`, id: "suites", label: "Test suites", count: counts.suites },
             { href: `${base}/shared-steps`, id: "shared", label: "Shared steps", count: counts.shared },
+            glossaryItem,
           ],
     },
     {

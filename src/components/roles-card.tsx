@@ -171,7 +171,7 @@ export function RolesCard({ target, rules, appliesTo }: { target: { groupId: str
       </div>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <p className="mb-3 text-xs text-slate-500">
-        <span className="font-medium text-slate-700">Viewers</span> aren&apos;t in the table: they see everything, flag cases and join bug bashes (logging bugs there), but don&apos;t edit, run or archive.
+        <span className="font-medium text-slate-700">Viewers</span> aren&apos;t in the table: they see everything, flag cases, join bug bashes (logging bugs there) and ask questions in the Glossary, but don&apos;t edit, run or archive.
       </p>
       <div className="flex items-center justify-end gap-2">
         <span className="text-xs text-slate-500" aria-live="polite">

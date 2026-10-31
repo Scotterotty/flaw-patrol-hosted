@@ -1,6 +1,7 @@
 import { ProjectNav } from "@/components/project-nav";
 import { UmbrellaNav } from "@/components/umbrella-nav";
 import { db } from "@/lib/db";
+import { glossaryMenu } from "@/lib/glossary-data";
 import { liveBashOf, loadUmbrella, navOf, openBugCount, platformColor, type Umbrella } from "@/lib/umbrella";
 
 type Viewer = { id: string; isAdmin: boolean; gameEnabled: boolean; questMap: boolean };
@@ -13,15 +14,18 @@ type MenuProject = { id: string; key: string; name: string; groupId: string | nu
  */
 export async function ProjectMenu({ project, user, umbrella }: { project: MenuProject; user: Viewer; umbrella?: Umbrella | null }) {
   const quests = user.gameEnabled && user.questMap;
+  // Glossary (ver_113): one list for everyone, in every menu, with a dot when your question got answered.
+  const glossary = await glossaryMenu(user.id);
   const group = umbrella ? null : project.groupId ? await db.projectGroup.findUnique({ where: { id: project.groupId }, select: { id: true, name: true, hubProjectId: true } }) : null;
   const u = umbrella ?? (group?.hubProjectId ? await loadUmbrella(group.id, user) : null);
   if (u) {
     const isHub = u.hub.id === project.id;
     const nav = navOf(u);
-    if (isHub) return <UmbrellaNav u={nav} />;
+    if (isHub) return <UmbrellaNav u={nav} glossary={glossary} />;
     const ownCases = await db.testCase.count({ where: { projectId: project.id, archived: false } });
     return (
       <UmbrellaNav
+        glossary={glossary}
         u={{
           ...nav,
           cycle: {
@@ -54,6 +58,7 @@ export async function ProjectMenu({ project, user, umbrella }: { project: MenuPr
       projectKey={project.key}
       projectName={project.name}
       quests={quests}
+      glossary={glossary}
       counts={{ cases, charters, suites, shared, personas, activeRuns, openBugs }}
       live={!!live}
       library={hub ? { hubKey: hub.key, name: group!.name, ownCases: cases } : undefined}

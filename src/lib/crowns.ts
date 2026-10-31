@@ -2,6 +2,8 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { db } from "./db";
 import { parsePlatforms } from "./umbrella";
+import { countsForXp } from "./glossary";
+import { glossaryWork } from "./glossary-data";
 
 // Mini game crowns (ver_96): titles held by whoever did the most of something in an
 // umbrella over the last 30 days, like Foursquare mayors. Real work only, same as XP:
@@ -12,6 +14,8 @@ export const CROWN_DAYS = 30;
 const DAY = 24 * 60 * 60 * 1000;
 /** Folders with fewer cases than this get no crown. */
 const FOLDER_MIN_CASES = 5;
+/** Keeper of Words: Glossary terms needed before anyone can hold it. */
+export const WORDS_NEED = 3;
 
 export type CrownDef = {
   key: string;
@@ -106,6 +110,15 @@ async function countCrowns(groupId: string): Promise<{ defs: CrownDef[]; counts:
   for (const b of bashBugs) add("bash", b.byId, b.createdAt);
   for (const s of sessions) add("trail", s.testerId, s.createdAt);
   for (const d of bugs) add("sharp", d.createdById, d.createdAt);
+
+  // Keeper of Words (ver_113): Glossary terms added or answered. The Glossary is one list for
+  // everyone, so this counts the whole team's terms; it's listed in every umbrella.
+  defs.push({ key: "words", label: "Keeper of Words", unit: ["term added or answered", "terms added or answered"], verb: "Glossary terms added or answered", need: WORDS_NEED });
+  for (const t of await glossaryWork({ OR: [{ createdAt: { gte: since } }, { answeredAt: { gte: since } }] })) {
+    if (!countsForXp(t.meaning)) continue;
+    const at = t.answeredById ? (t.answeredAt ?? t.createdAt) : t.createdAt;
+    if (at >= since) add("words", t.answeredById ?? t.createdById, at);
+  }
   return { defs, counts };
 }
 

@@ -32,7 +32,8 @@ export type Action =
   | "cycle:archive" // archive test cycles
   | "umbrella:archive" // archive the umbrella with its projects, or restore it
   | "bash:join" // join a bug bash, log bugs in it and attach screenshots: Viewers too (ver_94)
-  | "case:flag"; // flag a case that needs attention, with a note: Viewers too (ver_94)
+  | "case:flag" // flag a case that needs attention, with a note: Viewers too (ver_94)
+  | "glossary:edit"; // add, answer and edit Glossary terms (ver_113); anyone, Viewers too, can read and ask
 
 // Viewers (ver_94) see everything, flag cases and join bug bashes; nothing in the Roles grid.
 const RANK: Record<Role, number> = { VIEWER: 0, TESTER: 1, LEAD: 2, ADMIN: 3 };
@@ -50,6 +51,7 @@ export const ROLE_ROWS: { id: string; group: string; label: string; actions: Act
   { id: "suites", group: "Cases and library", label: "Create and edit test suites", actions: ["suite:manage"], std: "TESTER", tight: "LEAD" },
   { id: "shared", group: "Cases and library", label: "Create and edit shared steps and personas", actions: ["shared:manage"], std: "TESTER", tight: "LEAD" },
   { id: "library", group: "Cases and library", label: "Move cases into the Case library", actions: ["library:move"], std: "TESTER", tight: "LEAD" },
+  { id: "glossary", group: "Cases and library", label: "Add and edit Glossary terms", actions: ["glossary:edit"], std: "TESTER", tight: "TESTER" },
   { id: "runs", group: "Runs and bugs", label: "Start runs", actions: ["run:create"], std: "TESTER", tight: "TESTER" },
   { id: "results", group: "Runs and bugs", label: "Record results and file bugs", actions: ["run:execute", "defect:edit"], std: "TESTER", tight: "TESTER" },
   { id: "assign", group: "Runs and bugs", label: "Assign people to cases", actions: ["run:assign"], std: "TESTER", tight: "LEAD" },
@@ -132,6 +134,7 @@ const SHORT_WORDS: Record<string, string> = {
   suites: "manage suites and shared steps",
   shared: "manage suites and shared steps",
   library: "move cases into the Case library",
+  glossary: "add Glossary terms",
   runs: "run tests",
   results: "file bugs",
   assign: "assign people",
@@ -169,7 +172,7 @@ export function roleSummary(rules?: RoleRules | null): string {
   const l = words("LEAD", "TESTER");
   const a = words("ADMIN", "LEAD");
   return [
-    "Viewers see everything, flag cases and join bug bashes.",
+    "Viewers see everything, flag cases, join bug bashes and ask in the Glossary.",
     t.length ? `Members ${listOf(t)}.` : "Members only see.",
     l.length ? `Leads also ${listOf(l)}.` : "Leads can do the same as Members.",
     a.length ? `Admins also ${listOf(a)}.` : "",

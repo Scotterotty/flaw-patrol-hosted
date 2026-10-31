@@ -100,6 +100,7 @@ import { BUILD, unseenFor } from "@/lib/whats-new";
 import { viewerOf } from "@/lib/whats-new-viewer";
 import { NavOrderProvider } from "@/components/nav-order";
 import { parseNavOrder } from "@/lib/nav-order";
+import { GlossaryProvider } from "@/components/glossary";
 
 export const metadata: Metadata = { title: { default: "Flaw Patrol", template: "%s · Flaw Patrol" } };
 
@@ -137,13 +138,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <SpellingProvider spelling={spelling}>
           <NavOrderProvider order={parseNavOrder(user?.navOrder)}>
           {/* The radio is up here so it keeps playing from page to page and project to project. */}
-          {user?.radioEnabled ? (
-            <RadioProvider initialStation={validStation(user.radioStation, spotify)} spotify={spotify}>
-              {children}
-            </RadioProvider>
-          ) : (
-            children
-          )}
+          {(() => {
+            const page = user?.radioEnabled ? (
+              <RadioProvider initialStation={validStation(user.radioStation, spotify)} spotify={spotify}>
+                {children}
+              </RadioProvider>
+            ) : (
+              children
+            );
+            // Glossary (ver_113): underlines and Look it up on every page once you're signed in.
+            return user ? <GlossaryProvider underline={user.glossaryUnderline}>{page}</GlossaryProvider> : page;
+          })()}
           {user?.gameEnabled && user.questMap && <QuestToaster />}
           {crowns && crowns.changes.length > 0 && <CrownToaster changes={crowns.changes} held={crowns.held} />}
           {whatsNew.length > 0 && <WhatsNewWindow entries={whatsNew} />}

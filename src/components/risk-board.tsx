@@ -205,7 +205,7 @@ export function RiskBoard({
 
 function CardDetail({ c, canMove, onMove, onReset }: { c: RiskCard; canMove: boolean; onMove: (l: Level, i: Level) => void; onReset: () => void }) {
   return (
-    <div className="space-y-3 text-sm">
+    <div className="space-y-3 text-sm" data-glossary-source={`Risk board · ${c.key}`}>
       <p className="flex flex-wrap items-center gap-2">
         <RiskChip level={c.level} />
         <span className="text-slate-600">

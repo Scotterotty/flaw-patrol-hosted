@@ -1,5 +1,6 @@
 "use client";
 
+import { GlossaryText } from "./glossary";
 import { forgivingFilter } from "@/lib/fuzzy";
 import { CloseMatchesLabel } from "./close-matches";
 import Link from "next/link";
@@ -249,7 +250,11 @@ function CasesBox({ projectId, projectKey, row, tab: firstTab, library, folders,
   return (
     <Modal open onClose={onClose} title={`Cases for ${row.story.key}`} wide>
       <div className="space-y-3" data-testid="cases-box">
-        {row.story.title && <p className="text-sm text-slate-600">{row.story.title}</p>}
+        {row.story.title && (
+          <p className="text-sm text-slate-600" data-glossary-source={`Requirements · ${row.story.key}`}>
+            <GlossaryText text={row.story.title} />
+          </p>
+        )}
         <div role="tablist" aria-label="Add" className="flex gap-1 border-b border-slate-200">
           {(
             [

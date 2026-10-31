@@ -22,6 +22,34 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 113,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "new",
+        title: "Glossary: your team's words, explained",
+        text: "Glossary is a new item in the left menu, under Library. It's one shared list of the words your team uses, each with a plain meaning. Search it, see which questions need an answer, and copy a term's link to share.",
+        link: "/glossary",
+      },
+      {
+        kind: "new",
+        title: "Look up any word you select",
+        text: "Select a word anywhere, like on the Risk board or in a test step, and pick Look it up (or press G). You'll see its meaning, or you can add it to the Glossary right there. Not sure what it means? Pick Ask the team and someone will answer.",
+      },
+      {
+        kind: "new",
+        title: "Known words are underlined",
+        text: "Words that are in the Glossary get a dotted underline in test steps, the runner, charters and requirements. Point at one to see what it means. Don't want the lines? Turn off Underline terms everywhere on the Glossary page, or pick Hide underlines.",
+      },
+      {
+        kind: "new",
+        title: "Glossary XP, titles, a frame and a crown",
+        text: "Earn XP for adding terms and answering teammates' questions, and when teammates look up terms you wrote. New titles: Word Finder, Team Translator and Walking Dictionary. New frame: Bookworm. New crown: Keeper of Words.",
+        game: true,
+      },
+    ],
+  },
+  {
     version: 112,
     date: "2026-10-31",
     items: [
