@@ -20,6 +20,8 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/testmgmt
       AUTH_SECRET: ci-only-secret-not-used-anywhere-else
+      # Seeded demo people get this password (same as tests/e2e/auth.ts PASSWORD).
+      SEED_PASSWORD: flaw patrol e2e password
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

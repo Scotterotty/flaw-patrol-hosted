@@ -58,7 +58,7 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
               <p className="truncate text-xs text-slate-500">
                 {[
                   m.name && m.email,
-                  !m.signedIn ? (m.inviteSentAt ? `invited · email sent ${relativeTime(new Date(m.inviteSentAt))}` : "invited, hasn't signed in yet") : !m.hasPassword && "no password yet (sets one at next sign-in)",
+                  !m.signedIn ? (m.inviteSentAt ? `invited · email sent ${relativeTime(new Date(m.inviteSentAt))}` : "invited, hasn't signed in yet") : !m.hasPassword && "no password yet (send a password link)",
                 ]
                   .filter(Boolean)
                   .join(" · ")}

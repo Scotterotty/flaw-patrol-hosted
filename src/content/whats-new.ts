@@ -22,6 +22,28 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 103,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "fix",
+        title: "Your first password now comes from your invite or password link",
+        text: "The sign-in page no longer lets you choose a first password for an account that already exists, so nobody else can claim it. If you don't have a password yet, use the invite link in your email, or ask an Admin for a new link.",
+      },
+      {
+        kind: "fix",
+        title: "Safer uploads of automation results",
+        text: "Zips you upload or pull from GitHub are checked as they unpack: up to 5,000 files, 200 MB per file and 500 MB in all. A zip over the limit gets a clear message instead of slowing the app down.",
+      },
+      {
+        kind: "better",
+        title: "Members shows who still needs a password link",
+        text: "Someone who signed in with a company button but has no password now shows no password yet (send a password link) on their Members row.",
+        who: "admin",
+      },
+    ],
+  },
+  {
     version: 102,
     date: "2026-10-31",
     items: [

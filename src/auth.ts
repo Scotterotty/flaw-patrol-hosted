@@ -9,7 +9,7 @@ import { BUILD } from "@/lib/whats-new";
 
 /** Reasons a password sign-in fails, shown on the sign-in form. */
 export class SignInProblem extends CredentialsSignin {
-  constructor(code: "wrong" | "locked" | "not-invited" | "weak" | "sso-only") {
+  constructor(code: "wrong" | "locked" | "not-invited" | "weak" | "sso-only" | "no-password") {
     super();
     this.code = code;
   }
@@ -47,56 +47,62 @@ async function logFailedSignIn(email: string, why: string) {
   }
 }
 
-// Email and password. Someone without a password yet (everyone who used the
-// app before passwords existed, and newly invited people) sets one the first
-// time they sign in; mode "create" says the form asked them to.
+// Email and password. Mode "create" makes a brand-new account (the very first
+// person, or an allowed email domain). An account that already exists but has no
+// password (invited, or signed in with a company button) can't pick one here:
+// anyone who knew the email could take it over. They choose it from an invite or
+// password link instead (resetWithLink checks the one-time token).
+export async function authorizePassword(c: Partial<Record<"email" | "password" | "name" | "mode", unknown>> | undefined) {
+  const email = String(c?.email ?? "").trim().toLowerCase();
+  const password = String(c?.password ?? "");
+  const name = String(c?.name ?? "").trim().slice(0, 100) || null;
+  const creating = c?.mode === "create";
+  if (!/^[^@\s]+@[^@\s]+$/.test(email) || !password) throw new SignInProblem("wrong");
+
+  const user = await db.user.findUnique({ where: { email }, omit: { passwordHash: false } });
+  // With email and password turned off, only workspace admins (and the very first person) may use it.
+  if (!user?.isAdmin && !(await passwordSignInOn()) && (await db.user.count()) > 0) throw new SignInProblem("sso-only");
+  if (!user) {
+    if (!creating) {
+      await logFailedSignIn(email, "Not a member");
+      throw new SignInProblem("wrong");
+    }
+    if (passwordProblem(password, email)) throw new SignInProblem("weak");
+    if (!(await mayJoin(email))) throw new SignInProblem("not-invited");
+    const saved = await db.user.create({
+      data: { email, name: name ?? email.split("@")[0], isAdmin: (await db.user.count()) === 0, passwordHash: await hashPassword(password), passwordSetAt: new Date(), whatsNewSeen: BUILD },
+    });
+    await logActivity({ actor: saved, kind: "signin", action: "Chose a password and signed in" });
+    return { id: saved.id, email: saved.email, name: saved.name };
+  }
+  if (!user.passwordHash) {
+    await logFailedSignIn(email, creating ? "Tried to choose a first password without an invite or password link" : "No password set yet");
+    throw new SignInProblem(creating ? "no-password" : "wrong");
+  }
+
+  if (user.lockedUntil && user.lockedUntil > new Date()) {
+    await logFailedSignIn(email, "Account locked");
+    throw new SignInProblem("locked");
+  }
+  if (!(await verifyPassword(password, user.passwordHash))) {
+    const failed = user.failedLogins + 1;
+    await db.user.update({
+      where: { id: user.id },
+      data: failed >= LOCK_AFTER ? { failedLogins: 0, lockedUntil: new Date(Date.now() + LOCK_MINUTES * 60_000) } : { failedLogins: failed },
+    });
+    await logFailedSignIn(email, failed >= LOCK_AFTER ? `Locked for ${LOCK_MINUTES} minutes` : "Wrong password");
+    throw new SignInProblem(failed >= LOCK_AFTER ? "locked" : "wrong");
+  }
+  if (user.failedLogins || user.lockedUntil) await db.user.update({ where: { id: user.id }, data: { failedLogins: 0, lockedUntil: null } });
+  await logActivity({ actor: user, kind: "signin", action: "Signed in with email and password" });
+  return { id: user.id, email: user.email, name: user.name };
+}
+
 const passwordProvider = Credentials({
   id: "password",
   name: "Email and password",
   credentials: { email: {}, password: {}, name: {}, mode: {} },
-  authorize: async (c) => {
-    const email = String(c?.email ?? "").trim().toLowerCase();
-    const password = String(c?.password ?? "");
-    const name = String(c?.name ?? "").trim().slice(0, 100) || null;
-    const creating = c?.mode === "create";
-    if (!/^[^@\s]+@[^@\s]+$/.test(email) || !password) throw new SignInProblem("wrong");
-
-    const user = await db.user.findUnique({ where: { email }, omit: { passwordHash: false } });
-    // With email and password turned off, only workspace admins (and the very first person) may use it.
-    if (!user?.isAdmin && !(await passwordSignInOn()) && (await db.user.count()) > 0) throw new SignInProblem("sso-only");
-    if (!user || !user.passwordHash) {
-      if (!creating) {
-        await logFailedSignIn(email, user ? "No password set yet" : "Not a member");
-        throw new SignInProblem("wrong");
-      }
-      if (passwordProblem(password, email)) throw new SignInProblem("weak");
-      if (!user && !(await mayJoin(email))) throw new SignInProblem("not-invited");
-      const passwordHash = await hashPassword(password);
-      const saved = user
-        ? await db.user.update({ where: { id: user.id }, data: { passwordHash, passwordSetAt: new Date(), name: user.name ?? name } })
-        : await db.user.create({ data: { email, name: name ?? email.split("@")[0], isAdmin: (await db.user.count()) === 0, passwordHash, passwordSetAt: new Date(), whatsNewSeen: BUILD } });
-      await usedInvite(saved.id);
-      await logActivity({ actor: saved, kind: "signin", action: "Chose a password and signed in" });
-      return { id: saved.id, email: saved.email, name: saved.name };
-    }
-
-    if (user.lockedUntil && user.lockedUntil > new Date()) {
-      await logFailedSignIn(email, "Account locked");
-      throw new SignInProblem("locked");
-    }
-    if (!(await verifyPassword(password, user.passwordHash))) {
-      const failed = user.failedLogins + 1;
-      await db.user.update({
-        where: { id: user.id },
-        data: failed >= LOCK_AFTER ? { failedLogins: 0, lockedUntil: new Date(Date.now() + LOCK_MINUTES * 60_000) } : { failedLogins: failed },
-      });
-      await logFailedSignIn(email, failed >= LOCK_AFTER ? `Locked for ${LOCK_MINUTES} minutes` : "Wrong password");
-      throw new SignInProblem(failed >= LOCK_AFTER ? "locked" : "wrong");
-    }
-    if (user.failedLogins || user.lockedUntil) await db.user.update({ where: { id: user.id }, data: { failedLogins: 0, lockedUntil: null } });
-    await logActivity({ actor: user, kind: "signin", action: "Signed in with email and password" });
-    return { id: user.id, email: user.email, name: user.name };
-  },
+  authorize: authorizePassword,
 });
 
 /** The first sign-in uses up any open invite link. */

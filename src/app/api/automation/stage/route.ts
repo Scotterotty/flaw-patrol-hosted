@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { mergeFiles } from "@/lib/automation";
 import { countMedia, expandUpload, matchMedia } from "@/lib/automation-media";
 import { stageMedia } from "@/lib/media-stage";
+import { readForm } from "@/lib/zip-limits";
 
 // Upload automation results with pictures (ver_93): the results file plus the
 // test-results folder, or one zip of both. Results come back as text for the usual
@@ -17,13 +18,14 @@ export async function POST(req: Request) {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) return fail(401, "Sign in first.");
-  if (Number(req.headers.get("content-length") ?? 0) > MAX_ZIP_BYTES) return fail(413, "That's over 200 MB. Upload the results file and fewer pictures at a time.");
-  let form: FormData;
+  // Counted while reading, so a missing or wrong Content-Length can't get past the cap.
+  let form: FormData | null;
   try {
-    form = await req.formData();
+    form = await readForm(req, MAX_ZIP_BYTES);
   } catch {
     return fail(400, "Those files couldn't be read. Try again.");
   }
+  if (!form) return fail(413, "That's over 200 MB. Upload the results file and fewer pictures at a time.");
   const files = form.getAll("file").filter((f): f is File => typeof f === "object" && f !== null && "arrayBuffer" in f);
   if (!files.length) return fail(400, "Drop a results file first.");
   const paths = form.getAll("path").map(String);

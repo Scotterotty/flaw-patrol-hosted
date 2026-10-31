@@ -28,22 +28,33 @@ test("passwords: first-time setup, wrong password, admin link, change", async ({
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByText(member, { exact: true })).toBeVisible();
 
-  // The invited member chooses a password the first time.
+  // An invited member can't choose a first password on the sign-in page (ver_103):
+  // that would let anyone who knows the email take the account.
   const other = await browser.newContext();
   const m = await other.newPage();
   await m.goto("/signin");
   await m.getByLabel("Email").fill(member);
   await m.getByRole("button", { name: "Continue" }).click();
-  await expect(m.getByText("You don't have a password yet")).toBeVisible();
-  await m.getByLabel("Your name").fill("Pat Member");
-  await m.getByLabel("New password").fill("first password 1");
+  await expect(m.getByText("You don't have a password yet. Use the invite link in your email")).toBeVisible();
+  await expect(m.getByLabel("New password")).toHaveCount(0);
+  await expect(page.getByRole("listitem").filter({ hasText: member })).toContainText("invited, hasn't signed in yet");
+
+  // They choose it from the invite link instead.
+  await page.getByRole("listitem").filter({ hasText: member }).getByRole("button", { name: "Copy invite link" }).click();
+  const invite = /(http\S+\/invite\/\S+)/.exec(await page.getByLabel("Invite link").inputValue())?.[1];
+  expect(invite).toBeTruthy();
+  await m.goto(invite!);
+  await m.getByLabel("Choose a password").fill("first password 1");
   await m.getByLabel("Confirm password").fill("first password 2");
-  await m.getByRole("button", { name: "Set password and sign in" }).click();
+  await m.getByRole("button", { name: "Choose password" }).click();
   await expect(m.getByText("The two passwords don't match.")).toBeVisible();
   await m.getByLabel("Confirm password").fill("first password 1");
-  await m.getByRole("button", { name: "Set password and sign in" }).click();
+  await m.getByRole("button", { name: "Choose password" }).click();
+  await expect(m).toHaveURL(/signin\?email=/);
+  await tryPassword(m, member, "first password 1");
   await expect(m).not.toHaveURL(/signin/);
-  await expect(m.locator('header button[aria-haspopup="menu"]')).toContainText("Pat Member");
+  // The account menu shows the email until they add a name.
+  await expect(m.locator('header button[aria-haspopup="menu"]')).toBeVisible();
   await signOut(m);
 
   // Wrong password is refused, the right one works.

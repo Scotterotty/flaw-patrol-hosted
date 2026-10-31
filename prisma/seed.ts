@@ -1,8 +1,10 @@
 // Demo data so the app has something to click through: one project, a folder
 // tree, shared steps with parameters and a handful of cases. Safe to re-run;
 // it skips if the demo project already exists.
+import { randomBytes } from "node:crypto";
 import { PrismaClient, type Prisma } from "@prisma/client";
 import pkg from "../package.json";
+import { hashPassword } from "../src/lib/password";
 
 const db = new PrismaClient();
 // Demo people start with this build's What's new marked seen, like any new account.
@@ -14,13 +16,17 @@ async function main() {
     console.log("Demo project SHOP already exists, nothing to do.");
     return;
   }
+  // A first password can only come from an invite or password link, so the demo
+  // people get one here: SEED_PASSWORD if set (the e2e tests set it), else a random one.
+  const password = process.env.SEED_PASSWORD || randomBytes(9).toString("base64url");
+  const pw = { passwordHash: await hashPassword(password), passwordSetAt: new Date() };
   const admin = await db.user.upsert({
     where: { email: adminEmail },
-    create: { email: adminEmail, name: "Demo Admin", isAdmin: true, whatsNewSeen: BUILD },
+    create: { email: adminEmail, name: "Demo Admin", isAdmin: true, whatsNewSeen: BUILD, ...pw },
     update: { isAdmin: true },
   });
-  const lead = await db.user.upsert({ where: { email: "lead@example.com" }, create: { email: "lead@example.com", name: "Dana Lead", whatsNewSeen: BUILD }, update: {} });
-  const tester = await db.user.upsert({ where: { email: "tester@example.com" }, create: { email: "tester@example.com", name: "Sam Tester", whatsNewSeen: BUILD }, update: {} });
+  const lead = await db.user.upsert({ where: { email: "lead@example.com" }, create: { email: "lead@example.com", name: "Dana Lead", whatsNewSeen: BUILD, ...pw }, update: {} });
+  const tester = await db.user.upsert({ where: { email: "tester@example.com" }, create: { email: "tester@example.com", name: "Sam Tester", whatsNewSeen: BUILD, ...pw }, update: {} });
 
   const project = await db.project.create({
     data: {
@@ -189,7 +195,7 @@ async function main() {
   });
 
   await db.project.update({ where: { id: project.id }, data: { caseSeq: n } });
-  console.log(`Seeded project SHOP with ${n} cases. Sign in as ${adminEmail} and choose a password to look around.`);
+  console.log(`Seeded project SHOP with ${n} cases. Sign in as ${adminEmail}${process.env.SEED_PASSWORD ? " with SEED_PASSWORD" : ` with the password ${password}`} to look around.`);
 }
 
 main()

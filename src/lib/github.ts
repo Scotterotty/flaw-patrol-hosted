@@ -1,7 +1,7 @@
 import "server-only";
-import JSZip from "jszip";
 import { expandUpload, type Media } from "./automation-media";
 import { globMatch } from "./github-glob";
+import { openZip, readEntry, zipBudget, ZipLimitError } from "./zip-limits";
 import { buildSteps, pickAnnotation, type BuildSteps, type RawJob } from "./github-steps";
 
 // Pull from GitHub (ver_85): read a repo's workflow runs and download the test
@@ -153,6 +153,7 @@ export class GitHubClient {
     if (list.reduce((n, a) => n + a.size, 0) > 200 * 1024 * 1024) throw new GitHubError("This run's artifacts are over 200 MB. Upload the results file by hand instead.");
     const files: { name: string; text: string }[] = [];
     const media: Media[] = [];
+    const budget = zipBudget();
     for (const a of list) {
       let res: Response;
       try {
@@ -166,11 +167,15 @@ export class GitHubClient {
       }
       if (res.status === 410) continue;
       if (!res.ok) throw new GitHubError(`Downloading ${a.name} failed: GitHub said ${res.status}.`);
-      const zip = await JSZip.loadAsync(await res.arrayBuffer());
-      for (const f of Object.values(zip.files)) {
-        if (f.dir) continue;
-        if (globMatch(glob, f.name)) files.push({ name: f.name.split("/").pop()!, text: await f.async("string") });
-        else if (withMedia && /\.(png|jpe?g|gif|webp|webm|mp4|zip)$/i.test(f.name)) media.push(...(await expandUpload([{ name: f.name, bytes: await f.async("uint8array") }])).media);
+      // The 200 MB check above is on the zipped size, so unpack within the zip limits too.
+      try {
+        for (const f of await openZip(await res.arrayBuffer(), a.name, budget)) {
+          if (globMatch(glob, f.name)) files.push({ name: f.name.split("/").pop()!, text: new TextDecoder().decode(await readEntry(f, budget)) });
+          else if (withMedia && /\.(png|jpe?g|gif|webp|webm|mp4|zip)$/i.test(f.name)) media.push(...(await expandUpload([{ name: f.name, bytes: await readEntry(f, budget) }], budget)).media);
+        }
+      } catch (e) {
+        if (e instanceof ZipLimitError) throw new GitHubError(`${a.name}: ${e.message}`);
+        throw e;
       }
     }
     if (!files.length) throw new GitHubError(`No file in this run's artifacts matches "${glob}". Check Results files in Settings → GitHub.`);

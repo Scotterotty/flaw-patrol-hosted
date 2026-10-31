@@ -1,8 +1,27 @@
+import { PrismaClient } from "@prisma/client";
 import { expect, type Page } from "@playwright/test";
+import { hashPassword } from "../../src/lib/password";
 
 export const PASSWORD = "flaw patrol e2e password";
 
 const handled = new WeakSet<Page>();
+
+/**
+ * Someone added in a test has no password, and since ver_103 the sign-in page won't
+ * let them choose one (that takes an invite or password link). Set it straight in
+ * the database instead, the way the link would.
+ */
+async function givePassword(email: string, name: string, password: string) {
+  const db = new PrismaClient();
+  try {
+    const user = await db.user.findUnique({ where: { email: email.toLowerCase() }, select: { id: true, name: true } });
+    if (!user) return false;
+    await db.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(password), passwordSetAt: new Date(), name: user.name ?? (name || null) } });
+    return true;
+  } finally {
+    await db.$disconnect();
+  }
+}
 
 /** Sign in, setting the password first if this account doesn't have one yet. */
 export async function signIn(page: Page, email: string, name = "", password = PASSWORD) {
@@ -13,12 +32,17 @@ export async function signIn(page: Page, email: string, name = "", password = PA
       await w.getByRole("button", { name: "Close", exact: true }).click();
     });
   }
-  await page.goto("/signin");
-  await page.getByLabel("Email").fill(email);
-  await page.getByRole("button", { name: "Continue" }).click();
   const create = page.getByLabel("Confirm password");
   const existing = page.getByLabel("Password", { exact: true });
-  await expect(create.or(existing)).toBeVisible();
+  const noPassword = page.getByText("You don't have a password yet. Use the invite link");
+  for (let i = 0; i < 2; i++) {
+    await page.goto("/signin");
+    await page.getByLabel("Email").fill(email);
+    await page.getByRole("button", { name: "Continue" }).click();
+    await expect(create.or(existing).or(noPassword)).toBeVisible();
+    if (!(await noPassword.isVisible())) break;
+    expect(await givePassword(email, name, password)).toBe(true);
+  }
   if (await create.isVisible()) {
     if (name) await page.getByLabel("Your name").fill(name);
     await page.getByLabel("New password").fill(password);

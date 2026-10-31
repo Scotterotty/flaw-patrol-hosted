@@ -3,6 +3,7 @@ import { expandUpload } from "@/lib/automation-media";
 import { saveAutomationRun } from "@/lib/automation-save";
 import { ciHash, ciRateLimited, CI_PREFIX } from "@/lib/ci-token";
 import { db } from "@/lib/db";
+import { readForm } from "@/lib/zip-limits";
 import { UserError } from "@/server/result";
 
 // CI uploads (ver_91): a pipeline posts its JUnit or NUnit file with an umbrella's token.
@@ -26,14 +27,14 @@ export async function POST(req: Request) {
   if (!row) return fail(401, "That token isn't valid. It may have been revoked.");
   if (ciRateLimited(row.id)) return fail(429, "Too many uploads with this token. Wait a minute and try again.");
   if (row.group.archivedAt) return fail(409, `${row.group.name} is archived. Restore it to send results.`);
-  if (Number(req.headers.get("content-length") ?? 0) > MAX_BYTES) return fail(413, "The upload is over 200 MB.");
-
-  let form: FormData;
+  // Counted while reading, so a missing or wrong Content-Length can't get past the cap.
+  let form: FormData | null;
   try {
-    form = await req.formData();
+    form = await readForm(req, MAX_BYTES);
   } catch {
     return fail(400, "Send the results as multipart form data (curl -F).");
   }
+  if (!form) return fail(413, "The upload is over 200 MB.");
   const text = (k: string) => String(form.get(k) ?? "").trim().slice(0, 200);
   const files = form.getAll("file").filter((f): f is File => typeof f === "object" && f !== null && "text" in f);
   if (!files.length) return fail(400, "Add the results file: -F file=@path/to/junit.xml");

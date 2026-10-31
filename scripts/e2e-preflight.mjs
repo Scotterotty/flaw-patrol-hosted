@@ -144,7 +144,7 @@ async function main() {
       stop("couldn't make a test database. Is Postgres running and is DATABASE_URL right?");
     }
     run("npx", ["prisma", "migrate", "deploy"], "a migration failed on an empty database.", { DATABASE_URL: url.href });
-    run("npm", ["run", "db:seed"], "the demo data couldn't be loaded (prisma/seed.ts failed).", { DATABASE_URL: url.href });
+    run("npm", ["run", "db:seed"], "the demo data couldn't be loaded (prisma/seed.ts failed).", { DATABASE_URL: url.href, SEED_PASSWORD: "flaw patrol e2e password" });
     writeFileSync(join(root, ".e2e-database"), url.href + "\n");
     return `${name} (saved in .e2e-database; the tests use it)`;
   });

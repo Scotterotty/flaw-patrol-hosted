@@ -11,12 +11,15 @@ import { hashLinkToken, hashPassword, passwordProblem, verifyPassword } from "@/
 import { requireProjectAction, requireUser } from "@/lib/session";
 import { attempt, UserError } from "./result";
 
+const NO_PASSWORD = "You don't have a password yet. Use the invite link in your email to choose one, or ask an Admin for a new link.";
+
 const SIGN_IN_ERRORS: Record<string, string> = {
   wrong: "That email and password don't match.",
   locked: "Too many wrong passwords. Try again in 15 minutes, or ask an admin for a password link.",
   "not-invited": "That email hasn't been invited yet. Ask an admin to add you.",
   weak: "Pick a stronger password.",
   "sso-only": "Email and password sign-in is off. Use one of the sign-in buttons instead.",
+  "no-password": NO_PASSWORD,
 };
 
 /** Step one of signing in: does this person sign in with a password, set one up, or neither? */
@@ -25,7 +28,8 @@ export async function checkEmail(rawEmail: string): Promise<{ ok: true; next: "p
   if (!/^[^@\s]+@[^@\s]+$/.test(email)) return { ok: false, error: "Enter a valid email address." };
   const user = await db.user.findUnique({ where: { email }, select: { passwordHash: true, isAdmin: true } });
   if (!user?.isAdmin && !(await passwordSignInOn()) && (await db.user.count()) > 0) return { ok: false, error: SIGN_IN_ERRORS["sso-only"] };
-  if (user) return { ok: true, next: user.passwordHash ? "password" : "create" };
+  // An existing account chooses its first password only from an invite or password link.
+  if (user) return user.passwordHash ? { ok: true, next: "password" } : { ok: false, error: NO_PASSWORD };
   return (await mayJoin(email)) ? { ok: true, next: "create" } : { ok: false, error: SIGN_IN_ERRORS["not-invited"] };
 }
 

@@ -164,7 +164,8 @@ Needs only [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
 Stop it with Ctrl+C. Your data is kept for next time; `docker compose down -v`
 deletes it. To start with a sample project instead, set `SEED_DEMO: "true"` in
-`docker-compose.yml`, then sign in as `admin@example.com`.
+`docker-compose.yml`, then sign in as `admin@example.com` with the password the log
+prints after "Seeded project SHOP" (or set `SEED_PASSWORD` to choose it).
 
 ## Develop with Node 22
 

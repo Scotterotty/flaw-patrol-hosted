@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import { isPlaywrightReport, type AutoTest } from "./automation";
 import type { FileSettings, MediaCounts } from "./automation-files";
+import { openZip, readEntry, ZIP_LIMITS, zipBudget, type ZipBudget } from "./zip-limits";
 
 // Screenshots, videos and step-by-step replays from automation (ver_93). An upload can be
 // the results file plus Playwright's test-results folder, or one zip of both (a GitHub
@@ -25,18 +26,22 @@ const ext = (path: string) => path.split(".").pop()?.toLowerCase() ?? "";
 const norm = (path: string) => path.replace(/\\/g, "/").replace(/^\.?\//, "");
 const isResults = (name: string) => /\.(xml)$/i.test(name);
 
-/** A Playwright replay is a zip with a .trace inside. */
+/** A Playwright replay is a zip with a .trace inside. Only the file list is read, and a huge list isn't a replay. */
 async function isTrace(bytes: Uint8Array) {
   try {
     const z = await JSZip.loadAsync(bytes);
-    return Object.keys(z.files).some((n) => /(^|\/)(\d+-)?trace\.trace$|\.trace$/.test(n));
+    const names = Object.keys(z.files);
+    return names.length <= ZIP_LIMITS.entries && names.some((n) => /(^|\/)(\d+-)?trace\.trace$|\.trace$/.test(n));
   } catch {
     return false;
   }
 }
 
-/** Sort uploaded files into results and media, opening zips (but not replays, which are zips too). */
-export async function expandUpload(files: { name: string; bytes: Uint8Array }[]): Promise<Bundle> {
+/**
+ * Sort uploaded files into results and media, opening zips (but not replays, which are zips too).
+ * Zips are unpacked within ZIP_LIMITS; pass one budget to share the limits across several calls.
+ */
+export async function expandUpload(files: { name: string; bytes: Uint8Array }[], budget: ZipBudget = zipBudget()): Promise<Bundle> {
   const out: Bundle = { results: [], media: [] };
   const add = async (path: string, bytes: Uint8Array, depth: number) => {
     const name = norm(path);
@@ -51,15 +56,9 @@ export async function expandUpload(files: { name: string; bytes: Uint8Array }[])
     if (e === "zip") {
       if (await isTrace(bytes)) return void out.media.push({ path: name, kind: "trace", contentType: "application/zip", bytes });
       if (depth > 1) return;
-      let zip: JSZip;
-      try {
-        zip = await JSZip.loadAsync(bytes);
-      } catch {
-        throw new Error(`${name.split("/").pop()} isn't a zip file that can be opened.`);
-      }
-      for (const f of Object.values(zip.files)) {
-        if (f.dir || /(^|\/)(__MACOSX|\.)/.test(f.name)) continue;
-        await add(f.name, await f.async("uint8array"), depth + 1);
+      for (const f of await openZip(bytes, name, budget)) {
+        if (/(^|\/)(__MACOSX|\.)/.test(f.name)) continue;
+        await add(f.name, await readEntry(f, budget), depth + 1);
       }
     }
   };
