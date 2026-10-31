@@ -15,7 +15,7 @@ import type { Draft } from "@/lib/run-draft";
 import { mapHistorySteps, SHOW_HISTORY_EVENT, STILL_OCCURS_EVENT, type HistoryRun } from "@/lib/run-history";
 import { relativeTime } from "@/lib/format";
 import { deriveCaseStatus, SETTABLE, STATUS_HELP, STATUS_LABEL, STATUS_STYLE } from "@/lib/status";
-import { fillChecks, rollUp, stepChecks } from "@/lib/step-checks";
+import { fillChecks, firstOfShared, rollUp, stepChecks, withoutHeadings } from "@/lib/step-checks";
 import type { ExpandedStep } from "@/lib/steps";
 import type { LinkedDefect } from "@/server/jira";
 import { saveDraft, submitResult, uploadAttachment } from "@/server/results";
@@ -92,11 +92,6 @@ export type PreviousResult = {
 
 const LIVE_MS = 2000;
 
-/** The step opens a shared step's run of steps (the first of 3.1, 3.2…). */
-const firstOfShared = (steps: ExpandedStep[], i: number) =>
-  !!steps[i].shared && (i === 0 || steps[i - 1].shared?.id !== steps[i].shared!.id || steps[i - 1].number.split(".")[0] !== steps[i].number.split(".")[0]);
-/** Step results without the headings (ver_97), which take none. */
-const withoutHeadings = <T,>(steps: ExpandedStep[], list: T[]) => list.filter((_, i) => !steps[i] || stepChecks(steps[i], firstOfShared(steps, i))?.kind !== "heading");
 
 export function Runner({
   projectId,
@@ -426,11 +421,11 @@ export function Runner({
   const busy = dirty || actuals.some((a) => a !== "") || bugFor !== undefined;
   useEffect(() => (busy ? holdLive() : undefined), [busy]);
   // That hold also stops the run list refreshing, so hand it this case's step results directly.
-  useEffect(() => publishLiveSteps(entry.id, statuses), [entry.id, statuses]);
+  // Headings take no result, so they don't hold the case back or show as pips.
+  const resultSteps = useMemo(() => statuses.filter((_, i) => !heading(i)), [statuses, heading]);
+  useEffect(() => publishLiveSteps(entry.id, resultSteps), [entry.id, resultSteps]);
   useEffect(() => () => publishLiveSteps(entry.id, null), [entry.id]);
 
-  // Headings take no result, so they don't hold the case back.
-  const resultSteps = statuses.filter((_, i) => !heading(i));
   const derived = resultSteps.length ? deriveCaseStatus(resultSteps) : "UNTESTED";
   const caseStatus = override ?? derived;
   // No case result yet: saving keeps the progress and the case stays In progress.
@@ -766,9 +761,7 @@ export function Runner({
     const c: Partial<Record<ResultStatus, number>> = {};
     for (const s of resultSteps) c[s] = (c[s] ?? 0) + 1;
     return c;
-    // resultSteps is a fresh array each render; statuses and headings are what it comes from.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statuses, heading]);
+  }, [resultSteps]);
 
   const recent = useMemo(() => {
     const seen = new Set(defects.map((d) => d.defect.id));

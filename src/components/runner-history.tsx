@@ -218,7 +218,11 @@ function Detail({
                     </p>
                   ))}
               </div>
-              <span className={cx("h-fit shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset", STATUS_STYLE[s.status].soft)}>{STATUS_LABEL[s.status]}</span>
+              {s.heading ? (
+                <span className="h-fit shrink-0 text-[11px] text-slate-400 italic">heading, no result needed</span>
+              ) : (
+                <span className={cx("h-fit shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset", STATUS_STYLE[s.status].soft)}>{STATUS_LABEL[s.status]}</span>
+              )}
             </li>
           ))}
         </ol>

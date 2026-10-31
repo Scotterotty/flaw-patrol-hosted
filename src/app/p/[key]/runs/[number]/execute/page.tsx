@@ -3,6 +3,7 @@ import { tagColorsFor } from "@/lib/tag-data";
 import { TagPills } from "@/components/tag-pill";
 import { sentryConnected } from "@/lib/sentry-config";
 import { resultSteps } from "@/lib/result-steps";
+import { headingRows, withoutHeadings } from "@/lib/step-checks";
 import { CrumbName } from "@/components/crumb-name";
 import { fieldBits } from "@/lib/run-fields";
 import type { ResultStatus } from "@prisma/client";
@@ -59,7 +60,7 @@ export default async function ExecutePage({
   const tagColors = await tagColorsFor(project.id);
   const run = await db.testRun.findUnique({
     where: { projectId_number: { projectId: project.id, number: Number(number) || 0 } },
-    include: { entries: { orderBy: { position: "asc" }, select: { id: true, caseId: true, title: true, status: true, priority: true, assigneeId: true, draft: true, draftAt: true, draftByName: true, draftById: true, results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true, testerName: true, testerId: true, createdAt: true } }, testCase: { select: { number: true, flag: true, tags: true, project: { select: { key: true } } } } } } },
+    include: { entries: { orderBy: { position: "asc" }, select: { id: true, caseId: true, title: true, status: true, priority: true, assigneeId: true, steps: true, draft: true, draftAt: true, draftByName: true, draftById: true, results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true, testerName: true, testerId: true, createdAt: true } }, testCase: { select: { number: true, flag: true, tags: true, project: { select: { key: true } } } } } } },
   });
   if (!run) notFound();
   if (!run.entries.length) redirect(`/p/${project.key}/runs/${run.number}`);
@@ -140,6 +141,7 @@ export default async function ExecutePage({
   const history: HistoryRun[] = past.map((r) => {
     const snapshot = (Array.isArray(r.entry.steps) ? r.entry.steps : []) as unknown as ExpandedStep[];
     const stepResults = (Array.isArray(r.stepResults) ? r.stepResults : []) as { status: ResultStatus; actual?: string }[];
+    const headings = headingRows(r.entry.steps);
     return {
       id: r.id,
       ago: relativeTime(r.createdAt, spelling),
@@ -152,7 +154,7 @@ export default async function ExecutePage({
       comment: r.comment,
       testerName: r.testerName,
       caseVersion: r.caseVersion,
-      steps: stepResults.map((sr, i) => ({ number: snapshot[i]?.number ?? String(i + 1), action: snapshot[i]?.action ?? "", status: sr.status, actual: sr.actual ?? "" })),
+      steps: stepResults.map((sr, i) => ({ number: snapshot[i]?.number ?? String(i + 1), action: snapshot[i]?.action ?? "", status: sr.status, actual: sr.actual ?? "", ...(headings.has(i) ? { heading: true } : {}) })),
       defects: r.defects.map((l) => ({
         stepIndex: l.stepIndex,
         defect: { id: l.defect.id, number: l.defect.number, title: l.defect.title, externalKey: l.defect.externalKey, externalUrl: l.defect.externalUrl, status: l.defect.externalStatus ?? l.defect.status },
@@ -265,23 +267,23 @@ export default async function ExecutePage({
                       {e.status !== "IN_PROGRESS" && e.status !== "UNTESTED" ? (
                         // Saved: the last result's steps, until you change one and it's In progress again.
                         e.results[0] &&
-                        resultSteps(e.results[0].stepResults) && (
+                        resultSteps(e.results[0].stepResults, e.steps) && (
                           <StepProgress
                             compact
-                            steps={resultSteps(e.results[0].stepResults)!}
+                            steps={resultSteps(e.results[0].stepResults, e.steps)!}
                             lastChange={{ name: e.results[0].testerName, at: e.results[0].createdAt.toISOString(), mine: e.results[0].testerId === user.id, saved: true }}
                           />
                         )
                       ) : e.id === pick.id ? (
                         <LiveStepProgress
                           entryId={e.id}
-                          steps={stepsOf(e.draft)}
+                          steps={stepsOf(e.draft, e.steps)}
                           lastChange={e.draftAt ? { name: e.draftByName, at: e.draftAt.toISOString(), mine: e.draftById === user.id } : null}
                         />
-                      ) : e.status === "IN_PROGRESS" && stepsOf(e.draft) && (
+                      ) : e.status === "IN_PROGRESS" && stepsOf(e.draft, e.steps) && (
                         <StepProgress
                           compact
-                          steps={stepsOf(e.draft)!}
+                          steps={stepsOf(e.draft, e.steps)!}
                           lastChange={e.draftAt ? { name: e.draftByName, at: e.draftAt.toISOString(), mine: e.draftById === user.id } : null}
                         />
                       )}
@@ -398,8 +400,8 @@ export default async function ExecutePage({
   );
 }
 
-/** Step results so far of a case in progress, for its progress bars. */
-function stepsOf(json: unknown) {
+/** Step results so far of a case in progress, for its progress bars. Heading rows take no result. */
+function stepsOf(json: unknown, caseSteps: unknown) {
   const steps = parseDraft(json)?.stepResults;
-  return steps?.length ? steps.map((s) => s.status) : null;
+  return steps?.length ? withoutHeadings(caseSteps, steps).map((s) => s.status) : null;
 }

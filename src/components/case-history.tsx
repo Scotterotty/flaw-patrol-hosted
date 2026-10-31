@@ -8,6 +8,7 @@ import { relativeTime } from "@/lib/format";
 import { isFlaky } from "@/lib/run-history";
 import { countStatuses, pct, STATUS_LABEL, totals } from "@/lib/status";
 import { parseSessionLog } from "@/lib/charter";
+import { withoutHeadings } from "@/lib/step-checks";
 import { PersonLabel } from "./avatar";
 import { SessionLogDetails } from "./charter-view";
 import { HistoryStrip, StatusChip } from "./status";
@@ -29,7 +30,7 @@ export async function CaseHistory({ caseId, charter }: { caseId: string; project
     take: 100,
     include: {
       run: { select: { number: true, name: true, release: true, build: true, cspVersion: true, fields: true, environment: true, project: { select: { key: true, platform: true } } } },
-      entry: { select: { regressionOff: true } },
+      entry: { select: { regressionOff: true, steps: true } },
       defects: { include: { defect: true } },
       attachments: { select: { id: true, fileName: true } },
     },
@@ -100,7 +101,7 @@ export async function CaseHistory({ caseId, charter }: { caseId: string; project
             </thead>
             <tbody className="divide-y divide-slate-100">
               {results.map((r) => {
-                const steps = countStatuses(((r.stepResults as { status: ResultStatus }[]) ?? []).map((s) => s.status));
+                const steps = countStatuses(withoutHeadings(r.entry?.steps, (r.stepResults as { status: ResultStatus }[]) ?? []).map((s) => s.status));
                 const session = r.sessionLog ? parseSessionLog(r.sessionLog) : null;
                 return (
                   <tr key={r.id} className="align-top">

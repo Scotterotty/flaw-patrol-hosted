@@ -4,6 +4,7 @@ import type { Prisma, Priority, ResultStatus } from "@prisma/client";
 import { db } from "./db";
 import { caseKey } from "./format";
 import { countStatuses, totals, type StatusCounts } from "./status";
+import { withoutHeadings } from "./step-checks";
 import { suiteForCases } from "./suite-match";
 import { bucketKey, bucketKeys, bucketLabel, unitFor, type BucketUnit } from "./trend-buckets";
 
@@ -109,7 +110,7 @@ export async function runReport(scope: ReportScope, f: ReportFilters): Promise<R
     include: {
       project: { select: { key: true, name: true, platform: true } },
       suite: { select: { name: true } },
-      entries: { select: { caseId: true, status: true, results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true } } } },
+      entries: { select: { caseId: true, status: true, steps: true, results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true } } } },
       results: { select: { defects: { select: { defectId: true } } } },
     },
   });
@@ -129,7 +130,8 @@ export async function runReport(scope: ReportScope, f: ReportFilters): Promise<R
     createdAt: r.createdAt,
     state: r.state,
     counts: countStatuses(r.entries.map((e) => e.status)),
-    steps: countStatuses(r.entries.flatMap((e) => ((e.results[0]?.stepResults as { status: ResultStatus }[] | undefined) ?? []).map((s) => s.status))),
+    // Heading rows in shared steps take no result, so they aren't steps (ver_110).
+    steps: countStatuses(r.entries.flatMap((e) => withoutHeadings(e.steps, (e.results[0]?.stepResults as { status: ResultStatus }[] | undefined) ?? []).map((s) => s.status))),
     defects: new Set(r.results.flatMap((x) => x.defects.map((d) => d.defectId))).size,
     source: !r.automated ? "manual" : r.githubRepoId || r.githubRunId ? "github" : "upload",
     githubRunNo: r.githubRunNo,

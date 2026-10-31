@@ -100,3 +100,30 @@ export function fillChecks(checks: ResultStatus[], status: ResultStatus): Result
   const empty = checks.includes("UNTESTED");
   return checks.map((c) => (empty ? (c === "UNTESTED" ? status : c) : status));
 }
+
+/** The step opens a shared step's run of steps (the first of 3.1, 3.2…). */
+export const firstOfShared = (steps: Pick<ExpandedStep, "number" | "shared">[], i: number) =>
+  !!steps[i].shared && (i === 0 || steps[i - 1].shared?.id !== steps[i].shared!.id || steps[i - 1].number.split(".")[0] !== steps[i].number.split(".")[0]);
+
+/**
+ * Which rows of a case's steps (a run entry's saved copy) are headings. They take no result, so
+ * the runner skips them and nothing that counts steps should count them (ver_110).
+ */
+export function headingRows(steps: unknown): Set<number> {
+  const out = new Set<number>();
+  if (!Array.isArray(steps)) return out;
+  const list = steps.map((s) => {
+    const o = (s && typeof s === "object" ? s : {}) as Partial<ExpandedStep>;
+    return { action: String(o.action ?? ""), expected: String(o.expected ?? ""), number: String(o.number ?? ""), shared: o.shared };
+  });
+  list.forEach((s, i) => {
+    if (stepChecks(s, firstOfShared(list, i))?.kind === "heading") out.add(i);
+  });
+  return out;
+}
+
+/** A list that runs alongside a case's steps (step results, statuses) without the heading rows. */
+export function withoutHeadings<T>(steps: unknown, list: T[]): T[] {
+  const headings = headingRows(steps);
+  return headings.size ? list.filter((_, i) => !headings.has(i)) : list;
+}

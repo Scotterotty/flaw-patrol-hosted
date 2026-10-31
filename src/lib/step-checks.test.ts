@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { fillChecks, rollUp, stepChecks } from "./step-checks";
+import { fillChecks, headingRows, rollUp, stepChecks, withoutHeadings } from "./step-checks";
+import { resultSteps } from "./result-steps";
 
 const shared = { id: "s", name: "Comments", version: 1 };
 const step = (action: string, expected = "") => ({ action, expected, shared });
@@ -66,5 +67,64 @@ describe("rollUp and fillChecks", () => {
     expect(fillChecks(["FAILED", "UNTESTED"], "PASSED")).toEqual(["FAILED", "PASSED"]);
     expect(fillChecks(["FAILED", "PASSED"], "PASSED")).toEqual(["PASSED", "PASSED"]);
     expect(fillChecks(["FAILED", "PASSED"], "UNTESTED")).toEqual(["UNTESTED", "UNTESTED"]);
+  });
+});
+
+// ver_110: heading rows are never counted as steps, and real steps always are.
+describe("headingRows", () => {
+  const entering = { id: "e", name: "ENTERING SPACES", version: 1 };
+  const assets = { id: "a", name: "ASSETS PANEL", version: 1 };
+  // Like TCT-3 "Hub - Entering Spaces": a heading row, then four real steps.
+  const tct3 = [
+    { number: "1.1", action: "ENTERING SPACES", expected: "", shared: entering },
+    { number: "1.2", action: "Enter a Space\nA user can enter a Space without issue.", expected: "–", shared: entering },
+    { number: "1.3", action: "Owned By You\nA user can enter a Space they own.", expected: "User can enter space", shared: entering },
+    { number: "1.4", action: "Shared With You\nA user can enter a Space they have been invited to.", expected: "User can enter space", shared: entering },
+    { number: "1.5", action: "Discover / Featured Space\nA user can enter a featured Space.", expected: "User can enter space", shared: entering },
+  ];
+
+  it("finds the heading row of a shared step and nothing else", () => {
+    expect([...headingRows(tct3)]).toEqual([0]);
+  });
+
+  it("finds a second shared step's heading in the middle of a case", () => {
+    const steps = [
+      { number: "1", action: "Open the hub.", expected: "The hub opens." },
+      { number: "2.1", action: "Assets Panel", expected: "", shared: assets },
+      { number: "2.2", action: "Open the panel.", expected: "It opens.", shared: assets },
+      { number: "3.1", action: "ENTERING SPACES", expected: "", shared: entering },
+      { number: "3.2", action: "Enter a Space.", expected: "It opens.", shared: entering },
+    ];
+    expect([...headingRows(steps)]).toEqual([1, 3]);
+  });
+
+  it("never treats a real step as a heading", () => {
+    const steps = [
+      // Not from a shared step: capitals or not, it takes a result.
+      { number: "1", action: "CHECK THE LOGO", expected: "" },
+      { number: "2", action: "Open Settings", expected: "" },
+      // From a shared step but with an Expected, or ending in a full stop, or a short line that doesn't open the shared step.
+      { number: "3.1", action: "LOG IN", expected: "You are signed in.", shared: entering },
+      { number: "3.2", action: "Press Enter.", expected: "", shared: entering },
+      { number: "3.3", action: "Owned By You", expected: "", shared: entering },
+    ];
+    expect(headingRows(steps).size).toBe(0);
+  });
+
+  it("copes with missing or odd saved steps", () => {
+    expect(headingRows(null).size).toBe(0);
+    expect(headingRows("x").size).toBe(0);
+    expect(headingRows([null, { action: 3 }]).size).toBe(0);
+  });
+
+  it("leaves heading rows out of step results, and keeps every real step", () => {
+    const saved = ["UNTESTED", "PASSED", "PASSED", "PASSED", "PASSED"].map((status) => ({ status, actual: "" }));
+    expect(withoutHeadings(tct3, saved)).toHaveLength(4);
+    expect(resultSteps(saved, tct3)).toEqual(["PASSED", "PASSED", "PASSED", "PASSED"]);
+    // A real step left untested still shows as an unlit pip.
+    const half = ["UNTESTED", "PASSED", "UNTESTED", "PASSED", "PASSED"].map((status) => ({ status, actual: "" }));
+    expect(resultSteps(half, tct3)).toEqual(["PASSED", "UNTESTED", "PASSED", "PASSED"]);
+    // Cases without shared steps are untouched.
+    expect(resultSteps(saved, [])).toHaveLength(5);
   });
 });

@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 110,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "fix",
+        title: "Shared step headings no longer count as steps",
+        text: "A heading row at the top of a shared step needs no result, so it no longer shows as an unlit dot in the Run List or counts toward step totals on the run page, in reports and in a case's history.",
+      },
+    ],
+  },
+  {
     version: 109,
     date: "2026-10-31",
     items: [

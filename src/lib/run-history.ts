@@ -13,7 +13,8 @@ export type HistoryRun = {
   comment: string;
   testerName: string;
   caseVersion: number;
-  steps: { number: string; action: string; status: ResultStatus; actual: string }[];
+  /** `heading` marks a shared step's heading row, which takes no result (ver_110). */
+  steps: { number: string; action: string; status: ResultStatus; actual: string; heading?: boolean }[];
   defects: {
     stepIndex: number | null;
     defect: { id: string; number: number; title: string; externalKey: string | null; externalUrl: string | null; status: string };

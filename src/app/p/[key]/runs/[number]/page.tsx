@@ -1,8 +1,10 @@
+import type { ResultStatus } from "@prisma/client";
 import { titleWithTags } from "@/lib/tags";
 import { tagColorsFor } from "@/lib/tag-data";
 import { sentryConnected } from "@/lib/sentry-config";
 import { SentryCard } from "@/components/sentry-card";
 import { resultSteps } from "@/lib/result-steps";
+import { headingRows, withoutHeadings } from "@/lib/step-checks";
 import { Fragment } from "react";
 import { CrumbName } from "@/components/crumb-name";
 import Link from "next/link";
@@ -73,21 +75,13 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   if (!run) notFound();
   if (run.automated) return <AutomatedRun project={project} runId={run.id} who={who} />;
   const entryRefs = run.entries.map((e) => ({ id: e.id, caseId: e.caseId, steps: e.steps }));
-  const [members, defectLinks, stepAgg, releases, stepTotal, sort, runFields, knownMap, news, slack, flaky, reg, sentryOn, tagColors] = await Promise.all([
+  const [members, defectLinks, releases, sort, runFields, knownMap, news, slack, flaky, reg, sentryOn, tagColors] = await Promise.all([
     timing.step("members", projectMembers(project.id)),
     timing.step("bugs filed", db.defectLink.findMany({
       where: { result: { runId: run.id } },
       include: { defect: true, result: { select: { entryId: true } } },
     })),
-    timing.step("step counts", db.$queryRaw<{ status: string; n: bigint }[]>`
-      SELECT s->>'status' AS status, count(*) AS n
-      FROM "RunEntry" e
-      JOIN "TestResult" r ON r.id = (SELECT id FROM "TestResult" WHERE "entryId" = e.id ORDER BY "createdAt" DESC LIMIT 1)
-      CROSS JOIN LATERAL jsonb_array_elements(r."stepResults") s
-      WHERE e."runId" = ${run.id}
-      GROUP BY 1`),
     timing.step("releases", releaseOptions(project.id)),
-    timing.step("step total", db.$queryRaw<{ n: bigint | null }[]>`SELECT sum(jsonb_array_length("steps")) AS n FROM "RunEntry" WHERE "runId" = ${run.id} AND jsonb_typeof("steps") = 'array'`),
     readCaseSort(),
     timing.step("run fields", runFieldsFor(project.id)),
     // Known bugs from earlier runs (ver_96), for runs tested by hand.
@@ -112,7 +106,19 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   }
   const defects = [...new Map(defectLinks.map((l) => [l.defectId, l.defect])).values()];
   const knownList: RunKnown[] = run.entries.flatMap((e) => (knownMap.get(e.id) ?? []).map((bug) => ({ bug, caseKey: caseKey(e.testCase.project.key, e.testCase.number) })));
-  const steps = Object.fromEntries(stepAgg.map((s) => [s.status, Number(s.n)]));
+  // Step counts from each case's last saved result. Heading rows in shared steps take no result, so they don't count (ver_110).
+  const steps: Partial<Record<ResultStatus, number>> = {};
+  let stepTotal = 0;
+  for (const e of run.entries) {
+    const headings = headingRows(e.steps);
+    if (Array.isArray(e.steps)) stepTotal += e.steps.length - headings.size;
+    const saved = e.results[0]?.stepResults;
+    if (Array.isArray(saved))
+      saved.forEach((r, i) => {
+        const status = (r as { status?: ResultStatus } | null)?.status;
+        if (status && !headings.has(i)) steps[status] = (steps[status] ?? 0) + 1;
+      });
+  }
   const byTester = members
     .map((m) => {
       const mine = run.entries.filter((e) => e.assigneeId === m.id);
@@ -247,7 +253,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
             <Stat
               label="Steps"
               value={`${steps.PASSED ?? 0} passed`}
-              sub={`${(steps.FAILED ?? 0) + (steps.BLOCKED ?? 0)} failed or blocked of ${Number(stepTotal[0]?.n ?? 0)} steps`}
+              sub={`${(steps.FAILED ?? 0) + (steps.BLOCKED ?? 0)} failed or blocked of ${stepTotal} steps`}
             />
             <Stat label="Bugs" value={String(defects.length)} sub="found in this run" />
           </div>
@@ -354,9 +360,9 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           regression: reg.flagged.has(e.id) ? regressionTip(reg.against.get(e.id)!, spelling) : undefined,
           progress:
             e.status === "IN_PROGRESS"
-              ? (parseDraft(e.draft)?.stepResults.map((s) => s.status) ?? null)
+              ? ((d) => (d ? withoutHeadings(e.steps, d.stepResults).map((s) => s.status) : null))(parseDraft(e.draft))
               : e.status !== "UNTESTED" && e.results[0]
-                ? resultSteps(e.results[0].stepResults)
+                ? resultSteps(e.results[0].stepResults, e.steps)
                 : null,
           lastChange:
             e.status === "IN_PROGRESS"
