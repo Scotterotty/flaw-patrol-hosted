@@ -96,6 +96,10 @@ export async function runBoxOptions(scope: RunBoxScope) {
       runFields: umbrella ? parseRunFields(umbrella.group.runFields) : [CSP_FIELD],
       cycles: cycles.map((c, i): RunBoxCycle => ({ id: c.id, key: c.key, name: c.name, color: colorOf(c.platform), current: c.current, rcName: c.rcName, members: members[i].map((m) => ({ id: m.id, name: m.name })) })),
       allCount,
+      // Whether the "Make a suite", "Write the first case" and "Import cases" links show (ver_118).
+      canSuites: umbrella ? can(umbrella.who, "suite:manage") : true,
+      canCases: umbrella ? can(umbrella.who, "case:edit") : true,
+      canImport: umbrella ? can(umbrella.who, "import") : true,
       tagColors: await tagColorsFor(library.id),
       suites: suites.map((s) => ({ id: s.id, name: s.name, cases: s._count.cases, ownerId: s.projectId, shared: !!umbrella && s.projectId !== here?.id })),
       ...picker,

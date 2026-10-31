@@ -130,14 +130,17 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
           To
           <Input type="date" name="to" defaultValue={day(f.to)} className="mt-0.5 w-40" />
         </label>
-        <Select name="suite" defaultValue={f.suiteId ?? ""} className="w-auto" aria-label="Suite">
-          <option value="">All suites</option>
-          {suites.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </Select>
+        {/* No suites yet (ver_118): no filter with only All suites. */}
+        {suites.length > 0 && (
+          <Select name="suite" defaultValue={f.suiteId ?? ""} className="w-auto" aria-label="Suite">
+            <option value="">All suites</option>
+            {suites.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </Select>
+        )}
         <Select name="release" defaultValue={f.release ?? ""} className="w-auto" aria-label="Release">
           <option value="">Any release</option>
           {releases.map((r) => (

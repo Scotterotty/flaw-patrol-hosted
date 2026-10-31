@@ -363,7 +363,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               text={runKinds.filter((k) => !k.hidden).map((k) => k.name).join(", ")}
               label={can(u.who, "umbrella:fields") ? "Change" : "View"}
             >
-              <RunKindsPanel groupId={u.group.id} umbrella={name} kinds={runKinds} suites={kindSuites} canEdit={can(u.who, "umbrella:fields") && !u.group.archivedAt} />
+              <RunKindsPanel groupId={u.group.id} umbrella={name} kinds={runKinds} suites={kindSuites} canEdit={can(u.who, "umbrella:fields") && !u.group.archivedAt} newSuiteHref={can(u.who, "suite:manage") ? `/p/${u.hub.key}/suites/new` : undefined} />
             </ExpandRow>
             <ExpandRow
               id="crowns"

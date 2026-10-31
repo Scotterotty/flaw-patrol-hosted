@@ -238,14 +238,21 @@ export function RunImporter({ projectId, projectKey, suites }: { projectId: stri
                 <Input id="imp-date" type="date" value={testedOn} max={today()} onChange={(e) => setTestedOn(e.target.value)} />
               </Field>
               <Field label="Suite (optional)" htmlFor="imp-suite">
-                <Select id="imp-suite" value={suiteId} onChange={(e) => setSuiteId(e.target.value)}>
-                  <option value="">None</option>
-                  {suites.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </Select>
+                {suites.length ? (
+                  <Select id="imp-suite" value={suiteId} onChange={(e) => setSuiteId(e.target.value)}>
+                    <option value="">None</option>
+                    {suites.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </Select>
+                ) : (
+                  // No suites yet (ver_118): a plain line instead of a list with only None.
+                  <p id="imp-suite" className="flex h-9 items-center text-sm text-slate-500" data-testid="no-suites-optional">
+                    No suites yet. That&apos;s fine, it&apos;s optional.
+                  </p>
+                )}
               </Field>
             </div>
             <p className="mt-2 text-xs text-slate-500">

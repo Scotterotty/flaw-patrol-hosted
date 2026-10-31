@@ -55,7 +55,11 @@ test("umbrella: shared library, platforms, Start next release, bugs and shortcut
   await page.goto(home);
   await openReleaseBox(page);
   await page.getByLabel("Platform name").fill("Web");
-  await page.getByLabel("Suite to test").selectOption({ label: "Smoke" });
+  // ver_118: a new platform picks its test cases like the others (no suite-only dropdown).
+  await page.getByRole("button", { name: "Test cases for Web" }).click();
+  const webMenu = page.getByRole("group", { name: "Pick test cases for Web" });
+  await webMenu.getByRole("checkbox", { name: "Smoke" }).check();
+  await webMenu.getByRole("button", { name: "Done" }).click();
   await page.getByLabel("Release", { exact: true }).fill("RC7");
   await expect(page.getByText(`${NAME} Web RC7`)).toBeVisible();
   await page.getByRole("button", { name: "Start RC7" }).click();

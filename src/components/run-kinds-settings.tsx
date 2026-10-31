@@ -11,7 +11,7 @@ import { Badge, Button, ErrorText, Field, Input, Select } from "./ui";
  * Release candidate can be renamed or hidden; Bug bash is always there. Each kind can
  * have a usual suite, which fills in "What to run". Saves on each change.
  */
-export function RunKindsPanel({ groupId, umbrella, kinds: initial, suites, canEdit }: { groupId: string; umbrella: string; kinds: RunKindDef[]; suites: { id: string; name: string }[]; canEdit: boolean }) {
+export function RunKindsPanel({ groupId, umbrella, kinds: initial, suites, canEdit, newSuiteHref }: { groupId: string; umbrella: string; kinds: RunKindDef[]; suites: { id: string; name: string }[]; canEdit: boolean; newSuiteHref?: string }) {
   const [kinds, setKinds] = useState(initial);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState({ name: "", suiteId: "" });
@@ -43,14 +43,26 @@ export function RunKindsPanel({ groupId, umbrella, kinds: initial, suites, canEd
         <Input id="rk-name" value={draft.name} disabled={nameLocked} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Regression" maxLength={60} />
       </Field>
       <Field label="Usual suite (optional)" htmlFor="rk-suite">
-        <Select id="rk-suite" value={draft.suiteId} onChange={(e) => setDraft({ ...draft, suiteId: e.target.value })}>
-          <option value="">None</option>
-          {suites.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </Select>
+        {suites.length ? (
+          <Select id="rk-suite" value={draft.suiteId} onChange={(e) => setDraft({ ...draft, suiteId: e.target.value })}>
+            <option value="">None</option>
+            {suites.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </Select>
+        ) : (
+          // No suites yet (ver_118): a plain line instead of a list with only None.
+          <p id="rk-suite" className="flex min-h-9 flex-wrap items-center gap-x-2 text-sm text-slate-500" data-testid="no-suites-optional">
+            No suites yet. That&apos;s fine, it&apos;s optional.
+            {newSuiteHref && (
+              <a href={newSuiteHref} target="_blank" rel="noopener" className="font-medium text-accent-700 underline">
+                Make a suite ↗
+              </a>
+            )}
+          </p>
+        )}
       </Field>
       <span className="flex gap-1.5">
         <Button variant="primary" size="sm" disabled={pending || !draft.name.trim()} onClick={onSave}>

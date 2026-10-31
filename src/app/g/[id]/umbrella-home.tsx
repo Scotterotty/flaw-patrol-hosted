@@ -50,6 +50,8 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
   // What a new umbrella still needs. Jira is optional, so it never holds the list open on its own.
   const setup = [
     { done: u.counts.cases > 0, label: "Add your test cases (import a file or write them)", note: plural(u.counts.cases, "case"), href: `${hub}/import`, action: "Import cases" },
+    // Optional (ver_118): runs work without a suite, so it never keeps the list open. A team that already ran tests has it ticked.
+    { done: u.counts.suites > 0 || !!firstRun, label: "Make a suite (optional)", note: u.counts.suites ? plural(u.counts.suites, "suite") : "", href: `${hub}/suites/new`, action: "Make a suite", tip: "A saved list of cases you run together, like Smoke or Full regression. You can also run the whole Case library or pick cases." },
     {
       done: !!firstRun,
       label: "Run your first tests",
@@ -67,7 +69,7 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
   ];
   // A second release means the first one happened, so the list hides then too (ver_91).
   const rcs = new Set(u.projects.map((p) => p.rcName.trim().toLowerCase()).filter(Boolean));
-  const ready = rcs.size > 1 || (setup.slice(0, 2).every((s) => s.done) && (!!jira || u.older.length > 0));
+  const ready = rcs.size > 1 || (setup[0].done && !!firstRun && (!!jira || u.older.length > 0));
 
   const shortcuts: { label: string; href: string; icon: IconName; count?: number; external?: boolean }[] = [
     { label: "Release status", href: `${g}/rc`, icon: "chart" },
@@ -103,7 +105,7 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
           {/* One button (ver_95): Start a run asks the kind first. Release candidate and Bug bash open these boxes. */}
           {canRun && <StartRunBox scope={{ groupId: u.group.id }} label="▶ Start a run" openParam="run" />}
           {bashData && <StartBashButton data={bashData} hideButton />}
-          {plan && <StartRcButton groupId={u.group.id} canManage={canManage} canSuites={can(u.who, "suite:manage")} hideButton plan={{ ...plan, platforms: plan.platforms.map((p) => ({ ...p, color: platformColor(u.platforms, p.name) })) }} />}
+          {plan && <StartRcButton groupId={u.group.id} canManage={canManage} canSuites={can(u.who, "suite:manage")} canCases={can(u.who, "case:edit")} canImport={can(u.who, "import")} hideButton plan={{ ...plan, platforms: plan.platforms.map((p) => ({ ...p, color: platformColor(u.platforms, p.name) })) }} />}
         </div>
       </div>
 

@@ -22,6 +22,28 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 118,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "fix",
+        title: "Start a release before you have suites",
+        text: "A platform you add in Start a new release now picks its test cases like the others: cases from folders, a new suite, or No runs yet. Before, it only offered suites, so with none you were stuck. If there are no cases at all, a note says so and Start still works.",
+      },
+      {
+        kind: "better",
+        title: "Clearer Start a run when there are no suites",
+        text: "Picking A suite with none yet explains what a suite is, with a Pick cases instead button and a Make a suite link that opens in a new tab. With no cases at all, the box says so and links to writing or importing cases.",
+      },
+      {
+        kind: "new",
+        title: "Make a suite (optional) on the setup card",
+        text: "A new umbrella's setup card has a Make a suite step before Run your first tests. It's optional: you can always run the whole Case library or pick cases.",
+        who: "lead",
+      },
+    ],
+  },
+  {
     version: 117,
     date: "2026-10-31",
     items: [

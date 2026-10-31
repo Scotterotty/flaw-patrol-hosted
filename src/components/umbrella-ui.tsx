@@ -692,6 +692,10 @@ export type RcPlan = {
   }[];
 };
 
+type Plat = RcPlan["platforms"][number];
+/** A platform added in the box (ver_118): nothing from a last release. */
+const blankPlatform = (name: string): Plat => ({ name, suiteIds: [], color: "#94a3b8", suites: [], runs: 0, cases: 0, prev: null, testers: [], openBugs: [], openRuns: 0, lastCaseIds: [], lastSuiteIds: [], assign: {}, bugCaseIds: [], remembered: [] });
+
 /** What one platform runs this release (ver_89; cases picked from folders since ver_91). */
 type RcChoice = { kind: "suites"; ids: string[] } | { kind: "cases"; ids: string[] } | { kind: "empty" } | { kind: "newsuite"; name: string };
 
@@ -703,6 +707,8 @@ export function StartRcButton({
   plan,
   canManage = false,
   canSuites = false,
+  canCases = false,
+  canImport = false,
   variant = "primary",
   hideButton = false,
 }: {
@@ -716,6 +722,9 @@ export function StartRcButton({
   canManage?: boolean;
   /** Can make a new suite from the box (suite:manage). */
   canSuites?: boolean;
+  /** Can write or import cases (case:edit, import): the links in the no-cases note (ver_118). */
+  canCases?: boolean;
+  canImport?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   // The umbrella home's setup list links here (?start=rc) to add platforms and their suites.
@@ -738,8 +747,21 @@ export function StartRcButton({
   const [carry, setCarry] = useState(false);
   const [recheck, setRecheck] = useState(false);
   const [closeOld, setCloseOld] = useState(false);
-  // Platforms added here, each with the suite it runs (picked, not defaulted).
-  const [added, setAdded] = useState<{ name: string; suiteId: string }[]>(() => (plan.platforms.length || !canManage ? [] : [{ name: "", suiteId: "" }]));
+  // Platforms added here (ver_118: each picks its test cases like the others, keyed new:<id> in choices).
+  const [added, setAdded] = useState<{ id: number; name: string }[]>(() => (plan.platforms.length || !canManage ? [] : [{ id: 1, name: "" }]));
+  const addPlatform = () => setAdded((l) => [...l, { id: Math.max(0, ...l.map((a) => a.id)) + 1, name: "" }]);
+  const newKey = (a: { id: number }) => `new:${a.id}`;
+  // No cases in the library yet (ver_118): new platforms start on No runs yet.
+  const noCases = plan.library.cases.length === 0;
+  const choiceOf = (key: string): RcChoice | undefined => choices[key] ?? (noCases && key.startsWith("new:") ? { kind: "empty" } : undefined);
+  // Back from writing cases or making a suite in another tab: show them here (ver_118).
+  const routerForFocus = useRouter();
+  useEffect(() => {
+    if (!open || (!noCases && plan.allSuites.length)) return;
+    const back = () => routerForFocus.refresh();
+    window.addEventListener("focus", back);
+    return () => window.removeEventListener("focus", back);
+  }, [open, noCases, plan.allSuites.length, routerForFocus]);
   // Platform changes save as they're made (ver_86): ⋯ Rename, ⋯ Remove (with Undo).
   const [renaming, setRenaming] = useState<{ from: string; to: string } | null>(null);
   const [removed, setRemoved] = useState<{ at: number; name: string; suiteIds: string[]; color: string }[]>([]);
@@ -754,7 +776,7 @@ export function StartRcButton({
   }, [pending]);
   const current = () => plan.platforms.map((p) => ({ name: p.name, suiteIds: p.suiteIds }));
   const suiteOf = (id: string) => plan.allSuites.find((s) => s.id === id);
-  const caseCount = (p: RcPlan["platforms"][number], ids: string[]) => (sameIds(ids, p.suiteIds) ? p.cases : new Set(ids.flatMap((id) => suiteOf(id)?.caseIds ?? [])).size);
+  const caseCount = (p: Plat, ids: string[]) => (sameIds(ids, p.suiteIds) ? p.cases : new Set(ids.flatMap((id) => suiteOf(id)?.caseIds ?? [])).size);
   // The cases a platform will run with its current choice, for the carry-over counts.
   const casesOf = (p: RcPlan["platforms"][number]): string[] => {
     const c = choices[p.name];
@@ -789,10 +811,8 @@ export function StartRcButton({
     if (!on && !choices[name]) setMenu(name);
     if (on && menu === name) setMenu(null);
   };
-  const ready = (name: string) => {
-    const c = choices[name];
-    return picked.has(name) && !!c && (c.kind === "empty" || (c.kind === "suites" || c.kind === "cases" ? c.ids.length > 0 : !!c.name.trim()));
-  };
+  const filled = (c: RcChoice | undefined) => !!c && (c.kind === "empty" || (c.kind === "suites" || c.kind === "cases" ? c.ids.length > 0 : !!c.name.trim()));
+  const ready = (name: string) => picked.has(name) && filled(choices[name]);
   const remove = (name: string) => {
     const at = plan.platforms.findIndex((p) => p.name === name);
     const p = plan.platforms[at];
@@ -837,18 +857,24 @@ export function StartRcButton({
       },
     );
   };
-  const newOnes = added.filter((a) => a.name.trim() && a.suiteId);
+  const newOnes = added.filter((a) => a.name.trim() && filled(choiceOf(newKey(a))));
   const fieldValue = (f: RunField) => (document.getElementById(f.id === "csp" ? "rc-csp" : `rc-f-${f.id}`) as HTMLInputElement | null)?.value.trim() ?? "";
   const chosen = plan.platforms.filter((p) => ready(p.name));
   const waiting = plan.platforms.filter((p) => picked.has(p.name) && !ready(p.name));
   const starting = [...chosen.map((p) => p.name), ...newOnes.map((a) => a.name.trim())];
   const start = async () => {
     if (newOnes.length) {
-      const list = [...current(), ...newOnes.map((a) => ({ name: a.name.trim(), suiteIds: [a.suiteId] }))];
+      const list = [
+        ...current(),
+        ...newOnes.map((a) => {
+          const c = choiceOf(newKey(a))!;
+          return { name: a.name.trim(), suiteIds: c.kind === "suites" ? c.ids : [] };
+        }),
+      ];
       const saved = await setPlatforms(groupId, list);
       if (!saved.ok) return saved;
     }
-    const sent = Object.fromEntries(chosen.map((p) => [p.name, choices[p.name]]));
+    const sent = Object.fromEntries([...chosen.map((p) => [p.name, choices[p.name]]), ...newOnes.map((a) => [a.name.trim(), choiceOf(newKey(a))])]);
     const fields = Object.fromEntries(plan.runFields.map((f) => [f.id, fieldValue(f)]));
     return startNextRc(groupId, { rc, platforms: starting, carryAssignments: carry, recheckBugs: recheck, closeOld: closeOld && openRuns > 0, choices: sent, fields });
   };
@@ -893,20 +919,195 @@ export function StartRcButton({
   // What can't carry over, as one plain sentence (ver_95): "Nobody was assigned in Demo RC 1 and it has no open bugs, so…"
   const facts = [!anyAssigned && `nobody was assigned in ${last}`, nothing.length && `${anyAssigned ? last : "it"} has ${list(nothing)}`].filter(Boolean) as string[];
   const missingFields = open ? plan.runFields.filter((f) => f.required && !fieldValue(f)) : [];
-  const halfAdded = added.filter((a) => !!a.name.trim() !== !!a.suiteId);
+  // New platforms with a name but nothing picked, or picked but not named.
+  const halfAdded = added.filter((a) => !!a.name.trim() !== filled(choiceOf(newKey(a))));
+  const namedNew = added.filter((a) => a.name.trim()).map((a) => a.name.trim());
   // What's still needed before Start works (ver_99).
   const todo: [boolean, string][] = [
     [!!rc.trim(), rc.trim() ? `Release: ${rc.trim()}` : "Name the release"],
-    [starting.length > 0 || waiting.length > 0, starting.length || waiting.length ? `Platforms: ${list([...plan.platforms.filter((p) => picked.has(p.name)).map((p) => p.name), ...newOnes.map((a) => a.name.trim())])}` : "Tick a platform"],
+    [starting.length > 0 || waiting.length > 0 || namedNew.length > 0, starting.length || waiting.length || namedNew.length ? `Platforms: ${list([...plan.platforms.filter((p) => picked.has(p.name)).map((p) => p.name), ...namedNew])}` : plan.platforms.length ? "Tick a platform" : "Name a platform"],
     ...waiting.map((p): [boolean, string] => [false, `Pick test cases for ${p.name}`]),
-    ...halfAdded.map((a): [boolean, string] => [false, a.name.trim() ? `Pick a suite for ${a.name.trim()}` : "Name the new platform"]),
+    ...halfAdded.map((a): [boolean, string] => [false, a.name.trim() ? `Pick test cases for ${a.name.trim()}` : "Name the new platform"]),
     ...missingFields.map((f): [boolean, string] => [false, `Fill in ${f.name}`]),
   ];
   const allReady = todo.every(([ok]) => ok);
   const leftover = facts.length ? `${cap(facts.join(" and "))}, so there\u2019s nothing ${anyAssigned || bugs > 0 || openRuns > 0 ? "else " : ""}to carry over.` : "";
-  const summary = (p: RcPlan["platforms"][number]) => {
-    const c = choices[p.name];
-    if (!c || ((c.kind === "suites" || c.kind === "cases") && !c.ids.length)) return <span className="text-slate-500">Pick test cases for {p.name}…</span>;
+  // What one platform runs (ver_118): the same picker for platforms already there and ones added here.
+  const picker = (key: string, label: string, p: Plat, isNew = false) => {
+    const c = choiceOf(key);
+    const ids = c?.kind === "suites" ? c.ids : [];
+    const showMenu = menu === key;
+    return (
+      <>
+          <p className="mb-1 text-xs text-slate-500">Test cases for {label}</p>
+          <button
+            type="button"
+            aria-expanded={showMenu}
+            aria-label={`Test cases for ${label}`}
+            className="flex w-full items-center justify-between gap-2 rounded-md border border-slate-300 bg-surface px-2.5 py-1.5 text-left text-sm text-slate-800"
+            onClick={() => {
+              setTree(null);
+              setMenu(showMenu ? null : key);
+            }}
+          >
+            {summary(key, label, p)}
+            <span aria-hidden className="text-slate-400">
+              ▾
+            </span>
+          </button>
+          {showMenu && (
+            <div className="mt-1 rounded-lg border border-slate-200 bg-surface p-1.5 shadow-lg" role="group" aria-label={`Pick test cases for ${label}`}>
+              {!isNew && (
+                <>
+    <p className="px-2 pt-1.5 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Last release</p>
+                {p.prev && p.lastSuiteIds.length > 0 && !sameIds(p.lastSuiteIds, p.suiteIds) && (
+                  <button type="button" className="flex w-full gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50" onClick={() => choose(key, { kind: "suites", ids: p.lastSuiteIds })}>
+                    <span className="w-3.5 font-semibold text-accent-700">{c?.kind === "suites" && sameIds(c.ids, p.lastSuiteIds) ? "✓" : ""}</span>
+                    <span>
+                      <span className="block font-medium">
+                        Same {p.lastSuiteIds.length === 1 ? "suite" : "suites"} as {p.prev.rc}
+                      </span>
+                      <span className="block text-xs text-slate-500">{p.lastSuiteIds.map((id) => suiteOf(id)?.name ?? "").join(", ")}</span>
+                    </span>
+                  </button>
+                )}
+                {p.prev && p.suiteIds.length ? (
+                  <button type="button" className="flex w-full gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50" onClick={() => choose(key, { kind: "suites", ids: p.suiteIds })}>
+                    <span className="w-3.5 font-semibold text-accent-700">{c?.kind === "suites" && sameIds(c.ids, p.suiteIds) ? "✓" : ""}</span>
+                    <span>
+                      <span className="block font-medium">Run {p.prev.rc || last}&apos;s suites again</span>
+                      <span className="block text-xs text-slate-500">
+                        {p.suites.join(", ")} · {plural(p.cases, "case")}
+                      </span>
+                    </span>
+                  </button>
+                ) : !p.lastCaseIds.length ? (
+                  <p className="px-2 pb-1.5 text-xs text-slate-500">{p.prev ? `No suites were saved for ${label}.` : `${label} wasn't in ${last}.`}</p>
+                ) : null}
+                {p.prev && p.lastCaseIds.length > 0 && (
+                  <button type="button" className="flex w-full gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50" onClick={() => choose(key, { kind: "cases", ids: p.lastCaseIds })}>
+                    <span className="w-3.5 font-semibold text-accent-700">{c?.kind === "cases" && sameIds(c.ids, p.lastCaseIds) ? "✓" : ""}</span>
+                    <span>
+                      <span className="block font-medium">
+                        Same {plural(p.lastCaseIds.length, "case")} as {p.prev.rc || last}
+                      </span>
+                      <span className="block text-xs text-slate-500">Every case {label} ran last release, from any folder or suite</span>
+                    </span>
+                  </button>
+                )}
+                </>
+              )}
+              <>
+                  <p className={cx("px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase", !isNew && "mt-1 border-t border-slate-100")}>Suites in {plan.umbrella}</p>
+                  {!plan.allSuites.length && (
+                    <p className="px-2 pb-1.5 text-xs text-slate-500" data-testid="no-suites-yet">
+                      None yet. You don&apos;t need one: pick cases below{canSuites ? ", or start a new suite" : ""}.
+                    </p>
+                  )}
+                  {plan.allSuites.map((s) => {
+                    const has = ids.includes(s.id);
+                    return (
+                      <label key={s.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-50">
+                        <input
+                          type="checkbox"
+                          className="accent-accent-600"
+                          checked={has}
+                          onChange={() => {
+                            const next = has ? ids.filter((x) => x !== s.id) : [...ids, s.id];
+                            choose(key, next.length ? { kind: "suites", ids: next } : null, false);
+                          }}
+                        />
+                        <span className="flex-1">{s.name}</span>
+                        <span className="text-xs text-slate-500">{plural(s.cases, "case")}</span>
+                      </label>
+                    );
+                  })}
+              </>
+              <p className="mt-1 border-t border-slate-100 px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Pick cases</p>
+              <button
+                type="button"
+                className="flex w-full gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={noCases}
+                onClick={() => {
+                  if (c?.kind !== "cases") choose(key, null, false);
+                  setTree(key);
+                  setMenu(null);
+                }}
+              >
+                <span className="w-3.5 font-semibold text-accent-700">{c?.kind === "cases" && !sameIds(c.ids, p.lastCaseIds) ? "✓" : ""}</span>
+                <span>
+                  <span className="block font-medium">Choose from folders…</span>
+                  <span className="block text-xs text-slate-500">{noCases ? "No cases yet" : `Tick whole folders or single cases · ${plural(plan.library.cases.length, "case")}${plan.library.folders.length ? ` in ${plural(plan.library.folders.length, "folder")}` : ""}`}</span>
+                </span>
+              </button>
+              <p className="mt-1 border-t border-slate-100 px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Start brand new</p>
+              <button type="button" className="flex w-full gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50" onClick={() => choose(key, { kind: "empty" })}>
+                <span className="w-3.5 font-semibold text-accent-700">{c?.kind === "empty" ? "✓" : "＋"}</span>
+                <span>
+                  <span className="block font-medium text-sky-800">No runs yet</span>
+                  <span className="block text-xs text-slate-500">Makes the test cycle with no runs. Start runs in it from its page once the release is made.</span>
+                </span>
+              </button>
+              {canSuites && (
+                <div className="rounded-md px-2 py-1.5 text-sm">
+                  <button type="button" className="flex w-full gap-2 text-left" onClick={() => choose(key, { kind: "newsuite", name: c?.kind === "newsuite" ? c.name : "" }, false)}>
+                    <span className="w-3.5 font-semibold text-accent-700">{c?.kind === "newsuite" ? "✓" : "＋"}</span>
+                    <span>
+                      <span className="block font-medium text-sky-800">New suite…</span>
+                      <span className="block text-xs text-slate-500">Name it here. It&apos;s made empty in the {plan.umbrella} library: add its cases, then start its run in the test cycle.</span>
+                    </span>
+                  </button>
+                  {c?.kind === "newsuite" && (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-5">
+                      <Input
+                        aria-label="New suite name"
+                        autoFocus
+                        maxLength={100}
+                        className="h-8 w-56"
+                        value={c.name}
+                        placeholder={`${label} ${rc.trim() || "release"} checks`}
+                        onChange={(e) => choose(key, { kind: "newsuite", name: e.target.value }, false)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && c.name.trim()) setMenu(null);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="mt-1 flex items-center justify-between gap-2 border-t border-slate-100 px-2 pt-2">
+                <span className="text-xs text-slate-500">{canManage ? `What you pick is remembered for ${label}'s next release.` : ""}</span>
+                <Button size="sm" onClick={() => setMenu(null)}>
+                  Done
+                </Button>
+              </div>
+            </div>
+          )}
+          {tree === key && (
+            <FolderCasePicker
+              title={`Choose ${label}'s cases`}
+              folders={plan.library.folders}
+              cases={plan.library.cases}
+              value={c?.kind === "cases" ? c.ids : []}
+              onChange={(ids) => choose(key, ids.length ? { kind: "cases", ids } : null, false)}
+              onDone={() => setTree(null)}
+            />
+          )}
+      </>
+    );
+  };
+  // What Start makes for one platform, in the "Pressing Start creates" list.
+  const makes = (c: RcChoice, p: Plat) =>
+    c.kind === "suites"
+      ? `with ${plural(c.ids.length, "run")} of ${list(c.ids.map((id) => suiteOf(id)?.name ?? ""))} · ${plural(caseCount(p, c.ids), "case")}`
+      : c.kind === "cases"
+        ? `with 1 run · ${plural(c.ids.length, "case")}`
+        : c.kind === "empty"
+          ? "with no runs yet"
+          : `with no runs yet · new empty suite ${c.name.trim()} in the library`;
+  const summary = (key: string, label: string, p: Plat) => {
+    const c = choiceOf(key);
+    if (!c || ((c.kind === "suites" || c.kind === "cases") && !c.ids.length)) return <span className="text-slate-500">Pick test cases for {label || "the new platform"}…</span>;
     if (c.kind === "cases") {
       const same = p.lastCaseIds.length > 0 && sameIds(c.ids, p.lastCaseIds);
       return (
@@ -969,15 +1170,30 @@ export function StartRcButton({
           other testing, like a sprint, a smoke check or a retest, use <b>Start a run</b>.
         </p>
         <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
-        {plan.allSuites.length === 0 && !canSuites ? (
-          <p className="mt-4 rounded-md bg-slate-50 p-3 text-sm text-slate-600">
-            Each platform runs a suite from the {plan.umbrella} case library, and there are none yet.{" "}
-            <Link href={`/p/${plan.hubKey}/suites/new`} className="font-medium text-accent-700 hover:underline">
-              Make the first suite
-            </Link>
-            , or move a test cycle&apos;s cases and suites into {plan.umbrella}.
-          </p>
-        ) : (
+        {noCases && (
+          <div className="mt-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900" data-testid="rc-no-cases">
+            <p>
+              {plan.umbrella} has no test cases yet. You can still start the release now: each platform starts with <b>No runs yet</b>
+              {canSuites ? " or a new empty suite" : ""}, and you add runs once cases are written.
+            </p>
+            {(canCases || canImport) && (
+              <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                {canCases && (
+                  <a href={`/p/${plan.hubKey}/cases/new`} target="_blank" rel="noopener" className="font-medium text-accent-700 underline">
+                    Write the first case ↗
+                  </a>
+                )}
+                {canImport && (
+                  <a href={`/p/${plan.hubKey}/import`} target="_blank" rel="noopener" className="font-medium text-accent-700 underline">
+                    Import cases ↗
+                  </a>
+                )}
+                <span className="text-xs text-sky-800">opens a new tab, so this box stays as it is</span>
+              </p>
+            )}
+          </div>
+        )}
+        {(
           <>
             <div className="mt-3 max-w-md">
               <Field
@@ -1019,9 +1235,6 @@ export function StartRcButton({
                 }
                 const p = row.p;
                 const on = picked.has(p.name);
-                const c = choices[p.name];
-                const ids = c?.kind === "suites" ? c.ids : [];
-                const showMenu = on && menu === p.name;
                 return (
                   <div key={p.name} className={cx("rounded-lg border px-3 py-2.5", on ? "border-accent-500 bg-accent-50/50" : "border-slate-200")} data-testid="platform-row">
                     <div className="flex flex-wrap items-center gap-2.5">
@@ -1051,7 +1264,7 @@ export function StartRcButton({
                       ) : (
                         <span className="text-sm font-semibold text-slate-900">{p.name}</span>
                       )}
-                      <span className="min-w-0 flex-1 text-xs text-slate-500">{on ? null : p.runs ? `${p.suites.join(", ")} · ${plural(p.cases, "case")}` : "No suites yet"}</span>
+                      <span className="min-w-0 flex-1 text-xs text-slate-500">{on ? null : p.runs ? `${p.suites.join(", ")} · ${plural(p.cases, "case")}` : "No cases picked yet"}</span>
                       {canManage && (
                         <MoreMenu label="⋯" title={`More for ${p.name}`}>
                           <Button onClick={() => setRenaming({ from: p.name, to: p.name })}>Rename platform…</Button>
@@ -1061,175 +1274,47 @@ export function StartRcButton({
                     </div>
                     {on && (
                       <div className="mt-2 max-w-md pl-6">
-                        <p className="mb-1 text-xs text-slate-500">Test cases for {p.name}</p>
-                        <button
-                          type="button"
-                          aria-expanded={showMenu}
-                          aria-label={`Test cases for ${p.name}`}
-                          className="flex w-full items-center justify-between gap-2 rounded-md border border-slate-300 bg-surface px-2.5 py-1.5 text-left text-sm text-slate-800"
-                          onClick={() => {
-                            setTree(null);
-                            setMenu(showMenu ? null : p.name);
-                          }}
-                        >
-                          {summary(p)}
-                          <span aria-hidden className="text-slate-400">
-                            ▾
-                          </span>
-                        </button>
-                        {showMenu && (
-                          <div className="mt-1 rounded-lg border border-slate-200 bg-surface p-1.5 shadow-lg" role="group" aria-label={`Pick test cases for ${p.name}`}>
-                            <p className="px-2 pt-1.5 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Last release</p>
-                            {p.prev && p.lastSuiteIds.length > 0 && !sameIds(p.lastSuiteIds, p.suiteIds) && (
-                              <button type="button" className="flex w-full gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50" onClick={() => choose(p.name, { kind: "suites", ids: p.lastSuiteIds })}>
-                                <span className="w-3.5 font-semibold text-accent-700">{c?.kind === "suites" && sameIds(c.ids, p.lastSuiteIds) ? "✓" : ""}</span>
-                                <span>
-                                  <span className="block font-medium">
-                                    Same {p.lastSuiteIds.length === 1 ? "suite" : "suites"} as {p.prev.rc}
-                                  </span>
-                                  <span className="block text-xs text-slate-500">{p.lastSuiteIds.map((id) => suiteOf(id)?.name ?? "").join(", ")}</span>
-                                </span>
-                              </button>
-                            )}
-                            {p.prev && p.suiteIds.length ? (
-                              <button type="button" className="flex w-full gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50" onClick={() => choose(p.name, { kind: "suites", ids: p.suiteIds })}>
-                                <span className="w-3.5 font-semibold text-accent-700">{c?.kind === "suites" && sameIds(c.ids, p.suiteIds) ? "✓" : ""}</span>
-                                <span>
-                                  <span className="block font-medium">Run {p.prev.rc || last}&apos;s suites again</span>
-                                  <span className="block text-xs text-slate-500">
-                                    {p.suites.join(", ")} · {plural(p.cases, "case")}
-                                  </span>
-                                </span>
-                              </button>
-                            ) : !p.lastCaseIds.length ? (
-                              <p className="px-2 pb-1.5 text-xs text-slate-500">{p.prev ? `No suites were saved for ${p.name}.` : `${p.name} wasn't in ${last}.`}</p>
-                            ) : null}
-                            {p.prev && p.lastCaseIds.length > 0 && (
-                              <button type="button" className="flex w-full gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50" onClick={() => choose(p.name, { kind: "cases", ids: p.lastCaseIds })}>
-                                <span className="w-3.5 font-semibold text-accent-700">{c?.kind === "cases" && sameIds(c.ids, p.lastCaseIds) ? "✓" : ""}</span>
-                                <span>
-                                  <span className="block font-medium">
-                                    Same {plural(p.lastCaseIds.length, "case")} as {p.prev.rc || last}
-                                  </span>
-                                  <span className="block text-xs text-slate-500">Every case {p.name} ran last release, from any folder or suite</span>
-                                </span>
-                              </button>
-                            )}
-                            {plan.allSuites.length > 0 && (
-                              <>
-                                <p className="mt-1 border-t border-slate-100 px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Suites in {plan.umbrella}</p>
-                                {plan.allSuites.map((s) => {
-                                  const has = ids.includes(s.id);
-                                  return (
-                                    <label key={s.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-50">
-                                      <input
-                                        type="checkbox"
-                                        className="accent-accent-600"
-                                        checked={has}
-                                        onChange={() => {
-                                          const next = has ? ids.filter((x) => x !== s.id) : [...ids, s.id];
-                                          choose(p.name, next.length ? { kind: "suites", ids: next } : null, false);
-                                        }}
-                                      />
-                                      <span className="flex-1">{s.name}</span>
-                                      <span className="text-xs text-slate-500">{plural(s.cases, "case")}</span>
-                                    </label>
-                                  );
-                                })}
-                              </>
-                            )}
-                            <p className="mt-1 border-t border-slate-100 px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Pick cases</p>
-                            <button
-                              type="button"
-                              className="flex w-full gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50"
-                              onClick={() => {
-                                if (c?.kind !== "cases") choose(p.name, null, false);
-                                setTree(p.name);
-                                setMenu(null);
-                              }}
-                            >
-                              <span className="w-3.5 font-semibold text-accent-700">{c?.kind === "cases" && !sameIds(c.ids, p.lastCaseIds) ? "✓" : ""}</span>
-                              <span>
-                                <span className="block font-medium">Choose from folders…</span>
-                                <span className="block text-xs text-slate-500">Tick whole folders or single cases</span>
-                              </span>
-                            </button>
-                            <p className="mt-1 border-t border-slate-100 px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Start brand new</p>
-                            <button type="button" className="flex w-full gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50" onClick={() => choose(p.name, { kind: "empty" })}>
-                              <span className="w-3.5 font-semibold text-accent-700">{c?.kind === "empty" ? "✓" : "＋"}</span>
-                              <span>
-                                <span className="block font-medium text-sky-800">No runs yet</span>
-                                <span className="block text-xs text-slate-500">Makes the test cycle with no runs. Start runs in it from its page once the release is made.</span>
-                              </span>
-                            </button>
-                            {canSuites && (
-                              <div className="rounded-md px-2 py-1.5 text-sm">
-                                <button type="button" className="flex w-full gap-2 text-left" onClick={() => choose(p.name, { kind: "newsuite", name: c?.kind === "newsuite" ? c.name : "" }, false)}>
-                                  <span className="w-3.5 font-semibold text-accent-700">{c?.kind === "newsuite" ? "✓" : "＋"}</span>
-                                  <span>
-                                    <span className="block font-medium text-sky-800">New suite…</span>
-                                    <span className="block text-xs text-slate-500">Name it here. It&apos;s made empty in the {plan.umbrella} library: add its cases, then start its run in the test cycle.</span>
-                                  </span>
-                                </button>
-                                {c?.kind === "newsuite" && (
-                                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-5">
-                                    <Input
-                                      aria-label="New suite name"
-                                      autoFocus
-                                      maxLength={100}
-                                      className="h-8 w-56"
-                                      value={c.name}
-                                      placeholder={`${p.name} ${rc.trim() || "release"} checks`}
-                                      onChange={(e) => choose(p.name, { kind: "newsuite", name: e.target.value }, false)}
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter" && c.name.trim()) setMenu(null);
-                                      }}
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                            <div className="mt-1 flex items-center justify-between gap-2 border-t border-slate-100 px-2 pt-2">
-                              <span className="text-xs text-slate-500">{canManage ? `What you pick is remembered for ${p.name}'s next release.` : ""}</span>
-                              <Button size="sm" onClick={() => setMenu(null)}>
-                                Done
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                        {on && tree === p.name && (
-                          <FolderCasePicker
-                            title={`Choose ${p.name}'s cases`}
-                            folders={plan.library.folders}
-                            cases={plan.library.cases}
-                            value={c?.kind === "cases" ? c.ids : []}
-                            onChange={(ids) => choose(p.name, ids.length ? { kind: "cases", ids } : null, false)}
-                            onDone={() => setTree(null)}
-                          />
-                        )}
+                        {picker(p.name, p.name, p)}
                       </div>
                     )}
                   </div>
                 );
               })}
-              {added.map((a, i) => (
-                <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-slate-300 p-2">
-                  <Input
-                    aria-label="Platform name"
-                    value={a.name}
-                    onChange={(e) => setAdded((l) => l.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
-                    placeholder="Platform name"
-                    className="w-44"
-                  />
-                  <SuitePick label="Suite to test" suites={plan.allSuites} value={a.suiteId} onChange={(id) => setAdded((l) => l.map((x, j) => (j === i ? { ...x, suiteId: id } : x)))} />
-                  <Button size="sm" variant="ghost" onClick={() => setAdded((l) => l.filter((_, j) => j !== i))} aria-label="Remove this platform">
-                    ✕ Remove
-                  </Button>
-                  <span className="basis-full text-xs text-slate-500">Added to {plan.umbrella}&apos;s platforms, so it shows up everywhere you pick a platform.</span>
-                </div>
-              ))}
-              {canManage && plan.allSuites.length > 0 && (
-                <Button size="sm" variant="ghost" onClick={() => setAdded((l) => [...l, { name: "", suiteId: "" }])}>
+              {added.map((a) => {
+                const key = newKey(a);
+                return (
+                  <div key={key} className="rounded-lg border border-dashed border-slate-300 p-2" data-testid="new-platform-row">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        aria-label="Platform name"
+                        value={a.name}
+                        onChange={(e) => setAdded((l) => l.map((x) => (x.id === a.id ? { ...x, name: e.target.value } : x)))}
+                        placeholder="Platform name"
+                        maxLength={30}
+                        className="w-44"
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setAdded((l) => l.filter((x) => x.id !== a.id));
+                          choose(key, null);
+                        }}
+                        aria-label="Remove this platform"
+                      >
+                        ✕ Remove
+                      </Button>
+                    </div>
+                    <div className="mt-2 max-w-md">{picker(key, a.name.trim(), blankPlatform(a.name.trim()), true)}</div>
+                    <p className="mt-1.5 text-xs text-slate-500">Added to {plan.umbrella}&apos;s platforms, so it shows up everywhere you pick a platform.</p>
+                  </div>
+                );
+              })}
+              {!plan.platforms.length && !canManage && (
+                <p className="text-sm text-slate-500">{plan.umbrella} has no platforms yet. Someone who manages {plan.umbrella} adds them here.</p>
+              )}
+              {canManage && (
+                <Button size="sm" variant="ghost" onClick={addPlatform}>
                   ＋ New platform
                 </Button>
               )}
@@ -1327,25 +1412,17 @@ export function StartRcButton({
                           <span className="size-1.5 rounded-full" style={{ background: p.color }} aria-hidden />
                           {plan.umbrella} {p.name} {rc.trim()}
                         </span>
-                        <span className="text-slate-500">
-                          {c.kind === "suites"
-                            ? `with ${plural(c.ids.length, "run")} of ${list(c.ids.map((id) => suiteOf(id)?.name ?? ""))} · ${plural(caseCount(p, c.ids), "case")}`
-                            : c.kind === "cases"
-                              ? `with 1 run · ${plural(c.ids.length, "case")}`
-                              : c.kind === "empty"
-                              ? "with no runs yet"
-                              : `with no runs yet · new empty suite ${c.name.trim()} in the library`}
-                        </span>
+                        <span className="text-slate-500">{makes(c, p)}</span>
                       </li>
                     );
                   })}
                   {newOnes.map((a) => (
-                    <li key={a.name} className="flex flex-wrap items-center gap-2">
+                    <li key={a.id} className="flex flex-wrap items-center gap-2">
                       <span className="text-slate-700">Test cycle</span>
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-surface px-2 py-0.5 text-xs text-slate-800">
                         {plan.umbrella} {a.name.trim()} {rc.trim()}
                       </span>
-                      <span className="text-slate-500">with 1 run of {suiteOf(a.suiteId)?.name} · {plural(suiteOf(a.suiteId)?.cases ?? 0, "case")}</span>
+                      <span className="text-slate-500">{makes(choiceOf(newKey(a))!, blankPlatform(a.name.trim()))}</span>
                     </li>
                   ))}
                 </ul>
@@ -1425,25 +1502,6 @@ export function StartRcButton({
         </div>
       </Modal>
     </>
-  );
-}
-
-function SuitePick({ label, suites, value, onChange }: { label: string; suites: { id: string; name: string }[]; value: string; onChange: (id: string) => void }) {
-  return (
-    <select
-      aria-label={label}
-      value={value}
-      onClick={(e) => e.stopPropagation()}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-8 rounded-md border border-slate-300 bg-surface px-2 text-sm text-slate-800"
-    >
-      <option value="">Pick a suite…</option>
-      {suites.map((s) => (
-        <option key={s.id} value={s.id}>
-          {s.name}
-        </option>
-      ))}
-    </select>
   );
 }
 

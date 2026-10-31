@@ -157,7 +157,7 @@ test("platforms are added and changed in Add test cycle and Start next release, 
   await openReleaseBox(page);
   const rc = page.getByRole("dialog", { name: `Start a new release in ${NAME}` });
   const row = (name: string) => rc.getByTestId("platform-row").filter({ hasText: name });
-  await expect(row("Unity")).toContainText("No suites yet");
+  await expect(row("Unity")).toContainText("No cases picked yet");
   // ver_89: every platform can be ticked; ticking one with no suites opens its dropdown.
   await rc.getByRole("checkbox", { name: "Unity" }).check();
   await row("Unity").getByRole("checkbox", { name: "Checkout" }).check();

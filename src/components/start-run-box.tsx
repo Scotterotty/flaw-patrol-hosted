@@ -185,6 +185,8 @@ function Form({
   const newShown = tickable.filter((c) => opts.news[c.id] === "new" && !pickedSet.has(c.id));
   const pickedFolders = new Set(opts.cases.filter((c) => pickedSet.has(c.id)).map((c) => c.folderId));
   const leftOut = opts.cases.filter((c) => opts.news[c.id] === "new" && !pickedSet.has(c.id) && pickedFolders.has(c.folderId));
+  // No cases anywhere the box can pick from (ver_118).
+  const noCases = opts.allCount === 0 && opts.cases.length === 0;
   const count = what === "all" ? opts.allCount : what === "suite" ? (suite?.cases ?? 0) : what === "cases" ? picked.length : 0;
   const members = chosen.length === 1 ? chosen[0].members : [];
   const shownCycles = opts.cycles.filter((c) => c.current || showOlder || ticked.includes(c.id));
@@ -329,11 +331,32 @@ function Form({
             </Button>
           </p>
         )}
-        <div className="grid gap-2 sm:grid-cols-3">
-          {choice("all", opts.umbrella ? "Whole Case library" : "Every case", `All ${opts.allCount} active cases`)}
-          {choice("suite", "A suite", opts.suites.length ? opts.suites.map((s) => s.name).join(", ") : "No suites yet")}
-          {choice("cases", "Pick cases", "Search and tick")}
-        </div>
+        {noCases ? (
+          // Nothing to run yet (ver_118): one note instead of "All 0 active cases".
+          <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900" data-testid="run-no-cases">
+            <p>There are no test cases here yet, so there&apos;s nothing to run.</p>
+            {(opts.canCases || opts.canImport) && (
+              <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                {opts.canCases && (
+                  <a href={`/p/${opts.libraryKey}/cases/new`} target="_blank" rel="noopener" className="font-medium text-accent-700 underline">
+                    Write the first case ↗
+                  </a>
+                )}
+                {opts.canImport && (
+                  <a href={`/p/${opts.libraryKey}/import`} target="_blank" rel="noopener" className="font-medium text-accent-700 underline">
+                    Import cases ↗
+                  </a>
+                )}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-3">
+            {choice("all", opts.umbrella ? "Whole Case library" : "Every case", `All ${opts.allCount} active cases`)}
+            {choice("suite", "A suite", opts.suites.length ? opts.suites.map((s) => s.name).join(", ") : "None yet")}
+            {choice("cases", "Pick cases", "Search and tick")}
+          </div>
+        )}
       </section>
 
       {what === "all" && <p className="text-xs text-slate-500">Every active case as it is now. Cases added later aren&apos;t in this run.</p>}
@@ -355,7 +378,22 @@ function Form({
             ))}
           </ul>
         ) : (
-          <p className="rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-500">No suites yet. Pick cases instead, or make a suite in Test suites.</p>
+          <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900" data-testid="run-no-suites">
+            <p>There are no suites yet. A suite is a saved list of cases you can run again and again. For now, run the whole library or pick cases.</p>
+            <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <Button size="sm" onClick={() => setWhat("cases")}>
+                Pick cases instead
+              </Button>
+              {opts.canSuites && (
+                <>
+                  <a href={`/p/${opts.libraryKey}/suites/new`} target="_blank" rel="noopener" className="font-medium text-accent-700 underline">
+                    Make a suite ↗
+                  </a>
+                  <span className="text-xs text-sky-800">opens a new tab</span>
+                </>
+              )}
+            </p>
+          </div>
         ))}
 
       {what === "cases" && (
@@ -806,16 +844,23 @@ function KindStep({
             <Input id="rb-kind-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Regression" autoFocus />
           </Field>
           <Field label="Usual suite (optional)" htmlFor="rb-kind-suite">
-            <Select id="rb-kind-suite" value={suiteId} onChange={(e) => setSuiteId(e.target.value)}>
-              <option value="">None</option>
-              {suites
-                .filter((s) => s.shared)
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-            </Select>
+            {suites.some((s) => s.shared) ? (
+              <Select id="rb-kind-suite" value={suiteId} onChange={(e) => setSuiteId(e.target.value)}>
+                <option value="">None</option>
+                {suites
+                  .filter((s) => s.shared)
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+              </Select>
+            ) : (
+              // No suites yet (ver_118): a plain line instead of a list with only None.
+              <p id="rb-kind-suite" className="flex h-9 items-center text-sm text-slate-500" data-testid="no-suites-optional">
+                No suites yet. That&apos;s fine, it&apos;s optional.
+              </p>
+            )}
           </Field>
           <Button variant="primary" disabled={pending || !name.trim()} onClick={add}>
             {pending ? "Adding…" : "Add and use it"}
