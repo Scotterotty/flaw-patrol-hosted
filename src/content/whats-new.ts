@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 109,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "better",
+        title: "Result buttons sit under Expected",
+        text: "In a test, each step's Passed, Failed, Blocked, Retest and Skipped buttons are now right under what should happen, so you read and mark in one place.",
+      },
+    ],
+  },
+  {
     version: 108,
     date: "2026-10-31",
     items: [

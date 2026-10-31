@@ -990,48 +990,50 @@ export function Runner({
                         <span className="block text-[11px] font-medium tracking-wide text-slate-400 uppercase select-none">Expected</span>
                         {(many ? many.expected : step.expected) ? <StepText text={many ? many.expected : step.expected} className="whitespace-pre-wrap wrap-anywhere" /> : "–"}
                       </div>
-                    </div>
-                    <div className="flex shrink-0 flex-wrap gap-1 select-none max-2xl:basis-full max-2xl:pl-12" role="group" aria-label={`Step ${step.number} status`}>
-                      {SETTABLE.map(({ status }) => (
-                        <button
-                          key={status}
-                          type="button"
-                          title={`${STATUS_LABEL[status]}: ${STATUS_HELP[status]}`}
-                          aria-pressed={s === status}
-                          disabled={runClosed}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setCurrent(i);
-                            setStep(i, status);
-                          }}
-                          className={cx(
-                            "inline-flex h-7 items-center gap-1 rounded px-2 text-xs font-medium ring-1 ring-inset transition",
-                            s === status ? cx(STATUS_STYLE[status].solid, "ring-transparent") : "bg-surface text-slate-600 ring-slate-200 hover:bg-slate-50",
+                      <div className="min-w-0 md:col-start-2 md:border-l md:border-slate-200 md:pl-3">
+                        <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-dashed border-slate-200 pt-2 select-none" role="group" aria-label={`Step ${step.number} status`}>
+                          {SETTABLE.map(({ status }) => (
+                            <button
+                              key={status}
+                              type="button"
+                              title={`${STATUS_LABEL[status]}: ${STATUS_HELP[status]}`}
+                              aria-pressed={s === status}
+                              disabled={runClosed}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCurrent(i);
+                                setStep(i, status);
+                              }}
+                              className={cx(
+                                "inline-flex h-7 items-center gap-1 rounded px-2 text-xs font-medium ring-1 ring-inset transition",
+                                s === status ? cx(STATUS_STYLE[status].solid, "ring-transparent") : "bg-surface text-slate-600 ring-slate-200 hover:bg-slate-50",
+                              )}
+                            >
+                              <StatusIcon status={status} />
+                              {STATUS_LABEL[status]}
+                            </button>
+                          ))}
+                          {s !== "UNTESTED" && !runClosed && (
+                            <button
+                              type="button"
+                              aria-label={`Clear step ${step.number}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCurrent(i);
+                                setStep(i, "UNTESTED");
+                              }}
+                              className="h-7 px-1.5 text-xs text-slate-500 underline hover:text-slate-800"
+                            >
+                              Clear
+                            </button>
                           )}
-                        >
-                          <StatusIcon status={status} />
-                          {STATUS_LABEL[status]}
-                        </button>
-                      ))}
-                      {many && (
-                        <span className="basis-full text-right text-[11px] text-slate-500 max-2xl:text-left">
-                          {marked === many.count ? "Set from its checks" : `${marked} of ${many.count} checks`}
-                        </span>
-                      )}
-                      {s !== "UNTESTED" && !runClosed && (
-                        <button
-                          type="button"
-                          aria-label={`Clear step ${step.number}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setCurrent(i);
-                            setStep(i, "UNTESTED");
-                          }}
-                          className="h-7 px-1.5 text-xs text-slate-500 underline hover:text-slate-800"
-                        >
-                          Clear
-                        </button>
-                      )}
+                          {many && (
+                            <span className="basis-full text-[11px] text-slate-500">
+                              {marked === many.count ? "Set from its checks" : `${marked} of ${many.count} checks`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                   {many && (
