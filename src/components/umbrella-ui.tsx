@@ -1,5 +1,6 @@
 "use client";
 
+import { LoadingSpinner, SpinnerArt } from "./loading-spinner";
 import { PlatformPicker } from "./platform-picker";
 import { RunFieldInputs } from "./run-field-inputs";
 import type { RunField } from "@/lib/run-fields";
@@ -110,14 +111,14 @@ function useAction() {
   const [error, setError] = useState<string | null>(null);
   const run = <T,>(
     fn: () => Promise<({ ok: true } & T) | { ok: false; error: string }>,
-    done?: (r: T) => void,
+    /** Returns true when it goes to another page itself, so this page isn't reloaded first (ver_108). */
+    done?: (r: T) => void | boolean,
   ) =>
     start(async () => {
       const r = await fn();
       if (!r.ok) return setError(r.error);
       setError(null);
-      done?.(r);
-      router.refresh();
+      if (done?.(r) !== true) router.refresh();
     });
   return { pending, error, setError, run, router };
 }
@@ -736,6 +737,9 @@ export function StartRcButton({
   const [renaming, setRenaming] = useState<{ from: string; to: string } | null>(null);
   const [removed, setRemoved] = useState<{ at: number; name: string; suiteIds: string[]; color: string }[]>([]);
   const { pending, error, setError, run, router } = useAction();
+  // The new release's Test runs page is on its way (ver_108): the box stays up until that page replaces this one.
+  const [opening, setOpening] = useState<string | null>(null);
+  const busy = pending || !!opening;
   const current = () => plan.platforms.map((p) => ({ name: p.name, suiteIds: p.suiteIds }));
   const suiteOf = (id: string) => plan.allSuites.find((s) => s.id === id);
   const caseCount = (p: RcPlan["platforms"][number], ids: string[]) => (sameIds(ids, p.suiteIds) ? p.cases : new Set(ids.flatMap((id) => suiteOf(id)?.caseIds ?? [])).size);
@@ -946,6 +950,7 @@ export function StartRcButton({
         }}
         title={`Start a new release in ${plan.umbrella}`}
         wide
+        locked={busy}
       >
         <p className="text-sm text-slate-500">
           For testing a release candidate: makes one test cycle per platform in one go. Cases, suites, Jira and members come from {plan.umbrella}. For any
@@ -1341,6 +1346,14 @@ export function StartRcButton({
             )}
           </>
         )}
+        {opening && (
+          <div role="status" className="mt-4 flex items-center gap-3 rounded-lg bg-accent-50 px-3 py-2.5 text-sm text-slate-800" data-testid="run-opening">
+            <LoadingSpinner size={36} />
+            <p>
+              <b>{opening}</b> is ready. Opening Test runs…
+            </p>
+          </div>
+        )}
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
           <ul className="space-y-0.5 text-xs" aria-live="polite" data-testid="rc-todo">
             {todo.map(([ok, text]) => (
@@ -1354,6 +1367,7 @@ export function StartRcButton({
           </ul>
           <div className="flex gap-2">
           <Button
+            disabled={busy}
             onClick={() => {
               setOpen(false);
               setRemoved([]);
@@ -1364,19 +1378,26 @@ export function StartRcButton({
           </Button>
           <Button
             variant="primary"
-            disabled={pending || !allReady}
+            disabled={busy || !allReady}
             onClick={() =>
               run(
                 start,
                 (r: { made: { key: string }[] }) => {
-                  setOpen(false);
-                  if (r.made.length === 1)
-                    router.push(`/p/${r.made[0].key}/runs`);
+                  if (r.made.length !== 1) return setOpen(false);
+                  // One test cycle: its Test runs page, with "Opening…" in the box until it shows.
+                  setOpening(rc.trim() || "The release");
+                  router.push(`/p/${r.made[0].key}/runs`);
+                  return true;
                 },
               )
             }
           >
-            {pending ? "Starting…" : `Start ${rc.trim() || "release"}${starting.length ? ` · ${plural(starting.length, "platform")}` : ""}`}
+            {busy ? (
+              <span className="inline-flex items-center gap-1.5">
+                <SpinnerArt id="ring" size={14} />
+                {opening ? "Opening…" : "Starting…"}
+              </span>
+            ) : `Start ${rc.trim() || "release"}${starting.length ? ` · ${plural(starting.length, "platform")}` : ""}`}
           </Button>
           </div>
         </div>

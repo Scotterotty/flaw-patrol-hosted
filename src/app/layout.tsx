@@ -5,6 +5,7 @@ import { SpellingProvider } from "@/components/spelling";
 import { currentUser, mySpelling } from "@/lib/session";
 import { parseSpotifyLinks, validStation } from "@/lib/spotify";
 import { fontVars } from "@/lib/theme";
+import { cleanSpinners, pawnEmoji } from "@/lib/spinners";
 import "@fontsource/young-serif/400.css";
 import "@fontsource/poppins/400.css";
 import "@fontsource/poppins/500.css";
@@ -126,6 +127,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       // Color vision (ver_96): another status palette, and shapes and patterns on statuses.
       data-vision={user && user.colorVision !== "standard" ? user.colorVision : undefined}
       data-shapes={user && shapesOn(user.colorVision, user.visionShapes) ? "on" : undefined}
+      // Loading spinners (ver_108): the ones you ticked, and your quest pawn for Pawn hop.
+      data-spinners={cleanSpinners(user?.spinners).join(" ")}
+      data-pawn={pawnEmoji(user?.questPawn)}
       style={fontVars(user?.fontBody ?? "poppins", user?.fontHeading ?? "bungee")}
     >
       <body className="min-h-screen font-sans antialiased">

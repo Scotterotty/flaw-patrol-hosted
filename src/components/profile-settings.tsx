@@ -17,6 +17,8 @@ import { JiraEmailForm } from "./jira-email";
 import { LanguageSettings } from "./language-settings";
 import { MenuOrderReset } from "./menu-order-reset";
 import { RadioSettings } from "./radio-settings";
+import { SpinnerPicker } from "./spinner-picker";
+import { cleanSpinners, pawnEmoji, SPINNERS } from "@/lib/spinners";
 
 type Me = {
   id: string;
@@ -46,7 +48,11 @@ type Me = {
   spelling: string | null;
   isAdmin: boolean;
   openCards?: string[];
+  spinners?: string[];
+  questPawn?: string;
 };
+
+const spinnerSummary = (ids: string[]) => (ids.length === 1 ? `${SPINNERS.find((s) => s.id === ids[0])?.label ?? "Plain ring"} spinner` : `${ids.length} spinners`);
 
 const label = <T extends { id: string; label: string }>(list: readonly T[], id: string) => list.find((x) => x.id === id)?.label ?? id;
 
@@ -62,6 +68,7 @@ export async function ProfileSettings({ user }: { user: Me }) {
     THEMES.some((t) => t.id === user.accent) ? label(THEMES, user.accent) : label(ACCENTS, user.accent),
     label(THEME_MODES, user.themeMode),
     `${fontFor(user.fontBody)?.label ?? "Poppins"} and ${user.fontHeading === "body" ? "the same for headings" : (fontFor(user.fontHeading)?.label ?? "Bungee")}`,
+    spinnerSummary(cleanSpinners(user.spinners)),
   ].join(" · ");
   const aids = [user.strongContrast && "stronger contrast", user.underlineLinks && "underlined links", user.reduceMotion && "less motion"].filter(Boolean);
   const vision = VISIONS.find((v) => v.id === user.colorVision);
@@ -105,6 +112,9 @@ export async function ProfileSettings({ user }: { user: Me }) {
               fontHeading: isHeadingFont(user.fontHeading) ? user.fontHeading : "bungee",
             }}
           />
+          <div className="mt-5">
+            <SpinnerPicker initial={cleanSpinners(user.spinners)} pawn={pawnEmoji(user.questPawn)} />
+          </div>
           <div className="mt-5">
             <MenuOrderReset />
           </div>

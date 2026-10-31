@@ -22,6 +22,23 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 108,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "better",
+        title: "You can see a run starting",
+        text: "After you press Start, the box stays open with Starting… and then Opening it… until the run page shows. Run pages open faster too.",
+      },
+      {
+        kind: "new",
+        title: "Pick your loading spinners",
+        text: "Choose from 13 spinners, like Patrol radar, Bug crawl and Pawn hop. Tick the ones you like and Flaw Patrol plays one of them while it's busy.",
+        link: "/account#appearance",
+      },
+    ],
+  },
+  {
     version: 107,
     date: "2026-10-31",
     items: [

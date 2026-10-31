@@ -9,12 +9,15 @@ export function Modal({
   title,
   children,
   wide,
+  locked,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
   wide?: boolean;
+  /** While something is being saved and opened (ver_108): Esc, clicking outside and ✕ don't close it. */
+  locked?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   // Rendered at the end of the page so a dialog opened from a menu stays visible when the menu closes.
@@ -33,7 +36,8 @@ export function Modal({
       ref={ref}
       aria-label={title}
       onClose={onClose}
-      onClick={(e) => e.target === ref.current && onClose()}
+      onCancel={(e) => locked && e.preventDefault()}
+      onClick={(e) => !locked && e.target === ref.current && onClose()}
       className={`m-auto w-full rounded-lg bg-surface p-0 shadow-xl backdrop:bg-black/50 ${wide ? "max-w-2xl" : "max-w-md"}`}
     >
       {open && (
@@ -45,9 +49,10 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
+            disabled={locked}
             aria-label="Close"
             title="Close (Esc)"
-            className="absolute top-4 right-4 rounded-md px-1.5 py-0.5 text-lg leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-accent-500"
+            className="absolute top-4 right-4 rounded-md px-1.5 py-0.5 text-lg leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-accent-500 disabled:opacity-40 disabled:hover:bg-transparent"
           >
             ✕
           </button>

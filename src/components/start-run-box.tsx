@@ -4,12 +4,13 @@ import { TagPills } from "./tag-pill";
 import { NewsTag } from "./case-news-tag";
 import { forgivingFilter, tagHits } from "@/lib/fuzzy";
 import { CloseMatchesLabel } from "./close-matches";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { PRIORITIES, PRIORITY_LABEL } from "@/lib/format";
 import { startKind } from "@/lib/start-kind";
 import { addRunKind, createCycleFromRunBox, runBoxOptions, startRuns, type RunBoxOptions, type RunBoxScope } from "@/server/start-run";
 import { Modal } from "./modal";
+import { LoadingSpinner, SpinnerArt } from "./loading-spinner";
 import { RunFieldInputs } from "./run-field-inputs";
 import { CantFindCase, FolderList, inFolder } from "./folder-list";
 import { PlatformPicker } from "./platform-picker";
@@ -50,6 +51,8 @@ export function StartRunBox({
   openParam?: string;
 }) {
   const [open, setOpen] = useState(initialOpen && !disabled);
+  // Starting and opening the run (ver_108): the box stays up and can't be closed until the run page shows.
+  const [busy, setBusy] = useState(false);
   const asked = useSearchParams().get("start");
   useEffect(() => {
     if (openParam && asked === openParam && !disabled) setOpen(true);
@@ -59,14 +62,14 @@ export function StartRunBox({
       <Button variant={variant} size={size} onClick={() => setOpen(true)} disabled={disabled}>
         {label}
       </Button>
-      <Modal open={open} onClose={() => setOpen(false)} title={session ? "Start a session" : "Start a run"} wide>
-        <Box scope={scope} preset={preset} defaultName={defaultName} session={session} onClose={() => setOpen(false)} />
+      <Modal open={open} onClose={() => setOpen(false)} title={session ? "Start a session" : "Start a run"} wide locked={busy}>
+        <Box scope={scope} preset={preset} defaultName={defaultName} session={session} onClose={() => setOpen(false)} onBusy={setBusy} />
       </Modal>
     </>
   );
 }
 
-function Box({ scope, preset, defaultName, session, onClose }: { scope: RunBoxScope; preset?: RunBoxPreset; defaultName?: string; session?: boolean; onClose: () => void }) {
+function Box({ scope, preset, defaultName, session, onClose, onBusy }: { scope: RunBoxScope; preset?: RunBoxPreset; defaultName?: string; session?: boolean; onClose: () => void; onBusy: (busy: boolean) => void }) {
   const [opts, setOpts] = useState<RunBoxOptions | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -91,14 +94,28 @@ function Box({ scope, preset, defaultName, session, onClose }: { scope: RunBoxSc
         </div>
       </div>
     );
-  return <Form opts={opts} preset={preset} defaultName={defaultName} session={session} onClose={onClose} />;
+  return <Form opts={opts} preset={preset} defaultName={defaultName} session={session} onClose={onClose} onBusy={onBusy} />;
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
 const fieldId = (f: { id: string }) => (f.id === "csp" ? "rb-csp" : `rb-f-${f.id}`);
 const value = (id: string) => (document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | null)?.value ?? "";
 
-function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: RunBoxOptions; preset?: RunBoxPreset; defaultName?: string; session?: boolean; onClose: () => void }) {
+function Form({
+  opts: loaded,
+  preset,
+  defaultName,
+  session,
+  onClose,
+  onBusy,
+}: {
+  opts: RunBoxOptions;
+  preset?: RunBoxPreset;
+  defaultName?: string;
+  session?: boolean;
+  onClose: () => void;
+  onBusy: (busy: boolean) => void;
+}) {
   const opts = loaded;
   const router = useRouter();
   // What kind of run (ver_95), asked first in an umbrella. A charter session skips it.
@@ -110,6 +127,12 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
   const [newCycle, setNewCycle] = useState<{ open: boolean; name: string; platform: string }>({ open: !!opts.newCycle?.empty && !!opts.newCycle.canCreate, name: "", platform: "" });
   const makingCycle = newCycle.open && !!newCycle.name.trim();
   const [pending, start] = useTransition();
+  // Which Start button was pressed, and the run that's opening (ver_108).
+  const [pressed, setPressed] = useState<"plain" | "test" | null>(null);
+  const [opening, setOpening] = useState<{ what: string; cases: number; runs: number } | null>(null);
+  const busy = pending || !!opening;
+  useEffect(() => onBusy(busy), [busy, onBusy]);
+  const pathname = usePathname();
   const [error, setError] = useState<string | null>(null);
   // Every box opens fresh (Scott, ver_77): nothing picked, ticked or remembered from the last run.
   const [what, setWhat] = useState<What | null>(preset?.what ?? null);
@@ -203,6 +226,7 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
     what &&
     start(async () => {
       setError(null);
+      setPressed(goTest ? "test" : "plain");
       let cycleIds = ticked;
       if (makingCycle && opts.umbrella) {
         const made = await createCycleFromRunBox(opts.umbrella.id, { name: newCycle.name, platform: newCycle.platform });
@@ -227,12 +251,18 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
         assigneeId: members.length ? assignee || null : null,
       });
       if (!res.ok) return setError(res.error);
-      onClose();
       const [first] = res.runs;
-      router.refresh();
+      // The box stays up with "Opening it…" until the next page shows (ver_108).
+      setOpening({ what: res.runs.length === 1 ? `R${first.number} ${name}` : `${res.runs.length} ${session ? "sessions" : "runs"}`, cases: count, runs: res.runs.length });
       // Handed to someone else (ver_85): land on the run page with a link to send them.
-      if (res.runs.length === 1) router.push(`/p/${first.key}/runs/${first.number}${goTest ? "/execute" : handed ? `?handed=${assignee}` : ""}`);
-      else router.push(opts.umbrella ? `/g/${opts.umbrella.id}/runs` : `/p/${first.key}/runs`);
+      // "Opening…" lasts until the next page replaces this one. Already on that page (a runs
+      // list): it just updates, so the box goes now.
+      const to = res.runs.length === 1 ? `/p/${first.key}/runs/${first.number}${goTest ? "/execute" : handed ? `?handed=${assignee}` : ""}` : opts.umbrella ? `/g/${opts.umbrella.id}/runs` : `/p/${first.key}/runs`;
+      // Keep the refresh: without it, later refreshes and Save and next on the new page were
+      // ignored (ver_108 e2e: run-edit, history, long-text).
+      router.refresh();
+      router.push(to);
+      if (to === pathname) onClose();
     });
 
   const choice = (w: What, title: string, sub: string) => (
@@ -252,6 +282,8 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
   return (
     <div className="space-y-4" onInput={() => setTyped((t) => t + 1)}>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+      {opening && <OpeningRun {...opening} session={session} />}
+      <div inert={busy} className={cx("space-y-4", busy && "opacity-50")}>
       {askKind && (
         <KindStep
           kinds={kinds}
@@ -577,6 +609,7 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
 
       </>
       )}
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-3">
         {/* What's still needed (ver_99), so it's clear why Start is grayed out. */}
@@ -591,30 +624,71 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
           ))}
         </ul>
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
           {kindId !== null &&
             (runCount > 1 ? (
-              <Button variant="primary" disabled={pending || !ready} onClick={() => submit(false)}>
-                {pending ? "Starting…" : `Start ${runCount} ${session ? "sessions" : "runs"}`}
+              <Button variant="primary" disabled={busy || !ready} onClick={() => submit(false)}>
+                {busy ? <Working opening={!!opening} /> : `Start ${runCount} ${session ? "sessions" : "runs"}`}
               </Button>
             ) : session ? (
-              <Button variant="primary" disabled={pending || !ready} onClick={() => submit(true)}>
-                {pending ? "Starting…" : "Start session"}
+              <Button variant="primary" disabled={busy || !ready} onClick={() => submit(true)}>
+                {busy ? <Working opening={!!opening} /> : "Start session"}
               </Button>
             ) : (
               <>
-                <Button disabled={pending || !ready} onClick={() => submit(false)}>
-                  {kind ? `Start ${kind.name.toLowerCase()}` : "Start run"}
+                <Button disabled={busy || !ready} onClick={() => submit(false)}>
+                  {busy && pressed === "plain" ? <Working opening={!!opening} /> : kind ? `Start ${kind.name.toLowerCase()}` : "Start run"}
                 </Button>
                 {/* Handing every case to someone else: no "test now" for you. */}
                 {!handed && (
-                  <Button variant="primary" disabled={pending || !ready} onClick={() => submit(true)}>
-                    {pending ? "Starting…" : "Start and test now"}
+                  <Button variant="primary" disabled={busy || !ready} onClick={() => submit(true)}>
+                    {busy && pressed === "test" ? <Working opening={!!opening} /> : "Start and test now"}
                   </Button>
                 )}
               </>
             ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** A pressed Start button (ver_108): a small plain ring and what's happening. */
+function Working({ opening }: { opening: boolean }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <SpinnerArt id="ring" size={14} />
+      {opening ? "Opening…" : "Starting…"}
+    </span>
+  );
+}
+
+/** "R14 Web smoke is ready. Opening it…" (ver_108), up until the run page shows. */
+function OpeningRun({ what, cases, runs, session }: { what: string; cases: number; runs: number; session?: boolean }) {
+  const one = runs === 1;
+  return (
+    <div role="status" className="flex items-center gap-3 rounded-lg bg-accent-50 px-3 py-2.5 text-sm text-slate-800" data-testid="run-opening">
+      <LoadingSpinner size={36} />
+      <div className="min-w-0">
+        <p>
+          {one ? (
+            <>
+              <b>{what}</b> is ready. Opening it…
+            </>
+          ) : (
+            <>
+              Started <b>{what}</b>. Opening {session ? "them" : "Test runs"}…
+            </>
+          )}
+        </p>
+        <p className="text-xs text-slate-600">
+          <span className="text-emerald-600" aria-hidden>
+            ✓
+          </span>{" "}
+          Made {one ? "the run" : "each run"} with {cases === 1 ? "1 case" : `${cases} cases`}
+        </p>
       </div>
     </div>
   );

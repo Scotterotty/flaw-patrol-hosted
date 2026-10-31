@@ -61,6 +61,8 @@ model User {
   questMap         Boolean         @default(false)
   // Seasonal scenery on quest maps (ver_98, src/lib/seasons.ts): on unless they turn it off.
   seasonalMaps     Boolean         @default(true)
+  // Loading spinners (ver_108, src/lib/spinners.ts): the ones ticked in Account → Appearance; long waits play one at random.
+  spinners         String[]        @default(["ring"])
   // Quest pawn and worn gear (src/lib/quest-gear.ts): looks only, cleared with the satchel on an XP reset.
   questPawn        String          @default("classic")
   questColor       String          @default("accent") @map("questColour")

@@ -8,6 +8,7 @@ import { CrumbName } from "@/components/crumb-name";
 import Link from "next/link";
 import { PersonLabel } from "@/components/avatar";
 import { notFound } from "next/navigation";
+import { startTiming } from "@/lib/timing";
 import { EditRunButton } from "@/components/edit-run";
 import { MoreMenu } from "@/components/more-menu";
 import { NewRunButton } from "@/components/new-run";
@@ -47,13 +48,15 @@ import { KnownBugsHeadsUp, KnownBugsPanel, type RunKnown } from "@/components/kn
 export const metadata = { title: "Test run" };
 
 export default async function RunPage({ params, searchParams }: { params: Promise<{ key: string; number: string }>; searchParams: Promise<{ handed?: string; compare?: string }> }) {
-  const spelling = await mySpelling();
+  // FP_TIMING=1 prints how long each part took (ver_108). The independent lookups run side by
+  // side instead of one after another, so the page shows sooner after Start.
+  const timing = startTiming("Run page");
   const { key, number } = await params;
   const { handed, compare } = await searchParams;
-  const { project, user, who } = await projectAccess(key);
+  const [spelling, { project, user, who }] = await Promise.all([mySpelling(), timing.step("sign-in and project", projectAccess(key))]);
   const n = Number(number);
   if (!Number.isInteger(n)) notFound();
-  const run = await db.testRun.findUnique({
+  const run = await timing.step("run and its cases", db.testRun.findUnique({
     where: { projectId_number: { projectId: project.id, number: n } },
     include: {
       suite: { select: { id: true, name: true, project: { select: { key: true } } } },
@@ -66,28 +69,39 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         },
       },
     },
-  });
+  }));
   if (!run) notFound();
   if (run.automated) return <AutomatedRun project={project} runId={run.id} who={who} />;
-  const [members, defectLinks, stepAgg, releases, stepTotal] = await Promise.all([
-    projectMembers(project.id),
-    db.defectLink.findMany({
+  const entryRefs = run.entries.map((e) => ({ id: e.id, caseId: e.caseId, steps: e.steps }));
+  const [members, defectLinks, stepAgg, releases, stepTotal, sort, runFields, knownMap, news, slack, flaky, reg, sentryOn, tagColors] = await Promise.all([
+    timing.step("members", projectMembers(project.id)),
+    timing.step("bugs filed", db.defectLink.findMany({
       where: { result: { runId: run.id } },
       include: { defect: true, result: { select: { entryId: true } } },
-    }),
-    db.$queryRaw<{ status: string; n: bigint }[]>`
+    })),
+    timing.step("step counts", db.$queryRaw<{ status: string; n: bigint }[]>`
       SELECT s->>'status' AS status, count(*) AS n
       FROM "RunEntry" e
       JOIN "TestResult" r ON r.id = (SELECT id FROM "TestResult" WHERE "entryId" = e.id ORDER BY "createdAt" DESC LIMIT 1)
       CROSS JOIN LATERAL jsonb_array_elements(r."stepResults") s
       WHERE e."runId" = ${run.id}
-      GROUP BY 1`,
-    releaseOptions(project.id),
-    db.$queryRaw<{ n: bigint | null }[]>`SELECT sum(jsonb_array_length("steps")) AS n FROM "RunEntry" WHERE "runId" = ${run.id} AND jsonb_typeof("steps") = 'array'`,
+      GROUP BY 1`),
+    timing.step("releases", releaseOptions(project.id)),
+    timing.step("step total", db.$queryRaw<{ n: bigint | null }[]>`SELECT sum(jsonb_array_length("steps")) AS n FROM "RunEntry" WHERE "runId" = ${run.id} AND jsonb_typeof("steps") = 'array'`),
+    readCaseSort(),
+    timing.step("run fields", runFieldsFor(project.id)),
+    // Known bugs from earlier runs (ver_96), for runs tested by hand.
+    timing.step("known bugs", knownBugsForRun(run.id, entryRefs)),
+    timing.step("new and updated cases", caseNewsForRun(run, run.entries)),
+    timing.step("Slack", slackSummaryFor(project.id)),
+    timing.step("flaky cases", flakyCases({ caseIds: [...new Set(run.entries.map((e) => e.caseId))] })),
+    // Regression flag (ver_93): cases that passed last release on this platform and fail now.
+    timing.step("regressions", runRegressions(run, project, compare)),
+    timing.step("Sentry", sentryConnected(project.id)),
+    timing.step("tags", tagColorsFor(project.id)),
   ]);
+  timing.done();
 
-  const sort = await readCaseSort();
-  const runFields = await runFieldsFor(project.id);
   const counts = countStatuses(run.entries.map((e) => e.status));
   const t = totals(counts);
   const defectsByEntry = new Map<string, Set<string>>();
@@ -97,9 +111,6 @@ export default async function RunPage({ params, searchParams }: { params: Promis
     defectsByEntry.set(l.result.entryId, s);
   }
   const defects = [...new Map(defectLinks.map((l) => [l.defectId, l.defect])).values()];
-  // Known bugs from earlier runs (ver_96), for runs tested by hand.
-  const knownMap = run.automated ? new Map<string, RunKnown["bug"][]>() : await knownBugsForRun(run.id, run.entries.map((e) => ({ id: e.id, caseId: e.caseId, steps: e.steps })));
-  const news = await caseNewsForRun(run, run.entries);
   const knownList: RunKnown[] = run.entries.flatMap((e) => (knownMap.get(e.id) ?? []).map((bug) => ({ bug, caseKey: caseKey(e.testCase.project.key, e.testCase.number) })));
   const steps = Object.fromEntries(stepAgg.map((s) => [s.status, Number(s.n)]));
   const byTester = members
@@ -110,10 +121,6 @@ export default async function RunPage({ params, searchParams }: { params: Promis
     .filter((m) => m.total > 0);
   const unassigned = run.entries.filter((e) => !e.assigneeId);
   const sheet: SheetState = { hook: run.sheetHook, tab: run.sheetTab, auto: run.sheetAuto, link: run.sheetLink, syncedAgo: run.sheetSyncedAt && relativeTime(run.sheetSyncedAt, spelling), error: run.sheetError };
-  const slack = run.automated ? [] : await slackSummaryFor(project.id);
-  const flaky = await flakyCases({ caseIds: [...new Set(run.entries.map((e) => e.caseId))] });
-  // Regression flag (ver_93): cases that passed last release on this platform and fail now.
-  const reg = await runRegressions(run, project, compare);
   const failedish = run.entries.filter((e) => ["FAILED", "BLOCKED", "RETEST"].includes(e.status)).length;
   // "Retest 3 not passed" says what's in it on hover: 1 failed · 1 blocked (ver_91).
   const notPassed = (["FAILED", "BLOCKED", "RETEST"] as const)
@@ -269,7 +276,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
       </div>
 
       {/* Sentry (ver_96): how this build is doing, for runs tested by hand. */}
-      {!run.automated && (await sentryConnected(project.id)) && (
+      {!run.automated && sentryOn && (
         <div className="mb-5">
           <SentryCard projectId={project.id} runIds={[run.id]} />
         </div>
@@ -318,7 +325,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         canMarkRunBefore={can(who, "case:edit")}
         meId={user.id}
         sort={sort}
-        tagColors={await tagColorsFor(project.id)}
+        tagColors={tagColors}
         rows={sortCases(run.entries, sort, (e) => e.priority, (e) => e.status).map((e) => ({
           id: e.id,
           caseKey: caseKey(e.testCase.project.key, e.testCase.number),

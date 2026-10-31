@@ -1,5 +1,6 @@
 "use server";
 
+import { cleanSpinners } from "@/lib/spinners";
 import { isVision } from "@/lib/vision";
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -79,6 +80,18 @@ export async function updateMyAccessibility(a: { textSize: string; reduceMotion:
       },
     });
     return {};
+  });
+}
+
+/** Loading spinners (ver_108): the ones you ticked; the plain ring when none are. */
+export async function updateMySpinners(ids: string[]) {
+  return attempt(async () => {
+    const user = await requireUser();
+    const spinners = cleanSpinners(ids);
+    await db.user.update({ where: { id: user.id }, data: { spinners } });
+    // The folded Appearance card's summary follows.
+    revalidatePath("/account");
+    return { spinners };
   });
 }
 
