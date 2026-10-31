@@ -208,6 +208,8 @@ test("an umbrella with no test cycles makes one inside Start a run, and lists Sl
   await expect(box.getByText("RC 1 Web (new)")).toBeVisible();
   await box.getByLabel("Run name").fill(`First ${run}`);
   await box.getByRole("button", { name: /^Start (run|smoke test)$/ }).click();
+  // ver_116: the box says "Making First …" at once, so wait for the run page itself.
+  await expect(page).toHaveURL(/\/runs\/\d+/, { timeout: 60_000 });
   await expect(page.getByText(`First ${run}`).filter({ visible: true }).first()).toBeVisible();
 
   // The new test cycle follows the umbrella's Slack channels.

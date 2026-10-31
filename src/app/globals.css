@@ -1670,3 +1670,56 @@ main:focus {
 .fp-still:not(:hover):not(:focus-visible) :is(.fp-spin-art *, .fp-spin-art *::before, .fp-spin-art *::after) {
   animation-play-state: paused;
 }
+
+/* The corner spinner (ver_116, src/components/busy-corner.tsx): a thin bar along the top and
+   your spinner bottom-right, in the same 36 px circle as the Start boxes. Sits where the
+   toasts do, above the phone's bottom bar. */
+.fp-busy-bar {
+  position: fixed;
+  inset: 0 0 auto;
+  top: env(safe-area-inset-top, 0px);
+  height: 3px;
+  z-index: 70;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--color-accent-500), transparent) no-repeat;
+  background-size: 40% 100%;
+  animation: fp-busy-slide 1.2s ease-in-out infinite;
+}
+@keyframes fp-busy-slide {
+  from {
+    background-position: -60% 0;
+  }
+  to {
+    background-position: 160% 0;
+  }
+}
+.fp-busy-pill {
+  position: fixed;
+  right: calc(1rem + env(safe-area-inset-right, 0px));
+  bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.35rem 0.9rem 0.35rem 0.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-slate-200);
+  background: var(--color-surface);
+  color: var(--color-slate-800);
+  font-size: 0.875rem;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.14);
+  pointer-events: none;
+}
+@media (min-width: 768px) {
+  .fp-busy-pill {
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fp-busy-bar {
+    animation: none;
+    background: var(--color-accent-500);
+    opacity: 0.5;
+  }
+}

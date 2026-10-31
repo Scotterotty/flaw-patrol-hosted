@@ -22,6 +22,22 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 116,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "new",
+        title: "Your spinner whenever Flaw Patrol is working",
+        text: "When a page or a save takes more than a third of a second, a thin bar slides along the top and your loading spinner shows in the bottom-right corner with what it's doing, like Opening Test runs… After 10 seconds it adds Still working, hang tight. Quick things show nothing, so the screen doesn't flicker.",
+      },
+      {
+        kind: "better",
+        title: "Start shows your spinner straight away",
+        text: "Press Start in Start a run or Start next release and your spinner shows at once with what it's making, then Opening it… when the run is ready. Every spinner is the same size wherever it shows.",
+      },
+    ],
+  },
+  {
     version: 115,
     date: "2026-10-31",
     items: [

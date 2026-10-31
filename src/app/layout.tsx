@@ -101,6 +101,7 @@ import { viewerOf } from "@/lib/whats-new-viewer";
 import { NavOrderProvider } from "@/components/nav-order";
 import { parseNavOrder } from "@/lib/nav-order";
 import { GlossaryProvider } from "@/components/glossary";
+import { BusyCorner } from "@/components/busy-corner";
 
 export const metadata: Metadata = { title: { default: "Flaw Patrol", template: "%s · Flaw Patrol" } };
 
@@ -151,6 +152,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           })()}
           {user?.gameEnabled && user.questMap && <QuestToaster />}
           {crowns && crowns.changes.length > 0 && <CrownToaster changes={crowns.changes} held={crowns.held} />}
+          {/* Your spinner whenever something takes more than a third of a second (ver_116). */}
+          <BusyCorner />
           {whatsNew.length > 0 && <WhatsNewWindow entries={whatsNew} />}
           </NavOrderProvider>
         </SpellingProvider>

@@ -1,6 +1,6 @@
 "use client";
 
-import { LoadingSpinner, SpinnerArt } from "./loading-spinner";
+import { BusyStrip, SpinnerArt } from "./loading-spinner";
 import { PlatformPicker } from "./platform-picker";
 import { RunFieldInputs } from "./run-field-inputs";
 import type { RunField } from "@/lib/run-fields";
@@ -747,6 +747,11 @@ export function StartRcButton({
   // The new release's Test runs page is on its way (ver_108): the box stays up until that page replaces this one.
   const [opening, setOpening] = useState<string | null>(null);
   const busy = pending || !!opening;
+  // Start was pressed (ver_116): other saves in this box (Rename, Remove) don't show the strip.
+  const [pressedStart, setPressedStart] = useState(false);
+  useEffect(() => {
+    if (!pending) setPressedStart(false);
+  }, [pending]);
   const current = () => plan.platforms.map((p) => ({ name: p.name, suiteIds: p.suiteIds }));
   const suiteOf = (id: string) => plan.allSuites.find((s) => s.id === id);
   const caseCount = (p: RcPlan["platforms"][number], ids: string[]) => (sameIds(ids, p.suiteIds) ? p.cases : new Set(ids.flatMap((id) => suiteOf(id)?.caseIds ?? [])).size);
@@ -1353,13 +1358,22 @@ export function StartRcButton({
             )}
           </>
         )}
-        {opening && (
-          <div role="status" className="mt-4 flex items-center gap-3 rounded-lg bg-accent-50 px-3 py-2.5 text-sm text-slate-800" data-testid="run-opening">
-            <LoadingSpinner size={36} />
-            <p>
-              <b>{opening}</b> is ready. Opening Test runs…
-            </p>
-          </div>
+        {/* Your spinner from the moment you press Start (ver_116), then "Opening Test runs…" (ver_108). */}
+        {(opening || (pending && pressedStart)) && (
+          <BusyStrip className="mt-4" testId={opening ? "run-opening" : "run-making"}>
+            {opening ? (
+              <p>
+                <b>{opening}</b> is ready. Opening Test runs…
+              </p>
+            ) : (
+              <>
+                <p>
+                  <b>Starting {rc.trim() || "the release"}…</b>
+                </p>
+                <p className="text-xs text-slate-600">Making {plural(starting.length, "test cycle")} and their runs</p>
+              </>
+            )}
+          </BusyStrip>
         )}
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
           <ul className="space-y-0.5 text-xs" aria-live="polite" data-testid="rc-todo">
@@ -1386,7 +1400,8 @@ export function StartRcButton({
           <Button
             variant="primary"
             disabled={busy || !allReady}
-            onClick={() =>
+            onClick={() => {
+              setPressedStart(true);
               run(
                 start,
                 (r: { made: { key: string }[] }) => {
@@ -1396,8 +1411,8 @@ export function StartRcButton({
                   router.push(`/p/${r.made[0].key}/runs`);
                   return true;
                 },
-              )
-            }
+              );
+            }}
           >
             {busy ? (
               <span className="inline-flex items-center gap-1.5">

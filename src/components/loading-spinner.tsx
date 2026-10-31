@@ -93,3 +93,17 @@ export function LoadingSpinner({ size = 48, className }: { size?: number; classN
     </span>
   );
 }
+
+/**
+ * The strip a box shows while it works (ver_108, ver_116): your spinner and what's happening.
+ * It marks itself data-own-spinner so the corner spinner stays out of the way. Keep one strip
+ * mounted through every phase so the spinner doesn't change halfway.
+ */
+export function BusyStrip({ testId, className, children }: { testId?: string; className?: string; children: React.ReactNode }) {
+  return (
+    <div role="status" data-own-spinner="" data-testid={testId} className={cx("flex items-center gap-3 rounded-lg bg-accent-50 px-3 py-2.5 text-sm text-slate-800", className)}>
+      <LoadingSpinner size={36} />
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
+}

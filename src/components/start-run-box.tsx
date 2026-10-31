@@ -10,7 +10,7 @@ import { PRIORITIES, PRIORITY_LABEL } from "@/lib/format";
 import { startKind } from "@/lib/start-kind";
 import { addRunKind, createCycleFromRunBox, runBoxOptions, startRuns, type RunBoxOptions, type RunBoxScope } from "@/server/start-run";
 import { Modal } from "./modal";
-import { LoadingSpinner, SpinnerArt } from "./loading-spinner";
+import { BusyStrip, SpinnerArt } from "./loading-spinner";
 import { RunFieldInputs } from "./run-field-inputs";
 import { CantFindCase, FolderList, inFolder } from "./folder-list";
 import { PlatformPicker } from "./platform-picker";
@@ -222,11 +222,12 @@ function Form({
     ...missingFields.map((f): [boolean, string] => [false, `Fill in ${f.name}`]),
   ];
   const ready = todo.every(([ok]) => ok);
-  const submit = (goTest: boolean) =>
-    what &&
+  const submit = (goTest: boolean) => {
+    if (!what) return;
+    // Outside the transition, so the pressed button and the strip show straight away (ver_116).
+    setPressed(goTest ? "test" : "plain");
     start(async () => {
       setError(null);
-      setPressed(goTest ? "test" : "plain");
       let cycleIds = ticked;
       if (makingCycle && opts.umbrella) {
         const made = await createCycleFromRunBox(opts.umbrella.id, { name: newCycle.name, platform: newCycle.platform });
@@ -264,6 +265,7 @@ function Form({
       router.push(to);
       if (to === pathname) onClose();
     });
+  };
 
   const choice = (w: What, title: string, sub: string) => (
     <button
@@ -282,7 +284,12 @@ function Form({
   return (
     <div className="space-y-4" onInput={() => setTyped((t) => t + 1)}>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
-      {opening && <OpeningRun {...opening} session={session} />}
+      {/* Your spinner from the moment you press Start (ver_116), then "Opening it…" (ver_108). */}
+      {(opening || (pending && pressed)) && (
+        <BusyStrip testId={opening ? "run-opening" : "run-making"}>
+          {opening ? <OpeningRun {...opening} session={session} /> : <MakingRun what={name.trim() || autoName} cases={count} runs={Math.max(1, chosen.length + (makingCycle ? 1 : 0))} session={session} />}
+        </BusyStrip>
+      )}
       <div inert={busy} className={cx("space-y-4", busy && "opacity-50")}>
       {askKind && (
         <KindStep
@@ -665,32 +672,45 @@ function Working({ opening }: { opening: boolean }) {
   );
 }
 
+/** "Making Web smoke…" (ver_116), while Flaw Patrol makes the run. */
+function MakingRun({ what, cases, runs, session }: { what: string; cases: number; runs: number; session?: boolean }) {
+  const one = runs === 1;
+  return (
+    <>
+      <p>
+        <b>{one ? `Making ${what}…` : `Making ${runs} ${session ? "sessions" : "runs"}…`}</b>
+      </p>
+      <p className="text-xs text-slate-600">
+        Adding {cases === 1 ? "1 case" : `${cases} cases`}
+        {one ? "" : " to each"}
+      </p>
+    </>
+  );
+}
+
 /** "R14 Web smoke is ready. Opening it…" (ver_108), up until the run page shows. */
 function OpeningRun({ what, cases, runs, session }: { what: string; cases: number; runs: number; session?: boolean }) {
   const one = runs === 1;
   return (
-    <div role="status" className="flex items-center gap-3 rounded-lg bg-accent-50 px-3 py-2.5 text-sm text-slate-800" data-testid="run-opening">
-      <LoadingSpinner size={36} />
-      <div className="min-w-0">
-        <p>
-          {one ? (
-            <>
-              <b>{what}</b> is ready. Opening it…
-            </>
-          ) : (
-            <>
-              Started <b>{what}</b>. Opening {session ? "them" : "Test runs"}…
-            </>
-          )}
-        </p>
-        <p className="text-xs text-slate-600">
-          <span className="text-emerald-600" aria-hidden>
-            ✓
-          </span>{" "}
-          Made {one ? "the run" : "each run"} with {cases === 1 ? "1 case" : `${cases} cases`}
-        </p>
-      </div>
-    </div>
+    <>
+      <p>
+        {one ? (
+          <>
+            <b>{what}</b> is ready. Opening it…
+          </>
+        ) : (
+          <>
+            Started <b>{what}</b>. Opening {session ? "them" : "Test runs"}…
+          </>
+        )}
+      </p>
+      <p className="text-xs text-slate-600">
+        <span className="text-emerald-600" aria-hidden>
+          ✓
+        </span>{" "}
+        Made {one ? "the run" : "each run"} with {cases === 1 ? "1 case" : `${cases} cases`}
+      </p>
+    </>
   );
 }
 
