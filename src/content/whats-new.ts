@@ -22,6 +22,28 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 101,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "new",
+        title: "Custom reports: build your own report from any Reports tab",
+        text: "Reports has a new Custom reports tab. Click + Add to report on any box in Run reports, Release status or Requirements, or start a report there, then tick the parts you want, put them in your order, add notes, and give a part its own release or dates.",
+        link: "/g/{umbrella}/reports/custom",
+      },
+      {
+        kind: "new",
+        title: "Export a custom report as PDF, Excel, or for Confluence and email",
+        text: "The PDF never cuts a box in half: long tables break between rows and repeat their column names, and you can start any part on a new page.",
+      },
+      {
+        kind: "better",
+        title: "No more Time logged on the Testers report",
+        text: "Testing isn't a race, so the Testers tab and its export no longer show how long anyone spent.",
+      },
+    ],
+  },
+  {
     version: 100,
     date: "2026-10-30",
     items: [

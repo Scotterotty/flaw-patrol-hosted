@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { AddPartBar } from "@/components/add-part-bar";
 import { RcReport } from "@/components/rc-page";
 import { PageHeader } from "@/components/ui";
 import { ViewTabs } from "@/components/view-tabs";
@@ -22,8 +23,10 @@ export default async function UmbrellaRcPage({ params, searchParams }: { params:
           { label: "Release status", href: `/g/${u.group.id}/rc`, current: true },
           { label: "Requirements", href: `/g/${u.group.id}/stories`, current: false },
           { label: "Bug bashes", href: `/p/${u.hub.key}/bashes`, current: false },
+          { label: "Custom reports", href: `/g/${u.group.id}/reports/custom`, current: false },
         ]}
       />
+      <AddPartBar homeId={u.hub.id} user={user} who={u.who} base={`/g/${u.group.id}/reports/custom`} part="rc" title="Release status summary" />
       <RcReport
         user={user}
         want={(await searchParams).release}

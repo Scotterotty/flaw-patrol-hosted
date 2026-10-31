@@ -1,3 +1,4 @@
+import { AddPartBar } from "@/components/add-part-bar";
 import { StoryReport } from "@/components/story-report";
 import { PageHeader } from "@/components/ui";
 import { ViewTabs } from "@/components/view-tabs";
@@ -9,7 +10,7 @@ export const metadata = { title: "Requirement coverage" };
 
 /** Reports → Stories: which of a Jira release's stories this test cycle's runs cover. */
 export default async function ProjectStoriesReport({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ release?: string }> }) {
-  const { project, user } = await projectAccess((await params).key);
+  const { project, user, who } = await projectAccess((await params).key);
   const base = `/p/${project.key}/reports`;
   return (
     <div className="mx-auto max-w-6xl">
@@ -21,8 +22,10 @@ export default async function ProjectStoriesReport({ params, searchParams }: { p
           { label: "Release status", href: `${base}/rc`, current: false },
           { label: "Requirements", href: `${base}/stories`, current: true },
           { label: "Bug bashes", href: `/p/${project.key}/bashes`, current: false },
+          { label: "Custom reports", href: `/p/${project.key}/reports/custom`, current: false },
         ]}
       />
+      <AddPartBar homeId={project.id} user={user} who={who} base={`${base}/custom`} part="requirements" title="Requirements coverage" />
       <StoryReport
         projectId={project.id}
         libraryIds={await libraryProjectIds(project)}

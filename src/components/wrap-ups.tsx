@@ -1,5 +1,6 @@
 "use client";
 
+import { PartTitle } from "./report-part-title";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -126,10 +127,9 @@ export function WrapUpsSection({ items }: { items: WrapUp[] }) {
   if (!items.length) return null;
   return (
     <Card className="mt-5 p-5" data-testid="wrap-ups">
-      <h2 className="mb-3 flex flex-wrap items-baseline gap-2 text-sm font-semibold text-slate-900">
-        {WRAP_HEADING}
-        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">{WRAP_NOTE}</span>
-      </h2>
+      <PartTitle part="wrapups" className="mb-3" title={WRAP_HEADING}>
+        {WRAP_HEADING} <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">{WRAP_NOTE}</span>
+      </PartTitle>
       <ul className="divide-y divide-slate-100">
         {items.map((w) => (
           <li key={w.id} className="py-2.5 text-sm">

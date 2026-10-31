@@ -15,6 +15,11 @@ import { manualLine, splitProgress } from "@/lib/progress-split";
 import { mySpelling } from "@/lib/session";
 import { AE_SCALE, type SeverityScale } from "@/lib/severity";
 import { pct, STATUS_LABEL, STATUSES, totals, type StatusCounts } from "@/lib/status";
+import type { PartId } from "@/lib/report-parts";
+import { PartTitle } from "@/components/report-part-title";
+
+/** `only`: inside a custom report (ver_101), show just this part of the view. */
+const shows = (only: PartId | undefined) => (p: PartId) => !only || only === p;
 
 // The report views, shared by a test cycle's Reports and an umbrella's Reports.
 
@@ -62,31 +67,32 @@ export function RunKindFilter({ current, href }: { current: RunKind | undefined;
   );
 }
 
-export function TrendsView({ data }: { data: Trends }) {
+export function TrendsView({ data, only }: { data: Trends; only?: PartId }) {
+  const show = shows(only);
   const per = data.unit === "day" ? "day" : data.unit === "week" ? "week" : "month";
   if (data.results === 0) return <EmptyState title="No saved results match these filters">Widen the dates or clear the filters.</EmptyState>;
   return (
     <div className="space-y-5">
-      <Card className="p-4">
-        <h2 className="text-sm font-semibold text-slate-800">Pass rate per {per}</h2>
+      {show("trends.passrate") && <Card className="p-4">
+        <PartTitle part="trends.passrate">Pass rate per {per}</PartTitle>
         <p className="mb-2 text-xs text-slate-500">Cases that passed, out of those with a verdict. Each case counts once per run.{data.manual && data.automated ? " Hand testing and automation have a line each." : ""}</p>
         {data.manual > 0 && data.automated > 0 ? <SplitPassRate buckets={data.buckets} /> : <PassRateOverTime buckets={data.buckets} />}
-      </Card>
-      <Card className="p-4">
-        <h2 className="mb-2 text-sm font-semibold text-slate-800">Results per {per}</h2>
+      </Card>}
+      {show("trends.results") && <Card className="p-4">
+        <PartTitle part="trends.results" className="mb-2">Results per {per}</PartTitle>
         <ResultsOverTime buckets={data.buckets} />
-      </Card>
-      <Card className="p-4">
-        <h2 className="mb-2 text-sm font-semibold text-slate-800">Bugs found per {per}</h2>
+      </Card>}
+      {show("trends.bugs") && <Card className="p-4">
+        <PartTitle part="trends.bugs" className="mb-2">Bugs found per {per}</PartTitle>
         <BugsOverTime buckets={data.buckets} />
         <div className="mt-3" data-export-skip="">
           <TrendTable buckets={data.buckets} />
         </div>
-      </Card>
-      <Card className="p-4">
-        <h2 className="mb-2 text-sm font-semibold text-slate-800">By release</h2>
+      </Card>}
+      {show("trends.releases") && <Card className="p-4">
+        <PartTitle part="trends.releases" className="mb-2">By release</PartTitle>
         <ReleaseTrends releases={data.releases} />
-      </Card>
+      </Card>}
     </div>
   );
 }
@@ -215,7 +221,8 @@ function SplitBars({ manual, auto, autoAll, autoRuns }: { manual: StatusCounts |
 }
 
 /** `suiteKey`: the project whose page each suite links to (the umbrella's hub on its Reports). */
-export function StatusView({ suiteKey, runs, suites, kind }: { suiteKey: string; runs: Awaited<ReturnType<typeof runReport>>; suites: Awaited<ReturnType<typeof suiteReport>>; kind?: RunKind }) {
+export function StatusView({ suiteKey, runs, suites, kind, only }: { suiteKey: string; runs: Awaited<ReturnType<typeof runReport>>; suites: Awaited<ReturnType<typeof suiteReport>>; kind?: RunKind; only?: PartId }) {
+  const show = shows(only);
   const { manual, auto } = splitProgress(runs);
   const defects = manual.bugs + auto.bugs;
   const hand = manualLine(manual);
@@ -224,7 +231,9 @@ export function StatusView({ suiteKey, runs, suites, kind }: { suiteKey: string;
   const mixed = manual.runs > 0 && auto.runs > 0;
   return (
     <div className="space-y-5">
-      {auto.runs > 0 && hand.tested === 0 && kind !== "automated" && <NoManualBanner total={hand.total} />}
+      {show("status.tiles") && auto.runs > 0 && hand.tested === 0 && kind !== "automated" && <NoManualBanner total={hand.total} />}
+      {show("status.tiles") && <div>
+      <PartTitle part="status.tiles" quiet>Summary numbers</PartTitle>
       <div className="grid gap-3 sm:grid-cols-4">
         <Tile label="Runs" value={String(runs.length)} sub={mixed ? undefined : `${runs.filter((r) => r.state === "ACTIVE").length} still open`}>
           {mixed && <KindSplit manual={`${manual.runs} manual`} auto={`${auto.runs} automated`} />}
@@ -235,12 +244,13 @@ export function StatusView({ suiteKey, runs, suites, kind }: { suiteKey: string;
           {mixed && <KindSplit manual={String(manual.bugs)} auto={String(auto.bugs)} />}
         </Tile>
       </div>
-      <Card className="p-4">
-        <h2 className="mb-2 text-sm font-semibold text-slate-800">Cases in these runs</h2>
+      </div>}
+      {show("status.cases") && <Card className="p-4">
+        <PartTitle part="status.cases" className="mb-2">Cases in these runs</PartTitle>
         <SplitBars manual={manual.runs ? manual.counts : null} auto={auto.runs ? auto.latest : null} autoAll={auto.counts} autoRuns={auto.runs} />
-      </Card>
-      <Card className="p-4">
-        <h2 className="mb-2 text-sm font-semibold text-slate-800">Pass rate by run</h2>
+      </Card>}
+      {show("status.passrate") && <Card className="p-4">
+        <PartTitle part="status.passrate" className="mb-2">Pass rate by run</PartTitle>
         <PassRateTrend
           points={[...runs].reverse().map((r) => ({
             label: runLabel(r, runs),
@@ -249,9 +259,9 @@ export function StatusView({ suiteKey, runs, suites, kind }: { suiteKey: string;
             automated: r.source !== "manual",
           }))}
         />
-      </Card>
-      <Card className="overflow-x-auto" data-export-skip="">
-        <h2 className="border-b border-slate-200 px-4 py-3 text-sm font-semibold text-slate-800">Test suites</h2>
+      </Card>}
+      {show("status.suites") && <Card className="overflow-x-auto" data-export-skip="">
+        <PartTitle part="status.suites" className="border-b border-slate-200 px-4 py-3">Test suites</PartTitle>
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
@@ -295,8 +305,8 @@ export function StatusView({ suiteKey, runs, suites, kind }: { suiteKey: string;
             ))}
           </tbody>
         </table>
-      </Card>
-      <RunsTable runs={runs} />
+      </Card>}
+      {show("status.runs") && <RunsTable runs={runs} />}
     </div>
   );
 }
@@ -305,7 +315,7 @@ export async function RunsTable({ runs }: { runs: Awaited<ReturnType<typeof runR
   const spelling = await mySpelling();
   return (
     <Card className="overflow-x-auto" data-export-skip="">
-      <h2 className="border-b border-slate-200 px-4 py-3 text-sm font-semibold text-slate-800">Runs</h2>
+      <PartTitle part="status.runs" className="border-b border-slate-200 px-4 py-3">Runs</PartTitle>
       <table className="w-full text-sm">
         <thead className="bg-slate-50 text-left text-xs text-slate-500">
           <tr>
@@ -349,12 +359,15 @@ export async function RunsTable({ runs }: { runs: Awaited<ReturnType<typeof runR
   );
 }
 
-export function StepsView({ runs, stepCounts, failing, moreHref }: { runs: Awaited<ReturnType<typeof runReport>>; stepCounts: StatusCounts; failing: StepHistory[]; moreHref: string }) {
+export function StepsView({ runs, stepCounts, failing, moreHref, only }: { runs: Awaited<ReturnType<typeof runReport>>; stepCounts: StatusCounts; failing: StepHistory[]; moreHref: string; only?: PartId }) {
+  const show = shows(only);
   const t = totals(stepCounts);
   const { manual, auto } = splitProgress(runs);
   const mixed = manual.runs > 0 && auto.runs > 0;
   return (
     <div className="space-y-5">
+      {show("steps.tiles") && <div>
+      <PartTitle part="steps.tiles" quiet>Step numbers</PartTitle>
       <div className="grid gap-3 sm:grid-cols-4">
         <Tile label="Steps executed" value={String(t.tested)}>
           {mixed && <KindSplit manual={`${totals(manual.steps).tested} by hand`} auto={`${totals(auto.steps).tested} automated`} />}
@@ -363,8 +376,9 @@ export function StepsView({ runs, stepCounts, failing, moreHref }: { runs: Await
         <Tile label="Failed steps" value={String(stepCounts.FAILED)} />
         <Tile label="Blocked" value={String(stepCounts.BLOCKED)} />
       </div>
-      <Card className="p-4">
-        <h2 className="mb-2 text-sm font-semibold text-slate-800">Step outcomes (latest result of each case)</h2>
+      </div>}
+      {show("steps.outcomes") && <Card className="p-4">
+        <PartTitle part="steps.outcomes" className="mb-2" title="Step outcomes">Step outcomes (latest result of each case)</PartTitle>
         {mixed ? (
           // Hand testing and automation on their own bars (ver_95).
           <div className="space-y-4">
@@ -393,9 +407,9 @@ export function StepsView({ runs, stepCounts, failing, moreHref }: { runs: Await
             </div>
           </>
         )}
-      </Card>
-      <Card className="overflow-x-auto" data-export-skip="">
-        <h2 className="border-b border-slate-200 px-4 py-3 text-sm font-semibold text-slate-800">Steps by run</h2>
+      </Card>}
+      {show("steps.byrun") && <Card className="overflow-x-auto" data-export-skip="">
+        <PartTitle part="steps.byrun" className="border-b border-slate-200 px-4 py-3">Steps by run</PartTitle>
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
@@ -428,13 +442,15 @@ export function StepsView({ runs, stepCounts, failing, moreHref }: { runs: Await
             ))}
           </tbody>
         </table>
-      </Card>
-      <Card className="overflow-x-auto" data-export-skip="">
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-slate-800">Steps that fail most</h2>
-          <Link href={moreHref} className="text-sm text-accent-700 hover:underline">
-            Full failure history
-          </Link>
+      </Card>}
+      {show("steps.failmost") && <Card className="overflow-x-auto" data-export-skip="">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
+          <PartTitle part="steps.failmost" className="flex-1">Steps that fail most</PartTitle>
+          {!only && (
+            <Link href={moreHref} className="text-sm text-accent-700 hover:underline">
+              Full failure history
+            </Link>
+          )}
         </div>
         {/* Only steps that have failed at least once (ver_91). */}
         {failing.filter((r) => r.failures > 0).length === 0 ? (
@@ -442,23 +458,30 @@ export function StepsView({ runs, stepCounts, failing, moreHref }: { runs: Await
         ) : (
           <FailingTable rows={failing.filter((r) => r.failures > 0)} />
         )}
-      </Card>
+      </Card>}
     </div>
   );
 }
 
-export function DefectsView({ rows, scale = AE_SCALE }: { rows: Awaited<ReturnType<typeof defectReport>>; scale?: SeverityScale }) {
+export function DefectsView({ rows: all, scale = AE_SCALE, only, critical }: { rows: Awaited<ReturnType<typeof defectReport>>; scale?: SeverityScale; only?: PartId; critical?: boolean }) {
+  const show = shows(only);
+  // "Critical only" is a custom report part's own filter (ver_101).
+  const rows = critical ? all.filter((r) => (scale.critical as string[]).includes(r.severity)) : all;
   const open = rows.filter((r) => r.open).length;
   const sev = (s: string) => rows.filter((r) => r.severity === s).length;
   return (
     <div className="space-y-5">
+      {show("defects.tiles") && <div>
+      <PartTitle part="defects.tiles" quiet>Bug numbers</PartTitle>
       <div className="grid gap-3 sm:grid-cols-4">
         <Tile label="Bugs found" value={String(rows.length)} />
         <Tile label="Still open" value={String(open)} />
         <Tile label="Fixed or closed" value={String(rows.length - open)} />
         <Tile label="Critical" value={String(scale.critical.reduce((n, s) => n + sev(s), 0))} sub={scale.critical.map((s) => scale.labels[s]).join(", ")} />
       </div>
-      <Card className="overflow-x-auto" data-export-skip="">
+      </div>}
+      {show("defects.list") && <Card className="overflow-x-auto" data-export-skip="">
+        <PartTitle part="defects.list" className="border-b border-slate-200 px-4 py-3">Bug list</PartTitle>
         {rows.length === 0 ? (
           <p className="px-4 py-6 text-sm text-slate-500">No bugs were linked to results in this range.</p>
         ) : (
@@ -502,12 +525,13 @@ export function DefectsView({ rows, scale = AE_SCALE }: { rows: Awaited<ReturnTy
             </tbody>
           </table>
         )}
-      </Card>
+      </Card>}
     </div>
   );
 }
 
-export async function CasesView({ rows }: { rows: Awaited<ReturnType<typeof caseHealth>> }) {
+export async function CasesView({ rows, only }: { rows: Awaited<ReturnType<typeof caseHealth>>; only?: PartId }) {
+  const show = shows(only);
   const spelling = await mySpelling();
   const failing = rows.filter((r) => r.failStreak > 0).sort((a, b) => b.failStreak - a.failStreak).slice(0, 15);
   const flaky = rows.filter((r) => r.flips >= 2).sort((a, b) => b.flips - a.flips).slice(0, 15);
@@ -522,21 +546,21 @@ export async function CasesView({ rows }: { rows: Awaited<ReturnType<typeof case
   );
   return (
     <div className="space-y-5">
-      <p className="text-sm text-slate-600">Open any case for its full execution history across every run, release and build.</p>
-      <div className="grid gap-5 md:grid-cols-2">
-        <Card className="p-4">
-          <h2 className="mb-1 text-sm font-semibold text-slate-800">Failing now</h2>
+      {!only && <p className="text-sm text-slate-600">Open any case for its full execution history across every run, release and build.</p>}
+      <div className={cx("grid gap-5", !only && "md:grid-cols-2", only && !show("cases.failing") && !show("cases.flaky") && "hidden")}>
+        {show("cases.failing") && <Card className="p-4">
+          <PartTitle part="cases.failing" className="mb-1">Failing now</PartTitle>
           <p className="mb-2 text-xs text-slate-500">Most recent result failed, longest streak first.</p>
           {failing.length ? <ul className="divide-y divide-slate-100">{failing.map((r) => <Row key={r.caseKey} r={r} extra={`failed ${r.failStreak}× in a row`} />)}</ul> : <p className="text-sm text-slate-500">None.</p>}
-        </Card>
-        <Card className="p-4">
-          <h2 className="mb-1 text-sm font-semibold text-slate-800">Flaky</h2>
+        </Card>}
+        {show("cases.flaky") && <Card className="p-4">
+          <PartTitle part="cases.flaky" className="mb-1">Flaky</PartTitle>
           <p className="mb-2 text-xs text-slate-500">Flipped between passed and failed at least twice.</p>
           {flaky.length ? <ul className="divide-y divide-slate-100">{flaky.map((r) => <Row key={r.caseKey} r={r} extra={`${r.flips} flips`} />)}</ul> : <p className="text-sm text-slate-500">None.</p>}
-        </Card>
+        </Card>}
       </div>
-      <Card className="overflow-x-auto" data-export-skip="">
-        <h2 className="border-b border-slate-200 px-4 py-3 text-sm font-semibold text-slate-800">Every case executed ({rows.length})</h2>
+      {show("cases.all") && <Card className="overflow-x-auto" data-export-skip="">
+        <PartTitle part="cases.all" className="border-b border-slate-200 px-4 py-3" title="Every case executed">Every case executed ({rows.length})</PartTitle>
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
@@ -563,14 +587,16 @@ export async function CasesView({ rows }: { rows: Awaited<ReturnType<typeof case
             ))}
           </tbody>
         </table>
-      </Card>
+      </Card>}
     </div>
   );
 }
 
+// No time logged here (ver_101): testing isn't a race, so nobody's time is shown.
 export function TestersView({ rows }: { rows: Awaited<ReturnType<typeof testerReport>> }) {
   return (
     <Card className="overflow-x-auto" data-export-skip="">
+      <PartTitle part="testers" className="border-b border-slate-200 px-4 py-3">Testers</PartTitle>
       <table className="w-full text-sm">
         <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
           <tr>
@@ -578,8 +604,7 @@ export function TestersView({ rows }: { rows: Awaited<ReturnType<typeof testerRe
               Tester <span className="font-normal text-slate-400">(A to Z, not ranked)</span>
             </th>
             <th className="px-4 py-2 text-right font-medium">Results</th>
-            <th className="w-64 px-4 py-2 font-medium">Outcomes</th>
-            <th className="px-4 py-2 text-right font-medium">Time logged</th>
+            <th className="w-1/2 px-4 py-2 font-medium">Outcomes</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -594,7 +619,6 @@ export function TestersView({ rows }: { rows: Awaited<ReturnType<typeof testerRe
                   {STATUSES.filter((s) => r.counts[s]).map((s) => `${r.counts[s]} ${STATUS_LABEL[s].toLowerCase()}`).join(", ") || "No results"}
                 </p>
               </td>
-              <td className="px-4 py-2 text-right tabular-nums">{r.minutes >= 60 ? `${(r.minutes / 60).toFixed(1)} h` : `${r.minutes} min`}</td>
             </tr>
           ))}
         </tbody>
@@ -603,24 +627,28 @@ export function TestersView({ rows }: { rows: Awaited<ReturnType<typeof testerRe
   );
 }
 
-export function FailingView({ rows, allTimeHref }: { rows: StepHistory[]; allTimeHref: string | null }) {
+export function FailingView({ rows, allTimeHref, only }: { rows: StepHistory[]; allTimeHref: string | null; only?: PartId }) {
+  const show = shows(only);
   const failingNow = rows.filter((r) => r.streak > 0).length;
   const failures = rows.reduce((n, r) => n + r.failures, 0);
   return (
     <div className="space-y-5">
+      {show("failing.tiles") && <div>
+      <PartTitle part="failing.tiles" quiet>Failing step numbers</PartTitle>
       <div className="grid gap-3 sm:grid-cols-4">
         <Tile label="Steps that failed" value={String(rows.filter((r) => r.failures > 0).length)} sub="at least once" />
         <Tile label="Step failures" value={String(failures)} sub="failed steps" />
         <Tile label="Failing now" value={String(failingNow)} sub="failed in their latest run" />
         <Tile label="Most failures" value={rows[0]?.failures ? String(rows[0].failures) : "0"} sub={rows[0]?.failures ? `${rows[0].caseKey} step ${rows[0].step}` : undefined} />
       </div>
-      <Card className="overflow-x-auto" data-export-skip="">
+      </div>}
+      {show("failing.history") && <Card className="overflow-x-auto" data-export-skip="">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-800">Failure history by step</h2>
+          <div className="flex-1">
+            <PartTitle part="failing.history">Failure history by step</PartTitle>
             <p className="text-xs text-slate-500">Most failures first. Each square is one run, oldest on the left; hover for the run.</p>
           </div>
-          {allTimeHref && (
+          {allTimeHref && !only && (
             <Link href={allTimeHref} className="text-sm text-accent-700 hover:underline">
               Show all time
             </Link>
@@ -631,7 +659,7 @@ export function FailingView({ rows, allTimeHref }: { rows: StepHistory[]; allTim
         ) : (
           <FailingTable rows={rows} full />
         )}
-      </Card>
+      </Card>}
     </div>
   );
 }

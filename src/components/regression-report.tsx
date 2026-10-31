@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { RegressionRow } from "@/lib/regression-data";
 import { AutoFilterForm } from "./auto-filter-form";
+import { PartTitle } from "./report-part-title";
 import { Card, cx, EmptyState, Select } from "./ui";
 
 /**
@@ -12,12 +13,15 @@ export function RegressionView({
   show,
   hidden,
   qs,
+  inReport,
 }: {
   data: { releases: string[]; newer: string | null; older: string | null; rows: RegressionRow[]; before: number | null };
   show: "all" | "still" | "fixed";
   /** Other filters to keep (view, platform), as hidden fields. */
   hidden: Record<string, string>;
   qs: (extra: Record<string, string | undefined>) => string;
+  /** Inside a custom report (ver_101): no release pickers or list switch, every regression shows. */
+  inReport?: boolean;
 }) {
   const { releases, newer, older, rows } = data;
   if (!newer || !older)
@@ -31,6 +35,14 @@ export function RegressionView({
   const shown = show === "still" ? still : show === "fixed" ? fixed : rows;
   return (
     <div className="space-y-4">
+      <PartTitle part="regression" quiet>
+        Regression list
+      </PartTitle>
+      {inReport ? (
+        <p className="text-sm text-slate-600">
+          {newer} compared with {older}
+        </p>
+      ) : (
       <AutoFilterForm className="flex flex-wrap items-center gap-2 text-sm">
         {Object.entries(hidden).map(([k, v]) => (
           <input key={k} type="hidden" name={k} value={v} />
@@ -53,6 +65,7 @@ export function RegressionView({
             ))}
         </Select>
       </AutoFilterForm>
+      )}
       <div className="grid gap-3 sm:grid-cols-3">
         <Card className="p-4">
           <p className="text-xs text-slate-500">Regressions in {newer}</p>
@@ -70,7 +83,7 @@ export function RegressionView({
           <p className="text-[11px] text-slate-400">passed in a later run</p>
         </Card>
       </div>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Show">
+      <div className={cx("flex flex-wrap gap-2", inReport && "hidden")} role="group" aria-label="Show">
         {(
           [
             ["all", `All ${rows.length}`],

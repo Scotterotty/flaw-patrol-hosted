@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { AddPartBar } from "@/components/add-part-bar";
 import { StoryReport } from "@/components/story-report";
 import { PageHeader } from "@/components/ui";
 import { ViewTabs } from "@/components/view-tabs";
@@ -24,8 +25,10 @@ export default async function UmbrellaStoriesReport({ params, searchParams }: { 
           { label: "Release status", href: `${g}/rc`, current: false },
           { label: "Requirements", href: `${g}/stories`, current: true },
           { label: "Bug bashes", href: `/p/${u.hub.key}/bashes`, current: false },
+          { label: "Custom reports", href: `/g/${u.group.id}/reports/custom`, current: false },
         ]}
       />
+      <AddPartBar homeId={u.hub.id} user={user} who={u.who} base={`${g}/reports/custom`} part="requirements" title="Requirements coverage" />
       <StoryReport
         projectId={u.hub.id}
         libraryIds={[u.hub.id]}

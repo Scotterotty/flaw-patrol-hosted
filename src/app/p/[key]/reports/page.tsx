@@ -1,3 +1,4 @@
+import { AddPartsHere } from "@/components/add-part-bar";
 import { AttachWrapUps, WrapUpsSection } from "@/components/wrap-ups";
 import { attachedWrapUps, releaseStart, reportsWrapKey, wrapPickOf } from "@/lib/wrap-ups";
 import { KindSelect } from "@/components/kind-select";
@@ -99,6 +100,7 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
           { label: "Release status", href: `/p/${project.key}/reports/rc${f.release ? `?release=${encodeURIComponent(f.release)}` : ""}`, current: false },
           { label: "Requirements", href: `/p/${project.key}/reports/stories`, current: false },
           { label: "Bug bashes", href: `/p/${project.key}/bashes`, current: false },
+          { label: "Custom reports", href: `/p/${project.key}/reports/custom`, current: false },
         ]}
       />
 
@@ -233,6 +235,7 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
         ))}
       </nav>
 
+      <AddPartsHere homeId={project.id} user={user} who={who} base={`/p/${project.key}/reports/custom`}>
       <div id="report-body">
       {view === "regression" ? (
         <RegressionView
@@ -271,6 +274,7 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
       )}
       <WrapUpsSection items={wrapUps} />
       </div>
+      </AddPartsHere>
     </div>
   );
 }

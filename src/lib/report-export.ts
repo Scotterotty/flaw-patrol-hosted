@@ -64,7 +64,7 @@ export type ExportCtx = {
 
 const RUN_TYPE = { manual: "Manual", upload: "Automated (uploaded)", github: "Automated (GitHub)" } as const;
 const runName = (ctx: ExportCtx, r: Pick<RunRow, "projectKey" | "number">) => (ctx.umbrella ? `${r.projectKey} R${r.number}` : `R${r.number}`);
-const outcomes = (c: StatusCounts) => STATUSES.filter((s) => c[s]).map((s) => `${c[s]} ${STATUS_LABEL[s].toLowerCase()}`).join(", ");
+export const outcomes = (c: StatusCounts) => STATUSES.filter((s) => c[s]).map((s) => `${c[s]} ${STATUS_LABEL[s].toLowerCase()}`).join(", ");
 
 /** One tab as a table: header row first. Tabs that don't apply give null. */
 export async function reportTable(ctx: ExportCtx, view: ExportTab, f: ReportFilters): Promise<Table | null> {
@@ -161,7 +161,8 @@ export async function reportTable(ctx: ExportCtx, view: ExportTab, f: ReportFilt
     return {
       label,
       note: "A to Z, not ranked.",
-      rows: [["Tester", "Results", "Passed", "Failed", "Blocked", "Retest", "Skipped", "Minutes"], ...t.map((x) => [x.name, x.results, x.counts.PASSED, x.counts.FAILED, x.counts.BLOCKED, x.counts.RETEST, x.counts.SKIPPED, x.minutes])],
+      // No time spent column (ver_101): testing isn't a race.
+      rows: [["Tester", "Results", "Passed", "Failed", "Blocked", "Retest", "Skipped"], ...t.map((x) => [x.name, x.results, x.counts.PASSED, x.counts.FAILED, x.counts.BLOCKED, x.counts.RETEST, x.counts.SKIPPED])],
     };
   }
   if (view === "findings") {
@@ -250,7 +251,7 @@ export async function reportTable(ctx: ExportCtx, view: ExportTab, f: ReportFilt
 }
 
 /** Release status for the picked release, or the newest one. */
-async function rcTable(ctx: ExportCtx, f: ReportFilters) {
+export async function rcTable(ctx: ExportCtx, f: ReportFilters) {
   const projectIds = Array.isArray(ctx.scope) ? ctx.scope : [ctx.scope];
   const scope = { projectIds, addAnywhere: false };
   const release = f.release || (await listReleases(ctx.viewer, scope))[0];
@@ -316,10 +317,10 @@ export async function reportWorkbook(ctx: ExportCtx, f: ReportFilters, tabs: Exp
 
 export const INK = rgb(0.06, 0.09, 0.16);
 export const MUTED = rgb(0.39, 0.45, 0.55);
-const LINE = rgb(0.89, 0.91, 0.94);
-const HEAD = rgb(0.95, 0.96, 0.98);
-const ACCENT = rgb(0.43, 0.27, 0.78);
-const STATUS_RGB: Partial<Record<keyof StatusCounts, ReturnType<typeof rgb>>> = {
+export const LINE = rgb(0.89, 0.91, 0.94);
+export const HEAD = rgb(0.95, 0.96, 0.98);
+export const ACCENT = rgb(0.43, 0.27, 0.78);
+export const STATUS_RGB: Partial<Record<keyof StatusCounts, ReturnType<typeof rgb>>> = {
   PASSED: rgb(0.06, 0.6, 0.35),
   FAILED: rgb(0.86, 0.15, 0.15),
   BLOCKED: rgb(0.39, 0.45, 0.55),
@@ -330,7 +331,7 @@ const STATUS_RGB: Partial<Record<keyof StatusCounts, ReturnType<typeof rgb>>> = 
 };
 
 /** Which columns each tab keeps in the PDF, so tables fit a page. */
-const PDF_COLS: Partial<Record<ExportTab, string[]>> = {
+export const PDF_COLS: Partial<Record<ExportTab, string[]>> = {
   status: ["Run", "Name", "Test cycle", "Release", "State", "Cases", "Passed", "Failed", "Blocked", "Pass rate", "Bugs"],
   steps: ["Run", "Name", "Release", "Passed steps", "Failed steps", "Blocked steps", "Skipped steps"],
   failing: ["Case", "Title", "Step", "Times run", "Failures", "Fail rate", "Failing in a row", "Last failed release"],

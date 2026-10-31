@@ -217,6 +217,7 @@ model Project {
   jira                 JiraConfig?
   sentry               SentryConfig?
   savedReports         SavedReport[]
+  customReports        CustomReport[]
   // Archived projects move to a collapsed section on the Projects page. Nothing is deleted.
   archivedAt           DateTime?
   pins                 ProjectPin[]
@@ -917,6 +918,25 @@ model SavedReport {
   createdById   String
   createdByName String   @default("")
   createdAt     DateTime @default(now())
+
+  @@index([projectId])
+}
+
+// A custom report (ver_101): parts picked from the Reports tabs, in the order people put them,
+// with notes between. Kept on the test cycle, or on an umbrella's hub for the umbrella's Reports.
+// `parts` is a JSON list (see src/lib/report-parts.ts); `query` holds the report's own filters.
+model CustomReport {
+  id            String   @id @default(cuid())
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId     String
+  name          String
+  query         String   @default("")
+  parts         Json     @default("[]")
+  shared        Boolean  @default(true)
+  createdById   String
+  createdByName String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([projectId])
 }
