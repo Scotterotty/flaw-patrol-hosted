@@ -57,12 +57,12 @@ test("run fields, the RC platform picker, pips that open runs and ✕ on popups"
   await choosePlatform(page, "Web", "Smoke");
   await expect(box.getByRole("button", { name: "Start RC1 · 1 platform" })).toBeVisible();
   await box.getByLabel("Unity", { exact: true }).check();
-  const menu = box.getByRole("group", { name: "Choose what Unity runs" });
+  const menu = box.getByRole("group", { name: "Pick test cases for Unity" });
   await expect(menu).toContainText("Unity wasn't in the last release.");
   await expect(box.getByRole("button", { name: /Start RC1/ })).toBeDisabled();
   await menu.getByRole("checkbox", { name: "Smoke" }).check();
   await menu.getByRole("button", { name: "Done" }).click();
-  await expect(box.getByRole("button", { name: "What Unity runs" })).toContainText("Smoke · 1 case");
+  await expect(box.getByRole("button", { name: "Test cases for Unity" })).toContainText("Smoke · 1 case");
   await expect(box.getByText(`${NAME} Unity RC1`)).toBeVisible();
   // ver_99: the release box asks the umbrella's run fields too, and a pick list takes a typed value.
   await expect(box.getByTestId("rc-todo")).toContainText("Fill in Region");

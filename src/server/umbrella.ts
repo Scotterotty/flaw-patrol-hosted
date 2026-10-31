@@ -454,7 +454,7 @@ export async function startNextRc(groupId: string, input: z.input<typeof rcSchem
     const chosen = all.filter((p) => data.platforms.includes(p.name));
     if (!chosen.length) throw new UserError("Pick at least one platform.");
     const unset = chosen.find((p) => !data.choices[p.name] && p.suiteIds.length === 0);
-    if (unset) throw new UserError(`Choose what ${unset.name} runs.`);
+    if (unset) throw new UserError(`Pick test cases for ${unset.name}.`);
     // New suites are made empty in the library; their cases are added there, then a run started (ver_89).
     const hubSuites = new Set((await db.testSuite.findMany({ where: { projectId: hub.id, archived: false }, select: { id: true } })).map((x) => x.id));
     const platforms: { name: string; suiteIds: string[]; caseIds?: string[] }[] = [];

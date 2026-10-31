@@ -110,7 +110,7 @@ export function SuiteEditor({
           <Input id="suite-name" aria-label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Checkout regression" autoFocus={!suiteId} />
         </Field>
         <Field label="Description (optional)" htmlFor="suite-desc">
-          <Textarea id="suite-desc" rows={1} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="When to run it" />
+          <Textarea id="suite-desc" rows={1} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional. e.g. Login, checkout and account pages on the website" />
         </Field>
         {suiteId && (
           <div className="md:col-span-2">

@@ -882,15 +882,15 @@ export function StartRcButton({
   const todo: [boolean, string][] = [
     [!!rc.trim(), rc.trim() ? `Release: ${rc.trim()}` : "Name the release"],
     [starting.length > 0 || waiting.length > 0, starting.length || waiting.length ? `Platforms: ${list([...plan.platforms.filter((p) => picked.has(p.name)).map((p) => p.name), ...newOnes.map((a) => a.name.trim())])}` : "Tick a platform"],
-    ...waiting.map((p): [boolean, string] => [false, `Choose what ${p.name} runs`]),
-    ...halfAdded.map((a): [boolean, string] => [false, a.name.trim() ? `Pick the suite ${a.name.trim()} runs` : "Name the new platform"]),
+    ...waiting.map((p): [boolean, string] => [false, `Pick test cases for ${p.name}`]),
+    ...halfAdded.map((a): [boolean, string] => [false, a.name.trim() ? `Pick a suite for ${a.name.trim()}` : "Name the new platform"]),
     ...missingFields.map((f): [boolean, string] => [false, `Fill in ${f.name}`]),
   ];
   const allReady = todo.every(([ok]) => ok);
   const leftover = facts.length ? `${cap(facts.join(" and "))}, so there\u2019s nothing ${anyAssigned || bugs > 0 || openRuns > 0 ? "else " : ""}to carry over.` : "";
   const summary = (p: RcPlan["platforms"][number]) => {
     const c = choices[p.name];
-    if (!c || ((c.kind === "suites" || c.kind === "cases") && !c.ids.length)) return <span className="text-slate-500">Choose what {p.name} runs…</span>;
+    if (!c || ((c.kind === "suites" || c.kind === "cases") && !c.ids.length)) return <span className="text-slate-500">Pick test cases for {p.name}…</span>;
     if (c.kind === "cases") {
       const same = p.lastCaseIds.length > 0 && sameIds(c.ids, p.lastCaseIds);
       return (
@@ -983,7 +983,7 @@ export function StartRcButton({
               </Field>
             </div>
             <p className="mt-4 mb-1.5 text-sm font-medium text-slate-700">
-              Platforms <span className="font-normal text-slate-500">· tick the ones testing this release</span>
+              Platforms <span className="font-normal text-slate-500">· tick the ones testing this release, then pick the test cases each one tests</span>
             </p>
             <div className="space-y-2">
               {rows.map((row) => {
@@ -1044,10 +1044,11 @@ export function StartRcButton({
                     </div>
                     {on && (
                       <div className="mt-2 max-w-md pl-6">
+                        <p className="mb-1 text-xs text-slate-500">Test cases for {p.name}</p>
                         <button
                           type="button"
                           aria-expanded={showMenu}
-                          aria-label={`What ${p.name} runs`}
+                          aria-label={`Test cases for ${p.name}`}
                           className="flex w-full items-center justify-between gap-2 rounded-md border border-slate-300 bg-surface px-2.5 py-1.5 text-left text-sm text-slate-800"
                           onClick={() => {
                             setTree(null);
@@ -1060,7 +1061,7 @@ export function StartRcButton({
                           </span>
                         </button>
                         {showMenu && (
-                          <div className="mt-1 rounded-lg border border-slate-200 bg-surface p-1.5 shadow-lg" role="group" aria-label={`Choose what ${p.name} runs`}>
+                          <div className="mt-1 rounded-lg border border-slate-200 bg-surface p-1.5 shadow-lg" role="group" aria-label={`Pick test cases for ${p.name}`}>
                             <p className="px-2 pt-1.5 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Last release</p>
                             {p.prev && p.lastSuiteIds.length > 0 && !sameIds(p.lastSuiteIds, p.suiteIds) && (
                               <button type="button" className="flex w-full gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50" onClick={() => choose(p.name, { kind: "suites", ids: p.lastSuiteIds })}>
@@ -1203,11 +1204,11 @@ export function StartRcButton({
                     placeholder="Platform name"
                     className="w-44"
                   />
-                  <SuitePick label="Suite it runs" suites={plan.allSuites} value={a.suiteId} onChange={(id) => setAdded((l) => l.map((x, j) => (j === i ? { ...x, suiteId: id } : x)))} />
-                  <span className="basis-full text-xs text-slate-500">Added to {plan.umbrella}&apos;s platforms, so it shows up everywhere you pick a platform.</span>
+                  <SuitePick label="Suite to test" suites={plan.allSuites} value={a.suiteId} onChange={(id) => setAdded((l) => l.map((x, j) => (j === i ? { ...x, suiteId: id } : x)))} />
                   <Button size="sm" variant="ghost" onClick={() => setAdded((l) => l.filter((_, j) => j !== i))} aria-label="Remove this platform">
-                    ✕
+                    ✕ Remove
                   </Button>
+                  <span className="basis-full text-xs text-slate-500">Added to {plan.umbrella}&apos;s platforms, so it shows up everywhere you pick a platform.</span>
                 </div>
               ))}
               {canManage && plan.allSuites.length > 0 && (
@@ -1298,36 +1299,36 @@ export function StartRcButton({
             )}
             {rc.trim() && starting.length > 0 && (
               <div className="mt-4 rounded-lg bg-slate-50 p-3">
-                <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
-                  You&apos;ll get
-                </p>
+                <p className="mb-1.5 text-sm font-medium text-slate-700">Pressing Start creates</p>
                 <ul className="space-y-1.5 text-sm">
                   {chosen.map((p) => {
                     const c = choices[p.name];
                     return (
                       <li key={p.name} className="flex flex-wrap items-center gap-2">
+                        <span className="text-slate-700">Test cycle</span>
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-surface px-2 py-0.5 text-xs text-slate-800">
                           <span className="size-1.5 rounded-full" style={{ background: p.color }} aria-hidden />
                           {plan.umbrella} {p.name} {rc.trim()}
                         </span>
                         <span className="text-slate-500">
                           {c.kind === "suites"
-                            ? `${plural(c.ids.length, "run")} · ${plural(caseCount(p, c.ids), "case")}`
+                            ? `with ${plural(c.ids.length, "run")} of ${list(c.ids.map((id) => suiteOf(id)?.name ?? ""))} · ${plural(caseCount(p, c.ids), "case")}`
                             : c.kind === "cases"
-                              ? `1 run · ${plural(c.ids.length, "case")}`
+                              ? `with 1 run · ${plural(c.ids.length, "case")}`
                               : c.kind === "empty"
-                              ? "No runs yet"
-                              : `No runs yet · new empty suite ${c.name.trim()} in the library`}
+                              ? "with no runs yet"
+                              : `with no runs yet · new empty suite ${c.name.trim()} in the library`}
                         </span>
                       </li>
                     );
                   })}
                   {newOnes.map((a) => (
                     <li key={a.name} className="flex flex-wrap items-center gap-2">
+                      <span className="text-slate-700">Test cycle</span>
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-surface px-2 py-0.5 text-xs text-slate-800">
                         {plan.umbrella} {a.name.trim()} {rc.trim()}
                       </span>
-                      <span className="text-slate-500">1 run · {suiteOf(a.suiteId)?.name}</span>
+                      <span className="text-slate-500">with 1 run of {suiteOf(a.suiteId)?.name} · {plural(suiteOf(a.suiteId)?.cases ?? 0, "case")}</span>
                     </li>
                   ))}
                 </ul>
@@ -1393,7 +1394,7 @@ function SuitePick({ label, suites, value, onChange }: { label: string; suites: 
       onChange={(e) => onChange(e.target.value)}
       className="h-8 rounded-md border border-slate-300 bg-surface px-2 text-sm text-slate-800"
     >
-      <option value="">Choose what it runs…</option>
+      <option value="">Pick a suite…</option>
       {suites.map((s) => (
         <option key={s.id} value={s.id}>
           {s.name}

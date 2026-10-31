@@ -32,7 +32,7 @@ export async function openReleaseBox(page: Page) {
 export async function choosePlatform(page: Page, platform: string, pick: RegExp | string) {
   const rc = page.getByRole("dialog");
   await rc.getByRole("checkbox", { name: platform, exact: true }).check();
-  const menu = rc.getByRole("group", { name: `Choose what ${platform} runs` });
+  const menu = rc.getByRole("group", { name: `Pick test cases for ${platform}` });
   await menu.getByRole("button", { name: pick }).or(menu.getByRole("checkbox", { name: pick })).first().click();
   if (await menu.isVisible()) await menu.getByRole("button", { name: "Done" }).click();
   await expect(menu).toHaveCount(0);

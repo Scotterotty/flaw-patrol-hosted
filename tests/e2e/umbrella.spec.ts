@@ -55,7 +55,7 @@ test("umbrella: shared library, platforms, Start next release, bugs and shortcut
   await page.goto(home);
   await openReleaseBox(page);
   await page.getByLabel("Platform name").fill("Web");
-  await page.getByLabel("Suite it runs").selectOption({ label: "Smoke" });
+  await page.getByLabel("Suite to test").selectOption({ label: "Smoke" });
   await page.getByLabel("Release", { exact: true }).fill("RC7");
   await expect(page.getByText(`${NAME} Web RC7`)).toBeVisible();
   await page.getByRole("button", { name: "Start RC7" }).click();

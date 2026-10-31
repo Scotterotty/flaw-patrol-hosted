@@ -22,6 +22,22 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 106,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "better",
+        title: "Clearer words when you start a release",
+        text: "In Start a run, Release candidate, each platform you tick now says Pick test cases for Web, and the box at the bottom says Pressing Start creates, listing each test cycle with its runs and case count. A new platform's Remove button sits next to its suite.",
+      },
+      {
+        kind: "better",
+        title: "Clearer suite description hint",
+        text: "New test suite's Description is optional and its hint now gives an example of what the suite covers, instead of When to run it.",
+      },
+    ],
+  },
+  {
     version: 105,
     date: "2026-10-31",
     items: [

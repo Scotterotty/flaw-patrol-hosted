@@ -64,9 +64,9 @@ test("Start next release: Choose from folders, Same N cases, and who gets what",
   await box.getByLabel("Release", { exact: true }).fill("RC2");
   // ver_99: nothing ticked; ticking Web opens its dropdown with last release's cases offered.
   await box.getByRole("checkbox", { name: "Web", exact: true }).check();
-  const menu = box.getByRole("group", { name: "Choose what Web runs" });
+  const menu = box.getByRole("group", { name: "Pick test cases for Web" });
   await menu.getByRole("button", { name: /Same 2 cases as RC1/ }).click();
-  await box.getByRole("button", { name: "What Web runs" }).click();
+  await box.getByRole("button", { name: "Test cases for Web" }).click();
   await menu.getByRole("button", { name: /Choose from folders/ }).click();
   const picker = box.getByRole("group", { name: "Choose Web's cases" });
   await expect(picker.getByText("2 cases picked.")).toBeVisible();
