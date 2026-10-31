@@ -4,7 +4,7 @@ import { db } from "./db";
 import type { ExpandedStep } from "./steps";
 
 // New and Updated cases in a run (ver_96). New: the case never had a result saved in an
-// earlier run. Updated: its steps or preconditions differ from the copy its last earlier run used.
+// earlier run, and wasn't marked as run before Flaw Patrol (ver_107). Updated: its steps or preconditions differ from the copy its last earlier run used.
 
 const asSteps = (v: unknown) => (Array.isArray(v) ? v : []) as ExpandedStep[];
 
@@ -21,6 +21,7 @@ export async function caseNewsForRun(run: { id: string; createdAt: Date }, entri
     select: { caseId: true, steps: true, preconditions: true, caseVersion: true, run: { select: { number: true, createdAt: true } }, _count: { select: { results: true } } },
   });
   const tested = new Set(earlier.filter((e) => e._count.results > 0).map((e) => e.caseId));
+  for (const c of await db.testCase.findMany({ where: { id: { in: caseIds }, runBefore: true }, select: { id: true } })) tested.add(c.id);
   const versions = await db.caseVersion.findMany({
     where: { caseId: { in: caseIds } },
     orderBy: { version: "asc" },
@@ -88,11 +89,12 @@ export async function libraryCaseNews(caseIds: string[]) {
       distinct: ["caseId"],
       select: { caseId: true, caseVersion: true },
     }),
-    db.testCase.findMany({ where: { id: { in: caseIds } }, select: { id: true, currentVersion: true } }),
+    db.testCase.findMany({ where: { id: { in: caseIds } }, select: { id: true, currentVersion: true, runBefore: true } }),
   ]);
   const tested = new Set(
     (await db.testResult.findMany({ where: { caseId: { in: caseIds } }, distinct: ["caseId"], select: { caseId: true } })).map((r) => r.caseId),
   );
+  for (const c of cases) if (c.runBefore) tested.add(c.id);
   const lastOf = new Map(last.map((l) => [l.caseId, l.caseVersion]));
   const edited = cases.filter((c) => tested.has(c.id) && (lastOf.get(c.id) ?? c.currentVersion) < c.currentVersion);
   const vs = edited.length

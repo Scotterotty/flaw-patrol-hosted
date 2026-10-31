@@ -24,6 +24,7 @@ test("a run kept in a sheet imports as an open run with results, testers and wor
   ].join("\n");
   await page.goto(`/p/${key}/import`);
   await page.locator('input[type="file"]').setInputFiles({ name: "cases.csv", mimeType: "text/csv", buffer: Buffer.from(cases) });
+  await page.getByLabel(/Yes, we've run them before/).check();
   await page.getByRole("button", { name: "Import 3 cases" }).click();
   await expect(page.getByText("Imported 3 test cases")).toBeVisible();
 

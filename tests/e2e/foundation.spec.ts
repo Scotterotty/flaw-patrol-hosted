@@ -87,8 +87,9 @@ test("foundation milestone end to end", async ({ page, context }) => {
   await page.locator('input[type="file"]').setInputFiles({ name: "cases.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
   await expect(page.getByText("Preview: 2 cases, 4 steps")).toBeVisible();
   // ver_91: the file's own folders are the default when it has a Folder column.
-  await expect(page.getByLabel("Make folders from the file's Folder column")).toBeChecked();
+  await expect(page.getByLabel("Use the file's folders")).toBeChecked();
   await expect(page.getByRole("list", { name: "Folders this import makes" })).toContainText("Discounts");
+  await page.getByLabel(/Yes, we've run them before/).check();
   await page.getByRole("button", { name: "Import 2 cases" }).click();
   await expect(page.getByText("Imported 2 test cases")).toBeVisible();
   await page.goto(`/p/${KEY}/cases?q=coupon`);

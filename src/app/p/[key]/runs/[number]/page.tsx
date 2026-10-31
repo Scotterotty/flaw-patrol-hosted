@@ -315,6 +315,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         members={members}
         canManage={can(who, "run:assign")}
         canRun={run.state === "ACTIVE" && can(who, "run:execute")}
+        canMarkRunBefore={can(who, "case:edit")}
         meId={user.id}
         sort={sort}
         tagColors={await tagColorsFor(project.id)}

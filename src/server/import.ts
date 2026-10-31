@@ -44,7 +44,7 @@ const importedSharedSchema = z.object({
  * Blocks of steps several cases share become shared steps, reusing one with the
  * same name and steps if an earlier import already made it.
  */
-export async function importCases(projectId: string, folderId: string | null, rawCases: unknown, fileName: string, rawShared: unknown = [], rawNewFolder = "", rawArea: unknown = { words: [], skip: [] }) {
+export async function importCases(projectId: string, folderId: string | null, rawCases: unknown, fileName: string, rawShared: unknown = [], rawNewFolder = "", rawArea: unknown = { words: [], skip: [] }, rawRunBefore: unknown = false) {
   return attempt(async () => {
     const { project, user } = await requireProjectAction(projectId, "import");
     let targetFolderId = folderId;
@@ -53,6 +53,8 @@ export async function importCases(projectId: string, folderId: string | null, ra
     // Area tags (ver_102): the words after the platform the preview turned into tags, and new ones left unticked.
     const areaList = z.array(z.string().trim().min(1).max(24)).max(500);
     const area = z.object({ words: areaList, skip: areaList }).parse(rawArea);
+    // "Have these cases been run before?" (ver_107): yes means runs don't tag them New.
+    const runBefore = z.boolean().parse(rawRunBefore);
     if (!cases.length) throw new UserError("There are no cases to import.");
     if (targetFolderId && !(await db.folder.findFirst({ where: { id: targetFolderId, projectId } }))) {
       throw new UserError("Folder not found.");
@@ -155,6 +157,7 @@ export async function importCases(projectId: string, folderId: string | null, ra
               type: c.type,
               automationId: c.automationId,
               sourceKey: c.sourceId || null,
+              runBefore,
               tags,
               jiraStories: c.stories,
               sharedUsages: { create: sharedStepIdsIn(steps).map((sharedStepId) => ({ sharedStepId })) },

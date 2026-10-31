@@ -152,7 +152,7 @@ test("New test suite: numbered steps, folder list, Tick all, still needed and Ca
   await expect(page.getByRole("heading", { name: /3\. In this suite \(0\)/ })).toBeVisible();
   await expect(page.getByTestId("suite-todo")).toHaveText("Still needed: Name the suite, add at least one case");
   await expect(page.getByRole("button", { name: "Create suite" })).toBeDisabled();
-  await expect(page.getByTestId("bracket-hint")).toContainText("[UNITY] or [WEB]");
+  await expect(page.getByTestId("pick-hint")).toHaveText("Pick a folder, then tick the cases this suite runs.");
   await page.getByTestId("folder-list").getByRole("button", { name: /^WEB\s*1$/ }).click();
   await page.getByRole("button", { name: "Tick all 1" }).click();
   await expect(page.getByRole("heading", { name: /3\. In this suite \(1\)/ })).toBeVisible();

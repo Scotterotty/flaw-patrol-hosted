@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { Fragment, useState, useTransition } from "react";
 import { relativeTime } from "@/lib/format";
 import { STATUSES, STATUS_LABEL, STATUS_STYLE } from "@/lib/status";
-import { assignEntries } from "@/server/runs";
+import { assignEntries, markRunCasesRunBefore } from "@/server/runs";
 import { useLiveSteps } from "@/lib/live-steps";
 import { PersonLabel } from "./avatar";
 import type { CaseSort } from "@/lib/case-sort";
@@ -65,6 +65,7 @@ export function RunEntries({
   meId,
   sort,
   tagColors,
+  canMarkRunBefore = false,
 }: {
   projectId: string;
   projectKey: string;
@@ -78,6 +79,8 @@ export function RunEntries({
   meId: string;
   sort: CaseSort;
   tagColors?: TagColors;
+  /** Can say the run's new cases were run before Flaw Patrol (ver_107): needs case editing. */
+  canMarkRunBefore?: boolean;
 }) {
   const spelling = useSpelling();
   const [status, setStatus] = useState("");
@@ -92,6 +95,19 @@ export function RunEntries({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, start] = useTransition();
   const router = useRouter();
+  // Entries just marked as run before, kept for Undo (ver_107).
+  const [marked, setMarked] = useState<string[] | null>(null);
+  const [markError, setMarkError] = useState<string | null>(null);
+  const allNew = newCount === rows.length && updCount === 0;
+  const markRunBefore = (entryIds: string[], runBefore: boolean) =>
+    start(async () => {
+      setMarkError(null);
+      const res = await markRunCasesRunBefore(projectId, runId, entryIds, runBefore);
+      if (!res.ok) return setMarkError(res.error);
+      setMarked(runBefore ? entryIds : null);
+      setNews("");
+      router.refresh();
+    });
   const byId = new Map(members.map((m) => [m.id, m]));
   const canSelect = canManage || canRun;
   // Selected cases in the order they're listed, as case numbers for a short, shareable link.
@@ -124,26 +140,56 @@ export function RunEntries({
 
   return (
     <div>
-      {newCount + updCount > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950" data-testid="news-heads-up">
-          <span className="flex-1">
-            <b>{newsLine({ new: newCount, updated: updCount })}</b> since the last run of these cases. Read them carefully: {newCount ? "nobody has run the new ones yet" : "their steps changed"}.
+      {marked && (
+        <div className="mb-3 rounded-lg border border-accent-200 bg-accent-50 px-3 py-2 text-sm text-slate-800" data-testid="news-heads-up">
+          Done. {marked.length === 1 ? "This case is" : `These ${marked.length} cases are`} marked as run before, so runs won&apos;t call {marked.length === 1 ? "it" : "them"} new again.{" "}
+          <button type="button" disabled={pending} className="font-medium text-accent-700 underline" onClick={() => markRunBefore(marked, false)}>
+            Undo
+          </button>
+        </div>
+      )}
+      {!marked && newCount + updCount > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-accent-200 bg-accent-50 px-3 py-2 text-sm text-slate-800" data-testid="news-heads-up">
+          <span className="min-w-0 flex-1">
+            {allNew ? (
+              <>
+                <b>All {newCount} cases are new.</b> Nobody has run them yet, so read each one carefully.
+              </>
+            ) : (
+              <>
+                <b>{newsLine({ new: newCount, updated: updCount })}</b> since the last run of these cases. Read them carefully: {newCount ? "nobody has run the new ones yet" : "their steps changed"}.
+              </>
+            )}
           </span>
-          <span role="group" aria-label="Show cases" className="inline-flex overflow-hidden rounded-md ring-1 ring-sky-300 ring-inset">
-            {(
-              [
-                ["", `All ${rows.length}`],
-                ["new", `New ${newCount}`],
-                ["updated", `Updated ${updCount}`],
-              ] as const
-            )
-              .filter(([k]) => k === "" || (k === "new" ? newCount : updCount))
-              .map(([k, label]) => (
-                <button key={k} type="button" aria-pressed={news === k} onClick={() => setNews(k)} className={cx("px-2.5 py-1 text-xs font-medium", news === k ? "bg-sky-700 text-white" : "bg-white text-sky-900 hover:bg-sky-100")}>
-                  {label}
-                </button>
-              ))}
-          </span>
+          {newCount > 0 && canMarkRunBefore && (
+            <button
+              type="button"
+              disabled={pending}
+              className="text-xs font-medium text-accent-700 underline"
+              onClick={() => markRunBefore(rows.filter((r) => r.news?.kind === "new").map((r) => r.id), true)}
+            >
+              Not new? Mark {newCount === 1 ? "it" : "them"} as run before
+            </button>
+          )}
+          {/* With every case new, All and New would show the same list (ver_107). */}
+          {!allNew && (
+            <span role="group" aria-label="Show cases" className="inline-flex overflow-hidden rounded-md border border-slate-300">
+              {(
+                [
+                  ["", `All ${rows.length}`],
+                  ["new", `New ${newCount}`],
+                  ["updated", `Updated ${updCount}`],
+                ] as const
+              )
+                .filter(([k]) => k === "" || (k === "new" ? newCount : updCount))
+                .map(([k, label]) => (
+                  <button key={k} type="button" aria-pressed={news === k} onClick={() => setNews(k)} className={cx("px-2.5 py-1 text-xs font-medium", news === k ? "bg-accent-600 text-white" : "bg-surface text-slate-800 hover:bg-slate-100")}>
+                    {label}
+                  </button>
+                ))}
+            </span>
+          )}
+          {markError && <span className="basis-full text-xs text-red-700">{markError}</span>}
         </div>
       )}
       <div className="mb-2 flex flex-wrap items-center gap-2">

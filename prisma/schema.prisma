@@ -488,6 +488,9 @@ model TestCase {
   jiraStories    String[]         @default([])
   // The case's ID in the tool it was imported from, such as qTest's PQ-1708.
   sourceKey      String?
+  // Already run before it came into Flaw Patrol, such as cases imported from another tool,
+  // so runs don't tag it New (ver_107). Set at import or from a run's New banner.
+  runBefore      Boolean          @default(false)
   tags           String[]
   persona        Persona?         @relation(fields: [personaId], references: [id], onDelete: SetNull)
   personaId      String?

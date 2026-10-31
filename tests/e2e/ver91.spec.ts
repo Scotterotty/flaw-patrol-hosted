@@ -230,7 +230,7 @@ test("Import keeps the file's folders and TestRail Type values; roles summary ma
   await page.goto(`/p/${HUB}/import`);
   const csv = ["Title,Section,Type,Steps,Expected Result", `Search works ${TAG},Store / Search,Functional,Search shoes,Shoes shown`, `Empty search ${TAG},Store / Search,Negative,Search nothing,Hint shown`].join("\n");
   await page.locator('input[type="file"]').setInputFiles({ name: "testrail.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
-  await expect(page.getByLabel("Make folders from the file's Folder column")).toBeChecked();
+  await expect(page.getByLabel("Use the file's folders")).toBeChecked();
   await expect(page.getByTestId("type-tags-note")).toContainText("Functional, Negative");
 
   await page.goto(`/g/${groupId}/settings#roles`);

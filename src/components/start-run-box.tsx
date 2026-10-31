@@ -362,9 +362,9 @@ function Form({ opts: loaded, preset, defaultName, session, onClose }: { opts: R
               </Button>
             )}
           </div>
-          {opts.bracketTitles > 0 && (
-            <p className="border-b border-slate-200 bg-sky-50 px-3 py-1.5 text-xs text-sky-900">
-              Looking for [UNITY] or [WEB]? Words in [brackets] at the start of a title aren&apos;t tags yet. Turn them into tags with <b>Review…</b> in the Case library.
+          {opts.folders.length > 0 && (
+            <p className="border-b border-slate-200 px-3 py-1.5 text-xs text-slate-500" data-testid="pick-hint">
+              Pick a folder, then tick the cases this run tests.
             </p>
           )}
           <div className={cx("grid", opts.folders.length > 0 && "sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)]")}>

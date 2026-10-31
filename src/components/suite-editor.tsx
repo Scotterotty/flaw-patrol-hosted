@@ -138,11 +138,9 @@ export function SuiteEditor({
                 ))}
               </Select>
             </div>
-            {bracketTitles > 0 && (
-              <p className="rounded-md bg-sky-50 px-2.5 py-1.5 text-xs text-sky-900" data-testid="bracket-hint">
-                Looking for [UNITY] or [WEB]? Words in [brackets] at the start of a title aren&apos;t tags yet. Turn them into tags with <b>Review…</b> in the Case library.
-              </p>
-            )}
+            <p className="text-xs text-slate-500" data-testid="pick-hint">
+              Pick a folder, then tick the cases this suite runs.
+            </p>
           </div>
           <div className="grid min-h-0 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
             <div className="border-b border-slate-200 sm:border-r sm:border-b-0">

@@ -208,7 +208,14 @@ export type ImportedCase = {
   sourceId: string;
 };
 
-export type ImportResult = { cases: ImportedCase[]; shared: ImportedShared[]; warnings: string[] };
+/**
+ * Something in the file to check before importing (ver_107: plain words, and which case and
+ * step it's about so the preview can open it). `row` is the spreadsheet row, header = row 1;
+ * `lead` is the case it's about, shown in bold; `step` is the step's place among the case's
+ * steps (from 0), labeled `chip` in the preview.
+ */
+export type ImportWarning = { row: number; text: string; lead?: string; caseRow?: number; step?: number; chip?: string };
+export type ImportResult = { cases: ImportedCase[]; shared: ImportedShared[]; warnings: ImportWarning[] };
 export type ImportOptions = {
   restoreBreaks?: boolean;
   /** Folder names with a " / " inside them that stay one folder (see spacedSlashNames). */
@@ -280,11 +287,11 @@ export function parseFolderPath(raw: string, keepWhole: string[] = []): string[]
 const RICH_FIELDS = new Set<ImportField>(["steps", "expected", "description", "preconditions"]);
 
 export function rowsToCases(rows: string[][], mapping: ColumnMapping, source: ImportSource = "other", options: ImportOptions = {}): ImportResult {
-  const warnings: string[] = [];
+  const warnings: ImportWarning[] = [];
   const cases: ImportedCase[] = [];
   // Step order ("1.1", "2.3") of every step, per case, for grouping afterwards.
   const orders: string[][] = [];
-  if (mapping.title === undefined) return { cases, shared: [], warnings: ["Choose which column holds the case title."] };
+  if (mapping.title === undefined) return { cases, shared: [], warnings: [{ row: 1, text: "Choose which column holds the case title." }] };
 
   const cell = (row: string[], field: ImportField) => {
     const idx = mapping[field];
@@ -323,9 +330,19 @@ export function rowsToCases(rows: string[][], mapping: ColumnMapping, source: Im
     // In a file with case IDs, a row without one is a step of the case above,
     // even when someone left a note like "UPDATE" in its name cell.
     if (!sourceId && title && prevCase?.sourceId && mapping.sourceId !== undefined) {
-      const at = order || String(prevCase.steps.length + 1);
-      const what = `Row ${rowNumber} has "${title.slice(0, 60)}" in ${keyless.title} but no ${keyless.id}.`;
-      warnings.push(steps.length ? `${what} It was kept as step ${at} of ${prevCase.sourceId}.` : `${what} It has no steps, so it was skipped.`);
+      const said = `"${title.slice(0, 60)}" in the ${keyless.title} column`;
+      warnings.push(
+        steps.length
+          ? {
+              row: rowNumber,
+              lead: `${prevCase.sourceId} ${prevCase.title}`.slice(0, 120),
+              text: `got ${steps.length === 1 ? "an extra step" : `${steps.length} extra steps`} from a row with no ${keyless.id}. That row (row ${rowNumber} in your file) had ${said}, so it was treated as ${steps.length === 1 ? "a step" : "steps"}, not a new case.`,
+              caseRow: prevCase.row,
+              step: prevCase.steps.length,
+              chip: `From row ${rowNumber}, no ${keyless.id}`,
+            }
+          : { row: rowNumber, text: `Row ${rowNumber} in your file had ${said} but no ${keyless.id} and no steps, so it was left out.` },
+      );
       addTo(prevCase);
       continue;
     }
@@ -335,9 +352,9 @@ export function rowsToCases(rows: string[][], mapping: ColumnMapping, source: Im
       if (prev && steps.length) {
         addTo(prev);
       } else if (steps.length) {
-        warnings.push(`Row ${rowNumber}: steps with no case above them were skipped.`);
+        warnings.push({ row: rowNumber, text: `Row ${rowNumber} in your file has steps but no case above it, so it was left out.` });
       } else {
-        warnings.push(`Row ${rowNumber}: no title, skipped.`);
+        warnings.push({ row: rowNumber, text: `Row ${rowNumber} in your file has no title, so it was left out.` });
       }
       continue;
     }
@@ -345,7 +362,7 @@ export function rowsToCases(rows: string[][], mapping: ColumnMapping, source: Im
     const rawPriority = cell(row, "priority");
     let priority = parsePriority(rawPriority);
     if (!priority) {
-      warnings.push(`Row ${rowNumber}: unknown priority "${rawPriority}", set to Medium.`);
+      warnings.push({ row: rowNumber, lead: `${sourceId ? `${sourceId} ` : ""}${title}`.slice(0, 120), text: `has the priority "${rawPriority}" in your file, which Flaw Patrol doesn't know, so it was set to Medium.`, caseRow: rowNumber });
       priority = "MEDIUM";
     }
 

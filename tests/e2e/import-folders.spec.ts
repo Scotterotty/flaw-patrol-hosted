@@ -41,16 +41,22 @@ test("imports go to the umbrella's Case library, in one folder or the file's fol
   await expect(page.getByRole("radio", { name: /Only this test cycle/ })).not.toBeChecked();
   await expect(page.getByText("Preview: 3 cases")).toBeVisible();
   // The stray row stays a step of the case above.
-  await page.getByText(/rows? needs? a look/).click();
-  await expect(page.getByText('Row 3 has "UPDATE" in Name but no Key. It was kept as step 1.2 of PQ-1747.')).toBeVisible();
+  // ver_107: plain words, and Show me the step opens the case at that step.
+  const warnings = page.getByTestId("import-warnings");
+  await expect(warnings).toContainText("1 thing to check before you import");
+  await expect(warnings).toContainText('That row (row 3 in your file) had "UPDATE" in the Name column, so it was treated as a step, not a new case.');
+  await warnings.getByRole("button", { name: "Show me the step" }).click();
+  await expect(page.getByText("From row 3, no Key")).toBeVisible();
 
   // Folders from the file: a tree preview, and the slashed name can stay one folder.
-  await page.getByLabel("Make folders from the file's Folder column").check();
+  await page.getByLabel("Use the file's folders").check();
   const tree = page.getByRole("list", { name: "Folders this import makes" });
   await expect(tree).toContainText("Unique Cases");
   await expect(page.getByText(/has a slash, so it becomes two folders/)).toBeVisible();
   await page.getByRole("button", { name: "Keep it as one folder" }).click();
   await expect(tree).toContainText("Shared - Unique Cases");
+  await expect(page.getByRole("button", { name: "Import 3 cases" })).toBeDisabled();
+  await page.getByLabel(/Yes, we've run them before/).check();
   await page.getByRole("button", { name: "Import 3 cases" }).click();
   await expect(page.getByText(`Imported 3 test cases into the ${NAME} case library`)).toBeVisible();
   await page.getByRole("link", { name: "View cases" }).click();
@@ -69,11 +75,13 @@ test("imports go to the umbrella's Case library, in one folder or the file's fol
     buffer: Buffer.from(["Key,Name,Folder,Step Description,Expected Result", "PQ-9,Store loads,Deep/Path,Open store,Store shows", "PQ-10,Store search,Deep/Path,Search,Results"].join("\n")),
   });
   // ver_91: a file with folders keeps them by default; choose one folder instead.
-  await expect(page.getByLabel("Make folders from the file's Folder column")).toBeChecked();
+  await expect(page.getByLabel("Use the file's folders")).toBeChecked();
   await page.getByLabel("Put them all in one folder").check();
   await expect(page.getByText("Not used: all cases go in one folder")).toBeVisible();
   await expect(page.getByRole("button", { name: /^Import 2 cases/ })).toBeDisabled();
   await page.getByLabel("New folder name").fill("Store");
+  await page.getByLabel(/Yes, we've run them before/).check();
+
   await page.getByRole("button", { name: 'Import 2 cases into "Store"' }).click();
   await expect(page.getByText(`Imported 2 test cases into the ${NAME} case library`)).toBeVisible();
 

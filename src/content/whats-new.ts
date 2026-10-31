@@ -22,6 +22,37 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 107,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "better",
+        title: "Clearer folder choices when you import",
+        text: "Import now offers Use the file's folders, Put them all in one folder, or Don't use folders. Click the folder the file's folders go in, or make a new one. Dropdowns only show when there's a real folder to pick.",
+      },
+      {
+        kind: "new",
+        title: "Tell import whether the cases are new",
+        text: "Import asks Have these cases been run before? Cases you've already run elsewhere aren't tagged New in runs.",
+      },
+      {
+        kind: "better",
+        title: "Import warnings in plain words",
+        text: "The preview names the case each warning is about. Show me the step opens the case and highlights the step, and the Row column is now File row.",
+      },
+      {
+        kind: "better",
+        title: "Easier-to-read New banner in runs",
+        text: "The run page's New cases banner uses your theme colors. When every case is new it skips the All/New switch, and Not new? Mark them as run before clears the New tags.",
+      },
+      {
+        kind: "better",
+        title: "Simpler hint when picking cases",
+        text: "New test suite and Start a run now just say Pick a folder, then tick the cases.",
+      },
+    ],
+  },
+  {
     version: 106,
     date: "2026-10-31",
     items: [

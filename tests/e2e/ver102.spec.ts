@@ -90,6 +90,7 @@ test("Import: known area words are tagged on their own, new ones have a tick box
   const area = page.getByTestId("import-area");
   await expect(area).toContainText("Already tags: Avatar (1)");
   await area.getByRole("checkbox", { name: "Shop (3)" }).uncheck();
+  await page.getByLabel(/Yes, we've run them before/).check();
   await page.getByRole("button", { name: "Import 4 cases" }).click();
   await expect(page.getByText("Imported 4 test cases")).toBeVisible();
   await page.goto(`/p/${HUB}/cases?q=hat`);

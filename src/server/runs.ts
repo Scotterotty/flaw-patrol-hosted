@@ -223,3 +223,21 @@ export async function assignEntries(projectId: string, runId: string, entryIds: 
     return { count };
   });
 }
+
+/**
+ * "Not new? Mark them as run before" on a run's New banner (ver_107): the run's new cases were
+ * already run in another tool, so runs stop tagging them New. `runBefore: false` is the Undo.
+ */
+export async function markRunCasesRunBefore(projectId: string, runId: string, entryIds: string[], runBefore: boolean) {
+  return attempt(async () => {
+    const { project } = await requireProjectAction(projectId, "case:edit");
+    const entries = await db.runEntry.findMany({
+      where: { id: { in: entryIds.slice(0, 5000) }, runId, run: { projectId } },
+      select: { caseId: true, testCase: { select: { project: { select: { key: true } } } } },
+    });
+    if (!entries.length) throw new UserError("Run not found.");
+    const { count } = await db.testCase.updateMany({ where: { id: { in: [...new Set(entries.map((e) => e.caseId))] } }, data: { runBefore } });
+    for (const key of new Set([project.key, ...entries.map((e) => e.testCase.project.key)])) revalidatePath(`/p/${key}`, "layout");
+    return { count };
+  });
+}

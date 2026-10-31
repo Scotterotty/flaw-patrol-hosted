@@ -29,7 +29,8 @@ test("imports a qTest Excel export", async ({ page }) => {
   });
   await expect(page.getByLabel("Where is this file from?")).toHaveValue("qtest");
   await expect(page.getByText("Preview: 2 cases, 3 steps")).toBeVisible();
-  await page.getByLabel("Make folders from the file's Folder column").check();
+  await page.getByLabel("Use the file's folders").check();
+  await page.getByLabel(/Yes, we've run them before/).check();
   await page.getByRole("button", { name: "Import 2 cases" }).click();
   await expect(page.getByText("Imported 2 test cases")).toBeVisible();
 
@@ -65,6 +66,7 @@ test("imports a qTest test run CSV with shared blocks", async ({ page }) => {
   await expect(page.getByText("Preview: 2 cases, 7 steps, 1 shared step")).toBeVisible();
   await page.getByRole("button", { name: /PQ-1/ }).click();
   await expect(page.getByText("3.2")).toBeVisible();
+  await page.getByLabel(/Yes, we've run them before/).check();
   await page.getByRole("button", { name: "Import 2 cases" }).click();
   await expect(page.getByText("Imported 2 test cases")).toBeVisible();
 

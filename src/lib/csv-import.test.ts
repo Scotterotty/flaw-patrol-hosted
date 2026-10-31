@@ -248,7 +248,16 @@ describe("rows without a case ID", () => {
       ["PQ-1747", 3],
       ["PQ-1748", 1],
     ]);
-    expect(warnings).toEqual(['Row 3 has "UPDATE" in Name but no Key. It was kept as step 1.2 of PQ-1747.']);
+    expect(warnings).toEqual([
+      {
+        row: 3,
+        lead: "PQ-1747 [WEB] - Hub - Sidebar",
+        text: 'got an extra step from a row with no Key. That row (row 3 in your file) had "UPDATE" in the Name column, so it was treated as a step, not a new case.',
+        caseRow: 2,
+        step: 1,
+        chip: "From row 3, no Key",
+      },
+    ]);
   });
 
   it("finds folder names with a spaced slash and can keep them whole", async () => {

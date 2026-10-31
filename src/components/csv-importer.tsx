@@ -17,6 +17,7 @@ import {
   numberedSteps,
   rowsToCases,
   type ColumnMapping,
+  type ImportWarning,
   type ImportField,
   type ImportSource,
 } from "@/lib/csv-import";
@@ -50,9 +51,15 @@ export function CsvImporter({
   const place = places.find((p) => p.id === placeId) ?? places[0];
   const folderOptions = place.folderOptions;
   const startFolder = placeId === initialFolderPlaceId ? initialFolderId : null;
-  // One folder for the whole file (the default), or folders built from the file's Folder column.
-  // ver_91: a file with a Folder column (TestRail sections) keeps its folders unless you choose one folder.
-  const [folderMode, setFolderMode] = useState<"one" | "file" | null>(null);
+  // Folders built from the file's Folder column, one folder for the whole file, or no folder (ver_107).
+  // ver_91: a file with a Folder column (TestRail sections) keeps its folders unless you choose otherwise.
+  const [folderMode, setFolderMode] = useState<"one" | "file" | "none" | null>(null);
+  // The folder the file's folders go in: "" for none, a folder, or NEW_FOLDER named parentName (ver_107).
+  const [parentName, setParentName] = useState("");
+  // "Have these cases been run before?" (ver_107): nothing picked until you answer.
+  const [runBefore, setRunBefore] = useState<boolean | null>(null);
+  // The import warning whose case and step the preview opened ("Show me the step").
+  const [shownWarning, setShownWarning] = useState<ImportWarning | null>(null);
   const [oneFolder, setOneFolder] = useState(startFolder ?? NEW_FOLDER);
   const [newFolderName, setNewFolderName] = useState("");
   const [keepWhole, setKeepWhole] = useState<string[]>([]);
@@ -72,7 +79,10 @@ export function CsvImporter({
   const result = useMemo(() => (rows ? rowsToCases(rows, mapping, source, { restoreBreaks, keepWhole }) : null), [rows, mapping, source, restoreBreaks, keepWhole]);
   const slashNames = useMemo(() => (rows ? spacedSlashNames(rows, mapping) : []), [rows, mapping]);
   const hasFolders = mapping.folder !== undefined && !!result?.cases.some((c) => c.folderPath.length);
-  const oneMode = !hasFolders || folderMode === "one";
+  const mode: "file" | "one" | "none" = folderMode === "none" ? "none" : hasFolders && folderMode !== "one" ? "file" : "one";
+  const oneMode = mode === "one";
+  const rootLabel = place.kind === "library" ? `${place.label.replace(/ case library$/i, "")} Case library` : place.label;
+  const parentPath = folderId && folderId !== NEW_FOLDER ? (folderOptions.find((f) => f.id === folderId)?.label.split(" / ") ?? []) : [];
   // Area tags (ver_102): the word after the platform. Words that are already tags (or [bracket]
   // tags in this file) are picked up on their own; new ones are listed with a tick box.
   const [areaOn, setAreaOn] = useState(true);
@@ -117,8 +127,21 @@ export function CsvImporter({
       clearTimeout(t);
     };
   }, [storyList, projectId]);
-  const oneFolderLabel = oneFolder === NEW_FOLDER ? newFolderName.trim() : oneFolder ? folderOptions.find((f) => f.id === oneFolder)?.label.split(" / ").pop() : "";
-  const needsName = oneMode && oneFolder === NEW_FOLDER && !newFolderName.trim();
+  const oneFolderLabel = oneFolder === NEW_FOLDER ? newFolderName.trim() : folderOptions.find((f) => f.id === oneFolder)?.label.split(" / ").pop();
+  const needsName = (oneMode && oneFolder === NEW_FOLDER && !newFolderName.trim()) || (mode === "file" && folderId === NEW_FOLDER && !parentName.trim());
+  // Where the cases land, for the Import button: a folder's name, or nothing for the top.
+  const intoLabel = mode === "one" ? oneFolderLabel : mode === "file" ? (folderId === NEW_FOLDER ? parentName.trim() : parentPath.at(-1)) : "";
+  // Which steps of each case came from a row with no ID, to label in the preview.
+  const flaggedSteps = useMemo(() => {
+    const out = new Map<number, Map<number, string>>();
+    for (const w of result?.warnings ?? []) if (w.caseRow !== undefined && w.step !== undefined) out.set(w.caseRow, (out.get(w.caseRow) ?? new Map()).set(w.step, w.chip ?? ""));
+    return out;
+  }, [result]);
+  useEffect(() => {
+    if (!shownWarning?.caseRow) return;
+    const id = shownWarning.step !== undefined ? `import-step-${shownWarning.caseRow}-${shownWarning.step}` : `import-case-${shownWarning.caseRow}`;
+    document.getElementById(id)?.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }, [shownWarning]);
   const pickPlace = (id: string) => {
     setPlaceId(id);
     const keep = id === initialFolderPlaceId ? initialFolderId : null;
@@ -169,13 +192,14 @@ export function CsvImporter({
 
   const doImport = () =>
     start(async () => {
-      if (!result) return;
+      if (!result || runBefore === null) return;
       setError(null);
-      const cases = oneMode ? result.cases.map((c) => ({ ...c, folderPath: [] })) : result.cases;
-      const target = oneMode ? (oneFolder === NEW_FOLDER ? folderId || null : oneFolder || null) : folderId || null;
-      // A new folder goes inside the folder picked for "Inside" only in file mode; in one-folder mode it goes at the top.
+      const cases = mode === "file" ? result.cases : result.cases.map((c) => ({ ...c, folderPath: [] }));
+      // A new folder is made at the top; in file mode the file's folders then go inside it.
+      const [target, newName] =
+        mode === "none" ? [null, ""] : mode === "one" ? (oneFolder === NEW_FOLDER ? [null, newFolderName] : [oneFolder, ""]) : folderId === NEW_FOLDER ? [null, parentName] : [folderId || null, ""];
       const area = { words: areaWords, skip: areaOn ? areaNew.filter((w) => areaOff.includes(w.word)).map((w) => w.word) : [] };
-      const res = await importCases(place.id, oneMode && oneFolder === NEW_FOLDER ? null : target, cases, fileName, result.shared, oneMode && oneFolder === NEW_FOLDER ? newFolderName : "", area);
+      const res = await importCases(place.id, target, cases, fileName, result.shared, newName, area, runBefore);
       if (!res.ok) return setError(res.error);
       setDone({ cases: res.created, shared: res.shared, folderId: res.folderId, place });
     });
@@ -296,28 +320,105 @@ export function CsvImporter({
             <p className="mb-3 text-xs text-slate-500">
               {hasFolders
                 ? `This file has a Folder column with ${folderPaths} different folder ${folderPaths === 1 ? "path" : "paths"}.`
-                : "This file has no folders in it, so all cases go in one folder."}
+                : "This file has no folders in it."}
+              {!folderOptions.length && ` ${place.kind === "library" ? "Your Case library" : "This test cycle"} has no folders yet.`}
             </p>
+            {/* ver_107: plain choices, and a dropdown only when there's a real folder to pick. */}
             <div className="space-y-2" role="radiogroup" aria-label="Which folder?">
-              <Choice checked={oneMode} onSelect={() => setFolderMode("one")} name="folder-mode">
-                <span className="font-medium text-slate-900">Put them all in one folder</span>
-                {oneMode && (
+              {hasFolders && (
+                <Choice checked={mode === "file"} onSelect={() => setFolderMode("file")} name="folder-mode">
+                  <span className="font-medium text-slate-900">Use the file&apos;s folders</span>
+                  <span className="ml-2 rounded-full bg-accent-100 px-2 py-0.5 text-[11px] font-medium text-accent-700">Recommended</span>
+                  {mode === "file" && (
+                    <span className="mt-2 block space-y-2">
+                      <span className="block text-xs text-slate-500" id="make-them-in">
+                        Make them in:
+                      </span>
+                      <span role="radiogroup" aria-labelledby="make-them-in" className="block max-h-56 max-w-md overflow-auto rounded-md border border-slate-200 bg-surface p-1">
+                        <PickRow on={folderId === ""} onPick={() => setFolderId("")}>
+                          <span aria-hidden>📚</span> {rootLabel} <span className="text-xs opacity-75">(no parent folder)</span>
+                        </PickRow>
+                        {folderOptions.map((f) => (
+                          <PickRow key={f.id} on={folderId === f.id} onPick={() => setFolderId(f.id)} depth={f.label.split(" / ").length}>
+                            <span aria-hidden>📁</span> {f.label.split(" / ").pop()}
+                          </PickRow>
+                        ))}
+                        <PickRow on={folderId === NEW_FOLDER} onPick={() => setFolderId(NEW_FOLDER)} depth={1} add>
+                          ＋ New folder…
+                        </PickRow>
+                      </span>
+                      {folderId === NEW_FOLDER && (
+                        <Input
+                          aria-label="New folder to make them in"
+                          aria-invalid={needsName || undefined}
+                          placeholder="New folder name, e.g. 2026 Imports"
+                          className={cx("h-8 w-72 max-w-full text-sm", needsName && "border-amber-500 ring-1 ring-amber-500")}
+                          maxLength={100}
+                          value={parentName}
+                          onChange={(e) => setParentName(e.target.value.replace(/[/>\\]/g, "-"))}
+                        />
+                      )}
+                      <span className="block text-xs text-slate-500">You&apos;ll get these folders:</span>
+                      <ul className="rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm" aria-label="Folders this import makes">
+                        <li className="py-0.5 text-xs text-slate-500">
+                          <span aria-hidden>📚</span> {[rootLabel, ...parentPath].join(" › ")}
+                        </li>
+                        {folderId === NEW_FOLDER && (
+                          <li className="flex items-center gap-1.5 py-0.5 font-medium text-accent-700" style={{ paddingLeft: 16 }}>
+                            <span aria-hidden>📁</span>
+                            {parentName.trim() || "Your new folder"}
+                            <span className="text-xs font-normal text-slate-400">new</span>
+                          </li>
+                        )}
+                        <FolderPreviewRows nodes={tree} depth={folderId === NEW_FOLDER ? 2 : 1} />
+                      </ul>
+                      {slashNames.map((name) => {
+                        const kept = keepWhole.includes(name);
+                        return (
+                          <span key={name} className="flex flex-wrap items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                            {kept ? (
+                              <span>
+                                &ldquo;{name}&rdquo; stays one folder, named &ldquo;{wholeName(name)}&rdquo; because folder names can&apos;t hold a slash.
+                              </span>
+                            ) : (
+                              <span>
+                                &ldquo;{name}&rdquo; has a slash, so it becomes two folders: {name.split(/\s+\/\s+/).join(", then ")} inside it.
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              className="font-medium text-amber-900 underline"
+                              onClick={() => setKeepWhole((k) => (kept ? k.filter((x) => x !== name) : [...k, name]))}
+                            >
+                              {kept ? "Split it after all" : "Keep it as one folder"}
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </span>
+                  )}
+                </Choice>
+              )}
+              <Choice checked={mode === "one"} onSelect={() => setFolderMode("one")} name="folder-mode">
+                <span className="font-medium text-slate-900">{folderOptions.length ? "Put them all in one folder" : "Put them all in one new folder"}</span>
+                {mode === "one" && (
                   <span className="mt-2 flex flex-wrap items-center gap-2">
-                    <Select aria-label="Folder for all cases" className="h-8 w-auto text-sm" value={oneFolder} onChange={(e) => setOneFolder(e.target.value)}>
-                      <option value={NEW_FOLDER}>New folder…</option>
-                      <option value="">(Top level, no folder)</option>
-                      {folderOptions.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.label}
-                        </option>
-                      ))}
-                    </Select>
+                    {folderOptions.length > 0 && (
+                      <Select aria-label="Folder for all cases" className="h-8 w-auto max-w-full text-sm" value={oneFolder} onChange={(e) => setOneFolder(e.target.value)}>
+                        <option value={NEW_FOLDER}>A new folder</option>
+                        {folderOptions.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.label}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
                     {oneFolder === NEW_FOLDER && (
                       <Input
                         aria-label="New folder name"
                         aria-invalid={needsName || undefined}
                         placeholder={place.kind === "library" ? "Name it after what the cases test" : "Folder name"}
-                        className={cx("h-8 w-72 text-sm", needsName && "border-amber-500 ring-1 ring-amber-500")}
+                        className={cx("h-8 w-72 max-w-full text-sm", needsName && "border-amber-500 ring-1 ring-amber-500")}
                         maxLength={100}
                         value={newFolderName}
                         onChange={(e) => setNewFolderName(e.target.value.replace(/[/>\\]/g, "-"))}
@@ -325,56 +426,36 @@ export function CsvImporter({
                     )}
                   </span>
                 )}
-                {oneMode && (
+                {mode === "one" && (
                   <span className="mt-1.5 block text-xs text-slate-500">
-                    All {result.cases.length} cases go here.{hasFolders && " The Folder column is ignored."}
+                    All {result.cases.length} cases go here.{hasFolders && " The file's Folder column is ignored."}
                     {place.kind === "library" && " Name the folder after what the cases test, since every run can use it."}
                   </span>
                 )}
               </Choice>
-              <Choice checked={!oneMode} disabled={!hasFolders} onSelect={() => setFolderMode("file")} name="folder-mode">
-                <span className={cx("font-medium", hasFolders ? "text-slate-900" : "text-slate-400")}>Make folders from the file&apos;s Folder column</span>
-                {!oneMode && (
-                  <span className="mt-2 block">
-                    <span className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
-                      Inside
-                      <Select aria-label="Make the folders inside" className="h-8 w-auto text-sm" value={folderId} onChange={(e) => setFolderId(e.target.value)}>
-                        <option value="">(Top level)</option>
-                        {folderOptions.map((f) => (
-                          <option key={f.id} value={f.id}>
-                            {f.label}
-                          </option>
-                        ))}
-                      </Select>
-                    </span>
-                    <ul className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm" aria-label="Folders this import makes">
-                      <FolderPreviewRows nodes={tree} depth={0} />
-                    </ul>
-                    {slashNames.map((name) => {
-                      const kept = keepWhole.includes(name);
-                      return (
-                        <span key={name} className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                          {kept ? (
-                            <span>
-                              &ldquo;{name}&rdquo; stays one folder, named &ldquo;{wholeName(name)}&rdquo; because folder names can&apos;t hold a slash.
-                            </span>
-                          ) : (
-                            <span>
-                              &ldquo;{name}&rdquo; has a slash, so it becomes two folders: {name.split(/\s+\/\s+/).join(", then ")} inside it.
-                            </span>
-                          )}
-                          <button
-                            type="button"
-                            className="font-medium text-amber-900 underline"
-                            onClick={() => setKeepWhole((k) => (kept ? k.filter((x) => x !== name) : [...k, name]))}
-                          >
-                            {kept ? "Split it after all" : "Keep it as one folder"}
-                          </button>
-                        </span>
-                      );
-                    })}
+              <Choice checked={mode === "none"} onSelect={() => setFolderMode("none")} name="folder-mode">
+                <span className="font-medium text-slate-900">Don&apos;t use folders</span>
+                {mode === "none" && (
+                  <span className="mt-1.5 block text-xs text-slate-500">
+                    All {result.cases.length} cases go straight into {place.kind === "library" ? "the " : ""}
+                    {rootLabel}, not in any folder.
                   </span>
                 )}
+              </Choice>
+            </div>
+          </Card>
+
+          <Card className="p-5">
+            <h2 className="mb-1 text-sm font-semibold text-slate-800">Have these cases been run before?</h2>
+            <p className="mb-3 text-xs text-slate-500">So runs know whether to tag them New.</p>
+            <div className="space-y-2" role="radiogroup" aria-label="Have these cases been run before?">
+              <Choice checked={runBefore === true} onSelect={() => setRunBefore(true)} name="run-before">
+                <span className="font-medium text-slate-900">Yes, we&apos;ve run them before</span>
+                <span className="mt-0.5 block text-xs text-slate-500">For cases you already test with, for example from TestRail or a spreadsheet. Runs won&apos;t call them new.</span>
+              </Choice>
+              <Choice checked={runBefore === false} onSelect={() => setRunBefore(false)} name="run-before">
+                <span className="font-medium text-slate-900">No, they&apos;re brand new</span>
+                <span className="mt-0.5 block text-xs text-slate-500">Runs tag them New until someone runs them, so people read them carefully.</span>
               </Choice>
             </div>
           </Card>
@@ -388,7 +469,7 @@ export function CsvImporter({
                   key={f}
                   label={FIELD_LABEL[f] + (f === "title" ? " *" : "")}
                   htmlFor={`map-${f}`}
-                  hint={f === "folder" && oneMode && mapping.folder !== undefined ? "Not used: all cases go in one folder" : undefined}
+                  hint={f === "folder" && mode !== "file" && mapping.folder !== undefined ? (mode === "none" ? "Not used: the cases go in no folder" : "Not used: all cases go in one folder") : undefined}
                 >
                   <Select
                     id={`map-${f}`}
@@ -426,9 +507,15 @@ export function CsvImporter({
               <span className="flex flex-wrap items-center justify-end gap-2">
                 {/* The reason in words, not only in a hover tip on a gray button (ver_89). */}
                 {needsName && <span className="text-xs font-medium text-amber-800">Name the folder first</span>}
+                {runBefore === null && <span className="text-xs font-medium text-amber-800">Answer &ldquo;Have these cases been run before?&rdquo;</span>}
                 {!result.cases.length && <span className="text-xs font-medium text-amber-800">No cases found: check the Title column</span>}
-                <Button variant="primary" disabled={pending || needsName || !result.cases.length || result.cases.length > MAX_IMPORT} title={needsName ? "Name the new folder first" : undefined} onClick={doImport}>
-                  {pending ? "Importing…" : oneMode && oneFolderLabel ? `Import ${result.cases.length} cases into "${oneFolderLabel}"` : `Import ${result.cases.length} cases`}
+                <Button
+                  variant="primary"
+                  disabled={pending || needsName || runBefore === null || !result.cases.length || result.cases.length > MAX_IMPORT}
+                  title={needsName ? "Name the new folder first" : runBefore === null ? "Answer “Have these cases been run before?” first" : undefined}
+                  onClick={doImport}
+                >
+                  {pending ? "Importing…" : intoLabel ? `Import ${result.cases.length} cases into "${intoLabel}"` : `Import ${result.cases.length} cases`}
                 </Button>
               </span>
             </div>
@@ -470,12 +557,36 @@ export function CsvImporter({
               </div>
             )}
             {result.warnings.length > 0 && (
-              <details className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
-                <summary className="cursor-pointer">{result.warnings.length} {result.warnings.length === 1 ? "row needs" : "rows need"} a look</summary>
-                <ul className="mt-1 list-disc pl-5 text-xs">
-                  {result.warnings.slice(0, 50).map((w, i) => (
-                    <li key={i}>{w}</li>
-                  ))}
+              <details open className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800" data-testid="import-warnings">
+                <summary className="cursor-pointer font-medium">
+                  {result.warnings.length} {result.warnings.length === 1 ? "thing" : "things"} to check before you import
+                </summary>
+                <ul className="mt-1 list-disc space-y-1 pl-5 text-xs">
+                  {result.warnings.slice(0, 50).map((w, i) => {
+                    // Only the first 100 cases are listed below, so only those can be opened.
+                    const listed = w.caseRow !== undefined && result.cases.findIndex((c) => c.row === w.caseRow) < 100;
+                    return (
+                      <li key={i}>
+                        {w.lead && <b>{w.lead} </b>}
+                        {w.text}
+                        {listed && (
+                          <>
+                            {" "}
+                            <button
+                              type="button"
+                              className="font-medium text-amber-900 underline"
+                              onClick={() => {
+                                setOpenRow(w.caseRow!);
+                                setShownWarning({ ...w });
+                              }}
+                            >
+                              {w.step !== undefined ? "Show me the step" : "Show me the case"}
+                            </button>
+                          </>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </details>
             )}
@@ -483,7 +594,7 @@ export function CsvImporter({
               <table className="w-full text-sm">
                 <thead className="sticky top-0 border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
                   <tr>
-                    <th className="px-3 py-2 font-medium">Row</th>
+                    <th className="px-3 py-2 font-medium">File row</th>
                     <th className="px-3 py-2 font-medium">Title</th>
                     <th className="px-3 py-2 font-medium">Folder</th>
                     <th className="px-3 py-2 font-medium">Priority</th>
@@ -495,7 +606,7 @@ export function CsvImporter({
                 <tbody className="divide-y divide-slate-100">
                   {result.cases.slice(0, 100).map((c, i) => (
                     <Fragment key={c.row}>
-                      <tr className="align-top">
+                      <tr className={cx("align-top", shownWarning?.caseRow === c.row && shownWarning.step === undefined && "bg-amber-50")} id={`import-case-${c.row}`}>
                         <td className="px-3 py-1.5 text-xs text-slate-400">{c.row}</td>
                         <td className="px-3 py-1.5 font-medium text-slate-800">
                           <button
@@ -511,7 +622,7 @@ export function CsvImporter({
                             {c.title}
                           </button>
                         </td>
-                        <td className="px-3 py-1.5 text-xs text-slate-500">{oneMode ? oneFolderLabel : c.folderPath.join(" / ")}</td>
+                        <td className="px-3 py-1.5 text-xs text-slate-500">{mode === "none" ? "No folder" : oneMode ? oneFolderLabel : c.folderPath.join(" / ")}</td>
                         <td className="px-3 py-1.5 text-xs">{PRIORITY_LABEL[c.priority]}</td>
                         <td className="px-3 py-1.5 text-xs text-slate-500">
                           {[...c.tags, areaTagsFor(i)].filter(Boolean).join(", ")}
@@ -527,16 +638,24 @@ export function CsvImporter({
                           <td colSpan={storyCount > 0 ? 6 : 5} className="px-3 pb-3">
                             {c.preconditions && <p className="mb-2 text-xs whitespace-pre-wrap wrap-anywhere text-slate-600">{c.preconditions}</p>}
                             <ol className="divide-y divide-slate-100 rounded-md border border-slate-200 text-xs">
-                              {numberedSteps(c, result.shared).map((s) => (
-                                <li key={s.number} className="grid grid-cols-[3rem_1fr_1fr] gap-3 px-3 py-2">
+                              {numberedSteps(c, result.shared).map((s, k) => {
+                                const chip = flaggedSteps.get(c.row)?.get(k);
+                                return (
+                                <li
+                                  key={s.number}
+                                  id={`import-step-${c.row}-${k}`}
+                                  className={cx("grid grid-cols-[3rem_1fr_1fr] gap-3 px-3 py-2", chip !== undefined && "bg-amber-50", shownWarning?.caseRow === c.row && shownWarning.step === k && "ring-2 ring-amber-400 ring-inset")}
+                                >
                                   <span className="font-mono text-slate-500">{s.number}</span>
                                   <span className="whitespace-pre-wrap wrap-anywhere text-slate-800">
                                     {s.sharedName && <span className="mb-0.5 block text-[11px] font-medium text-accent-700">Shared: {s.sharedName}</span>}
                                     {s.action}
+                                    {chip && <span className="ml-1.5 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-amber-900">{chip}</span>}
                                   </span>
                                   <span className="whitespace-pre-wrap wrap-anywhere text-slate-600">{s.expected}</span>
                                 </li>
-                              ))}
+                                );
+                              })}
                             </ol>
                           </td>
                         </tr>
@@ -579,6 +698,25 @@ function Choice({
       <input type="radio" name={name} checked={checked} disabled={disabled} onChange={onSelect} className="mt-0.5 size-4 flex-none accent-accent-600" />
       <span className="min-w-0 flex-1">{children}</span>
     </label>
+  );
+}
+
+/** One place in the "Make them in" folder list (ver_107). */
+function PickRow({ on, onPick, depth = 0, add, children }: { on: boolean; onPick: () => void; depth?: number; add?: boolean; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={on}
+      onClick={onPick}
+      className={cx(
+        "flex w-full items-center gap-1.5 rounded px-2 py-1 text-left text-sm",
+        on ? "bg-accent-600 text-white" : cx("hover:bg-accent-50", add ? "font-medium text-accent-700" : "text-slate-800"),
+      )}
+      style={{ paddingLeft: 8 + depth * 14 }}
+    >
+      {children}
+    </button>
   );
 }
 
