@@ -47,15 +47,19 @@ export async function notOnTeam(fallback: string): Promise<never> {
  */
 export const projectAccessOrGuest = cache(async (key: string) => {
   const user = await requireUser();
-  const project = await db.project.findUnique({
+  // The Roles card rules come along in the same query (ver_120), instead of a second trip.
+  const row = await db.project.findUnique({
     where: { key: key.toUpperCase() },
-    include: { members: { where: { userId: user.id } } },
+    include: { members: { where: { userId: user.id } }, hubOf: { select: { roleRules: true } }, group: { select: { roleRules: true, hubProjectId: true } } },
   });
-  if (!project) notFound();
+  if (!row) notFound();
+  const { hubOf, group, ...project } = row;
   const memberRole = project.members[0]?.role ?? null;
   const role: Role | null = user.isAdmin ? "ADMIN" : memberRole;
   if (role) {
-    const who: Who = { role, rules: await roleRulesFor(project) };
+    // Same rules as roleRulesFor: the umbrella's (hub or test cycle in it), else the project's own.
+    const umbrellaRules = hubOf ?? (group?.hubProjectId ? group : null);
+    const who: Who = { role, rules: parseRoleRules(umbrellaRules ? umbrellaRules.roleRules : project.roleRules) };
     return { guest: null, user, project, role, who };
   }
   const path = await currentPath();

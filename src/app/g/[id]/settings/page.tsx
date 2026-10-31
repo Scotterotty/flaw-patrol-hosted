@@ -62,40 +62,49 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
   if (!u) notFound();
   const name = u.group.name;
   // Jira, bug template, stories and members live on the umbrella's hidden library project; they open in place here.
-  const [jira, members, ownJira] = await Promise.all([
+  // Asked for together (ver_120): one round trip's wait instead of twenty in a row.
+  const cycles = [...u.current, ...u.older];
+  const ids = cycles.map((p) => p.id);
+  const [jira, members, ownJira, { template, shared }, sentry, requests, bugTemplates, archive, kindSuites, slack, usage, spelling, repos, ciTokens, groupManager, myRoles, cycleMembers] = await Promise.all([
     db.jiraConfig.findUnique({ where: { projectId: u.hub.id } }),
     db.projectMember.findMany({ where: { projectId: u.hub.id }, include: { user: true }, orderBy: [{ role: "asc" }, { user: { email: "asc" } }] }),
     db.jiraConfig.findMany({
       where: { projectId: { in: u.projects.map((p) => p.id) } },
       select: { projectId: true, siteUrl: true, email: true, jiraProjectKey: true, issueType: true, tokenEncrypted: true, bugTemplate: true, stories: true, severity: true },
     }),
+    bugTemplateView(u.hub.id, user.email),
+    db.sentryConfig.findUnique({ where: { projectId: u.hub.id } }),
+    can(u.who, "members:manage") ? joinRequestRows(u.hub.id) : Promise.resolve([]),
+    // Bug templates (ver_119): a list on the umbrella, used by every test cycle in it.
+    loadBugTemplates({ id: u.hub.id, key: u.hub.key, groupId: null }),
+    archiveCardData(user, u.group.id, null),
+    db.testSuite.findMany({ where: { projectId: u.hub.id, archived: false }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    slackChannelsOf({ groupId: u.group.id }),
+    storageUsage(u.group.id),
+    mySpelling(),
+    // GitHub (ver_85): connected repos, and the newest run pulled from each.
+    db.gitHubRepo.findMany({
+      where: { groupId: u.group.id },
+      orderBy: { createdAt: "asc" },
+      include: { runs: { orderBy: { createdAt: "desc" }, take: 1, select: { githubRunNo: true, createdAt: true } } },
+    }),
+    // CI uploads (ver_91): tokens a pipeline sends with its results file.
+    db.ciToken.findMany({ where: { groupId: u.group.id }, orderBy: { createdAt: "asc" } }),
+    canManageGroups(user),
+    // Test cycles (ver_117): who's on each, for its row in the table.
+    db.projectMember.findMany({ where: { userId: user.id, projectId: { in: ids } }, select: { projectId: true, role: true } }),
+    db.projectMember.findMany({ where: { projectId: { in: ids } }, include: { user: true }, orderBy: [{ role: "asc" }, { user: { email: "asc" } }] }),
   ]);
-  const { template, shared } = await bugTemplateView(u.hub.id, user.email);
-  const sentry = await db.sentryConfig.findUnique({ where: { projectId: u.hub.id } });
+  const [invites, cycleInvites] = await Promise.all([memberInviteInfo(members.map((m) => m.userId)), memberInviteInfo([...new Set(cycleMembers.map((m) => m.userId))])]);
   const leads = members.filter((m) => m.role === "LEAD" || m.role === "ADMIN").length;
-  const invites = await memberInviteInfo(members.map((m) => m.userId));
-  const requests = can(u.who, "members:manage") ? await joinRequestRows(u.hub.id) : [];
   const manage = can(u.who, "jira:manage");
-  // Bug templates (ver_119): a list on the umbrella, used by every test cycle in it.
-  const bugTemplates = await loadBugTemplates({ id: u.hub.id, key: u.hub.key, groupId: null });
   const canTemplates = can(u.who, "bugtemplate:edit");
   const templatesText = `${bugTemplates.templates.length + 1} ${bugTemplates.templates.length ? "templates" : "template"} · default: ${bugTemplates.templates.find((t) => t.id === bugTemplates.defaultId)?.name ?? bugTemplates.current.name}`;
-  const archive = await archiveCardData(user, u.group.id, null);
   const runFields = parseRunFields(u.group.runFields);
   const runKinds = parseRunKinds(u.group.runKinds);
-  const kindSuites = await db.testSuite.findMany({ where: { projectId: u.hub.id, archived: false }, orderBy: { name: "asc" }, select: { id: true, name: true } });
-  const slack = await slackChannelsOf({ groupId: u.group.id });
   const reg = parseRegressionSettings(u.group.regression);
   const fileSettings = parseFileSettings(u.group.automationFiles);
-  const usage = await storageUsage(u.group.id);
   const slackPaused = slack.length > 0 && slack.every((c) => c.paused);
-  // GitHub (ver_85): connected repos, and the newest run pulled from each.
-  const spelling = await mySpelling();
-  const repos = await db.gitHubRepo.findMany({
-    where: { groupId: u.group.id },
-    orderBy: { createdAt: "asc" },
-    include: { runs: { orderBy: { createdAt: "desc" }, take: 1, select: { githubRunNo: true, createdAt: true } } },
-  });
   const canPull = can(u.who, "run:import") && !u.group.archivedAt;
   const pullable = repos.filter((r) => r.workflowId).map((r) => ({ id: r.id, fullName: r.fullName, workflowName: r.workflowName }));
   const githubText = repos.length
@@ -113,8 +122,6 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
       {pullButton}
     </>
   );
-  // CI uploads (ver_91): tokens a pipeline sends with its results file.
-  const ciTokens = await db.ciToken.findMany({ where: { groupId: u.group.id }, orderBy: { createdAt: "asc" } });
   const ciText = ciTokens.length
     ? `${ciTokens.length} ${ciTokens.length === 1 ? "token" : "tokens"} · ${ciTokens.some((t) => t.lastUsedAt) ? `last upload ${relativeTime(new Date(Math.max(...ciTokens.map((t) => t.lastUsedAt?.getTime() ?? 0))), spelling)}` : "no uploads yet"}`
     : "Let your pipeline send its results file after every build, with no one pressing Upload.";
@@ -139,7 +146,6 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
       })();
 
   let choices: GroupChoice[] = [];
-  const groupManager = await canManageGroups(user);
   if (groupManager) {
     const visible = await db.project.findMany({
       where: { hubOf: null, ...(user.isAdmin ? {} : { members: { some: { userId: user.id } } }) },
@@ -158,15 +164,8 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
   }
 
   // Test cycles (ver_117): each one's row in the table, with what it can set for itself opening below.
-  const cycles = [...u.current, ...u.older];
-  const ids = cycles.map((p) => p.id);
-  const [myRoles, cycleMembers, umbrellaChannelIds] = await Promise.all([
-    db.projectMember.findMany({ where: { userId: user.id, projectId: { in: ids } }, select: { projectId: true, role: true } }),
-    db.projectMember.findMany({ where: { projectId: { in: ids } }, include: { user: true }, orderBy: [{ role: "asc" }, { user: { email: "asc" } }] }),
-    Promise.resolve(slack.map((c) => c.id)),
-  ]);
+  const umbrellaChannelIds = slack.map((c) => c.id);
   const roleIn = new Map(myRoles.map((m) => [m.projectId, m.role]));
-  const cycleInvites = await memberInviteInfo([...new Set(cycleMembers.map((m) => m.userId))]);
   const jiraOf = new Map(ownJira.map((j) => [j.projectId, j]));
   const canArchiveCycles = !!archive?.umbrella?.cycles.length;
   const rows: CycleRow[] = await Promise.all(

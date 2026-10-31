@@ -31,6 +31,7 @@ import { caseKey, relativeTime } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { SHEETS_ENABLED } from "@/lib/features";
 import { projectAccess, mySpelling } from "@/lib/session";
+import { cycleSettingsHref } from "@/lib/umbrella";
 import { countStatuses, pct, STATUS_LABEL, totals } from "@/lib/status";
 import { projectMembers } from "@/lib/suite-data";
 import { sortCases } from "@/lib/case-sort";
@@ -180,7 +181,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           {slack.length > 0 && (
             <SlackBell
               channels={slack.map((c) => ({ name: c.name, what: alertSummary(c.alerts) }))}
-              href={can(who, "jira:manage") ? (project.groupId && project.slackMode === "umbrella" ? `/g/${project.groupId}/settings#slack` : `/p/${project.key}/settings#slack`) : null}
+              href={can(who, "jira:manage") ? (project.groupId && project.slackMode === "umbrella" ? `/g/${project.groupId}/settings#slack` : await cycleSettingsHref(project, user, "slack")) : null}
             />
           )}
           {(SHEETS_ENABLED || can(who, "run:create") || can(who, "run:manage") || can(who, "run:delete")) && (

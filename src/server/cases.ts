@@ -48,7 +48,11 @@ async function folderPathString(tx: Tx, projectId: string, folderId: string | nu
 }
 
 /** Create a case, or save a new version of an existing one. */
-export async function saveCase(projectId: string, caseId: string | null, input: CaseInput) {
+/**
+ * leaving: the editor opens another page straight after saving (ver_120), so the page being left
+ * isn't drawn again for nothing; the editor refreshes the page it opens instead.
+ */
+export async function saveCase(projectId: string, caseId: string | null, input: CaseInput, opts?: { leaving?: boolean }) {
   return attempt(async () => {
     const { project, user } = await requireProjectAction(projectId, "case:edit");
     const data = caseInputSchema.parse(input);
@@ -143,7 +147,7 @@ export async function saveCase(projectId: string, caseId: string | null, input: 
 
     // Needs steps (ver_96) clears itself once the case has a step.
     if (caseId && steps.length) await db.testCase.updateMany({ where: { id: caseId, flag: "NEEDS_STEPS" }, data: { flag: null, flagNote: "", flaggedBy: "", flaggedAt: null, flagRunNumber: null } });
-    revalidatePath(`/p/${project.key}`, "layout");
+    if (opts?.leaving !== true) revalidatePath(`/p/${project.key}`, "layout");
     return result;
   });
 }

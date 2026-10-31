@@ -11,7 +11,8 @@ import { glossaryMenu } from "@/lib/glossary-data";
 export default async function GroupLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireUser();
-  const u = await loadUmbrella(id, user);
+  // The umbrella and the glossary menu are asked for together (ver_120).
+  const [u, glossary] = await Promise.all([loadUmbrella(id, user), glossaryMenu(user.id)]);
   if (!u) {
     // An umbrella they aren't on (ver_115): say what it is and offer Ask to join.
     const hub = await db.projectGroup.findUnique({ where: { id }, select: { hubProjectId: true } });
@@ -22,7 +23,7 @@ export default async function GroupLayout({ children, params }: { children: Reac
     <>
       <TopBar user={user} project={{ key: u.hub.key, name: u.group.name, hub: u.group.id }} />
       <div className="flex">
-        <UmbrellaNav u={navOf(u)} glossary={await glossaryMenu(user.id)} />
+        <UmbrellaNav u={navOf(u)} glossary={glossary} />
         <main className="min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
           {u.group.archivedAt && <UmbrellaArchivedBanner groupId={u.group.id} name={u.group.name} canRestore={can(u.who, "umbrella:archive")} />}
           {children}

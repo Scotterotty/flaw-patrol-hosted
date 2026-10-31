@@ -6,7 +6,9 @@ import { RunFieldInputs } from "./run-field-inputs";
 import type { RunField } from "@/lib/run-fields";
 import { forgivingFilter } from "@/lib/fuzzy";
 import { CloseMatchesLabel } from "./close-matches";
-import { onStartKind } from "@/lib/start-kind";
+import { onStartKind, onStartPrefetch } from "@/lib/start-kind";
+import { prefetchOn, useLazy } from "@/lib/use-lazy";
+import { BoxWait } from "./box-wait";
 import { LiveBashPill } from "./bash";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -22,6 +24,7 @@ import {
   setPlatforms,
   setShortcuts,
   setUmbrellaArchived,
+  rcPlan,
   startNextRc,
 } from "@/server/umbrella";
 import { setProjectGroup } from "@/server/groups";
@@ -105,7 +108,7 @@ export function ShortcutIcon({
   );
 }
 
-function useAction() {
+function useAction(after?: () => void) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -118,7 +121,10 @@ function useAction() {
       const r = await fn();
       if (!r.ok) return setError(r.error);
       setError(null);
-      if (done?.(r) !== true) router.refresh();
+      if (done?.(r) !== true) {
+        router.refresh();
+        after?.();
+      }
     });
   return { pending, error, setError, run, router };
 }
@@ -702,22 +708,8 @@ type RcChoice = { kind: "suites"; ids: string[] } | { kind: "cases"; ids: string
 const sameIds = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
 
 /** "Start next release": one new project per platform, with its runs set up from the shared suites. */
-export function StartRcButton({
-  groupId,
-  plan,
-  canManage = false,
-  canSuites = false,
-  canCases = false,
-  canImport = false,
-  variant = "primary",
-  hideButton = false,
-}: {
+type RcBoxProps = {
   groupId: string;
-  plan: RcPlan;
-  /** No button of its own (ver_95): Start a run's "Release candidate" kind opens it. */
-  hideButton?: boolean;
-  /** Secondary while the current release still needs its first run (ver_94). */
-  variant?: "primary" | "secondary";
   /** Can rename or remove platforms, and the suites picked are remembered (umbrella:manage). */
   canManage?: boolean;
   /** Can make a new suite from the box (suite:manage). */
@@ -725,14 +717,72 @@ export function StartRcButton({
   /** Can write or import cases (case:edit, import): the links in the no-cases note (ver_118). */
   canCases?: boolean;
   canImport?: boolean;
+};
+
+/**
+ * Start next release. Since ver_120 the box gets its plan when it opens (or when Start a run's
+ * Release candidate is hovered, focused or touched), so the umbrella home doesn't build it every time.
+ */
+export function StartRcButton({
+  umbrella,
+  hasRelease,
+  variant = "primary",
+  hideButton = false,
+  ...box
+}: RcBoxProps & {
+  /** The umbrella's name, for the box's title while it loads. */
+  umbrella: string;
+  /** Any test cycle yet: "Getting OKO's last release ready…", else "…platforms ready…". */
+  hasRelease: boolean;
+  /** No button of its own (ver_95): Start a run's "Release candidate" kind opens it. */
+  hideButton?: boolean;
+  /** Secondary while the current release still needs its first run (ver_94). */
+  variant?: "primary" | "secondary";
 }) {
   const [open, setOpen] = useState(false);
+  const plan = useLazy(`rc:${box.groupId}`, () => rcPlan(box.groupId));
+  const { ensure, load } = plan;
   // The umbrella home's setup list links here (?start=rc) to add platforms and their suites.
   const asked = useSearchParams().get("start") === "rc";
   useEffect(() => {
     if (asked) setOpen(true);
   }, [asked]);
   useEffect(() => onStartKind("rc", () => setOpen(true)), []);
+  useEffect(() => onStartPrefetch("rc", () => load()), [load]);
+  useEffect(() => {
+    if (open) ensure();
+  }, [open, ensure]);
+  return (
+    <>
+      {!hideButton && (
+        <Button variant={variant} onClick={() => setOpen(true)} {...prefetchOn(load)}>
+          {variant === "primary" ? "▶ " : ""}Start next release
+        </Button>
+      )}
+      {plan.data ? (
+        <RcBox {...box} plan={plan.data} open={open} setOpen={setOpen} reload={plan.reload} />
+      ) : (
+        <Modal open={open} onClose={() => setOpen(false)} title={`Start a new release in ${umbrella}`} wide>
+          <BoxWait testId="rc-box-wait" failed={plan.failed} onRetry={plan.reload}>
+            Getting {umbrella}&apos;s {hasRelease ? "last release" : "platforms"} ready…
+          </BoxWait>
+        </Modal>
+      )}
+    </>
+  );
+}
+
+function RcBox({
+  groupId,
+  plan,
+  open,
+  setOpen,
+  reload,
+  canManage = false,
+  canSuites = false,
+  canCases = false,
+  canImport = false,
+}: RcBoxProps & { plan: RcPlan; open: boolean; setOpen: (v: boolean) => void; reload: () => void }) {
   // Nothing is picked for you (Scott, ver_99): the release name, platforms, what each runs and the
   // carry-over all start empty. Last release's choices are offered in each dropdown and as "Use Demo RC 2".
   const [rc, setRc] = useState("");
@@ -755,17 +805,16 @@ export function StartRcButton({
   const noCases = plan.library.cases.length === 0;
   const choiceOf = (key: string): RcChoice | undefined => choices[key] ?? (noCases && key.startsWith("new:") ? { kind: "empty" } : undefined);
   // Back from writing cases or making a suite in another tab: show them here (ver_118).
-  const routerForFocus = useRouter();
   useEffect(() => {
     if (!open || (!noCases && plan.allSuites.length)) return;
-    const back = () => routerForFocus.refresh();
+    const back = () => reload();
     window.addEventListener("focus", back);
     return () => window.removeEventListener("focus", back);
-  }, [open, noCases, plan.allSuites.length, routerForFocus]);
+  }, [open, noCases, plan.allSuites.length, reload]);
   // Platform changes save as they're made (ver_86): ⋯ Rename, ⋯ Remove (with Undo).
   const [renaming, setRenaming] = useState<{ from: string; to: string } | null>(null);
   const [removed, setRemoved] = useState<{ at: number; name: string; suiteIds: string[]; color: string }[]>([]);
-  const { pending, error, setError, run, router } = useAction();
+  const { pending, error, setError, run, router } = useAction(reload);
   // The new release's Test runs page is on its way (ver_108): the box stays up until that page replaces this one.
   const [opening, setOpening] = useState<string | null>(null);
   const busy = pending || !!opening;
@@ -1149,11 +1198,6 @@ export function StartRcButton({
   };
   return (
     <>
-      {!hideButton && (
-        <Button variant={variant} onClick={() => setOpen(true)}>
-          {variant === "primary" ? "▶ " : ""}Start next release
-        </Button>
-      )}
       <Modal
         open={open}
         onClose={() => {

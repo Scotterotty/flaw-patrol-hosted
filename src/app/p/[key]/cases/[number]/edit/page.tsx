@@ -39,6 +39,8 @@ export default async function EditCasePage({ params, searchParams }: { params: P
     : undefined;
   return (
     <CaseEditor
+      // A newer version starts the form afresh (ver_120: Back after Save).
+      key={c.currentVersion}
       queue={queue}
       tagColors={await tagColorsFor(project.id)}
       platformNames={await platformNamesFor(project.id)}

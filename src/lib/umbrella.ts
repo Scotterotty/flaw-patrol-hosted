@@ -1,5 +1,7 @@
+import { cycleHash } from "@/lib/cycle-hash";
 import { effectiveTemplate } from "./bug-template";
 import "server-only";
+import { cache } from "react";
 import type { Prisma, Role } from "@prisma/client";
 import { db } from "./db";
 import { parseRoleRules, type Who } from "./permissions";
@@ -15,14 +17,19 @@ type Tx = Prisma.TransactionClient | typeof db;
 const RANK: Record<Role, number> = { VIEWER: 0, TESTER: 1, LEAD: 2, ADMIN: 3 };
 
 /** The umbrella a project belongs to, as hub or as one of its projects. */
-export async function umbrellaOf(project: { id: string; groupId: string | null }) {
+export function umbrellaOf(project: { id: string; groupId: string | null }) {
+  return umbrellaOfOnce(project.id, project.groupId);
+}
+
+const umbrellaOfOnce = cache(async (projectId: string, groupId: string | null) => {
+  const project = { id: projectId, groupId };
   const asHub = await db.projectGroup.findUnique({ where: { hubProjectId: project.id }, include: { hub: { select: { id: true, key: true, name: true } } } });
   if (asHub) return { group: asHub, hub: asHub.hub!, isHub: true as const };
   if (!project.groupId) return null;
   const group = await db.projectGroup.findUnique({ where: { id: project.groupId }, include: { hub: { select: { id: true, key: true, name: true } } } });
   if (!group?.hub) return null;
   return { group, hub: group.hub, isHub: false as const };
-}
+});
 
 /** Where a project's cases, suites and shared steps come from: its own, plus its umbrella hub's. */
 export async function libraryProjectIds(project: { id: string; groupId: string | null }) {
@@ -153,7 +160,13 @@ type Viewer = { id: string; isAdmin: boolean };
  * role there, and its projects split into the current RC per platform and older ones.
  * Null when the group isn't an umbrella or the viewer isn't on its team.
  */
-export async function loadUmbrella(groupId: string, user: Viewer) {
+export function loadUmbrella(groupId: string, user: Viewer) {
+  return loadUmbrellaOnce(groupId, user.id, !!user.isAdmin);
+}
+
+// The layout, the left menu and the page each ask for the umbrella; one load per page view (ver_120).
+const loadUmbrellaOnce = cache(async (groupId: string, userId: string, isAdmin: boolean) => {
+  const user = { id: userId, isAdmin };
   const group = await db.projectGroup.findUnique({ where: { id: groupId }, include: { hub: { include: { members: { where: { userId: user.id } } } } } });
   if (!group?.hub) return null;
   const hub = group.hub;
@@ -199,7 +212,7 @@ export async function loadUmbrella(groupId: string, user: Viewer) {
     liveBashOf(hub.id),
   ]);
   return { group, hub, role, who, platforms, projects, current, older, live: liveBash, counts: { cases, charters, suites, shared, personas, activeRuns, openBugs, repos } };
-}
+});
 export type Umbrella = NonNullable<Awaited<ReturnType<typeof loadUmbrella>>>;
 
 /** Open bugs across these projects, counting a Jira issue filed from two projects once. */
@@ -251,9 +264,17 @@ export function navOf(u: Umbrella): UmbrellaNav {
 }
 
 /** The umbrella whose hub this project is, if any. */
-export async function hubGroupId(projectId: string) {
-  return (await db.projectGroup.findUnique({ where: { hubProjectId: projectId }, select: { id: true } }))?.id ?? null;
+/** Where a test cycle's Settings really lives, so links go straight there with no redirect hop (ver_120). Same rules as /p/KEY/settings. */
+export async function cycleSettingsHref(project: { id: string; key: string; groupId: string | null }, user: Viewer, hash = "") {
+  const hub = await hubGroupId(project.id);
+  if (hub) return `/g/${hub}/settings${hash ? `#${hash}` : ""}`;
+  if (project.groupId && (await loadUmbrella(project.groupId, user))) return `/g/${project.groupId}/settings#${hash === "roles" ? "roles" : cycleHash(project.key)}`;
+  return `/p/${project.key}/settings${hash ? `#${hash}` : ""}`;
 }
+
+export const hubGroupId = cache(async (projectId: string) => {
+  return (await db.projectGroup.findUnique({ where: { hubProjectId: projectId }, select: { id: true } }))?.id ?? null;
+});
 
 /** Projects the viewer could move into an umbrella: not a hub, not archived, and not in an umbrella already. */
 export async function looseProjects(user: Viewer) {
@@ -273,7 +294,7 @@ export async function looseProjects(user: Viewer) {
 export type LiveBash = { id: string; name: string; endsAt: string };
 
 /** The bug bash running now in this hub (or test cycle outside an umbrella), if any. */
-export async function liveBashOf(projectId: string): Promise<LiveBash | null> {
+export const liveBashOf = cache(async (projectId: string): Promise<LiveBash | null> => {
   const now = new Date();
   const b = await db.bugBash.findFirst({
     where: { projectId, endedAt: null, wrappedAt: null, startsAt: { lte: now }, endsAt: { gt: now } },
@@ -281,4 +302,4 @@ export async function liveBashOf(projectId: string): Promise<LiveBash | null> {
     select: { id: true, name: true, endsAt: true },
   });
   return b ? { id: b.id, name: b.name, endsAt: b.endsAt.toISOString() } : null;
-}
+});

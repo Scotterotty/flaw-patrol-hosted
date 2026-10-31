@@ -134,37 +134,54 @@ export async function rcStatus(
   const ids = [...choices.filter((c) => c.on).map((c) => c.id), ...(pick.bashes ? bashRuns.map((r) => r.id) : [])];
   const bashCount = bashRuns.length;
   // The team's severity names (ver_91): the scope's Jira, or the first run's.
-  const scale = await severityScaleFor(scope?.projectIds[0] ?? all.find((r) => ids.includes(r.id))?.projectId);
   // Every current platform of the umbrella gets a column (ver_94), even before anyone tests it.
-  // Only an umbrella's own report (its scope holds the hub), not one test cycle's.
-  const hub = scope ? await db.project.findFirst({ where: { id: { in: scope.projectIds }, hubOf: { isNot: null } }, select: { hubOf: { select: { platforms: true } } } }) : null;
+  // Only an umbrella's own report (its scope holds the hub), not one test cycle's. Fetched together (ver_120).
+  const [scale, hub] = await Promise.all([
+    severityScaleFor(scope?.projectIds[0] ?? all.find((r) => ids.includes(r.id))?.projectId),
+    scope ? db.project.findFirst({ where: { id: { in: scope.projectIds }, hubOf: { isNot: null } }, select: { hubOf: { select: { platforms: true } } } }) : null,
+  ]);
   const platforms = parsePlatforms(hub?.hubOf?.platforms).map((p) => p.name);
   if (ids.length === 0 && platforms.length === 0 && bashCount === 0) return { columns: [], bugs: [], choices, others, scale, bashCount };
 
-  const runs = await db.testRun.findMany({
-    where: { id: { in: ids } },
-    include: {
-      project: { select: { key: true, name: true, platform: true, groupId: true } },
-      entries: { select: { id: true, status: true, lastTestedAt: true } },
-    },
-    orderBy: [{ createdAt: "asc" }],
-  });
   // Serious bugs from bug bashes always make the bug list, switch or not (Scott, ver_94).
   const bashOnly = pick.bashes ? [] : bashRuns.map((r) => r.id);
-  const links = await db.defectLink.findMany({
-    where: { result: { runId: { in: [...ids, ...bashOnly] } } },
-    select: {
-      defect: { select: { id: true, number: true, title: true, severity: true, status: true, externalPriority: true, externalKey: true, externalUrl: true, externalStatus: true, project: { select: { key: true } } } },
-      result: { select: { runId: true, entryId: true, entry: { select: { status: true } } } },
-    },
-  });
+  const [runs, links] = await Promise.all([
+    db.testRun.findMany({
+      where: { id: { in: ids } },
+      include: {
+        project: { select: { key: true, name: true, platform: true, groupId: true } },
+        entries: { select: { id: true, status: true, lastTestedAt: true } },
+      },
+      orderBy: [{ createdAt: "asc" }],
+    }),
+    db.defectLink.findMany({
+      where: { result: { runId: { in: [...ids, ...bashOnly] } } },
+      select: {
+        defect: { select: { id: true, number: true, title: true, severity: true, status: true, externalPriority: true, externalKey: true, externalUrl: true, externalStatus: true, project: { select: { key: true } } } },
+        result: { select: { runId: true, entryId: true, entry: { select: { status: true } } } },
+      },
+    }),
+  ]);
+  // Run fields, automation uploads and still-broken regressions don't depend on each other (ver_120).
+  const groups = [...new Set(runs.map((r) => r.project.groupId).filter((g): g is string => !!g))];
+  const wideIds = groups.length ? db.project.findMany({ where: { groupId: { in: groups } }, select: { id: true } }).then((ps) => ps.map((p) => p.id)) : Promise.resolve([...new Set(runs.map((r) => r.projectId))]);
+  const [defsList, uploads, broken] = await Promise.all([
+    Promise.all([...new Set(runs.map((r) => r.projectId))].map(async (id) => [id, await runFieldsFor(id)] as const)),
+    // Each client's latest automation upload for this release, from the same test cycle.
+    db.testRun.findMany({
+      where: { automated: true, projectId: { in: [...new Set([...runs.map((r) => r.projectId), ...(platforms.length && scope ? scope.projectIds : [])])] } },
+      orderBy: { createdAt: "desc" },
+      select: { projectId: true, number: true, release: true, build: true, project: { select: { key: true, platform: true } }, entries: { select: { status: true } } },
+    }),
+    wideIds.then((wide) => stillBrokenByPlatform(wide, release)),
+  ]);
 
   // One column per client: two runs on the same client (a suite run and an exploratory
   // session, say) add up in one column, with their names listed under it (ver_86).
   const perRun = runs.map((run) => ({ run, label: bashIds.has(run.id) ? "Bug bash" : columnLabel(run, platforms) }));
   const labels = [...new Set([...perRun.map((r) => r.label), ...platforms])];
   // Run fields ticked "Show on Release status cards" (ver_89), per test cycle.
-  const defsOf = new Map(await Promise.all([...new Set(runs.map((r) => r.projectId))].map(async (id) => [id, await runFieldsFor(id)] as const)));
+  const defsOf = new Map(defsList);
   const columns: RcColumn[] = labels.map((label) => {
     const mine = perRun.filter((r) => r.label === label).map((r) => r.run);
     // A platform nobody has run yet: NOT STARTED, with its automation line if any.
@@ -201,12 +218,6 @@ export async function rcStatus(
     };
   });
 
-  // Each client's latest automation upload for this release, from the same test cycle.
-  const uploads = await db.testRun.findMany({
-    where: { automated: true, projectId: { in: [...new Set([...runs.map((r) => r.projectId), ...(platforms.length && scope ? scope.projectIds : [])])] } },
-    orderBy: { createdAt: "desc" },
-    select: { projectId: true, number: true, release: true, build: true, project: { select: { key: true, platform: true } }, entries: { select: { status: true } } },
-  });
   for (const col of columns) {
     if (col.bash) continue;
     const projects = new Set(runs.filter((r) => col.runIds.includes(r.id)).map((r) => r.projectId));
@@ -215,9 +226,6 @@ export async function rcStatus(
   }
 
   // Regression flag (ver_93): regressions in this release still broken, per platform.
-  const groups = [...new Set(runs.map((r) => r.project.groupId).filter((g): g is string => !!g))];
-  const wide = groups.length ? (await db.project.findMany({ where: { groupId: { in: groups } }, select: { id: true } })).map((p) => p.id) : [...new Set(runs.map((r) => r.projectId))];
-  const broken = await stillBrokenByPlatform(wide, release);
   for (const col of columns) {
     const plats = new Set([...runs.filter((r) => col.runIds.includes(r.id)).map((r) => r.project.platform.trim().toLowerCase()), ...(col.platform ? [col.platform.toLowerCase()] : [])]);
     const rows = [...plats].flatMap((p) => broken.get(p) ?? []);

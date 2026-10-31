@@ -22,6 +22,43 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 120,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "better",
+        title: "Pages open faster",
+        text: "The umbrella home, Test runs, Release status, Case library, a single case and Settings ask the database for everything at once instead of one thing after another. On a far-away database that's often half the wait or less.",
+      },
+      {
+        kind: "better",
+        title: "Start boxes get ready when you open them",
+        text: "Start next release and Start a bug bash fill themselves in when you open them, with your spinner meanwhile, so the page under them opens sooner. Resting the mouse on the option starts it early, and opening a box again needs no second wait.",
+      },
+      {
+        kind: "better",
+        title: "Settings opens in one step",
+        text: "Links to Settings from other pages (Connect Jira, Restore, Slack alerts, Choose what roles can do) now go straight to the right row in the umbrella's Settings, without a stop on the way.",
+      },
+      {
+        kind: "better",
+        title: "Saving a case is quicker",
+        text: "Save draws the page you go to once, instead of drawing the editor again first.",
+      },
+      {
+        kind: "fix",
+        title: "Your account: no error when you fold a card",
+        text: "Opening or closing a card on Your account no longer shows an error in the browser's console.",
+      },
+      {
+        kind: "better",
+        title: "Mini game pages open in seconds",
+        text: "The Leaderboard, your Account page and Workspace settings work out everyone's XP far faster. Every number stays exactly the same.",
+        game: true,
+      },
+    ],
+  },
+  {
     version: 119,
     date: "2026-10-31",
     items: [

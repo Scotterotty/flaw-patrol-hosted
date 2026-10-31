@@ -8,14 +8,14 @@ import { setUmbrellaArchived } from "@/server/umbrella";
 import { Button, Card, cx, ErrorText, InfoTip } from "./ui";
 
 /** Shown on every page of an archived project. */
-export function ArchivedBanner({ projectKey, canRestore }: { projectKey: string; canRestore: boolean }) {
+export function ArchivedBanner({ settingsHref, canRestore }: { settingsHref: string; canRestore: boolean }) {
   return (
     <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
       This test cycle is archived. It&apos;s tucked away under Archived on the Umbrellas page, and everything in it still works.
       {canRestore && (
         <>
           {" "}
-          <Link href={`/p/${projectKey}/settings#archive`} className="font-medium underline">
+          <Link href={settingsHref} className="font-medium underline">
             Restore it
           </Link>
         </>

@@ -5,7 +5,6 @@ import { notFound } from "next/navigation";
 import { AutoFilterForm } from "@/components/auto-filter-form";
 import { StartRunBox } from "@/components/start-run-box";
 import { StartBashButton } from "@/components/bash-start";
-import { startBoxData } from "@/lib/bash-data";
 import { UploadAutomationButton } from "@/components/automation-upload";
 import { can } from "@/lib/permissions";
 import { Card, EmptyState, PageHeader, Select } from "@/components/ui";
@@ -79,7 +78,6 @@ export default async function UmbrellaRunsPage({ params, searchParams }: { param
   }
 
   const kinds = parseRunKinds(u.group.runKinds);
-  const bashData = !u.group.archivedAt && can(u.who, "run:create") ? await startBoxData({ ...u.hub, groupId: u.group.id }) : null;
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader title="Test runs" subtitle={`Every run across ${u.group.name}'s test cycles, newest first`} 
@@ -87,7 +85,7 @@ export default async function UmbrellaRunsPage({ params, searchParams }: { param
           !u.group.archivedAt && (
             <>
               {canUpload && <UploadAutomationButton scope={{ groupId: u.group.id }} />}
-              {bashData && <StartBashButton data={bashData} hideButton />}
+              {can(u.who, "run:create") && <StartBashButton projectId={u.hub.id} hideButton />}
               <StartRunBox scope={{ groupId: u.group.id }} />
             </>
           )

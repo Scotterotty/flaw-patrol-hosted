@@ -179,7 +179,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
                           {d.title}
                         </a>
                       ) : (
-                        <Link href={`/p/${home?.key}/bugs`} className="font-medium text-slate-900 hover:underline">
+                        <Link href={home?.id === u.group.hubProjectId ? `/g/${id}/bugs` : `/p/${home?.key}/bugs`} className="font-medium text-slate-900 hover:underline">
                           {d.title}
                         </Link>
                       )}

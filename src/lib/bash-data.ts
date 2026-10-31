@@ -24,19 +24,24 @@ export type StartBoxData = {
 export const bashHome = charterHome;
 
 export async function startBoxData(project: { id: string; key: string; name: string; groupId: string | null }): Promise<StartBoxData> {
-  const home = await bashHome(project);
-  const u = await umbrellaOf(project);
-  const homeRow = await db.project.findUniqueOrThrow({ where: { id: home.id }, select: { id: true, key: true, name: true } });
-  const cycles = u
-    ? await db.project.findMany({ where: { groupId: u.group.id, archivedAt: null, id: { not: u.hub.id } }, orderBy: { createdAt: "desc" }, select: { id: true, name: true, rcName: true, platform: true } })
-    : [];
-  const last = await db.bugBash.findFirst({ where: { projectId: home.id }, orderBy: { createdAt: "desc" }, select: { name: true, areas: true } });
-  // Suggestions: risky requirements first, then the library's top folders and its charters' areas.
-  const risky = await db.riskRating.findMany({ where: { projectId: home.id }, orderBy: { movedAt: "desc" }, take: 40, select: { issueKey: true, likelihood: true, impact: true } });
-  const hot = risky.filter((r) => r.likelihood * r.impact >= 6);
-  const stories = hot.length ? [...(await storyInfo(home.id, [...new Set(hot.map((r) => r.issueKey))]).catch(() => new Map())).values()].filter((s) => !s.missing) : [];
-  const folders = await db.folder.findMany({ where: { projectId: home.id, parentId: null, name: { notIn: ["Bug bashes", "Automation"] } }, orderBy: { name: "asc" }, take: 8, select: { name: true } });
-  const charters = await db.testCase.findMany({ where: { projectId: home.id, type: "EXPLORATORY", archived: false, folder: { name: { not: "Bug bashes" } } }, orderBy: { updatedAt: "desc" }, take: 6, select: { title: true } });
+  // In two rounds instead of ten one after another (ver_120).
+  const [home, u] = await Promise.all([bashHome(project), umbrellaOf(project)]);
+  const [homeRow, cycles, last, stories, folders, charters, team] = await Promise.all([
+    db.project.findUniqueOrThrow({ where: { id: home.id }, select: { id: true, key: true, name: true } }),
+    u
+      ? db.project.findMany({ where: { groupId: u.group.id, archivedAt: null, id: { not: u.hub.id } }, orderBy: { createdAt: "desc" }, select: { id: true, name: true, rcName: true, platform: true } })
+      : Promise.resolve([]),
+    db.bugBash.findFirst({ where: { projectId: home.id }, orderBy: { createdAt: "desc" }, select: { name: true, areas: true } }),
+    // Suggestions: risky requirements first, then the library's top folders and its charters' areas.
+    db.riskRating.findMany({ where: { projectId: home.id }, orderBy: { movedAt: "desc" }, take: 40, select: { issueKey: true, likelihood: true, impact: true } }).then(async (risky) => {
+      const hot = risky.filter((r) => r.likelihood * r.impact >= 6);
+      return hot.length ? [...(await storyInfo(home.id, [...new Set(hot.map((r) => r.issueKey))]).catch(() => new Map())).values()].filter((s) => !s.missing) : [];
+    }),
+    db.folder.findMany({ where: { projectId: home.id, parentId: null, name: { notIn: ["Bug bashes", "Automation"] } }, orderBy: { name: "asc" }, take: 8, select: { name: true } }),
+    db.testCase.findMany({ where: { projectId: home.id, type: "EXPLORATORY", archived: false, folder: { name: { not: "Bug bashes" } } }, orderBy: { updatedAt: "desc" }, take: 6, select: { title: true } }),
+    teamTemplates(home.id),
+  ]);
+  const slackChannels = await db.slackChannel.count({ where: { paused: false, OR: [{ projectId: { in: [home.id, ...cycles.map((c) => c.id)] } }, ...(u ? [{ groupId: u.group.id }] : [])] } });
   const seen = new Set<string>();
   const suggestions: StartBoxData["suggestions"] = [];
   const add = (name: string, hot: boolean, why: string, link?: BashLink) => {
@@ -49,8 +54,6 @@ export async function startBoxData(project: { id: string; key: string; name: str
   for (const s of stories) add(s.title, true, `High on the Risk board (${s.key})`, { kind: "jira", key: s.key, title: s.title, url: s.url ?? "" });
   for (const f of folders) add(f.name, false, "A Case library folder");
   for (const c of charters) add(c.title, false, "An existing charter");
-  const team = await teamTemplates(home.id);
-  const slackChannels = await db.slackChannel.count({ where: { paused: false, OR: [{ projectId: { in: [home.id, ...cycles.map((c) => c.id)] } }, ...(u ? [{ groupId: u.group.id }] : [])] } });
   return {
     homeId: homeRow.id,
     homeKey: homeRow.key,

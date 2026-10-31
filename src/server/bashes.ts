@@ -21,6 +21,7 @@ import { Forbidden, requireProjectAction, requireUser } from "@/lib/session";
 import { bashGuestOk } from "@/lib/link-access-server";
 import { channelNamesFor, esc, postBash } from "@/lib/slack";
 import { jiraConfigFor } from "@/lib/umbrella";
+import { startBoxData } from "@/lib/bash-data";
 import { createLocalDefect, fileJiraBug } from "./jira";
 import { attempt, UserError } from "./result";
 import { buildEntries } from "./snapshot";
@@ -72,6 +73,14 @@ async function requireOwner(bashId: string) {
 }
 
 /** Start a bug bash: a charter per area, one run in the test cycle, and a Slack post. */
+/** The Start a bug bash box's area ideas and choices, fetched when the box opens or is about to (ver_120). */
+export async function startBoxFor(projectId: string) {
+  return attempt(async () => {
+    const { project } = await requireProjectAction(projectId, "run:create");
+    return { data: await startBoxData(project) };
+  });
+}
+
 export async function startBugBash(homeId: string, input: StartInput) {
   return attempt(async () => {
     const user = await requireUser();

@@ -9,7 +9,6 @@ import Link from "next/link";
 import { fieldBits } from "@/lib/run-fields";
 import { StartRunBox } from "@/components/start-run-box";
 import { StartBashButton } from "@/components/bash-start";
-import { startBoxData } from "@/lib/bash-data";
 import { UploadAutomationButton } from "@/components/automation-upload";
 import { StatusBar } from "@/components/status";
 import { ViewTabs } from "@/components/view-tabs";
@@ -49,7 +48,6 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
   const autoCount = await db.testRun.count({ where: { projectId: project.id, automated: true } });
   const canStart = can(who, "run:create");
   const picker = canStart ? <StartRunBox scope={{ projectKey: project.key }} /> : null;
-  const bashData = canStart && !project.archivedAt ? await startBoxData(project) : null;
   const umbrella = await umbrellaOf(project);
   const inUmbrella = !!umbrella;
   const kinds = parseRunKinds(umbrella?.group.runKinds);
@@ -64,7 +62,7 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
             {can(who, "run:import") && <LinkButton href={`/p/${project.key}/runs/import`}>Import a run</LinkButton>}
             {can(who, "run:import") && !project.archivedAt && <UploadAutomationButton scope={{ projectKey: project.key }} />}
             {/* In an umbrella, Start a run's Bug bash kind opens this box (ver_95). */}
-            {bashData && <StartBashButton data={bashData} hideButton={inUmbrella} />}
+            {canStart && !project.archivedAt && <StartBashButton projectId={project.id} hideButton={inUmbrella} />}
             {picker}
           </>
         }

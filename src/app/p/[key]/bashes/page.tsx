@@ -3,7 +3,7 @@ import { Countdown } from "@/components/bash";
 import { StartBashAuto, StartBashButton } from "@/components/bash-start";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { parseAreas } from "@/lib/bash";
-import { bashHome, bashList, startBoxData } from "@/lib/bash-data";
+import { bashHome, bashList } from "@/lib/bash-data";
 import { db } from "@/lib/db";
 import { can } from "@/lib/permissions";
 import { projectAccess } from "@/lib/session";
@@ -21,7 +21,7 @@ export default async function BashesPage({ params, searchParams }: { params: Pro
   const { project, who } = await projectAccess(key);
   const home = await bashHome(project);
   if (home.id !== project.id) redirect(`/p/${home.key}/bashes${auto ? `?bash=${auto}` : ""}`);
-  const [list, box] = await Promise.all([bashList(home.id), startBoxData(project)]);
+  const list = await bashList(home.id);
   const canStart = can(who, "run:create");
   const live = list.filter((b) => b.phase === "live" || b.phase === "scheduled" || b.phase === "ended");
   const past = list.filter((b) => b.phase === "wrapped");
@@ -32,9 +32,9 @@ export default async function BashesPage({ params, searchParams }: { params: Pro
       <PageHeader
         title="Bug bashes"
         subtitle="A short, timed session where anyone picks an area and logs bugs in one line. Whoever starts it wraps up and files the bugs."
-        actions={canStart ? <StartBashButton data={box} variant="primary" /> : undefined}
+        actions={canStart ? <StartBashButton projectId={project.id} variant="primary" /> : undefined}
       />
-      {auto === "start" && canStart && <StartBashAuto data={box} />}
+      {auto === "start" && canStart && <StartBashAuto projectId={project.id} />}
       {live.map((b) => (
         <Card key={b.id} className="mb-4 flex flex-wrap items-center gap-4 border-red-200 p-4" data-testid="live-bash">
           <span className={b.phase === "live" ? "rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white" : "rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700"}>
@@ -84,7 +84,7 @@ export default async function BashesPage({ params, searchParams }: { params: Pro
                       <Link href={`/p/${home.key}/bashes/${b.id}/report`} className="text-accent-700 hover:underline">
                         Report
                       </Link>
-                      {canStart && again.get(b.id) && <StartBashButton data={box} size="sm" again={again.get(b.id)} />}
+                      {canStart && again.get(b.id) && <StartBashButton projectId={project.id} size="sm" again={again.get(b.id)} />}
                     </span>
                   </td>
                 </tr>

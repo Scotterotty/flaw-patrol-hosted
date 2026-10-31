@@ -8,25 +8,23 @@ const DONE = { notIn: ["UNTESTED", "IN_PROGRESS"] as ("UNTESTED" | "IN_PROGRESS"
 
 /** A run's cases in the order they first got a result, with who saved it and the gear they wore. */
 async function completions(runIds: string[]) {
-  const results = await db.testResult.findMany({
-    where: { runId: { in: runIds }, status: DONE },
-    orderBy: { createdAt: "asc" },
-    select: {
-      runId: true,
-      entryId: true,
-      createdAt: true,
-      testerId: true,
-      testerName: true,
-      status: true,
-      questGear: true,
-      entry: { select: { testCase: { select: { number: true, project: { select: { key: true } } } } } },
-    },
-  });
   const byRun = new Map<string, (Completion & { caseNumber: number; caseKey: string })[]>();
-  const seen = new Set<string>();
-  for (const r of results) {
-    if (seen.has(r.entryId)) continue;
-    seen.add(r.entryId);
+  if (!runIds.length) return byRun;
+  // Each case's first result in one query with its case key (ver_120). Loading every result with
+  // its case through Prisma took about 2 seconds for someone who had tested in a hundred runs.
+  const rows = await db.$queryRaw<{ runId: string; entryId: string; createdAt: Date; testerId: string | null; testerName: string; status: Completion["status"]; questGear: unknown; number: number; key: string }[]>`
+    select r."runId", r."entryId", r."createdAt", r."testerId", r."testerName", r.status::text as status, r."questGear", c.number, p.key
+    from (
+      select distinct on ("entryId") "runId", "entryId", "createdAt", "testerId", "testerName", status, "questGear"
+      from "TestResult"
+      where "runId" = any(${runIds}) and status::text not in ('UNTESTED', 'IN_PROGRESS')
+      order by "entryId", "createdAt" asc, id asc
+    ) r
+    join "RunEntry" e on e.id = r."entryId"
+    join "TestCase" c on c.id = e."caseId"
+    join "Project" p on p.id = c."projectId"`;
+  rows.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  for (const r of rows) {
     const list = byRun.get(r.runId) ?? [];
     list.push({
       entryId: r.entryId,
@@ -35,9 +33,9 @@ async function completions(runIds: string[]) {
       name: r.testerName || "Someone",
       status: r.status,
       gear: r.questGear ? parseGear(r.questGear) : null,
-      caseNumber: r.entry.testCase.number,
+      caseNumber: r.number,
       // The case's own key (the Case library's AS-4 in an umbrella, not the test cycle's), ver_89.
-      caseKey: caseKey(r.entry.testCase.project.key, r.entry.testCase.number),
+      caseKey: caseKey(r.key, r.number),
     });
     byRun.set(r.runId, list);
   }

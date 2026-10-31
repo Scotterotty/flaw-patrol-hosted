@@ -9,7 +9,6 @@ import { moveRisk, planRc, resetRisk } from "@/server/risk";
 import { copyRich, tableClip } from "./export-menu";
 import { Modal } from "./modal";
 import { Button, cx, InfoTip, Select } from "./ui";
-import type { StartBoxData } from "@/lib/bash-data";
 import { shortDate } from "@/lib/spelling";
 import { StartBashButton } from "./bash-start";
 import { useSpelling } from "./spelling";
@@ -45,7 +44,8 @@ export function RiskBoard({
   templates: CharterTemplateInfo[];
   canPlan: boolean;
   /** Start a bug bash from the board (ver_96), for people who can start runs. */
-  bash?: StartBoxData;
+  /** The project to start it in; the box gets its own data when it opens (ver_120). */
+  bash?: string;
   /** When each requirement was last bashed, and what its area found. */
   bashed?: Record<string, { at: string; bugs: number }>;
 }) {
@@ -120,7 +120,7 @@ export function RiskBoard({
           )}
           {bash && cards.length > 0 && (
             <StartBashButton
-              data={bash}
+              projectId={bash}
               size="sm"
               variant="primary"
               label="Start a bug bash"

@@ -7,6 +7,7 @@ import { areaCandidate, pillLeads, typedKnownArea, type AreaContext } from "@/li
 import { tagColor, type TagColors } from "@/lib/tags";
 import type { CaseType, Priority } from "@prisma/client";
 import { useRouter } from "next/navigation";
+import { noteSavedVersion, useFreshVersion } from "./fresh-version";
 import {
   Fragment,
   useCallback,
@@ -103,6 +104,8 @@ const stripUid = ({ uid: _uid, ...rest }: Item): CaseStepItem => rest; // eslint
 export function CaseEditor(props: CaseEditorProps) {
   const { projectId, projectKey, caseId, number, initial } = props;
   const router = useRouter();
+  // Back after Save can bring up the editor as it was; it reloads then (ver_120).
+  useFreshVersion(caseId, props.version);
   const [title, setTitle] = useState(initial.title);
   const justTagged = useRef(false);
   // Area tags (ver_102): pills added from the word after the platform, and words said No to here.
@@ -143,7 +146,18 @@ export function CaseEditor(props: CaseEditorProps) {
   const [converting, setConverting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
-  const [pending, start] = useTransition();
+  const [saving, start] = useTransition();
+  // Saved and opening the next page (ver_120): the buttons keep saying Saving… until it shows.
+  const [leaving, setLeaving] = useState(false);
+  const pending = saving || leaving;
+  // Opened outside the save's transition, so Next loads the next page once instead of twice (as ver_111 found in the runner).
+  const leave = useCallback(
+    (href: string) => {
+      setLeaving(true);
+      setTimeout(() => router.push(href), 0);
+    },
+    [router],
+  );
   const focusUid = useRef<string | null>(null);
   // After Create and new: the case just made, so it can be opened.
   const [made, setMade] = useState<{ number: number; title: string } | null>(null);
@@ -179,6 +193,8 @@ export function CaseEditor(props: CaseEditorProps) {
   const save = useCallback((andNew = false) => {
     setError(null);
     start(async () => {
+      // Leaving for another page after this save (ver_120): that page is drawn once, fresh.
+      const leaving = !(andNew && !caseId) && !props.linkTo;
       const res = await saveCase(projectId, caseId, {
         title,
         preconditions,
@@ -191,16 +207,16 @@ export function CaseEditor(props: CaseEditorProps) {
         charter: isCharter ? charter : null,
         personaId: personaId || null,
         changeNote,
-      });
+      }, { leaving });
       if (!res.ok) return setError(res.error);
       setDirty(false);
+      if (res.caseId && res.changed !== false) noteSavedVersion(res.caseId, res.version);
       if (!caseId && props.linkTo && res.caseId) {
         const l = await linkStory(projectId, [res.caseId], props.linkTo, "add");
         if (!l.ok) return setError(l.error);
       }
       if (props.queue) {
-        router.push(props.queue.next ?? props.queue.back);
-        router.refresh();
+        leave(props.queue.next ?? props.queue.back);
         return;
       }
       if (andNew && !caseId) {
@@ -216,8 +232,7 @@ export function CaseEditor(props: CaseEditorProps) {
         router.refresh();
         return;
       }
-      router.push(`/p/${projectKey}/cases/${res.number}`);
-      router.refresh();
+      leave(`/p/${projectKey}/cases/${res.number}`);
     });
   }, [
     projectId,
@@ -233,6 +248,7 @@ export function CaseEditor(props: CaseEditorProps) {
     changeNote,
     projectKey,
     router,
+    leave,
     isCharter,
     charter,
     personaId,

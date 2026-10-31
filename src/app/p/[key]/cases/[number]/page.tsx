@@ -4,6 +4,7 @@ import { tagColorsFor } from "@/lib/tag-data";
 import type { Metadata } from "next";
 import { runFieldsFor } from "@/lib/run-fields-server";
 import Link from "next/link";
+import { FreshVersion } from "@/components/fresh-version";
 import { badgeOf } from "@/lib/game";
 import { Avatar } from "@/components/avatar";
 import { PriorityBadge, TypeBadge } from "@/components/badges";
@@ -41,30 +42,40 @@ export async function generateMetadata({ params }: { params: Promise<{ key: stri
 }
 
 export default async function CasePage({ params }: { params: Promise<{ key: string; number: string }> }) {
-  const spelling = await mySpelling();
   const { key, number } = await params;
-  const { project, user, who } = await projectAccess(key);
+  const [spelling, { project, user, who }] = await Promise.all([mySpelling(), projectAccess(key)]);
+  // What the page needs besides the case itself, asked for together (ver_120).
+  const others = Promise.all([
+    // A Case library case runs in one of the umbrella's test cycles, picked in the Start a run box.
+    hubGroupId(project.id),
+    db.folder.findMany({ where: { projectId: project.id }, select: { id: true, parentId: true, name: true } }),
+    db.testSuite.findMany({ where: { projectId: project.id, archived: false }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    projectMembers(project.id),
+    tagColorsFor(project.id),
+    runFieldsFor(project.id),
+    jiraConfigFor(project.id),
+  ]);
   const c = await loadCase(project.id, number);
   const flag = flagInfo(c, relativeTime);
   const isCharter = c.type === "EXPLORATORY";
-  // A Case library case runs in one of the umbrella's test cycles, picked in the Start a run box.
-  const hubOf = await hubGroupId(project.id);
   const latest = c.versions[0];
   const authorIds = [...new Set(c.versions.map((v) => v.authorId).filter((x): x is string => !!x))];
-  const authors = new Map((await db.user.findMany({ where: { id: { in: authorIds } }, select: { id: true, avatarAt: true, gameEnabled: true, gameFrame: true } })).map((u) => [u.id, u]));
   const items = parseCaseSteps(latest?.steps);
-  const defs = await sharedStepDefs(project.id, sharedStepIdsIn(items));
-  const steps = expandSteps(items, new Map(defs.map((d) => [d.id, d])));
-  const folders = await db.folder.findMany({ where: { projectId: project.id }, select: { id: true, parentId: true, name: true } });
-  const folderPath = pathOf(folders, c.folderId);
-  const flips = (await flakyCases({ caseIds: [c.id] })).get(c.id);
-  const [suites, members] = await Promise.all([
-    db.testSuite.findMany({ where: { projectId: project.id, archived: false }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    projectMembers(project.id),
+  const [authorRows, defs, flaky, stories, [hubOf, folders, suites, members, tagColors, runFields, jira]] = await Promise.all([
+    db.user.findMany({ where: { id: { in: authorIds } }, select: { id: true, avatarAt: true, gameEnabled: true, gameFrame: true } }),
+    sharedStepDefs(project.id, sharedStepIdsIn(items)),
+    flakyCases({ caseIds: [c.id] }),
+    storyInfo(project.id, c.jiraStories),
+    others,
   ]);
+  const authors = new Map(authorRows.map((u) => [u.id, u]));
+  const steps = expandSteps(items, new Map(defs.map((d) => [d.id, d])));
+  const folderPath = pathOf(folders, c.folderId);
+  const flips = flaky.get(c.id);
 
   return (
     <div className="mx-auto max-w-6xl">
+      <FreshVersion caseId={c.id} version={c.currentVersion} />
       <nav aria-label="Folder" className="mb-2 text-xs text-slate-500">
         {folderPath.length === 0 && "No folder"}
         {folderPath.map((name, i) => (
@@ -109,7 +120,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
             <PriorityBadge priority={c.priority} />
             <TypeBadge type={c.type} />
             {c.persona && <PersonaChip persona={c.persona} />}
-            <TagPills tags={c.tags} colors={await tagColorsFor(project.id)} />
+            <TagPills tags={c.tags} colors={tagColors} />
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -138,7 +149,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
               label={isCharter ? "▶ Start session now" : "Run this case"}
               variant={isCharter ? "primary" : "secondary"}
               openRunner={isCharter}
-              fields={await runFieldsFor(project.id)}
+              fields={runFields}
             />
           )}
           {(can(who, "case:edit") || can(who, "case:archive")) && (
@@ -211,7 +222,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
           {/* Charters link to requirements too (ver_93), so the Risk board sees them. */}
           {(
             <Card className="p-4">
-              <StoryLinks projectId={project.id} caseId={c.id} stories={[...(await storyInfo(project.id, c.jiraStories)).values()]} canEdit={can(who, "case:edit") && !c.archived} jira={!!(await jiraConfigFor(project.id))} />
+              <StoryLinks projectId={project.id} caseId={c.id} stories={[...stories.values()]} canEdit={can(who, "case:edit") && !c.archived} jira={!!jira} />
             </Card>
           )}
           <Card className="p-4">

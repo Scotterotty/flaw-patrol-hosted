@@ -15,14 +15,18 @@ type MenuProject = { id: string; key: string; name: string; groupId: string | nu
 export async function ProjectMenu({ project, user, umbrella }: { project: MenuProject; user: Viewer; umbrella?: Umbrella | null }) {
   const quests = user.gameEnabled && user.questMap;
   // Glossary (ver_113): one list for everyone, in every menu, with a dot when your question got answered.
-  const glossary = await glossaryMenu(user.id);
-  const group = umbrella ? null : project.groupId ? await db.projectGroup.findUnique({ where: { id: project.groupId }, select: { id: true, name: true, hubProjectId: true } }) : null;
+  // Asked together (ver_120): the glossary, the umbrella, and the test cycle's own cases.
+  const ownCasesP = project.groupId ? db.testCase.count({ where: { projectId: project.id, archived: false } }).catch(() => 0) : Promise.resolve(0);
+  const [glossary, group] = await Promise.all([
+    glossaryMenu(user.id),
+    umbrella ? null : project.groupId ? db.projectGroup.findUnique({ where: { id: project.groupId }, select: { id: true, name: true, hubProjectId: true } }) : null,
+  ]);
   const u = umbrella ?? (group?.hubProjectId ? await loadUmbrella(group.id, user) : null);
   if (u) {
     const isHub = u.hub.id === project.id;
     const nav = navOf(u);
     if (isHub) return <UmbrellaNav u={nav} glossary={glossary} />;
-    const ownCases = await db.testCase.count({ where: { projectId: project.id, archived: false } });
+    const ownCases = await ownCasesP;
     return (
       <UmbrellaNav
         glossary={glossary}
@@ -41,9 +45,9 @@ export async function ProjectMenu({ project, user, umbrella }: { project: MenuPr
     );
   }
   // Not on the umbrella's team (a test cycle that keeps members separate): its own menu, pointing at the umbrella's library.
-  const hub = group?.hubProjectId ? await db.project.findUnique({ where: { id: group.hubProjectId }, select: { key: true } }) : null;
   const where = { projectId: project.id, archived: false };
-  const [cases, charters, suites, shared, personas, activeRuns, openBugs, live] = await Promise.all([
+  const [hub, cases, charters, suites, shared, personas, activeRuns, openBugs, live] = await Promise.all([
+    group?.hubProjectId ? db.project.findUnique({ where: { id: group.hubProjectId }, select: { key: true } }) : null,
     db.testCase.count({ where: { ...where, type: { not: "EXPLORATORY" } } }),
     db.testCase.count({ where: { ...where, type: "EXPLORATORY" } }),
     db.testSuite.count({ where }),

@@ -1,12 +1,14 @@
 "use client";
 
-import { onStartKind } from "@/lib/start-kind";
+import { onStartKind, onStartPrefetch } from "@/lib/start-kind";
+import { prefetchOn, useLazy } from "@/lib/use-lazy";
+import { BoxWait } from "./box-wait";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { LENGTHS, type BashLink } from "@/lib/bash";
 import type { StartBoxData } from "@/lib/bash-data";
-import { startBugBash } from "@/server/bashes";
+import { startBoxFor, startBugBash } from "@/server/bashes";
 import { Modal } from "./modal";
 import { Button, cx, ErrorText, Field, InfoTip, Input, Select } from "./ui";
 
@@ -19,8 +21,17 @@ export type RiskPreset = { name: string; picks: { key: string; title: string; ur
  * Start a bug bash (ver_93): name, length and areas, about 20 seconds. Everything else
  * has a default under More options. Then a link to share, a QR code and a Slack post.
  */
+/** The box's area ideas and choices, fetched when it opens or is about to (ver_120). Boxes on one page share it. */
+function useStartBox(projectId: string) {
+  return useLazy(`bash:${projectId}`, async () => {
+    const r = await startBoxFor(projectId);
+    if (!r.ok) throw new Error(r.error);
+    return r.data;
+  });
+}
+
 export function StartBashButton({
-  data,
+  projectId,
   variant = "secondary",
   size,
   again,
@@ -28,7 +39,8 @@ export function StartBashButton({
   preset,
   label,
 }: {
-  data: StartBoxData;
+  /** The project the button is on; the box finds the bash's home (the umbrella's hub) itself. */
+  projectId: string;
   preset?: RiskPreset;
   label?: string;
   variant?: "primary" | "secondary";
@@ -38,10 +50,16 @@ export function StartBashButton({
   hideButton?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const box = useStartBox(projectId);
+  const { ensure, load } = box;
   useEffect(() => (again ? undefined : onStartKind("bash", () => setOpen(true))), [again]);
+  useEffect(() => (again ? undefined : onStartPrefetch("bash", load)), [again, load]);
+  useEffect(() => {
+    if (open) ensure();
+  }, [open, ensure]);
   return (
     <>
-      {!hideButton && <Button variant={variant} size={size} onClick={() => setOpen(true)}>
+      {!hideButton && <Button variant={variant} size={size} onClick={() => setOpen(true)} {...prefetchOn(load)}>
         {again ? "Run it again" : label ?? (
           <>
             <span aria-hidden>🐞</span> Start a bug bash
@@ -49,15 +67,18 @@ export function StartBashButton({
         )}
       </Button>}
       <Modal open={open} onClose={() => setOpen(false)} title="Start a bug bash" wide>
-        {open && <StartBashForm data={data} again={again} preset={preset} onClose={() => setOpen(false)} />}
+        {open && <StartBashForm data={box.data} failed={box.failed} retry={box.reload} again={again} preset={preset} onClose={() => setOpen(false)} />}
       </Modal>
     </>
   );
 }
 
 /** Opened with ?bash=start (Ctrl+K "Start a bug bash", or a link): the box opens by itself. */
-export function StartBashAuto({ data }: { data: StartBoxData }) {
+export function StartBashAuto({ projectId }: { projectId: string }) {
   const [open, setOpen] = useState(true);
+  const box = useStartBox(projectId);
+  const { ensure } = box;
+  useEffect(() => ensure(), [ensure]);
   const router = useRouter();
   const close = () => {
     setOpen(false);
@@ -65,12 +86,30 @@ export function StartBashAuto({ data }: { data: StartBoxData }) {
   };
   return (
     <Modal open={open} onClose={close} title="Start a bug bash" wide>
-      {open && <StartBashForm data={data} onClose={close} />}
+      {open && <StartBashForm data={box.data} failed={box.failed} retry={box.reload} onClose={close} />}
     </Modal>
   );
 }
 
-function StartBashForm({ data, again, preset, onClose }: { data: StartBoxData; again?: { name: string; areas: string[]; minutes: number }; preset?: RiskPreset; onClose: () => void }) {
+/** Until its data arrives (ver_120) the box takes a Name and How long; the area ideas show a spinner. */
+const NO_DATA: StartBoxData = { homeId: "", homeKey: "", homeName: "", cycles: [], defaultCycleId: "", suggestions: [], last: null, templates: [], slackChannels: 0 };
+
+function StartBashForm({
+  data: loaded,
+  failed,
+  retry,
+  again,
+  preset,
+  onClose,
+}: {
+  data: StartBoxData | null;
+  failed: boolean;
+  retry: () => void;
+  again?: { name: string; areas: string[]; minutes: number };
+  preset?: RiskPreset;
+  onClose: () => void;
+}) {
+  const data = loaded ?? NO_DATA;
   const router = useRouter();
   const riskArea = (p: RiskPreset["picks"][number]): Area => ({ name: p.title || p.key, template: null, links: [{ kind: "jira", key: p.key, title: p.title, url: p.url }] });
   const [name, setName] = useState(again ? `${again.name} (again)` : (preset?.name ?? ""));
@@ -80,10 +119,13 @@ function StartBashForm({ data, again, preset, onClose }: { data: StartBoxData; a
   const [draft, setDraft] = useState("");
   const [more, setMore] = useState(false);
   const [later, setLater] = useState("");
-  const [cycleId, setCycleId] = useState(data.defaultCycleId);
+  const [picked, setCycleId] = useState<string | null>(null);
+  const cycleId = picked ?? data.defaultCycleId;
   const [tours, setTours] = useState(false);
   const [collectFirst, setCollectFirst] = useState(true);
-  const [slack, setSlack] = useState(data.slackChannels > 0);
+  // On by default when there's a channel to post to, once that's known.
+  const [slackPick, setSlack] = useState<boolean | null>(null);
+  const slack = slackPick ?? data.slackChannels > 0;
   const [fun, setFun] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -110,6 +152,7 @@ function StartBashForm({ data, again, preset, onClose }: { data: StartBoxData; a
       if (!res.ok) return setError(res.error);
       setDone({ id: res.id, key: res.key, posted: res.posted, later: !!later });
       router.refresh();
+      retry();
     });
 
   return (
@@ -196,6 +239,11 @@ function StartBashForm({ data, again, preset, onClose }: { data: StartBoxData; a
             }}
           />
         </div>
+        {!loaded && (
+          <BoxWait compact testId="bash-ideas-wait" failed={failed} onRetry={retry}>
+            Getting ideas for areas…
+          </BoxWait>
+        )}
         {suggestions.length > 0 && (
           <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs" aria-label="Suggestions">
             <span className="text-slate-500">Suggestions, tap to add:</span>
@@ -284,13 +332,15 @@ function StartBashForm({ data, again, preset, onClose }: { data: StartBoxData; a
             </label>
           </div>
         )}
-        <p className="mt-2 text-xs text-slate-500">
-          Defaults: bugs collected first{data.slackChannels ? ", Slack on" : ""}, anyone in {data.homeName} can join.
-        </p>
+        {loaded && (
+          <p className="mt-2 text-xs text-slate-500">
+            Defaults: bugs collected first{data.slackChannels ? ", Slack on" : ""}, anyone in {data.homeName} can join.
+          </p>
+        )}
       </div>
       <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
         <Button onClick={onClose}>Cancel</Button>
-        <Button type="submit" variant="primary" disabled={pending || !name.trim() || (!areas.length && !draft.trim())}>
+        <Button type="submit" variant="primary" disabled={pending || !loaded || !name.trim() || (!areas.length && !draft.trim())}>
           {pending ? "Starting…" : later ? "Schedule bug bash" : "Start bug bash"}
         </Button>
       </div>

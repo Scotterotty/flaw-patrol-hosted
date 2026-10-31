@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { CrumbName } from "@/components/crumb-name";
 import { Card, cx, EmptyState, InfoTip, LinkButton } from "@/components/ui";
 import { StartBashButton } from "@/components/bash-start";
-import { startBoxData } from "@/lib/bash-data";
 import { StartRunBox } from "@/components/start-run-box";
 import { AddUmbrellaProject, MoveCasesButton, ShortcutIcon, StartRcButton } from "@/components/umbrella-ui";
 import { db } from "@/lib/db";
@@ -11,7 +10,6 @@ import { can } from "@/lib/permissions";
 import { jiraConfigFor, looseProjects, platformColor, type Umbrella } from "@/lib/umbrella";
 import { hubCounts } from "@/lib/umbrella-pages";
 import type { ShortcutIcon as IconName } from "@/lib/umbrella";
-import { rcPlan } from "@/server/umbrella";
 
 /** An umbrella's home: shortcuts to the pages used most, the Case library, runs, bugs and settings, and its test cycles. */
 export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: string; isAdmin: boolean } }) {
@@ -19,8 +17,10 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
   const hub = `/p/${u.hub.key}`;
   // An archived umbrella takes no new projects or RCs until it's restored.
   const archived = !!u.group.archivedAt;
-  const bashData = !archived && can(u.who, "run:create") ? await startBoxData({ ...u.hub, groupId: u.group.id }) : null;
-  const [counts, jira, plan] = await Promise.all([hubCounts(u, user.id), jiraConfigFor(u.hub.id), can(u.who, "umbrella:rc") && !archived ? rcPlan(u.group.id) : null]);
+  // The Start next release and Start a bug bash boxes get their own data when they open (ver_120).
+  const canBash = !archived && can(u.who, "run:create");
+  const canRc = can(u.who, "umbrella:rc") && !archived;
+  const [counts, jira] = await Promise.all([hubCounts(u, user.id), jiraConfigFor(u.hub.id)]);
   const platformNames = u.platforms.map((p) => p.name);
   const across = platformNames.length ? `Across ${list(platformNames)}` : "Across every test cycle under it";
   const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
@@ -104,8 +104,8 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
         <div className="flex flex-wrap gap-2">
           {/* One button (ver_95): Start a run asks the kind first. Release candidate and Bug bash open these boxes. */}
           {canRun && <StartRunBox scope={{ groupId: u.group.id }} label="▶ Start a run" openParam="run" />}
-          {bashData && <StartBashButton data={bashData} hideButton />}
-          {plan && <StartRcButton groupId={u.group.id} canManage={canManage} canSuites={can(u.who, "suite:manage")} canCases={can(u.who, "case:edit")} canImport={can(u.who, "import")} hideButton plan={{ ...plan, platforms: plan.platforms.map((p) => ({ ...p, color: platformColor(u.platforms, p.name) })) }} />}
+          {canBash && <StartBashButton projectId={u.hub.id} hideButton />}
+          {canRc && <StartRcButton groupId={u.group.id} umbrella={u.group.name} hasRelease={u.projects.length > 0} canManage={canManage} canSuites={can(u.who, "suite:manage")} canCases={can(u.who, "case:edit")} canImport={can(u.who, "import")} hideButton />}
         </div>
       </div>
 

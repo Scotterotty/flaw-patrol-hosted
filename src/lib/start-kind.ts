@@ -22,3 +22,16 @@ export function startKind(kind: "rc" | "bash") {
   window.dispatchEvent(new CustomEvent(EVENT, { detail }));
   return detail.handled;
 }
+
+const PREFETCH = "fp:start-prefetch";
+
+/** Start a kind's box getting ready early (ver_120): its Start a run option was hovered, focused or touched. */
+export function onStartPrefetch(kind: "rc" | "bash", start: () => void) {
+  const handler = (e: Event) => (e as CustomEvent<string>).detail === kind && start();
+  window.addEventListener(PREFETCH, handler);
+  return () => window.removeEventListener(PREFETCH, handler);
+}
+
+export function startPrefetch(kind: "rc" | "bash") {
+  window.dispatchEvent(new CustomEvent(PREFETCH, { detail: kind }));
+}

@@ -831,6 +831,8 @@ model TestResult {
   @@index([runId])
   // Newest result per run, for last activity (ver_100).
   @@index([runId, createdAt])
+  // One person's results, for mini game XP (ver_120).
+  @@index([testerId, createdAt])
 }
 
 // The answer to a question logged in an exploratory session (a note in

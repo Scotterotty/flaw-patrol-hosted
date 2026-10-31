@@ -44,22 +44,45 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
   const { key } = await params;
   const sp = await searchParams;
   const { project, user, who } = await projectAccess(key);
-  // An umbrella's hub is its Case library: every test cycle under it runs these cases.
-  const umbrellaId = await hubGroupId(project.id);
-  const u = umbrellaId ? await loadUmbrella(umbrellaId, user) : null;
-  const parent = !u && project.groupId ? await db.projectGroup.findUnique({ where: { id: project.groupId }, select: { name: true, hub: { select: { key: true } } } }) : null;
-  const platform = u?.platforms.find((p) => p.name.toLowerCase() === sp.platform?.toLowerCase());
-
-  const allFolders = await db.folder.findMany({ where: { projectId: project.id }, select: { id: true, parentId: true, name: true } });
-  // Charter-only folders (like Bug bashes) belong on the Charters page (ver_94).
-  const charterOnly = await charterOnlyFolderIds(project.id, allFolders);
-  const folders = allFolders.filter((f) => !charterOnly.has(f.id));
-  const tree = buildTree(folders);
-  const counts = await db.testCase.groupBy({ by: ["folderId"], where: { projectId: project.id, archived: false, type: { not: "EXPLORATORY" } }, _count: true });
-  const countByFolder = Object.fromEntries(counts.map((c) => [c.folderId ?? "unfiled", c._count]));
+  if (sp.type === "EXPLORATORY") redirect(`/p/${project.key}/charters${sp.persona ? `?persona=${sp.persona}` : ""}`);
   // Who runs each case (ver_95): automation runs Automated cases and any case linked to a test.
   const byAutomation: Prisma.TestCaseWhereInput = { OR: [{ type: "AUTOMATED" }, { AND: [{ automationId: { not: null } }, { automationId: { not: "" } }] }] };
-  const robotCounts = await db.testCase.groupBy({ by: ["folderId"], where: { projectId: project.id, archived: false, type: { not: "EXPLORATORY" }, ...byAutomation }, _count: true });
+  const q = sp.q?.trim();
+  const pickedTags = (sp.tag ?? "").split(",").map((t) => t.trim()).filter(Boolean);
+  const canTag = sp.archived !== "1" && can(who, "case:edit");
+  // Everything that doesn't depend on the filters is asked for at once (ver_120), not one after another.
+  const umbrellaP = hubGroupId(project.id).then((id) => (id ? loadUmbrella(id, user) : null));
+  const early = Promise.all([
+    umbrellaP,
+    project.groupId ? db.projectGroup.findUnique({ where: { id: project.groupId }, select: { name: true, hub: { select: { key: true } } } }) : null,
+    // Charter-only folders (like Bug bashes) belong on the Charters page (ver_94).
+    db.folder.findMany({ where: { projectId: project.id }, select: { id: true, parentId: true, name: true } }).then(async (all) => ({ all, charterOnly: await charterOnlyFolderIds(project.id, all) })),
+    db.testCase.groupBy({ by: ["folderId"], where: { projectId: project.id, archived: false, type: { not: "EXPLORATORY" } }, _count: true }),
+    db.testCase.groupBy({ by: ["folderId"], where: { projectId: project.id, archived: false, type: { not: "EXPLORATORY" }, ...byAutomation }, _count: true }),
+    q || pickedTags.length ? db.$queryRaw<{ tag: string }[]>`SELECT DISTINCT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ${project.id}` : Promise.resolve([]),
+    // Everyone sees which cases are flaky; "Flaky only" narrows the list to them.
+    flakyCases({ projectId: project.id }),
+    sp.flagged === "regression" ? regressedCases(project) : null,
+  ]);
+  const later = Promise.all([
+    projectMembers(project.id),
+    db.testSuite.findMany({ where: { projectId: project.id, archived: false }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    db.testCase.count({ where: { projectId: project.id, archived: false, flag: { not: null } } }),
+    db.persona.findMany({ where: { projectId: project.id }, orderBy: { name: "asc" }, select: { id: true, name: true, emoji: true, archived: true } }),
+    tagColorsFor(project.id),
+    db.testCase.findMany({ where: { projectId: project.id, archived: false, title: { startsWith: "[" } }, select: { title: true } }),
+    canTag ? Promise.all([db.testCase.findMany({ where: { projectId: project.id, archived: false }, select: { title: true, tags: true } }), areaContextFor(project.id)]) : null,
+    jiraConfigFor(project.id),
+    runFieldsFor(project.id),
+    project.groupId && can(who, "library:move") ? db.testCase.count({ where: { projectId: project.id, archived: false } }) : 0,
+  ]);
+  const [u, parentRow, { all: allFolders, charterOnly }, counts, robotCounts, allTags, flaky, regressed] = await early;
+  // An umbrella's hub is its Case library: every test cycle under it runs these cases.
+  const parent = u ? null : parentRow;
+  const platform = u?.platforms.find((p) => p.name.toLowerCase() === sp.platform?.toLowerCase());
+  const folders = allFolders.filter((f) => !charterOnly.has(f.id));
+  const tree = buildTree(folders);
+  const countByFolder = Object.fromEntries(counts.map((c) => [c.folderId ?? "unfiled", c._count]));
   const robotsByFolder = Object.fromEntries(robotCounts.map((c) => [c.folderId ?? "unfiled", c._count]));
 
   // Charters have their own page since ver_93; the Case library lists cases only.
@@ -68,8 +91,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
   if (sp.folder === "unfiled") where.folderId = null;
   else if (folder) where.folderId = { in: subtreeIds(folders, folder.id) };
 
-  const q = sp.q?.trim();
-  const tagHits = q ? (await db.$queryRaw<{ tag: string }[]>`SELECT DISTINCT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ${project.id}`).map((r) => r.tag).filter((t) => t.toLowerCase() === tagQuery(q).toLowerCase()) : [];
+  const tagHits = q ? allTags.map((r) => r.tag).filter((t) => t.toLowerCase() === tagQuery(q).toLowerCase()) : [];
   if (q) {
     const keyMatch = q.toUpperCase().match(new RegExp(`^(?:${project.key}-)?(\\d+)$`));
     where.OR = [
@@ -83,32 +105,27 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
     ];
   }
   // Tags (ver_96): ?tag=Web,Login shows cases with all of them. A search for "web" or "[WEB]" also finds the tag.
-  const pickedTags = (sp.tag ?? "").split(",").map((t) => t.trim()).filter(Boolean);
   if (pickedTags.length) {
-    const all = await db.$queryRaw<{ tag: string }[]>`SELECT DISTINCT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ${project.id}`;
-    const real = pickedTags.map((t) => all.find((x) => x.tag.toLowerCase() === t.toLowerCase())?.tag ?? t);
+    const real = pickedTags.map((t) => allTags.find((x) => x.tag.toLowerCase() === t.toLowerCase())?.tag ?? t);
     where.tags = { hasEvery: real };
   }
   if (sp.priority && (PRIORITIES as string[]).includes(sp.priority)) where.priority = sp.priority as Prisma.TestCaseWhereInput["priority"];
-  if (sp.type === "EXPLORATORY") redirect(`/p/${project.key}/charters${sp.persona ? `?persona=${sp.persona}` : ""}`);
   // Old links (?type=) still work; the filter is "Who runs it" since ver_95.
   const runsBy = sp.runs ?? (sp.type === "MANUAL" ? "hand" : sp.type === "AUTOMATED" ? "auto" : "");
   // The count line ignores "Who runs it", so it always shows the whole split.
   const splitWhere: Prisma.TestCaseWhereInput = { ...where };
   if (sp.persona) where.personaId = sp.persona;
   if (sp.flagged === "1") where.flag = { not: null };
-  // Everyone sees which cases are flaky; "Flaky only" narrows the list to them.
-  const flaky = await flakyCases({ projectId: project.id });
   if (sp.flagged === "flaky") where.id = { in: [...flaky.keys()] };
   // Regression only (ver_93): passed last release on a platform and fails there now.
-  if (sp.flagged === "regression") where.id = { in: [...(await regressedCases(project))] };
+  if (sp.flagged === "regression") where.id = { in: [...(regressed ?? [])] };
   if (platform) where.suites = { some: { suiteId: { in: platform.suiteIds } } };
   if (platform) splitWhere.suites = where.suites;
   const handOnly: Prisma.TestCaseWhereInput = { type: { not: "AUTOMATED" }, OR: [{ automationId: null }, { automationId: "" }] };
   const both: Prisma.TestCaseWhereInput = { type: { not: "AUTOMATED" }, automationId: { not: null }, NOT: { automationId: "" } };
   const runsFilter = runsBy === "hand" ? handOnly : runsBy === "auto" ? byAutomation : runsBy === "both" ? both : null;
   if (runsFilter) where.AND = [runsFilter];
-  const [splitHand, splitAuto, splitBoth] = await Promise.all([
+  const splits = Promise.all([
     db.testCase.count({ where: { AND: [splitWhere, handOnly] } }),
     db.testCase.count({ where: { AND: [splitWhere, { type: "AUTOMATED" }] } }),
     db.testCase.count({ where: { AND: [splitWhere, both] } }),
@@ -135,7 +152,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
       personaId: true,
       _count: { select: { sharedUsages: true } },
     } satisfies Prisma.TestCaseSelect;
-  const [cases, total, tagRows, activeCount, archivedCount] = await Promise.all([
+  const [[splitHand, splitAuto, splitBoth], [cases, total, tagRows, activeCount, archivedCount]] = await Promise.all([splits, Promise.all([
     db.testCase.findMany({
       where,
       orderBy: { number: "asc" },
@@ -147,7 +164,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
     db.$queryRaw<{ tag: string; count: number }[]>`SELECT tag, COUNT(*)::int AS count FROM (SELECT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ${project.id} AND archived = false AND type <> 'EXPLORATORY') t GROUP BY tag ORDER BY count DESC, tag`,
     db.testCase.count({ where: { ...where, archived: false } }),
     db.testCase.count({ where: { ...where, archived: true } }),
-  ]);
+  ])]);
   // Close matches (ver_96): "chekout" finds Checkout cases, under their own label after the exact ones.
   const closeStart = cases.length;
   if (q && page === 1 && total < ENOUGH_EXACT && cleanQuery(q).length > 1) {
@@ -163,14 +180,14 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
     cases.push(...more.sort((a, b) => order.get(a.id)! - order.get(b.id)!));
   }
 
-  const [members, suites, flaggedCount, personas] = await Promise.all([
-    projectMembers(project.id),
-    db.testSuite.findMany({ where: { projectId: project.id, archived: false }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
-    db.testCase.count({ where: { projectId: project.id, archived: false, flag: { not: null } } }),
-    db.persona.findMany({ where: { projectId: project.id }, orderBy: { name: "asc" }, select: { id: true, name: true, emoji: true, archived: true } }),
-  ]);
+  const [members, suites, flaggedCount, personas, tagColors, bracketRows, areaInput, jiraOn, runFields, ownLeft] = await later;
   // Shared library: which platforms run each case, and its last result on each.
   const onPlatforms = new Map<string, { name: string; color: string; status: ResultStatus | null }[]>();
+  // Each case automation runs: its latest automated result (ver_95). Fetched with the platforms' results (ver_120).
+  const autoIds = cases.filter((c) => c.type === "AUTOMATED" || c.automationId).map((c) => c.id);
+  const autoLastP = autoIds.length
+    ? db.testResult.findMany({ where: { caseId: { in: autoIds }, run: { automated: true } }, orderBy: { createdAt: "desc" }, distinct: ["caseId"], select: { caseId: true, status: true, createdAt: true } })
+    : Promise.resolve([]);
   if (u && u.platforms.length) {
     const ids = cases.map((c) => c.id);
     const [inSuites, last] = await Promise.all([
@@ -191,29 +208,20 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
       onPlatforms.set(c.id, list);
     }
   }
-  // Each case automation runs: its latest automated result (ver_95).
-  const autoIds = cases.filter((c) => c.type === "AUTOMATED" || c.automationId).map((c) => c.id);
-  const autoLast = autoIds.length
-    ? await db.testResult.findMany({ where: { caseId: { in: autoIds }, run: { automated: true } }, orderBy: { createdAt: "desc" }, distinct: ["caseId"], select: { caseId: true, status: true, createdAt: true } })
-    : [];
+  const autoLast = await autoLastP;
   const autoOf = new Map(autoLast.map((r) => [r.caseId, { status: r.status, at: r.createdAt.toISOString() }]));
   const sharedBy = u ? u.projects.filter((p) => !p.archivedAt).length : 0;
   // Moving stuck cases is offered only where they live: on this test cycle's Cases left here page (ver_89, not the library header).
-  const ownCount = parent?.hub && project.groupId && can(who, "library:move") ? await db.testCase.count({ where: { projectId: project.id, archived: false } }) : 0;
+  const ownCount = parent?.hub ? ownLeft : 0;
   // A test cycle under an umbrella writes new cases into the umbrella's Case library.
   const newCase = (extra: string) => (parent?.hub ? `/p/${parent.hub.key}/cases/new${extra ? `?${extra}` : ""}` : `/p/${project.key}/cases/new${folder || extra ? `?${[extra, folder && `folder=${folder.id}`].filter(Boolean).join("&")}` : ""}`);
   const folderLabel = (id: string | null) => (id ? pathOf(folders, id).join(" / ") : "");
   const heading = sp.folder === "unfiled" ? "Unfiled" : folder ? folder.name : u ? `${u.group.name} case library` : "All test cases";
   const filtered = Boolean(q || sp.tag || sp.priority || runsBy || sp.flagged || sp.persona || platform);
-  const tagColors = await tagColorsFor(project.id);
-  const bracketCount = (await db.testCase.findMany({ where: { projectId: project.id, archived: false, title: { startsWith: "[" } }, select: { title: true } })).filter((c) => hasBracketTitle(c.title)).length;
+  const bracketCount = bracketRows.filter((c) => hasBracketTitle(c.title)).length;
   // Area tags (ver_102): offered once the [brackets] are done, since they follow the platform tag
   // (or, with no platforms set up, the case's one [bracket] tag, ver_105).
-  const canTag = sp.archived !== "1" && can(who, "case:edit");
-  const areaWords =
-    canTag && !bracketCount
-      ? findAreaWords(await db.testCase.findMany({ where: { projectId: project.id, archived: false }, select: { title: true, tags: true } }), await areaContextFor(project.id))
-      : [];
+  const areaWords = areaInput && !bracketCount ? findAreaWords(areaInput[0], areaInput[1]) : [];
   const keep = (extra: Record<string, string | undefined>) => {
     const u = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...sp, ...extra })) if (v) u.set(k, v);
@@ -436,10 +444,10 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
             projectId={project.id}
             projectKey={project.key}
             archivedView={sp.archived === "1"}
-            storyLinks={!!(await jiraConfigFor(project.id))}
+            storyLinks={!!jiraOn}
             canEdit={can(who, "case:edit")}
             canArchive={can(who, "case:archive")}
-            run={{ canCreate: can(who, "run:create"), canManageSuites: can(who, "suite:manage"), members, suites, meId: user.id, groupId: u?.group.id, fields: await runFieldsFor(project.id) }}
+            run={{ canCreate: can(who, "run:create"), canManageSuites: can(who, "suite:manage"), members, suites, meId: user.id, groupId: u?.group.id, fields: runFields }}
             folderOptions={flattenTree(tree).map((f) => ({ id: f.id, label: folderLabel(f.id), depth: f.depth }))}
             rows={cases.map((c) => ({
               id: c.id,

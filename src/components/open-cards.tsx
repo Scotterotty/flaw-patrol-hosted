@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { setOpenCards } from "@/server/account";
 import { FoldCard } from "./fold-card";
 
@@ -13,32 +13,36 @@ const OpenCards = createContext<Ctx | null>(null);
  */
 export function OpenCardsProvider({ initial, children }: { initial: string[]; children: ReactNode }) {
   const [open, setOpen] = useState(() => new Set(initial));
+  // The latest set, so quick clicks build on each other without reading it inside setOpen.
+  const current = useRef(open);
   // Saved straight away (ver_97): with a short wait, leaving the page right after a click lost it.
   // Next runs server actions one at a time, so quick clicks still save in order.
-  const save = useCallback((next: Set<string>) => void setOpenCards([...next]), []);
+  // The save happens here, outside setOpen: React can run a setOpen updater while it renders,
+  // and starting a server action there updates the Router mid-render (a console error Scott saw on Your account).
+  const change = useCallback((edit: (n: Set<string>) => void) => {
+    const n = new Set(current.current);
+    edit(n);
+    current.current = n;
+    setOpen(n);
+    void setOpenCards([...n]);
+  }, []);
   const value = useMemo<Ctx>(
     () => ({
       isOpen: (id) => open.has(id),
       toggle: (id) =>
-        setOpen((o) => {
-          const n = new Set(o);
+        change((n) => {
           if (n.has(id)) n.delete(id);
           else n.add(id);
-          save(n);
-          return n;
         }),
       setMany: (ids, on) =>
-        setOpen((o) => {
-          const n = new Set(o);
+        change((n) => {
           for (const id of ids) {
             if (on) n.add(id);
             else n.delete(id);
           }
-          save(n);
-          return n;
         }),
     }),
-    [open, save],
+    [open, change],
   );
   return <OpenCards.Provider value={value}>{children}</OpenCards.Provider>;
 }

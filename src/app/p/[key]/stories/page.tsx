@@ -10,7 +10,7 @@ import { projectAccess } from "@/lib/session";
 import { forgetStories } from "@/lib/stories";
 import { newestRcNames, storyCoverage, storyReleases, testedRelease, type CoverageState } from "@/lib/story-coverage";
 import { suitePickerData } from "@/lib/suite-data";
-import { loadUmbrella, umbrellaOf } from "@/lib/umbrella";
+import { cycleSettingsHref, loadUmbrella, umbrellaOf } from "@/lib/umbrella";
 
 export const metadata = { title: "Requirements" };
 
@@ -66,7 +66,7 @@ export default async function StoriesPage({ params, searchParams }: { params: Pr
     return (
       <div className="mx-auto max-w-6xl">
         <PageHeader title="Requirements" />
-        <EmptyState title="Jira isn't connected" action={can(who, "jira:manage") ? <LinkButton href={`/p/${project.key}/settings#jira`}>Open Settings</LinkButton> : null}>
+        <EmptyState title="Jira isn't connected" action={can(who, "jira:manage") ? <LinkButton href={await cycleSettingsHref(project, user, "jira")}>Open Settings</LinkButton> : null}>
           Requirements come from Jira. Once Jira is connected, link cases to stories, Epics or other requirements, and their coverage shows here.
         </EmptyState>
       </div>

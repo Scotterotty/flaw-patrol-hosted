@@ -11,7 +11,7 @@ import { pathOf } from "@/lib/folders";
 import { canMakeUmbrellas, groupableProjectIds } from "@/lib/groups";
 import { can, type Action } from "@/lib/permissions";
 import { requireProjectAction, requireUser } from "@/lib/session";
-import { type CarryOver, MAX_SHORTCUTS, OPEN_BUG, parsePlatforms, parseShortcuts, SHORTCUT_ICONS, syncUmbrellaMembers, unionMembers } from "@/lib/umbrella";
+import { type CarryOver, MAX_SHORTCUTS, OPEN_BUG, parsePlatforms, parseShortcuts, platformColor, SHORTCUT_ICONS, syncUmbrellaMembers, unionMembers } from "@/lib/umbrella";
 import { attempt, UserError } from "./result";
 import { MAX_RUN_FIELDS, parseRunFields, type RunField } from "@/lib/run-fields";
 import { fieldsOrFail } from "./run-field-input";
@@ -374,6 +374,8 @@ export async function rcPlan(groupId: string) {
         bugCaseIds: bugs.caseIds.filter((id) => inLibrary.has(id)),
         remembered: (p.caseIds ?? []).filter((id) => inLibrary.has(id)),
         name: p.name,
+        // Colored here since ver_120, now that the box fetches this itself.
+        color: platformColor(platforms, p.name),
         suiteIds: mine.map((s) => s.id),
         suites: mine.map((s) => s.name),
         runs: mine.length,

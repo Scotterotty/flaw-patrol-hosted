@@ -15,7 +15,7 @@ import { redirect } from "next/navigation";
 import { BugAnswers } from "@/components/bug-answers";
 import { parseAnswers } from "@/lib/bug-layout";
 import { LastCheckLine } from "@/components/known-bugs-panel";
-import { hubGroupId, jiraConfigFor } from "@/lib/umbrella";
+import { cycleSettingsHref, hubGroupId, jiraConfigFor } from "@/lib/umbrella";
 
 export const metadata = { title: "Bugs" };
 
@@ -23,7 +23,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
   const spelling = await mySpelling();
   const { key } = await params;
   const sp = await searchParams;
-  const { project, who } = await projectAccess(key);
+  const { project, user, who } = await projectAccess(key);
   // An umbrella's hub shows its runs and bugs on the umbrella's own pages.
   const umbrellaId = await hubGroupId(project.id);
   if (umbrellaId) redirect(`/g/${umbrellaId}/bugs`);
@@ -67,7 +67,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
           ) : (
             <>
               Bugs found while testing.{" "}
-              <Link href={`/p/${project.key}/settings#jira`} className="text-accent-700 hover:underline">
+              <Link href={await cycleSettingsHref(project, user, "jira")} className="text-accent-700 hover:underline">
                 Connect Jira
               </Link>{" "}
               to file them straight into Jira.

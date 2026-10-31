@@ -7,7 +7,8 @@ import { CloseMatchesLabel } from "./close-matches";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { PRIORITIES, PRIORITY_LABEL } from "@/lib/format";
-import { startKind } from "@/lib/start-kind";
+import { startKind, startPrefetch } from "@/lib/start-kind";
+import { prefetchOn } from "@/lib/use-lazy";
 import { addRunKind, createCycleFromRunBox, runBoxOptions, startRuns, type RunBoxOptions, type RunBoxScope } from "@/server/start-run";
 import { Modal } from "./modal";
 import { BusyStrip, SpinnerArt } from "./loading-spinner";
@@ -820,7 +821,13 @@ function KindStep({
       </h3>
       <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Kind of run">
         {shown.map((k) => (
-          <button key={k.id} type="button" onClick={() => onPick(k.id)} className="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-accent-500 hover:bg-slate-50">
+          <button
+            key={k.id}
+            type="button"
+            onClick={() => onPick(k.id)}
+            // Release candidate and Bug bash start getting their boxes ready before the click (ver_120).
+            {...(k.id === "rc" || k.id === "bash" ? prefetchOn(() => startPrefetch(k.id as "rc" | "bash")) : {})}
+            className="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-accent-500 hover:bg-slate-50">
             <span className="block text-sm font-medium text-slate-900">
               {k.id === "bash" && <span aria-hidden>🐞 </span>}
               {k.name}

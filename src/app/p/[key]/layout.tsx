@@ -1,9 +1,10 @@
 import { ProjectMenu } from "@/components/project-menu";
 import { TopBar } from "@/components/top-bar";
+import { after } from "next/server";
 import { db } from "@/lib/db";
 import { recordVisit } from "@/lib/project-visits";
 import { projectAccessOrGuest } from "@/lib/session";
-import { loadUmbrella } from "@/lib/umbrella";
+import { cycleSettingsHref, hubGroupId, loadUmbrella } from "@/lib/umbrella";
 import { ArchivedBanner, UmbrellaArchivedBanner } from "@/components/archive-project";
 import { can } from "@/lib/permissions";
 
@@ -18,10 +19,14 @@ export default async function ProjectLayout({ children, params }: { children: Re
         <main className="min-w-0 px-4 pt-6 pb-16 sm:px-6 md:pb-6">{children}</main>
       </>
     );
-  await recordVisit(user.id, project.id);
+  // Recent on the Projects page is noted after the page is sent, so nobody waits for it (ver_120).
+  after(() => recordVisit(user.id, project.id));
   // An umbrella's hub project is shown as the umbrella itself, with the umbrella's menu.
-  const hubOf = await db.projectGroup.findUnique({ where: { hubProjectId: project.id }, select: { id: true } });
-  const umbrella = hubOf ? await loadUmbrella(hubOf.id, user) : null;
+  const [hubOf, group] = await Promise.all([
+    hubGroupId(project.id),
+    project.groupId ? db.projectGroup.findUnique({ where: { id: project.groupId }, select: { id: true, name: true, archivedAt: true, hubProjectId: true } }) : null,
+  ]);
+  const umbrella = hubOf ? await loadUmbrella(hubOf, user) : null;
   if (umbrella) {
     return (
       <>
@@ -36,7 +41,6 @@ export default async function ProjectLayout({ children, params }: { children: Re
       </>
     );
   }
-  const group = project.groupId ? await db.projectGroup.findUnique({ where: { id: project.groupId }, select: { id: true, name: true, archivedAt: true, hubProjectId: true } }) : null;
   // Archived with its umbrella: the umbrella's banner says how to bring it back.
   const umbrellaArchived = !!group?.hubProjectId && !!group.archivedAt;
   return (
@@ -48,7 +52,7 @@ export default async function ProjectLayout({ children, params }: { children: Re
           {umbrellaArchived ? (
             <UmbrellaArchivedBanner groupId={group!.id} name={group!.name} canRestore={role === "ADMIN"} />
           ) : (
-            project.archivedAt && <ArchivedBanner projectKey={project.key} canRestore={role === "ADMIN"} />
+            project.archivedAt && <ArchivedBanner settingsHref={await cycleSettingsHref(project, user, "archive")} canRestore={role === "ADMIN"} />
           )}
           {children}
         </main>
