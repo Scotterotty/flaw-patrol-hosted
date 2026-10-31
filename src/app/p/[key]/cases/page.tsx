@@ -7,9 +7,11 @@ import { CaseTable } from "@/components/case-table";
 import { FolderTree } from "@/components/folder-tree";
 import { ViewTabs } from "@/components/view-tabs";
 import { TagsRow } from "@/components/tag-pill";
+import { AreaBanner } from "@/components/area-convert";
 import { BracketBanner } from "@/components/bracket-convert";
+import { findAreaWords } from "@/lib/area-tags";
 import { hasBracketTitle, tagQuery } from "@/lib/tags";
-import { tagColorsFor } from "@/lib/tag-data";
+import { areaContextFor, tagColorsFor } from "@/lib/tag-data";
 import { cleanQuery, ENOUGH_EXACT, matchCount, matchKind, tagHits as tagHitsOf } from "@/lib/fuzzy";
 import { EmptyState, InfoTip, Input, LinkButton, PageHeader, Select } from "@/components/ui";
 import { db } from "@/lib/db";
@@ -205,6 +207,12 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
   const filtered = Boolean(q || sp.tag || sp.priority || runsBy || sp.flagged || sp.persona || platform);
   const tagColors = await tagColorsFor(project.id);
   const bracketCount = (await db.testCase.findMany({ where: { projectId: project.id, archived: false, title: { startsWith: "[" } }, select: { title: true } })).filter((c) => hasBracketTitle(c.title)).length;
+  // Area tags (ver_102): offered once the [brackets] are done, since they follow the platform tag.
+  const canTag = sp.archived !== "1" && can(who, "case:edit");
+  const areaWords =
+    canTag && !bracketCount && u?.platforms.length
+      ? findAreaWords(await db.testCase.findMany({ where: { projectId: project.id, archived: false }, select: { title: true, tags: true } }), await areaContextFor(project.id))
+      : [];
   const keep = (extra: Record<string, string | undefined>) => {
     const u = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...sp, ...extra })) if (v) u.set(k, v);
@@ -284,7 +292,8 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
             {sharedBy === 1 ? "The 1" : `All ${sharedBy}`} {u.group.name} {sharedBy === 1 ? "test cycle runs" : "test cycles run"} these cases. Edits here show up in the next run each test cycle starts; runs already started keep what they had.
           </p>
         )}
-        {sp.archived !== "1" && can(who, "case:edit") && <BracketBanner projectId={project.id} count={bracketCount} colors={tagColors} platforms={!!u?.platforms.length} />}
+        {canTag && <BracketBanner projectId={project.id} count={bracketCount} colors={tagColors} platforms={!!u?.platforms.length} />}
+        {canTag && <AreaBanner projectId={project.id} words={areaWords} colors={tagColors} />}
         <ViewTabs
           label="Case state"
           tabs={[

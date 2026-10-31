@@ -42,6 +42,7 @@ export default async function EditCasePage({ params, searchParams }: { params: P
       queue={queue}
       tagColors={await tagColorsFor(project.id)}
       platformNames={await platformNamesFor(project.id)}
+      areaSkip={project.areaSkip}
       inLibrary={!!(await hubGroupId(project.id))}
       projectId={project.id}
       projectKey={project.key}

@@ -25,6 +25,7 @@ export default async function NewCasePage({ params, searchParams }: { params: Pr
       linkTo={story && /^[A-Z][A-Z0-9_]*-\d+$/.test(story) ? story : undefined}
       tagColors={await tagColorsFor(project.id)}
       platformNames={await platformNamesFor(project.id)}
+      areaSkip={project.areaSkip}
       inLibrary={!!(await hubGroupId(project.id))}
       projectId={project.id}
       projectKey={project.key}

@@ -1,7 +1,8 @@
 "use server";
 
 import { splitBracketTitle } from "@/lib/tags";
-import { knownTagNamesFor } from "@/lib/tag-data";
+import { applyAreaWord } from "@/lib/area-tags";
+import { areaContextFor, knownTagNamesFor } from "@/lib/tag-data";
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -43,12 +44,15 @@ const importedSharedSchema = z.object({
  * Blocks of steps several cases share become shared steps, reusing one with the
  * same name and steps if an earlier import already made it.
  */
-export async function importCases(projectId: string, folderId: string | null, rawCases: unknown, fileName: string, rawShared: unknown = [], rawNewFolder = "") {
+export async function importCases(projectId: string, folderId: string | null, rawCases: unknown, fileName: string, rawShared: unknown = [], rawNewFolder = "", rawArea: unknown = { words: [], skip: [] }) {
   return attempt(async () => {
     const { project, user } = await requireProjectAction(projectId, "import");
     let targetFolderId = folderId;
     const cases = z.array(importedCaseSchema).max(MAX_IMPORT, `Import at most ${MAX_IMPORT} cases at a time`).parse(rawCases);
     const sharedDefs = z.array(importedSharedSchema).max(MAX_IMPORT).parse(rawShared);
+    // Area tags (ver_102): the words after the platform the preview turned into tags, and new ones left unticked.
+    const areaList = z.array(z.string().trim().min(1).max(24)).max(500);
+    const area = z.object({ words: areaList, skip: areaList }).parse(rawArea);
     if (!cases.length) throw new UserError("There are no cases to import.");
     if (targetFolderId && !(await db.folder.findFirst({ where: { id: targetFolderId, projectId } }))) {
       throw new UserError("Folder not found.");
@@ -123,12 +127,15 @@ export async function importCases(projectId: string, folderId: string | null, ra
 
         // "[WEB] - Sign in" comes in as the tag Web and the title "Sign in" (ver_96).
         const platformNames = await knownTagNamesFor(projectId);
+        const areaCtx = await areaContextFor(projectId);
+        areaCtx.known.push(...area.words);
         for (const raw of cases) {
           const split = splitBracketTitle(raw.title, { platforms: platformNames });
-          const c = { ...raw, title: split.title };
+          const withArea = applyAreaWord(split.title, normalizeTags([...split.tags, ...raw.tags]), area.words, areaCtx);
+          const c = { ...raw, title: withArea?.title ?? split.title };
           number += 1;
           const folderId = await ensurePath(c.folderPath);
-          const tags = normalizeTags([...split.tags, ...c.tags]);
+          const tags = normalizeTags(withArea?.tags ?? [...split.tags, ...c.tags]);
           const steps = (c.items ?? c.steps.map((s) => ({ kind: "step" as const, ...s }))).map((item) => {
             if (item.kind === "step") return { kind: "step" as const, action: item.action, expected: item.expected };
             const sharedStepId = sharedIds.get(item.key);
@@ -172,6 +179,12 @@ export async function importCases(projectId: string, folderId: string | null, ra
       { timeout: 120_000 },
     );
 
+    if (area.skip.length) {
+      const p = await db.project.findUnique({ where: { id: projectId }, select: { areaSkip: true } });
+      const all = [...(p?.areaSkip ?? [])];
+      for (const w of area.skip) if (!all.some((x) => x.toLowerCase() === w.toLowerCase())) all.push(w);
+      await db.project.update({ where: { id: projectId }, data: { areaSkip: all.slice(-500) } });
+    }
     revalidatePath(`/p/${project.key}`, "layout");
     return { created, shared: sharedDefs.length, folderId: targetFolderId };
   });

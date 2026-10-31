@@ -3,6 +3,7 @@
 import { TagPill, TagPills } from "./tag-pill";
 import { CloseMatchesLabel } from "./close-matches";
 import { forgivingFilter } from "@/lib/fuzzy";
+import { areaCandidate, typedKnownArea, type AreaContext } from "@/lib/area-tags";
 import { tagColor, type TagColors } from "@/lib/tags";
 import type { CaseType, Priority } from "@prisma/client";
 import { useRouter } from "next/navigation";
@@ -31,6 +32,7 @@ import {
   type SharedStepDef,
 } from "@/lib/steps";
 import { saveCase } from "@/server/cases";
+import { skipAreaWord } from "@/server/tags";
 import { linkStory } from "@/server/stories";
 import Link from "next/link";
 import { saveSharedStep } from "@/server/shared-steps";
@@ -79,6 +81,8 @@ export type CaseEditorProps = {
   /** Tag pill colors and the umbrella's platform names, so [WEB] becomes Web (ver_96). */
   tagColors?: TagColors;
   platformNames?: string[];
+  /** Area tags (ver_102): words this library said No to. */
+  areaSkip?: string[];
   /** Writing steps for cases just made from a requirement (ver_96): where Save goes next. */
   queue?: { story: string; at: number; total: number; next: string | null; back: string };
   /** A new case made from a requirement: linked to it once created (ver_96). */
@@ -101,6 +105,9 @@ export function CaseEditor(props: CaseEditorProps) {
   const router = useRouter();
   const [title, setTitle] = useState(initial.title);
   const justTagged = useRef(false);
+  // Area tags (ver_102): pills added from the word after the platform, and words said No to here.
+  const [areaAdded, setAreaAdded] = useState<string[]>([]);
+  const [areaNo, setAreaNo] = useState<string[]>([]);
   const [preconditions, setPreconditions] = useState(initial.preconditions);
   const [priority, setPriority] = useState<Priority>(initial.priority);
   const [type, setType] = useState<CaseType>(initial.type);
@@ -144,6 +151,9 @@ export function CaseEditor(props: CaseEditorProps) {
   const [moreFields, setMoreFields] = useState(initial.type === "AUTOMATED" || !!initial.automationId || !!initial.personaId);
 
   const touch = () => setDirty(true);
+  const areaCtx: AreaContext = { platforms: props.platformNames ?? [], known: props.knownTags, skip: [...(props.areaSkip ?? []), ...areaNo] };
+  const afterPlatform = tags.length > 0 && areaCtx.platforms.some((p) => p.toLowerCase() === tags[tags.length - 1].toLowerCase());
+  const areaAsk = afterPlatform && !isCharter ? areaCandidate(title, tags, areaCtx) : null;
   const update = (fn: (prev: Item[]) => Item[]) => {
     setItems(fn);
     touch();
@@ -364,6 +374,7 @@ export function CaseEditor(props: CaseEditorProps) {
               onChange={(e) => {
                 const v = e.target.value;
                 const at = e.target.selectionStart ?? v.length;
+                let area: ReturnType<typeof typedKnownArea> = null;
                 const m = v.length > title.length && v[at - 1] === "]" ? v.match(/^\s*\[([^\][]{1,24})\]\s*(?:[-–—:|]\s*)?/) : null;
                 if (m && m[1].trim()) {
                   const word = m[1].trim();
@@ -371,6 +382,12 @@ export function CaseEditor(props: CaseEditorProps) {
                   if (!tags.some((t) => t.toLowerCase() === named.toLowerCase())) setTags([...tags, named]);
                   setTitle(v.slice(m[0].length));
                   justTagged.current = true;
+                } else if (afterPlatform && v.length > title.length && (area = typedKnownArea(v, tags, areaCtx))) {
+                  // A word the library already has as a tag, right after the platform (ver_102).
+                  setTags([...tags, area.word]);
+                  setAreaAdded([...areaAdded, area.word]);
+                  setTitle(area.rest);
+                  justTagged.current = !area.rest;
                 } else if (justTagged.current && /^\s*(?:[-–—:|]\s*)?$/.test(v)) {
                   // The " - " typed after [WEB] isn't part of the title.
                   setTitle("");
@@ -385,6 +402,16 @@ export function CaseEditor(props: CaseEditorProps) {
                 if (e.key === "Backspace" && tags.length && el.selectionStart === 0 && el.selectionEnd === 0) {
                   e.preventDefault();
                   const last = tags[tags.length - 1];
+                  if (areaAdded.includes(last)) {
+                    // An area pill goes back to a plain word and isn't turned into a tag again here.
+                    setTags(tags.slice(0, -1));
+                    setAreaAdded(areaAdded.filter((t) => t !== last));
+                    setAreaNo([...areaNo, last]);
+                    setTitle(`${last}${title ? ` ${title}` : " "}`);
+                    touch();
+                    requestAnimationFrame(() => el.setSelectionRange(last.length + 1, last.length + 1));
+                    return;
+                  }
                   setTags(tags.slice(0, -1));
                   setTitle(`[${last}]${title ? ` ${title}` : ""}`);
                   touch();
@@ -399,6 +426,34 @@ export function CaseEditor(props: CaseEditorProps) {
               className="min-w-40 flex-1 border-0 bg-transparent py-1.5 text-base font-medium outline-none"
             />
           </div>
+          {areaAsk && (
+            <p className="mt-1.5 flex flex-wrap items-center gap-2 rounded-md bg-sky-50 px-3 py-1.5 text-sm text-slate-700" data-testid="area-ask">
+              <span className="min-w-0 flex-1">
+                Make <strong>&ldquo;{areaAsk.word}&rdquo;</strong> a tag? It looks like a part of the app.
+              </span>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => {
+                  setTags([...tags, areaAsk.word]);
+                  setAreaAdded([...areaAdded, areaAsk.word]);
+                  setTitle(areaAsk.rest);
+                  touch();
+                }}
+              >
+                Make it a tag
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setAreaNo([...areaNo, areaAsk.word]);
+                  void skipAreaWord(projectId, areaAsk.word);
+                }}
+              >
+                No
+              </Button>
+            </p>
+          )}
         </Field>
         <div
           className={cx(

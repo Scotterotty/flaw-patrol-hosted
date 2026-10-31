@@ -22,6 +22,22 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 102,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "new",
+        title: "The word after the platform becomes a tag",
+        text: "In a title like Unity · Spaces Deep Link or Unity · Hub - Space List, the word after the platform is the part of the app you're testing. The Case library offers to turn those words into tags (Review…), so you can filter by Spaces or Hub on every platform. Untick a word and it won't be offered again.",
+      },
+      {
+        kind: "better",
+        title: "Area tags as you type and when you import",
+        text: "In the Title box, a word that's already a tag turns into one when you type the space after it, and a new word with a dash after it asks Make it a tag? Backspace turns it back into text. Imports pick up area words too, with a tick box for each new one.",
+      },
+    ],
+  },
+  {
     version: 101,
     date: "2026-10-31",
     items: [

@@ -245,6 +245,8 @@ model Project {
   rolesChosenAt        DateTime?
   /// Bracket tags (ver_96): colors picked for this library's tags, { "web": "#2563eb" }. See src/lib/tags.ts.
   tagColors            Json            @default("{}")
+  /// Area tags (ver_102): words this library said No to, so they are not offered again.
+  areaSkip             String[]        @default([])
   /// Slack alerts (ver_82): "umbrella" follows the umbrella's channels, "choose" uses
   /// slackChannelIds (ticked umbrella channels) plus its own, "off" sends nothing.
   slackMode            String            @default("umbrella")

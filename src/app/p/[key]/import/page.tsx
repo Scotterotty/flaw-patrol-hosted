@@ -3,6 +3,7 @@ import { CsvImporter, type ImportPlace } from "@/components/csv-importer";
 import { PageHeader } from "@/components/ui";
 import { editorContext } from "@/lib/case-data";
 import { db } from "@/lib/db";
+import { areaContextFor } from "@/lib/tag-data";
 import { can } from "@/lib/permissions";
 import { projectAccess } from "@/lib/session";
 import { umbrellaOf } from "@/lib/umbrella";
@@ -21,6 +22,7 @@ export default async function ImportPage({ params, searchParams }: { params: Pro
     label,
     kind,
     folderOptions: (await editorContext(id)).folderOptions,
+    area: await areaContextFor(id),
   });
 
   // Inside an umbrella, cases go to its Case library unless you keep them in this test cycle.

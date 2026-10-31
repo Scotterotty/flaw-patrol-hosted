@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./db";
+import type { AreaContext } from "./area-tags";
 import { parseTagColors, type TagColors } from "./tags";
 import { parsePlatforms, platformColor } from "./umbrella";
 
@@ -28,4 +29,14 @@ export async function tagColorsFor(projectId: string): Promise<TagColors> {
 export async function knownTagNamesFor(projectId: string, opts: { platforms?: boolean } = {}) {
   const tags = await db.$queryRaw<{ tag: string }[]>`SELECT DISTINCT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ${projectId}`;
   return [...(opts.platforms === false ? [] : await platformNamesFor(projectId)), ...tags.map((t) => t.tag)];
+}
+
+/** What area tags (ver_102) need for a library: platforms, its other tags, and words it said No to. */
+export async function areaContextFor(projectId: string): Promise<AreaContext> {
+  const [platforms, tags, p] = await Promise.all([
+    platformNamesFor(projectId),
+    db.$queryRaw<{ tag: string }[]>`SELECT DISTINCT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ${projectId} AND archived = false`,
+    db.project.findUnique({ where: { id: projectId }, select: { areaSkip: true } }),
+  ]);
+  return { platforms, known: tags.map((t) => t.tag), skip: p?.areaSkip ?? [] };
 }

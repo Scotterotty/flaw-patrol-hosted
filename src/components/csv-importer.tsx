@@ -21,13 +21,15 @@ import {
   type ImportSource,
 } from "@/lib/csv-import";
 import { PRIORITY_LABEL } from "@/lib/format";
+import { findAreaWords, applyAreaWord, type AreaContext } from "@/lib/area-tags";
+import { splitBracketTitle } from "@/lib/tags";
 import { importCases } from "@/server/import";
 import { readSpreadsheet } from "@/server/spreadsheet";
 import { checkStoryKeys } from "@/server/stories";
 import { Button, Card, cx, ErrorText, Field, InfoTip, Input, Select } from "./ui";
 
 /** Where imported cases can go: the umbrella's Case library, this test cycle, or a test cycle outside any umbrella. */
-export type ImportPlace = { id: string; key: string; label: string; kind: "library" | "cycle" | "own"; folderOptions: { id: string; label: string }[] };
+export type ImportPlace = { id: string; key: string; label: string; kind: "library" | "cycle" | "own"; folderOptions: { id: string; label: string }[]; area: AreaContext };
 
 const NEW_FOLDER = "__new";
 
@@ -71,6 +73,26 @@ export function CsvImporter({
   const slashNames = useMemo(() => (rows ? spacedSlashNames(rows, mapping) : []), [rows, mapping]);
   const hasFolders = mapping.folder !== undefined && !!result?.cases.some((c) => c.folderPath.length);
   const oneMode = !hasFolders || folderMode === "one";
+  // Area tags (ver_102): the word after the platform. Words that are already tags (or [bracket]
+  // tags in this file) are picked up on their own; new ones are listed with a tick box.
+  const [areaOn, setAreaOn] = useState(true);
+  const [areaOff, setAreaOff] = useState<string[]>([]);
+  const areaPreview = useMemo(() => {
+    if (!result || !place.area.platforms.length) return null;
+    const names = [...place.area.platforms, ...place.area.known];
+    const split = result.cases.map((c) => {
+      const s = splitBracketTitle(c.title, { platforms: names });
+      return { title: s.title, tags: [...s.tags, ...c.tags] };
+    });
+    const ctx = { ...place.area, known: [...place.area.known, ...split.flatMap((c) => c.tags)] };
+    return { split, ctx, words: findAreaWords(split, ctx) };
+  }, [result, place.area]);
+  const areaWords = areaOn && areaPreview ? areaPreview.words.filter((w) => w.known || !areaOff.includes(w.word)).map((w) => w.word) : [];
+  const areaNew = areaPreview?.words.filter((w) => !w.known) ?? [];
+  const areaTagsFor = (i: number) => {
+    const c = areaPreview?.split[i];
+    return c && areaWords.length ? applyAreaWord(c.title, c.tags, areaWords, areaPreview.ctx)?.tags.at(-1) : undefined;
+  };
   const typeTagged = useMemo(() => [...new Set(result?.cases.flatMap((c) => c.tags.filter((t) => t.startsWith("type: ")).map((t) => t.slice(6))) ?? [])], [result]);
   const folderPaths = useMemo(() => new Set(result?.cases.map((c) => c.folderPath.join("\u0000")).filter(Boolean)).size, [result]);
   const tree = useMemo(() => (result ? folderPreview(result.cases) : []), [result]);
@@ -151,7 +173,8 @@ export function CsvImporter({
       const cases = oneMode ? result.cases.map((c) => ({ ...c, folderPath: [] })) : result.cases;
       const target = oneMode ? (oneFolder === NEW_FOLDER ? folderId || null : oneFolder || null) : folderId || null;
       // A new folder goes inside the folder picked for "Inside" only in file mode; in one-folder mode it goes at the top.
-      const res = await importCases(place.id, oneMode && oneFolder === NEW_FOLDER ? null : target, cases, fileName, result.shared, oneMode && oneFolder === NEW_FOLDER ? newFolderName : "");
+      const area = { words: areaWords, skip: areaOn ? areaNew.filter((w) => areaOff.includes(w.word)).map((w) => w.word) : [] };
+      const res = await importCases(place.id, oneMode && oneFolder === NEW_FOLDER ? null : target, cases, fileName, result.shared, oneMode && oneFolder === NEW_FOLDER ? newFolderName : "", area);
       if (!res.ok) return setError(res.error);
       setDone({ cases: res.created, shared: res.shared, folderId: res.folderId, place });
     });
@@ -415,6 +438,36 @@ export function CsvImporter({
                 <InfoTip text="Several keys in one cell (comma or space) become several links. Other text in that column is kept as tags." />
               </p>
             )}
+            {!!areaPreview?.words.length && (
+              <div className="space-y-1.5 border-b border-slate-200 px-4 py-2 text-xs text-slate-600" data-testid="import-area">
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input type="checkbox" className="accent-accent-600" checked={areaOn} onChange={(e) => setAreaOn(e.target.checked)} />
+                  Turn the area word after the platform into a tag
+                  <InfoTip text="In “[UNITY] Spaces - Deep Link”, Spaces is the part of the app. Words that are already tags are picked up on their own." />
+                </label>
+                {areaOn && (
+                  <p className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-6">
+                    {areaPreview.words.some((w) => w.known) && (
+                      <span>
+                        Already tags: {areaPreview.words.filter((w) => w.known).map((w) => `${w.word} (${w.count})`).join(", ")}.
+                      </span>
+                    )}
+                    {areaNew.length > 0 && <span>New area words:</span>}
+                    {areaNew.map((w) => (
+                      <label key={w.word} className="inline-flex items-center gap-1">
+                        <input
+                          type="checkbox"
+                          className="accent-accent-600"
+                          checked={!areaOff.includes(w.word)}
+                          onChange={(e) => setAreaOff(e.target.checked ? areaOff.filter((x) => x !== w.word) : [...areaOff, w.word])}
+                        />
+                        {w.word} ({w.count})
+                      </label>
+                    ))}
+                  </p>
+                )}
+              </div>
+            )}
             {result.warnings.length > 0 && (
               <details className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
                 <summary className="cursor-pointer">{result.warnings.length} {result.warnings.length === 1 ? "row needs" : "rows need"} a look</summary>
@@ -439,7 +492,7 @@ export function CsvImporter({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {result.cases.slice(0, 100).map((c) => (
+                  {result.cases.slice(0, 100).map((c, i) => (
                     <Fragment key={c.row}>
                       <tr className="align-top">
                         <td className="px-3 py-1.5 text-xs text-slate-400">{c.row}</td>
@@ -460,7 +513,7 @@ export function CsvImporter({
                         <td className="px-3 py-1.5 text-xs text-slate-500">{oneMode ? oneFolderLabel : c.folderPath.join(" / ")}</td>
                         <td className="px-3 py-1.5 text-xs">{PRIORITY_LABEL[c.priority]}</td>
                         <td className="px-3 py-1.5 text-xs text-slate-500">
-                          {c.tags.join(", ")}
+                          {[...c.tags, areaTagsFor(i)].filter(Boolean).join(", ")}
                         </td>
                         {storyCount > 0 && <td className="px-3 py-1.5 font-mono text-xs text-accent-700">{c.stories.join(" ")}</td>}
                         <td className="px-3 py-1.5 text-xs text-slate-600" title={c.steps.map((s, i) => `${i + 1}. ${s.action}`).join("\n")}>
