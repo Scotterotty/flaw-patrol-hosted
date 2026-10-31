@@ -41,3 +41,7 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    ignore:
+      # Stay on Node 22 (long-term support, what the team runs); moving Node is its own build.
+      - dependency-name: node
+        update-types: [version-update:semver-major]
