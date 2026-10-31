@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyAreaWord, areaCandidate, findAreaWords } from "./area-tags";
+import { applyAreaWord, areaCandidate, findAreaWords, pillLeads } from "./area-tags";
 
 const ctx = { platforms: ["Unity", "Web"], known: ["Unity", "Web", "Spaces", "smoke"], skip: ["Lobby"] };
 
@@ -44,5 +44,24 @@ describe("applyAreaWord", () => {
   it("moves only accepted words", () => {
     expect(applyAreaWord("hub - Space List", ["Unity"], ["Hub"], ctx)).toEqual({ title: "Space List", tags: ["Unity", "Hub"] });
     expect(applyAreaWord("Store - Buy", ["Unity"], ["Hub"], ctx)).toBeNull();
+  });
+});
+
+describe("no platforms set up (ver_105)", () => {
+  const none = { platforms: [], known: ["WEB"], skip: [] };
+  it("uses the case's one [bracket] tag as the platform", () => {
+    expect(areaCandidate("Hub - Entering Spaces", ["WEB"], none)).toEqual({ word: "Hub", rest: "Entering Spaces", known: false });
+    expect(areaCandidate("In Space - UI - Play Mode Button", ["WEB"], none)).toEqual({ word: "In Space", rest: "UI - Play Mode Button", known: false });
+  });
+  it("stops after one area, and skips cases with no tag or several", () => {
+    expect(areaCandidate("UI - Play Mode Button", ["WEB", "In Space"], none)).toBeNull();
+    expect(areaCandidate("Hub - Entering Spaces", [], none)).toBeNull();
+    expect(areaCandidate("Hub - Entering Spaces", ["WEB", "Unique Cases"], none)).toBeNull();
+  });
+  it("the title box leads from the only pill", () => {
+    expect(pillLeads(["WEB"], none)).toBe(true);
+    expect(pillLeads(["WEB", "Hub"], none)).toBe(false);
+    expect(pillLeads(["Unity"], ctx)).toBe(true);
+    expect(pillLeads(["Unity", "Spaces"], ctx)).toBe(false);
   });
 });

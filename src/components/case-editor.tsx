@@ -3,7 +3,7 @@
 import { TagPill, TagPills } from "./tag-pill";
 import { CloseMatchesLabel } from "./close-matches";
 import { forgivingFilter } from "@/lib/fuzzy";
-import { areaCandidate, typedKnownArea, type AreaContext } from "@/lib/area-tags";
+import { areaCandidate, pillLeads, typedKnownArea, type AreaContext } from "@/lib/area-tags";
 import { tagColor, type TagColors } from "@/lib/tags";
 import type { CaseType, Priority } from "@prisma/client";
 import { useRouter } from "next/navigation";
@@ -152,7 +152,7 @@ export function CaseEditor(props: CaseEditorProps) {
 
   const touch = () => setDirty(true);
   const areaCtx: AreaContext = { platforms: props.platformNames ?? [], known: props.knownTags, skip: [...(props.areaSkip ?? []), ...areaNo] };
-  const afterPlatform = tags.length > 0 && areaCtx.platforms.some((p) => p.toLowerCase() === tags[tags.length - 1].toLowerCase());
+  const afterPlatform = pillLeads(tags, areaCtx);
   const areaAsk = afterPlatform && !isCharter ? areaCandidate(title, tags, areaCtx) : null;
   const update = (fn: (prev: Item[]) => Item[]) => {
     setItems(fn);

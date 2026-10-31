@@ -1,7 +1,8 @@
 // Area tags (ver_102): in "Unity · Spaces Deep Link" or "Unity · Hub - Space List" the word
 // after the platform is the part of the app being tested. Words that are already tags
 // become tags on their own; new words are offered first (Case library banner, title box,
-// import preview). Pure functions, so the browser and the server agree.
+// import preview). Pure functions, so the browser and the server agree. With no platforms
+// set up, a case's single [bracket] tag counts as its platform (ver_105).
 
 const MAX_AREA = 24;
 const SEP = /^\s*[-–—:|]\s*/;
@@ -28,8 +29,15 @@ export function areaWordOk(word: string, ctx: AreaContext, tags: string[] = []) 
   return !has(ctx.platforms, w) && !has(ctx.skip, w) && !has(tags, w);
 }
 
-/** The case follows a platform: one of its tags is a platform name. */
-export const followsPlatform = (tags: string[], ctx: AreaContext) => tags.some((t) => has(ctx.platforms, t));
+/**
+ * The case follows a platform: one of its tags is a platform name. With no platforms set up
+ * (a new umbrella, or a fresh import), a case's only tag, the one from its [bracket], takes
+ * the platform's place (ver_105), so "[WEB] Hub - Downloads" still offers Hub.
+ */
+export const followsPlatform = (tags: string[], ctx: AreaContext) => (ctx.platforms.length ? tags.some((t) => has(ctx.platforms, t)) : tags.length === 1);
+
+/** The title box: the pill just before the title is the platform (or, with no platforms, the only pill). */
+export const pillLeads = (tags: string[], ctx: AreaContext) => (ctx.platforms.length ? tags.length > 0 && has(ctx.platforms, tags[tags.length - 1]) : tags.length === 1);
 
 /**
  * The area word at the start of a title, for a case tagged with a platform. A tag the

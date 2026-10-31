@@ -131,11 +131,13 @@ export async function importCases(projectId: string, folderId: string | null, ra
         areaCtx.known.push(...area.words);
         for (const raw of cases) {
           const split = splitBracketTitle(raw.title, { platforms: platformNames });
-          const withArea = applyAreaWord(split.title, normalizeTags([...split.tags, ...raw.tags]), area.words, areaCtx);
+          // With no platforms, only the [bracket] tag leads (ver_105), as in the preview.
+          const lead = areaCtx.platforms.length ? normalizeTags([...split.tags, ...raw.tags]) : split.tags;
+          const withArea = applyAreaWord(split.title, lead, area.words, areaCtx);
           const c = { ...raw, title: withArea?.title ?? split.title };
           number += 1;
           const folderId = await ensurePath(c.folderPath);
-          const tags = normalizeTags(withArea?.tags ?? [...split.tags, ...c.tags]);
+          const tags = normalizeTags([...(withArea?.tags ?? split.tags), ...c.tags]);
           const steps = (c.items ?? c.steps.map((s) => ({ kind: "step" as const, ...s }))).map((item) => {
             if (item.kind === "step") return { kind: "step" as const, action: item.action, expected: item.expected };
             const sharedStepId = sharedIds.get(item.key);

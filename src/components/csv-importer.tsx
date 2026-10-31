@@ -78,11 +78,12 @@ export function CsvImporter({
   const [areaOn, setAreaOn] = useState(true);
   const [areaOff, setAreaOff] = useState<string[]>([]);
   const areaPreview = useMemo(() => {
-    if (!result || !place.area.platforms.length) return null;
+    if (!result) return null;
     const names = [...place.area.platforms, ...place.area.known];
     const split = result.cases.map((c) => {
       const s = splitBracketTitle(c.title, { platforms: names });
-      return { title: s.title, tags: [...s.tags, ...c.tags] };
+      // With no platforms, only the [bracket] tag leads (ver_105); the file's own tags come after.
+      return { title: s.title, tags: place.area.platforms.length ? [...s.tags, ...c.tags] : s.tags };
     });
     const ctx = { ...place.area, known: [...place.area.known, ...split.flatMap((c) => c.tags)] };
     return { split, ctx, words: findAreaWords(split, ctx) };

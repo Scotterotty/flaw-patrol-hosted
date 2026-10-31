@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 105,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "fix",
+        title: "Area tags work before you set up platforms",
+        text: "If an umbrella has no platforms yet, a case's one [bracket] tag, like WEB, now counts as its platform. So right after an import, the Case library offers to turn words like Hub or In Space into tags. Each case gets one area tag, so a second word like UI stays in the title.",
+      },
+    ],
+  },
+  {
     version: 104,
     date: "2026-10-31",
     items: [

@@ -207,10 +207,11 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
   const filtered = Boolean(q || sp.tag || sp.priority || runsBy || sp.flagged || sp.persona || platform);
   const tagColors = await tagColorsFor(project.id);
   const bracketCount = (await db.testCase.findMany({ where: { projectId: project.id, archived: false, title: { startsWith: "[" } }, select: { title: true } })).filter((c) => hasBracketTitle(c.title)).length;
-  // Area tags (ver_102): offered once the [brackets] are done, since they follow the platform tag.
+  // Area tags (ver_102): offered once the [brackets] are done, since they follow the platform tag
+  // (or, with no platforms set up, the case's one [bracket] tag, ver_105).
   const canTag = sp.archived !== "1" && can(who, "case:edit");
   const areaWords =
-    canTag && !bracketCount && u?.platforms.length
+    canTag && !bracketCount
       ? findAreaWords(await db.testCase.findMany({ where: { projectId: project.id, archived: false }, select: { title: true, tags: true } }), await areaContextFor(project.id))
       : [];
   const keep = (extra: Record<string, string | undefined>) => {
