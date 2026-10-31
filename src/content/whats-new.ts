@@ -22,6 +22,28 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 119,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "new",
+        title: "Bug templates",
+        text: "Make your own bug layouts in Settings → Bug templates: text boxes, choices, files like a .txt crash log, and tables. A live preview shows the form and the finished bug. Testers and up can make them; only Admins can delete one.",
+        link: "/g/{umbrella}/settings#bug-templates",
+      },
+      {
+        kind: "new",
+        title: "Pick a template when you report a bug",
+        text: "Report a bug shows your templates, with the default picked. It says what's still missing before you can report it, and bugs already reported never change when a template does.",
+      },
+      {
+        kind: "new",
+        title: "I saw it again",
+        text: "On Bugs, What was reported shows a templated bug's answers. If its table grows, I saw it again adds a row with the date, your name, build, environment and device filled in, instead of a new bug.",
+      },
+    ],
+  },
+  {
     version: 118,
     date: "2026-10-31",
     items: [

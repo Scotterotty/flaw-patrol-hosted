@@ -16,6 +16,8 @@ import { mySpelling, requireUser } from "@/lib/session";
 import { isSevere } from "@/lib/severity";
 import { severityScaleFor } from "@/lib/severity-server";
 import { jiraConfigFor, loadUmbrella, OPEN_BUG, platformColor } from "@/lib/umbrella";
+import { BugAnswers } from "@/components/bug-answers";
+import { parseAnswers } from "@/lib/bug-layout";
 import { LastCheckLine, type LastCheck } from "@/components/known-bugs-panel";
 
 export const metadata = { title: "Bugs" };
@@ -184,6 +186,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
                       <span className="block text-xs text-slate-500">{[d.externalKey ?? `${home?.key}-D${d.number}`, r.cases.length ? `from ${r.cases.join(", ")}` : ""].filter(Boolean).join(" · ")}</span>
                       {jira && canRun && !d.externalKey && <span className="block text-xs text-slate-500">Saved before Jira was connected</span>}
                       <LastCheckLine check={r.check} spelling={spelling} />
+                      {d.answers != null && <BugAnswers projectId={d.projectId} defectId={d.id} templateName={d.templateName} answers={parseAnswers(d.answers)} canAdd={canRun && d.status === "OPEN"} inJira={!!d.externalKey} />}
                     </td>
                     <td className="px-4 py-2.5">
                       <span className="flex flex-wrap gap-x-2 gap-y-0.5">

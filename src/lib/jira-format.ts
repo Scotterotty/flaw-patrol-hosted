@@ -3,6 +3,7 @@
 
 import { withBracketTags } from "./tags";
 import { isDxdiag, orderFiles, type TemplateBug } from "./bug-template";
+import type { Answer } from "./bug-layout";
 
 export type BugContext = {
   caseKey: string;
@@ -221,6 +222,47 @@ export function importedAdf(sections: { heading: string; text: string }[], opts:
   for (const s of sections.filter((x) => x.text.trim())) {
     content.push(para(bold(s.heading)));
     content.push(...blocks(s.text));
+  }
+  const extra = (opts.extra ?? []).filter((e) => e.text.trim());
+  if (extra.length) {
+    content.push({ type: "rule" });
+    for (const e of extra) {
+      content.push(para(bold(e.name)));
+      content.push(...blocks(e.text));
+    }
+  }
+  if (opts.trace) content.push(para(text("Filed from Flaw Patrol: "), link(opts.trace.label, opts.trace.link ?? undefined)));
+  return { type: "doc", version: 1, content };
+}
+
+/**
+ * A bug reported with a bug template (ver_119): each heading in bold with its text, tables as
+ * Jira tables, and the files added under a heading as links. Headings left empty are skipped.
+ */
+export function answersAdf(
+  answers: Answer[],
+  opts: { reportedBy?: string | null; extra?: { name: string; text: string }[]; trace?: { label: string; link: string | null }; fileUrl?: (id: string) => string | undefined } = {},
+): Node {
+  const content: Node[] = [];
+  if (opts.reportedBy) content.push(para(bold("Reported by: "), text(`${opts.reportedBy} (via Flaw Patrol)`)));
+  const cell = (t: string, header = false): Node => ({ type: header ? "tableHeader" : "tableCell", attrs: {}, content: [header ? para(bold(t)) : paraLines(t.trim() || "-")] });
+  for (const a of answers) {
+    if (a.columns && a.rows) {
+      const rows = a.rows.filter((r) => r.some((c) => c.trim()));
+      if (!rows.length) continue;
+      content.push(para(bold(a.heading)));
+      content.push({
+        type: "table",
+        attrs: { isNumberColumnEnabled: false, layout: "default" },
+        content: [{ type: "tableRow", content: a.columns.map((c) => cell(c.name, true)) }, ...rows.map((r) => ({ type: "tableRow", content: a.columns!.map((_, i) => cell(r[i] ?? "")) }))],
+      });
+      continue;
+    }
+    const files = a.files ?? [];
+    if (!a.text.trim() && !files.length) continue;
+    content.push(para(bold(a.heading)));
+    if (a.text.trim()) content.push(...(a.source === "file" ? [{ type: "codeBlock", attrs: {}, content: [text(a.text.trim().slice(0, 30000))] }] : blocks(a.text)));
+    if (files.length) content.push({ type: "bulletList", content: files.map((f) => ({ type: "listItem", content: [para(link(f.fileName, opts.fileUrl?.(f.id)))] })) });
   }
   const extra = (opts.extra ?? []).filter((e) => e.text.trim());
   if (extra.length) {

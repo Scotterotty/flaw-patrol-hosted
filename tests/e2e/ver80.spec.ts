@@ -106,7 +106,7 @@ test("the umbrella's Bug template row leads to the import", async ({ page }) => 
 
   // Before Jira: a grayed Import… that says why, and the hub shows the grayed choices.
   await page.goto(settingsUrl);
-  const row = page.getByRole("listitem").filter({ hasText: "Bug template" });
+  const row = page.getByRole("listitem").filter({ hasText: "Jira bug layout" });
   await expect(row).toContainText("Plain layout. Connect Jira first to import a template.");
   await expect(row.getByText("Import…")).toHaveAttribute("aria-disabled", "true");
   await page.goto(`${settingsUrl}#jira`);

@@ -33,7 +33,9 @@ export type Action =
   | "umbrella:archive" // archive the umbrella with its projects, or restore it
   | "bash:join" // join a bug bash, log bugs in it and attach screenshots: Viewers too (ver_94)
   | "case:flag" // flag a case that needs attention, with a note: Viewers too (ver_94)
-  | "glossary:edit"; // add, answer and edit Glossary terms (ver_113); anyone, Viewers too, can read and ask
+  | "glossary:edit" // add, answer and edit Glossary terms (ver_113); anyone, Viewers too, can read and ask
+  | "bugtemplate:edit" // make and edit bug templates (ver_119)
+  | "bugtemplate:delete"; // delete bug templates (ver_119): admins by default
 
 // Viewers (ver_94) see everything, flag cases and join bug bashes; nothing in the Roles grid.
 const RANK: Record<Role, number> = { VIEWER: 0, TESTER: 1, LEAD: 2, ADMIN: 3 };
@@ -57,6 +59,7 @@ export const ROLE_ROWS: { id: string; group: string; label: string; actions: Act
   { id: "assign", group: "Runs and bugs", label: "Assign people to cases", actions: ["run:assign"], std: "TESTER", tight: "LEAD" },
   { id: "close", group: "Runs and bugs", label: "Close and reopen runs", actions: ["run:manage"], std: "TESTER", tight: "LEAD" },
   { id: "risk", group: "Runs and bugs", label: "Move requirements on the Risk board", actions: ["risk:move"], std: "TESTER", tight: "TESTER" },
+  { id: "bugtemplates", group: "Runs and bugs", label: "Make and edit bug templates", actions: ["bugtemplate:edit"], std: "TESTER", tight: "LEAD" },
   { id: "runimport", group: "Runs and bugs", label: "Import a run, or upload or pull automation results", actions: ["run:import"], std: "TESTER", tight: "LEAD" },
   { id: "cycle", group: "Test cycles", label: "Add a test cycle", actions: ["cycle:create"], std: "TESTER", tight: "LEAD" },
   { id: "rc", group: "Test cycles", label: "Start a release candidate", actions: ["umbrella:rc"], std: "TESTER", tight: "LEAD" },
@@ -71,6 +74,7 @@ export const ROLE_ROWS: { id: string; group: string; label: string; actions: Act
   { id: "archlib", group: "Archive and delete", label: "Archive suites, shared steps and personas", actions: ["library:archive"], std: "ADMIN", tight: "ADMIN", archive: true },
   { id: "delfolders", group: "Archive and delete", label: "Delete folders", actions: ["folder:delete"], std: "ADMIN", tight: "ADMIN", archive: true },
   { id: "delruns", group: "Archive and delete", label: "Delete runs", actions: ["run:delete"], std: "ADMIN", tight: "ADMIN", archive: true },
+  { id: "delbugtemplates", group: "Archive and delete", label: "Delete bug templates", actions: ["bugtemplate:delete"], std: "ADMIN", tight: "ADMIN", archive: true },
   { id: "archcycles", group: "Archive and delete", label: "Archive test cycles and the umbrella", actions: ["cycle:archive", "umbrella:archive"], std: "ADMIN", tight: "ADMIN", archive: true },
 ];
 
@@ -140,6 +144,8 @@ const SHORT_WORDS: Record<string, string> = {
   assign: "assign people",
   close: "close runs",
   runimport: "upload automation results",
+  bugtemplates: "make bug templates",
+  delbugtemplates: "archive and delete",
   cycle: "add test cycles",
   rc: "start the next release",
   runfields: "set run fields",

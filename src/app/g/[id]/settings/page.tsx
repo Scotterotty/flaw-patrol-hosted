@@ -46,6 +46,8 @@ import { CycleSettingsTable, type CycleChip, type CycleRow } from "@/components/
 import { CyclePanel } from "@/components/cycle-panel";
 import { OtherSettings } from "@/components/other-settings";
 import { cycleHash } from "@/lib/cycle-hash";
+import { BugTemplatesSettings } from "@/components/bug-templates";
+import { loadBugTemplates } from "@/lib/bug-templates-data";
 
 export const metadata = { title: "Settings" };
 
@@ -74,6 +76,10 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
   const invites = await memberInviteInfo(members.map((m) => m.userId));
   const requests = can(u.who, "members:manage") ? await joinRequestRows(u.hub.id) : [];
   const manage = can(u.who, "jira:manage");
+  // Bug templates (ver_119): a list on the umbrella, used by every test cycle in it.
+  const bugTemplates = await loadBugTemplates({ id: u.hub.id, key: u.hub.key, groupId: null });
+  const canTemplates = can(u.who, "bugtemplate:edit");
+  const templatesText = `${bugTemplates.templates.length + 1} ${bugTemplates.templates.length ? "templates" : "template"} · default: ${bugTemplates.templates.find((t) => t.id === bugTemplates.defaultId)?.name ?? bugTemplates.current.name}`;
   const archive = await archiveCardData(user, u.group.id, null);
   const runFields = parseRunFields(u.group.runFields);
   const runKinds = parseRunKinds(u.group.runKinds);
@@ -301,11 +307,23 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                 action={jira ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">✓ Connected</span> : null}
               />
             )}
+            <ExpandRow id="bug-templates" hashes={["bug-templates"]} title="Bug templates" text={templatesText} label={canTemplates ? "Change" : "Open"}>
+              <BugTemplatesSettings
+                projectId={u.hub.id}
+                current={bugTemplates.current}
+                templates={bugTemplates.templates}
+                defaultId={bugTemplates.defaultId}
+                canEdit={canTemplates}
+                canDelete={can(u.who, "bugtemplate:delete")}
+                jiraConnected={!!jira}
+                currentHref={manage && jira ? "#template" : null}
+              />
+            </ExpandRow>
             {manage && jira ? (
               <ExpandRow
                 id="template"
                 hashes={["template", "import-template"]}
-                title="Bug template"
+                title="Jira bug layout"
                 text={templateText}
                 label={hubKind === "plain" ? "Import…" : "Change"}
                 openHash={hubKind === "plain" ? "import-template" : "template"}
@@ -322,7 +340,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               </ExpandRow>
             ) : (
               <Row
-                title="Bug template"
+                title="Jira bug layout"
                 text={templateText}
                 action={
                   !manage ? (

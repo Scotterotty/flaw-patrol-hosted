@@ -27,6 +27,8 @@ import { HashRedirect } from "@/components/settings-row";
 import { CycleSettingsRedirect } from "@/components/cycle-settings";
 import { OtherSettings } from "@/components/other-settings";
 import { loadUmbrella } from "@/lib/umbrella";
+import { BugTemplatesSettings } from "@/components/bug-templates";
+import { loadBugTemplates } from "@/lib/bug-templates-data";
 
 export const metadata = { title: "Test cycle settings" };
 
@@ -70,6 +72,8 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
   // Slack: a test cycle in an umbrella follows its channels (or picks); one outside an umbrella has its own card.
   const [slackOwn, slackUmbrella] = await Promise.all([slackChannelsOf({ projectId: project.id }), umbrella ? slackChannelsOf({ groupId: umbrella.id }) : []]);
   const templateView = await bugTemplateView(project.id, user.email);
+  // Bug templates (ver_119): a test cycle outside an umbrella keeps its own list.
+  const bugTemplates = umbrella ? null : await loadBugTemplates(project);
   const jira = jiraRow && { siteUrl: jiraRow.siteUrl, email: jiraRow.email, jiraProjectKey: jiraRow.jiraProjectKey, issueType: jiraRow.issueType, tokenReadable: canOpen(jiraRow.tokenEncrypted) };
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -136,6 +140,21 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
             <JiraSettings projectId={project.id} current={jira} template={templateView.template} shared={templateView.shared} stories={parseStoriesConfig(jiraRow?.stories)} severity={parseSeverityConfig(jiraRow?.severity)} />
           </>
         )
+      )}
+      {bugTemplates && (
+        <Card id="bug-templates" className="scroll-mt-20 space-y-3 p-5">
+          <h2 className="text-sm font-semibold text-slate-800">Bug templates</h2>
+          <BugTemplatesSettings
+            projectId={project.id}
+            current={bugTemplates.current}
+            templates={bugTemplates.templates}
+            defaultId={bugTemplates.defaultId}
+            canEdit={can(who, "bugtemplate:edit")}
+            canDelete={can(who, "bugtemplate:delete")}
+            jiraConnected={!!jiraRow}
+            currentHref={canJira && jiraRow ? "#jira" : null}
+          />
+        </Card>
       )}
       {canMembers &&
         (umbrella ? (

@@ -1,19 +1,13 @@
 "use server";
 
-import { parsePlatforms } from "@/lib/umbrella";
 import { parseSentryRefs, sentryAdf } from "@/lib/sentry";
 import { sentryFrames } from "./sentry";
 import { logActivity } from "@/lib/activity";
-import { pickValues } from "@/lib/run-fields";
-import { runFieldsFor } from "@/lib/run-fields-server";
 import { Prisma, type Severity } from "@prisma/client";
-import { missionLine, parseCharter } from "@/lib/charter";
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { seal } from "@/lib/crypto";
-import { caseKey } from "@/lib/format";
 import {
   adfHeadings,
   clientIn,
@@ -40,14 +34,16 @@ import {
   type TemplateSettings,
 } from "@/lib/bug-template";
 import { JiraClient, JiraError, jiraFor, jiraValue, normalizeSite, refreshDefectStatuses, type FieldValue, type JiraIssue, type JiraUser, type MetaField } from "@/lib/jira";
-import { bugAdf, defaultSummary, importedAdf, parseIssueKey, sectionText, templateAdf, type BugContext, type FileRef } from "@/lib/jira-format";
+import { answersAdf, bugAdf, defaultSummary, importedAdf, parseIssueKey, sectionText, templateAdf, type BugContext, type FileRef } from "@/lib/jira-format";
 import { requireProjectAction, requireUser } from "@/lib/session";
 import { DEFAULT_SEVERITY, PLAIN_SCALE, SEVERITIES, severitySchema, type SeverityConfig } from "@/lib/severity";
-import type { ExpandedStep } from "@/lib/steps";
 import { alertBugFiled } from "@/lib/slack";
 import { attempt, UserError } from "./result";
 import { jiraConfigFor } from "@/lib/umbrella";
 import { entryRegression } from "@/lib/regression-data";
+import { bugContext } from "@/lib/bug-context";
+import { answersText, layoutFromImported, layoutTitle, listWords, missing, parseAnswers, parseLayout, withFileNames, type Answer, type BugLayout, type RunFill } from "@/lib/bug-layout";
+import { templateHome } from "@/lib/bug-templates-data";
 
 async function wrap<T extends object>(fn: () => Promise<T>) {
   return attempt(async () => {
@@ -265,42 +261,6 @@ const bugSchema = z.object({
     })
     .optional(),
 });
-
-/** Build the context for a bug report from a run entry. */
-async function bugContext(projectId: string, entryId: string, stepIndex: number | null, actual: string) {
-  const entry = await db.runEntry.findFirst({
-    where: { id: entryId, run: { projectId } },
-    include: { run: { include: { project: true } }, testCase: { select: { number: true, tags: true, project: { select: { key: true, groupId: true, hubOf: { select: { platforms: true } } } } } } },
-  });
-  if (!entry) throw new UserError("This case is no longer in the run.");
-  // Bracket tags (ver_96): platform tags and ALL-CAPS ones like ANDROID go back in front of the bug's title.
-  const platformNames = parsePlatforms(entry.testCase.project.hubOf?.platforms).map((p) => p.name.toLowerCase());
-  const titleTags = entry.testCase.tags.filter((t) => platformNames.includes(t.toLowerCase()) || (/[A-Z]/.test(t) && t === t.toUpperCase()));
-  const steps = (Array.isArray(entry.steps) ? entry.steps : []) as unknown as ExpandedStep[];
-  if (stepIndex !== null && !steps[stepIndex]) throw new UserError("That step no longer exists.");
-  const h = await headers();
-  const origin = h.get("origin") ?? (h.get("host") ? `https://${h.get("host")}` : null);
-  const key = entry.run.project.key;
-  const ctx: BugContext = {
-    caseKey: caseKey(entry.testCase.project.key, entry.testCase.number),
-    caseTitle: entry.title,
-    runLabel: `run R${entry.run.number} "${entry.run.name}"`,
-    build: entry.run.build,
-    release: entry.run.release,
-    cspVersion: entry.run.cspVersion,
-    fields: pickValues(entry.run, await runFieldsFor(projectId), "jira"),
-    environment: entry.run.environment,
-    // A session's bug carries the charter, since there are no steps to point at.
-    preconditions:
-      entry.kind === "EXPLORATORY" ? [`Charter: ${missionLine(parseCharter(entry.charter))}`, entry.preconditions].filter(Boolean).join("\n") : entry.preconditions,
-    steps: steps.map((s) => ({ number: s.number, action: s.action, expected: s.expected })),
-    failedIndex: stepIndex,
-    actual,
-    link: origin ? `${origin}/p/${key}/runs/${entry.run.number}/execute?entry=${entry.id}` : null,
-    titleTags,
-  };
-  return { ctx, entry };
-}
 
 type Entry = Awaited<ReturnType<typeof bugContext>>["entry"];
 
@@ -776,6 +736,22 @@ const NOT_LAYOUT = new Set(["summary", "description", "project", "issuetype", "r
 export async function readBugTemplate(projectId: string, input: string) {
   return wrap(async () => {
     await requireProjectAction(projectId, "jira:manage");
+    return exampleTemplate(projectId, input);
+  });
+}
+
+/** Settings → Bug templates → New template → Copy a Jira bug's layout (ver_119). */
+export async function readBugLayout(projectId: string, input: string) {
+  return wrap(async () => {
+    const project = await db.project.findUniqueOrThrow({ where: { id: projectId }, select: { id: true, key: true, groupId: true } });
+    await requireProjectAction((await templateHome(project)).id, "bugtemplate:edit");
+    const { template } = await exampleTemplate(projectId, input);
+    return { layout: layoutFromImported(template) };
+  });
+}
+
+async function exampleTemplate(projectId: string, input: string) {
+  {
     const client = await jiraFor(projectId);
     if (!client) throw new UserError("Connect Jira first.");
     const key = parseIssueKey(input);
@@ -808,7 +784,7 @@ export async function readBugTemplate(projectId: string, input: string) {
     // Options and examples for the check screen.
     const options = Object.fromEntries(fields.map((f) => [f.id, { options: meta.find((m) => m.id === f.id)?.options ?? [], example: exampleValue(ex.fields[f.id]) ?? [] }]));
     return { template, exampleTitle: ex.summary, options };
-  });
+  }
 }
 
 const importedSchema = z.object({
@@ -855,5 +831,257 @@ export async function setPlainLayout(projectId: string) {
     revalidatePath("/g", "layout");
     await logActivity({ actor: user, kind: "settings", action: "Switched bugs to the plain layout", project });
     return {};
+  });
+}
+
+// ---- Bug templates (ver_119) ----
+
+/** The template a test cycle's bug uses, from its umbrella's list. */
+async function layoutOf(projectId: string, templateId: string) {
+  const project = await db.project.findUniqueOrThrow({ where: { id: projectId }, select: { id: true, key: true, groupId: true } });
+  const home = await templateHome(project);
+  const t = await db.bugTemplate.findFirst({ where: { id: templateId, projectId: home.id } });
+  if (!t) throw new UserError("That bug template is gone. Someone may have deleted it. Pick another one.");
+  return { name: t.name, layout: parseLayout(t.layout) };
+}
+
+/**
+ * What a bug template starts with for this case: the text from the run for each kind of
+ * heading, the automatic table cells the server knows, the title parts, and the Jira fields
+ * the template copied from an example bug.
+ */
+export async function startTemplatedBug(projectId: string, entryId: string, stepIndex: number | null, actual: string, templateId: string) {
+  return wrap(async () => {
+    const { user } = await requireProjectAction(projectId, "run:execute");
+    const { ctx, entry } = await bugContext(projectId, entryId, stepIndex, actual);
+    const { layout } = await layoutOf(projectId, templateId);
+    const fill: RunFill = {
+      steps: sectionText("steps", ctx),
+      expected: sectionText("expected", ctx),
+      actual: sectionText("actual", ctx),
+      env: sectionText("env", ctx),
+      hasStep: ctx.steps.length > 0,
+      failed: ctx.failedIndex !== null,
+    };
+    const run = entry.run;
+    const client = layout.fields.length ? await jiraFor(projectId).catch(() => null) : null;
+    const draft = client ? importedDraft({ from: layout.from, title: { tag: false, feature: false }, sections: [], fields: layout.fields }, entry, ctx, await client.createMeta().catch(() => null)) : null;
+    return {
+      fill,
+      auto: { build: [run.build, ctx.fields?.find((f) => /csp/i.test(f.name))?.value].filter(Boolean).join(" · ") || run.release || "", env: run.environment, who: user.name ?? user.email },
+      platform: tagOf(entry.title) || (ctx.titleTags?.[0] ?? "").toUpperCase() || clientIn(`${run.name} ${run.project.name}`),
+      area: featureOf(entry.title),
+      build: run.build || run.release || "",
+      summary: defaultSummary({ ...ctx, titleTags: [] }),
+      fields: draft?.fields ?? [],
+    };
+  });
+}
+
+const answerSchema = z.array(z.unknown()).max(40);
+
+const templatedSchema = z.object({
+  templateId: z.string().min(1).max(40),
+  summary: z.string().trim().min(1, "Add a summary for the title.").max(200),
+  platform: line(40),
+  area: line(120),
+  build: line(120),
+  severity: severitySchema.default(DEFAULT_SEVERITY),
+  stepIndex: z.number().int().min(0).nullable(),
+  actual: z.string().max(10000).default(""),
+  answers: answerSchema,
+  attachmentIds: z.array(z.string()).max(20).default([]),
+  fields: z.record(z.string().max(60), z.array(z.string().max(5000)).max(30)).default({}),
+  stories: z.array(z.string().max(30)).max(10).default([]),
+  regression: z.boolean().default(false),
+  sentry: z.array(z.unknown()).max(20).default([]),
+  fromDefectId: z.string().optional(),
+});
+
+/** Only the headings the template has, in its order, with what was filled in under each. */
+function cleanAnswers(layout: BugLayout, raw: unknown[]): Answer[] {
+  const given = parseAnswers(raw);
+  return layout.sections
+    .filter((s) => s.source !== "empty")
+    .map((s) => {
+      const a = given.find((x) => x.id === s.id);
+      const base: Answer = { id: s.id, heading: s.heading, source: a?.source === "text" && (s.source === "steps" || s.source === "expected") ? "text" : s.source, text: a?.text ?? "" };
+      if (s.source === "table") {
+        const rows = (a?.rows ?? []).map((r) => s.columns.map((_, i) => r[i] ?? ""));
+        return { ...base, text: "", columns: s.columns, rows, growing: s.growing };
+      }
+      if (s.source === "file") return { ...base, files: a?.files ?? [] };
+      return base;
+    });
+}
+
+/**
+ * Report a bug with a bug template: to Jira when it's connected (the headings in the description,
+ * tables as Jira tables, every file attached), otherwise saved here with the same headings.
+ * The bug keeps the template's layout as it was, so later edits never change it.
+ */
+export async function fileTemplatedBug(projectId: string, entryId: string, input: z.input<typeof templatedSchema>) {
+  return wrap(async () => {
+    const { user, project } = await requireProjectAction(projectId, "run:execute");
+    const data = templatedSchema.parse(input);
+    const { name, layout } = await layoutOf(projectId, data.templateId);
+    let answers = cleanAnswers(layout, data.answers);
+    const sectionFileIds = answers.flatMap((a) => (a.files ?? []).map((f) => f.id));
+    const ids = [...new Set([...data.attachmentIds, ...sectionFileIds])];
+    const found = ids.length ? await db.attachment.findMany({ where: { id: { in: ids }, projectId } }) : [];
+    const general = data.attachmentIds.flatMap((id) => found.filter((f) => f.id === id));
+    // Files under a heading, named as stored (not as the browser said).
+    answers = answers.map((a) => (a.files ? { ...a, files: a.files.flatMap((f) => found.filter((x) => x.id === f.id).map((x) => ({ id: x.id, fileName: x.fileName }))) } : a));
+    const shots = general.filter((f) => /^(image|video)\//.test(f.contentType)).length;
+    const gaps = missing(layout, answers, shots);
+    if (gaps.length) throw new UserError(`Add ${listWords(gaps)} to report this bug.`);
+    const allFiles = [...general, ...found.filter((f) => sectionFileIds.includes(f.id) && !general.some((g) => g.id === f.id))];
+    answers = answers.map((a) => withFileNames(a, allFiles.map((f) => f.fileName)));
+    const summary = layoutTitle(layout.title, { platform: data.platform, area: data.area, build: data.build, summary: data.summary });
+    const keep = { templateName: name, layout: layout as unknown as Prisma.InputJsonValue, answers: answers as unknown as Prisma.InputJsonValue, description: answersText(answers) };
+    const client = await jiraFor(projectId);
+    const local = data.fromDefectId ? await db.defect.findFirst({ where: { id: data.fromDefectId, projectId } }) : null;
+    if (data.fromDefectId && !local) throw new UserError("That bug isn't in this test cycle anymore.");
+    if (local?.externalKey) throw new UserError(`That bug is already ${local.externalKey} in Jira.`);
+    if (!client) {
+      if (local) throw new UserError("Jira isn't connected for this test cycle.");
+      const { defectSeq } = await db.project.update({ where: { id: projectId }, data: { defectSeq: { increment: 1 } } });
+      const defect = await db.defect.create({ data: { projectId, number: defectSeq, title: summary, severity: data.severity, createdById: user.id, createdBy: user.name ?? user.email, ...keep } });
+      if (allFiles.length) await db.attachment.updateMany({ where: { id: { in: allFiles.map((f) => f.id) }, projectId }, data: { defectId: defect.id } });
+      return { defect: toLinked(defect), attachError: null as string | null, reporterNote: null as string | null, linkError: null as string | null };
+    }
+    if (data.regression) {
+      const reg = await entryRegression(project, entryId);
+      if (reg) {
+        client.labels = [reg.label];
+        client.leadLines = [reg.line];
+      }
+    }
+    const sentryRefs = parseSentryRefs(data.sentry);
+    if (sentryRefs.length) client.tailBlocks = sentryAdf(await sentryFrames(projectId, sentryRefs));
+    const { ctx } = await bugContext(projectId, entryId, data.stepIndex, data.actual);
+    const account = await jiraAccountOf(client, user);
+    const tester = user.name ?? user.email;
+    // Jira fields copied from an example bug, filled as an imported template fills them.
+    const meta = layout.fields.length ? await client.createMeta().catch(() => null) : null;
+    const fields: Record<string, { name: string; value: unknown }> = {};
+    const extra: { name: string; text: string }[] = [];
+    for (const f of layout.fields) {
+      const value = (data.fields[f.id] ?? []).map((v) => v.trim()).filter(Boolean);
+      if (!value.length) continue;
+      const m = metaFor(meta, f);
+      const known = m && (m.options.length ? value.every((v) => m.options.includes(v)) : !isPick(m));
+      const jira = m && known ? jiraValue(m, m.schema.type === "array" ? value : value[0]) : undefined;
+      if (m && jira !== undefined) fields[m.id] = { name: f.name, value: jira };
+      else extra.push({ name: f.name, text: value.join(", ") });
+    }
+    const missingRequired = layout.fields.filter((f) => f.required && !(data.fields[f.id] ?? []).some((v) => v.trim()));
+    if (missingRequired.length) throw new UserError(`Fill in ${listWords(missingRequired.map((f) => f.name))} for Jira.`);
+    const valueOf = new Map(layout.fields.map((f) => [f.name, (data.fields[f.id] ?? []).join(", ")]));
+    const trace = { label: `${ctx.caseKey} in ${ctx.runLabel}`, link: ctx.link };
+    const { key, reporterSet } = await client.createIssue({
+      summary,
+      description: (left) =>
+        answersAdf(answers, {
+          reportedBy: account && left.reporterSet ? null : tester,
+          extra: [...extra, ...left.dropped.filter((n) => valueOf.get(n)).map((n) => ({ name: n, text: valueOf.get(n)! }))],
+          trace,
+        }),
+      severity: data.severity,
+      reporterId: account?.accountId,
+      fields,
+    });
+    let attachError: string | null = null;
+    let linkError: string | null = null;
+    try {
+      await client.attach(key, allFiles.map((f) => ({ fileName: f.fileName, contentType: f.contentType, data: f.data })));
+    } catch (e) {
+      attachError = e instanceof Error ? e.message : "Attachments failed to upload.";
+    }
+    const reporterNote =
+      account && !reporterSet ? `Jira wouldn't let Flaw Patrol set you as the reporter of ${key}, so your name is in its description instead. Ask a Flaw Patrol admin to check Settings → Jira.` : null;
+    const issue = await client.getIssue(key).catch(() => ({ key, summary, status: "", category: "new", url: `${client.creds.siteUrl}/browse/${key}`, severity: null, priority: "", type: "", parent: null }));
+    const mirrored = local
+      ? await db.defect.update({
+          where: { id: local.id },
+          data: {
+            externalKey: issue.key,
+            title: issue.summary || summary,
+            externalUrl: issue.url,
+            externalStatus: issue.status || null,
+            externalCategory: issue.category || null,
+            externalPriority: issue.priority || null,
+            severity: issue.severity ?? data.severity,
+            status: issue.category === "done" ? "FIXED" : local.status,
+            syncedAt: new Date(),
+          },
+        })
+      : await upsertFromIssue(projectId, issue, user, data.severity);
+    const defect = await db.defect.update({ where: { id: mirrored.id }, data: keep });
+    if (allFiles.length) await db.attachment.updateMany({ where: { id: { in: allFiles.map((f) => f.id) }, projectId }, data: { defectId: defect.id } });
+    if (local) revalidatePath(`/p/${project.key}`, "layout");
+    if (data.stories.length) {
+      const own = await db.runEntry.findFirst({ where: { id: entryId }, select: { testCase: { select: { jiraStories: true } } } });
+      const failed: string[] = [];
+      for (const story of data.stories.filter((k) => own?.testCase.jiraStories.includes(k))) await client.relate(key, story).catch(() => failed.push(story));
+      if (failed.length) linkError = `${key} was created, but Jira wouldn't link it to ${failed.join(", ")}.`;
+    }
+    await alertBugFiled(project, { key, url: issue.url, title: issue.summary || summary, severity: data.severity }, { tester, caseKey: ctx.caseKey, step: data.stepIndex }).catch(() => {});
+    return { defect: toLinked(defect), attachError, reporterNote, linkError };
+  });
+}
+
+const rowSchema = z.object({
+  defectId: z.string().min(1).max(40),
+  answerId: z.string().min(1).max(40),
+  cells: z.array(z.string().max(2000)).max(12),
+  attachmentIds: z.array(z.string()).max(10).default([]),
+});
+
+/**
+ * I saw it again (ver_119): one more row in a bug's growing table. The automatic cells come
+ * filled in from the person's run and browser; with Jira connected the Jira bug's table updates too.
+ */
+export async function addBugRow(projectId: string, input: z.input<typeof rowSchema>) {
+  return wrap(async () => {
+    const { project } = await requireProjectAction(projectId, "run:execute");
+    const data = rowSchema.parse(input);
+    const defect = await db.defect.findFirst({ where: { id: data.defectId, projectId } });
+    if (!defect) throw new UserError("That bug isn't in this test cycle anymore.");
+    const answers = parseAnswers(defect.answers);
+    const at = answers.findIndex((a) => a.id === data.answerId && a.rows && a.columns && a.growing);
+    if (at < 0) throw new UserError("This bug has no table to add a row to.");
+    const a = answers[at];
+    const files = data.attachmentIds.length ? await db.attachment.findMany({ where: { id: { in: data.attachmentIds }, projectId } }) : [];
+    const row = a.columns!.map((c, i) => (c.fill === "files" ? files.map((f) => f.fileName).join("\n") || "None" : (data.cells[i] ?? "").trim()));
+    if (!row.some((c) => c && c !== "None")) throw new UserError("Fill in at least one cell.");
+    answers[at] = { ...a, rows: [...a.rows!, row].slice(-200) };
+    let jiraError: string | null = null;
+    if (defect.externalKey) {
+      const client = await jiraFor(projectId);
+      if (client) {
+        try {
+          if (files.length) await client.attach(defect.externalKey, files.map((f) => ({ fileName: f.fileName, contentType: f.contentType, data: f.data })));
+          await client.setDescription(defect.externalKey, answersAdf(answers, { trace: { label: `Updated from Flaw Patrol`, link: null } }));
+        } catch (e) {
+          jiraError = `The row is saved here, but Jira didn't take it: ${e instanceof Error ? e.message : "it couldn't be reached"}.`;
+        }
+      }
+    }
+    await db.defect.update({ where: { id: defect.id }, data: { answers: answers as unknown as Prisma.InputJsonValue, description: answersText(answers) } });
+    if (files.length) await db.attachment.updateMany({ where: { id: { in: files.map((f) => f.id) } }, data: { defectId: defect.id } });
+    revalidatePath(`/p/${project.key}`, "layout");
+    revalidatePath("/g", "layout");
+    return { rows: answers[at].rows!, jiraError };
+  });
+}
+
+/** The automatic cells a new row on a bug starts with, for the person adding it. */
+export async function bugRowStart(projectId: string) {
+  return wrap(async () => {
+    const { user } = await requireProjectAction(projectId, "run:execute");
+    // Their latest run in this test cycle gives the build and environment.
+    const run = await db.testRun.findFirst({ where: { projectId, entries: { some: { results: { some: { testerId: user.id } } } } }, orderBy: { createdAt: "desc" }, select: { name: true, build: true, release: true, environment: true } });
+    return { who: user.name ?? user.email, build: run?.build || run?.release || "", env: run?.environment ?? "", runName: run?.name ?? "" };
   });
 }

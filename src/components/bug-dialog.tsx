@@ -9,7 +9,11 @@ import { DEFAULT_SEVERITY, defaultSeverityOf, PLAIN_SCALE, type SeverityScale } 
 import type { ImportedDraft, LinkedDefect, ReporterInfo } from "@/server/jira";
 import type { KnownBug } from "@/lib/known-bugs";
 import { importedTitle } from "@/lib/bug-template";
-import { createLocalDefect, fileJiraBug, linkJiraIssue, previewJiraBug, searchJira } from "@/server/jira";
+import { createLocalDefect, fileJiraBug, fileTemplatedBug, linkJiraIssue, previewJiraBug, searchJira, startTemplatedBug } from "@/server/jira";
+import { bugTemplateChoices } from "@/server/bug-templates";
+import type { CurrentLayout } from "@/lib/bug-templates-data";
+import { deviceCell, nowCell, startAnswers, type Answer } from "@/lib/bug-layout";
+import { missingLine, TemplatedForm, TemplatePicker, type TemplateChoice, type TemplatedDraft } from "./templated-bug-form";
 import { uploadAttachment } from "@/server/results";
 import { BugFiles, type BugCapture, type BugFile } from "./bug-files";
 import { BugTemplateForm, type TemplateOptions } from "./bug-template-form";
@@ -121,10 +125,17 @@ export function BugDialog({
   const [filed, setFiled] = useState<{ key: string; notes: string[] } | null>(null);
   const [pending, start] = useTransition();
   const [searching, startSearch] = useTransition();
+  // Bug templates (ver_119): the team's list, which one is picked, and the bug being filled in with it.
+  const [choices, setChoices] = useState<{ current: CurrentLayout; templates: TemplateChoice[] } | null>(null);
+  const [chosen, setChosen] = useState("");
+  const [draft, setDraft] = useState<TemplatedDraft | null>(null);
+  const [loadingTemplate, startTemplate] = useTransition();
   // Where a file made in the box came from, as the chips say it: "Step 3", "Whole case".
   const here = stepLabel.charAt(0).toUpperCase() + stepLabel.slice(1);
   const files = [...attachments, ...added.filter((a) => !attachments.some((b) => b.id === a.id))];
   const candidates = others.filter((o) => !files.some((f) => f.id === o.id));
+  // Screenshots and videos ticked for the bug, for a template that needs one (ver_119).
+  const shots = files.filter((f) => include.has(f.id) && /^(image|video)\//.test(f.contentType)).length;
   const pick = (picked: Attached[]) => {
     setAdded((x) => [...x, ...picked]);
     setInclude((s) => new Set([...s, ...picked.map((p) => p.id)]));
@@ -174,6 +185,13 @@ export function BugDialog({
     setSentrySearch(false);
     setLinkTo(new Set(linkStories ? stories.map((x) => x.key) : []));
     setNotThis([]);
+    setDraft(null);
+    setChosen("");
+    void bugTemplateChoices(projectId).then((res) => {
+      if (!res.ok) return;
+      setChoices(res.templates.length ? { current: res.current, templates: res.templates } : null);
+      if (res.defaultId) pickTemplate(res.defaultId, res.templates, null);
+    });
     if (!jiraConnected) {
       setSummary(prefill?.title ?? suggested ?? (stepIndex === null ? "" : `${stepLabel} failed`));
       if (prefill) setSeverity(prefill.severity);
@@ -217,6 +235,34 @@ export function BugDialog({
     return () => clearTimeout(t);
   }, [q, tab, open, jiraConnected, projectId]);
 
+  /** Switch template: what was typed under a heading with the same name comes along. */
+  const pickTemplate = (id: string, list = choices?.templates ?? [], before: TemplatedDraft | null = draft) => {
+    setChosen(id);
+    if (!id) return setDraft(null);
+    const t = list.find((x) => x.id === id);
+    if (!t) return;
+    startTemplate(async () => {
+      const res = await startTemplatedBug(projectId, entryId, stepIndex, actual, id);
+      if (!res.ok) return setError(res.error);
+      const auto = { ...res.auto, now: nowCell(), device: deviceCell(navigator.userAgent) };
+      const typed = new Map((before?.answers ?? []).filter((a) => a.text.trim()).map((a) => [a.heading.trim().toLowerCase(), a] as const));
+      const answers: Answer[] = startAnswers(t.layout, res.fill, auto).map((a) => {
+        const old = typed.get(a.heading.trim().toLowerCase());
+        return old && !a.rows && (a.source === old.source || a.source === "text" || a.source === "actual") ? { ...a, text: old.text } : a;
+      });
+      setDraft({
+        templateId: id,
+        layout: t.layout,
+        platform: before?.platform ?? res.platform,
+        area: before?.area ?? res.area,
+        build: before?.build ?? res.build,
+        summary: before?.summary || fromDefect?.title || prefill?.title || res.summary,
+        answers,
+        fields: res.fields,
+      });
+    });
+  };
+
   const done = (d: LinkedDefect) => {
     onLinked(d);
     onClose();
@@ -225,6 +271,32 @@ export function BugDialog({
   const create = () =>
     start(async () => {
       setError(null);
+      if (draft) {
+        const ordered = [...orderFiles(files).media, ...orderFiles(files).logs].filter((a) => include.has(a.id)).map((a) => a.id);
+        const res = await fileTemplatedBug(projectId, entryId, {
+          templateId: draft.templateId,
+          summary: draft.summary,
+          platform: draft.platform,
+          area: draft.area,
+          build: draft.build,
+          severity,
+          stepIndex,
+          actual,
+          answers: draft.answers,
+          attachmentIds: ordered,
+          fields: Object.fromEntries(draft.fields.map((f) => [f.id, f.value])),
+          stories: [...linkTo],
+          regression: !!regression && markReg,
+          sentry: sentryList,
+          ...(fromDefect && { fromDefectId: fromDefect.id }),
+        });
+        if (!res.ok) return setError(res.error);
+        const notes = [res.attachError && `${res.defect.externalKey} was created, but attaching files failed: ${res.attachError}`, res.reporterNote, res.linkError].filter((n): n is string => !!n);
+        if (!notes.length) return done(res.defect);
+        onLinked(res.defect);
+        setFiled({ key: res.defect.externalKey ?? `#${res.defect.number}`, notes });
+        return;
+      }
       if (!jiraConnected) {
         const res = await createLocalDefect(projectId, { title: summary, severity });
         return res.ok ? done(res.defect) : setError(res.error);
@@ -370,7 +442,20 @@ export function BugDialog({
                 create();
               }}
             >
-              {template ? (
+              {choices && <TemplatePicker current={choices.current} templates={choices.templates} value={chosen} onChange={(id) => pickTemplate(id)} />}
+              {chosen ? (
+                draft && draft.templateId === chosen ? (
+                  <>
+                    {reporter && jiraConnected && <ReporterLine reporter={reporter} />}
+                    <TemplatedForm projectId={projectId} draft={draft} setDraft={(fn) => setDraft((d) => (d ? fn(d) : d))} severity={severity} setSeverity={setSeverity} scale={scale} setError={setError} />
+                    <BugFiles files={files} include={include} setInclude={setInclude} candidates={candidates} onPick={pick} onUpload={upload} capture={capture} uploading={uploading} />
+                  </>
+                ) : (
+                  <p className="text-sm text-slate-500" role="status">
+                    {loadingTemplate ? "Opening the template…" : "Pick a template."}
+                  </p>
+                )
+              ) : template ? (
                 <>
                   {reporter && <ReporterLine reporter={reporter} />}
                   <BugTemplateForm
@@ -489,7 +574,12 @@ export function BugDialog({
                 </label>
               )}
               <RecordingBar r={recorder} inline />
-              <div className="flex justify-end gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {chosen && draft && missingLine(draft, shots) && (
+                  <span className="text-xs text-amber-800" data-testid="template-missing">
+                    {missingLine(draft, shots)}
+                  </span>
+                )}
                 <Button onClick={onClose}>Cancel</Button>
                 <Button
                   type="submit"
@@ -498,7 +588,9 @@ export function BugDialog({
                     pending ||
                     uploading ||
                     recorder.rec !== null ||
-                    (template
+                    (chosen
+                      ? !draft || draft.templateId !== chosen || !!missingLine(draft, shots)
+                      : template
                       ? !template.brief.trim() || !template.reproSteps.trim()
                       : imported
                         ? !imported.summary.trim() || !sevPicked || imported.fields.some((f) => f.required && !f.value.some((v) => v.trim()))
