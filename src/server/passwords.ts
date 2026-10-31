@@ -5,7 +5,8 @@ import { unstable_rethrow } from "next/navigation";
 import { mayJoin, passwordSignInOn, signIn } from "@/auth";
 import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
-import { emailInvite, INVITE_DAYS, newLink, placeName, RESET_HOURS } from "@/lib/invites";
+import { emailInvite, newLink, placeName, RESET_HOURS } from "@/lib/invites";
+import { inviteMessage } from "@/lib/invite-message";
 import { mailOn, sendMail } from "@/lib/mail";
 import { hashLinkToken, hashPassword, passwordProblem, verifyPassword } from "@/lib/password";
 import { requireProjectAction, requireUser } from "@/lib/session";
@@ -136,13 +137,11 @@ export async function sendInvite(projectId: string, userId: string) {
 /** Copy invite link: a one-time link to paste into chat when email isn't set up (or didn't arrive). */
 export async function copyInviteLink(projectId: string, userId: string) {
   return attempt(async () => {
-    const { admin, member } = await memberFor(projectId, userId);
+    const { admin } = await memberFor(projectId, userId);
     const link = await newLink(userId, "invite", admin.id);
     const place = await placeName(projectId);
-    return {
-      url: link.url,
-      message: `You're invited to ${place} in Flaw Patrol. Accept here: ${link.url} (works once, expires in ${INVITE_DAYS} days). Use ${member.user.email}.`,
-    };
+    // Same words as the message after Add (ver_114).
+    return { url: link.url, message: inviteMessage(place, link.url) };
   });
 }
 

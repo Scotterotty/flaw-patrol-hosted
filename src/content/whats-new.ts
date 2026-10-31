@@ -22,6 +22,24 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 114,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "fix",
+        title: "Invites now come with the link people need",
+        text: "When you add someone new in Settings → Members and email isn't set up, the message to copy now has their one-time invite link. Before, it only pointed to the sign-in page, which couldn't let them in.",
+        who: "admin",
+      },
+      {
+        kind: "better",
+        title: "See when an invite link runs out",
+        text: "People who haven't signed in yet show \"link works until\" a date on the Members list. Past that date, use Copy invite link to make a new one.",
+        who: "admin",
+      },
+    ],
+  },
+  {
     version: 113,
     date: "2026-10-31",
     items: [

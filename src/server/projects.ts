@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
-import { emailInvite, mailOn } from "@/lib/invites";
+import { emailInvite, mailOn, newLink, placeName } from "@/lib/invites";
+import { inviteMessage } from "@/lib/invite-message";
 import { ROLE_LABEL } from "@/lib/permissions";
 import { requireProjectAction, requireUser } from "@/lib/session";
 import { syncUmbrellaMembers } from "@/lib/umbrella";
@@ -68,10 +69,19 @@ export async function addMember(projectId: string, input: { email: string; role:
       project,
       detail: emailed ? "Invite emailed" : emailError ? "Invite email failed" : "",
     });
+    // Not emailed (email off, unticked, or it failed): someone new gets their one-time invite link
+    // in the message to copy (ver_114). The sign-in page alone can't let them in.
+    let inviteUrl: string | null = null;
+    let message: string | null = null;
+    if (!emailed && !user.lastLoginAt && !user.passwordSetAt) {
+      const link = await newLink(user.id, "invite", admin.id);
+      inviteUrl = link.url;
+      message = inviteMessage(await placeName(projectId), link.url);
+    }
     revalidatePath(`/p/${project.key}/settings`);
     revalidatePath("/g/[id]/settings", "page");
-    // Someone who already has a password just signs in; a new person chooses one the first time.
-    return { email, role, hasPassword: !!user.passwordSetAt, userId: user.id, emailed, emailError };
+    // Someone who already uses Flaw Patrol just signs in as usual.
+    return { email, role, hasPassword: !!user.passwordSetAt, userId: user.id, emailed, emailError, inviteUrl, message };
   });
 }
 

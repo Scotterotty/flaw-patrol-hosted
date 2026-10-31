@@ -6,13 +6,14 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { ROLE_LABEL, ROLES_PICK } from "@/lib/permissions";
 import { relativeTime } from "@/lib/format";
+import { linkUntil } from "@/lib/invite-message";
 import { copyInviteLink, createPasswordLink, emailPasswordLink, sendInvite } from "@/server/passwords";
 import { addMember, changeRole, removeMember, updateProject } from "@/server/projects";
 import { Avatar } from "./avatar";
 import { RoleBadge } from "./badges";
-import { Button, Card, ErrorText, Field, InfoTip, Input, Select, Textarea } from "./ui";
+import { Button, Card, ErrorText, Field, Input, Select, Textarea } from "./ui";
 
-type Member = { userId: string; email: string; name: string | null; role: Role; signedIn: boolean; hasPassword: boolean; avatarAt: Date | null; inviteSentAt?: Date | null; title: string | null; frame: string | null };
+type Member = { userId: string; email: string; name: string | null; role: Role; signedIn: boolean; hasPassword: boolean; avatarAt: Date | null; inviteSentAt?: Date | null; inviteUntil?: Date | null; title: string | null; frame: string | null };
 
 
 export function MembersPanel({ projectId, members, canManage, me, canEmail = false, nudge }: { projectId: string; members: Member[]; canManage: boolean; me: string; canEmail?: boolean; nudge?: ReactNode }) {
@@ -23,7 +24,7 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
   const [role, setRole] = useState<Role>("TESTER");
   const [link, setLink] = useState<{ userId: string; url: string; hours: number } | null>(null);
   const [inviteLink, setInviteLink] = useState<{ userId: string; message: string } | null>(null);
-  const [invited, setInvited] = useState<{ email: string; role: Role; hasPassword: boolean; failed: boolean } | null>(null);
+  const [invited, setInvited] = useState<{ email: string; role: Role; hasPassword: boolean; failed: boolean; message: string | null } | null>(null);
   const [sendIt, setSendIt] = useState(true);
   const [sent, setSent] = useState<string | null>(null);
 
@@ -55,10 +56,13 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
                 {m.name ?? m.email}
                 {m.title && <span className="font-normal text-slate-500"> · {m.title}</span>} {m.userId === me && <span className="text-xs font-normal text-slate-400">(you)</span>}
               </p>
-              <p className="truncate text-xs text-slate-500">
+              {/* Dates are shown in the viewer's time zone, which can differ from the server's. */}
+              <p className="truncate text-xs text-slate-500" suppressHydrationWarning>
                 {[
                   m.name && m.email,
                   !m.signedIn ? (m.inviteSentAt ? `invited · email sent ${relativeTime(new Date(m.inviteSentAt))}` : "invited, hasn't signed in yet") : !m.hasPassword && "no password yet (send a password link)",
+                  // When their invite link runs out (ver_114), so you know when to copy a new one.
+                  !m.signedIn && !m.hasPassword && m.inviteUntil && (new Date(m.inviteUntil) > new Date() ? `link works until ${linkUntil(new Date(m.inviteUntil))}` : "link ran out, copy a new one"),
                 ]
                   .filter(Boolean)
                   .join(" · ")}
@@ -110,6 +114,8 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
                         setError(null);
                         setInviteLink({ userId: m.userId, message: res.message });
                         navigator.clipboard?.writeText(res.message).catch(() => {});
+                        // The row's "link works until" moves to the new link's date.
+                        router.refresh();
                       })
                     }
                   >
@@ -201,8 +207,8 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
               setInvited(null);
               if (res.ok) {
                 setEmail("");
-                if (res.emailed) setSent(`Invite sent to ${res.email}`);
-                else setInvited({ email: res.email, role: res.role, hasPassword: res.hasPassword, failed: !!res.emailError });
+                if (res.emailed) setSent(`Invite sent to ${res.email}. Not there? Use Copy invite link on their row.`);
+                else setInvited({ email: res.email, role: res.role, hasPassword: res.hasPassword, failed: !!res.emailError, message: res.message });
               }
               router.refresh();
             });
@@ -224,13 +230,17 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
             Add
           </Button>
           {/* The hint sits under the whole row so the role and Add line up with the email box (ver_94). */}
-          <p className="-mt-1 w-full text-xs text-slate-500">They sign in with this email and choose a password the first time.</p>
-          {canEmail && (
-            <label className="flex w-full items-center gap-2 text-sm text-slate-700">
-              <input type="checkbox" checked={sendIt} onChange={(e) => setSendIt(e.target.checked)} className="accent-accent-600" />
-              Email them an invite
-              <InfoTip text="Untick to copy the invite message yourself instead." />
-            </label>
+          {/* ver_114: the old "choose a password the first time" hint wasn't true; new people need their invite link. */}
+          {canEmail ? (
+            <div className="w-full">
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={sendIt} onChange={(e) => setSendIt(e.target.checked)} className="accent-accent-600" />
+                Email them an invite link
+              </label>
+              <p className="mt-0.5 text-xs text-slate-500">The email has a link that lets them in once and works for 7 days. Untick it to copy the message yourself.</p>
+            </div>
+          ) : (
+            <p className="-mt-1 w-full text-xs text-slate-500">You&apos;ll get a link to send them. It lets them in once and works for 7 days.</p>
           )}
         </form>
       )}
@@ -245,12 +255,12 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
 }
 
 /** Without email set up (or when sending failed), after Add the admin gets a message to paste into Teams, Slack or email. */
-export function InviteNote({ email, role, hasPassword, name, failed = false, onClose }: { email: string; role: Role; hasPassword: boolean; name: string | null; failed?: boolean; onClose: () => void }) {
+export function InviteNote({ email, role, hasPassword, name, failed = false, message: invite = null, onClose }: { email: string; role: Role; hasPassword: boolean; name: string | null; failed?: boolean; message?: string | null; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
   const signIn = typeof window === "undefined" ? "/signin" : `${window.location.origin}/signin`;
-  const message = hasPassword
-    ? `You've been added to a team in Flaw Patrol. Sign in at ${signIn} with ${email} and your usual password.`
-    : `You're invited to Flaw Patrol. Sign in at ${signIn} with ${email} and choose a password.`;
+  // Someone new gets their one-time invite link (ver_114); someone who already uses Flaw Patrol signs in as usual.
+  const message =
+    invite ?? `You've been added to a team in Flaw Patrol. Sign in at ${signIn} with ${email}${hasPassword ? " and your usual password" : ""}.`;
   const who = name ?? email;
   return (
     <div role="status" className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
@@ -259,7 +269,7 @@ export function InviteNote({ email, role, hasPassword, name, failed = false, onC
           <b>
             {who} was added as {ROLE_LABEL[role]}.
           </b>{" "}
-          {failed ? "Couldn't send the invite email, so send them this:" : "No email goes out, so send them this:"}
+          {failed ? "Couldn't send the invite email, so send them this instead:" : invite ? "Send them this so they can get in:" : "Send them this:"}
         </p>
         <button type="button" onClick={onClose} aria-label="Hide invite message" className="rounded px-1.5 text-emerald-700 hover:bg-emerald-100">
           ×
@@ -278,9 +288,9 @@ export function InviteNote({ email, role, hasPassword, name, failed = false, onC
             );
           }}
         >
-          Copy invite message
+          Copy message
         </Button>
-        {copied && <span className="text-xs text-emerald-700">Copied</span>}
+        {copied ? <span className="text-xs text-emerald-700">Copied</span> : <span className="text-xs text-emerald-800/80">Paste it into Slack, Teams or an email.</span>}
       </div>
     </div>
   );

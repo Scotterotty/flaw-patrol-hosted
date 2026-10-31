@@ -42,10 +42,11 @@ test("invite message, Test cycles label, roomier runner, underlined links and Sk
   await page.getByRole("combobox", { name: "Role", exact: true }).selectOption("LEAD");
   await page.getByRole("button", { name: "Add", exact: true }).click();
   const note = page.getByRole("status").filter({ hasText: "was added as Lead" });
-  await expect(note).toContainText("No email goes out, so send them this:");
-  const message = `You're invited to Flaw Patrol. Sign in at http://localhost:3100/signin with lee.${TAG.toLowerCase()}@acme.test and choose a password.`;
-  await expect(note.getByTestId("invite-message")).toHaveText(message);
-  await note.getByRole("button", { name: "Copy invite message" }).click();
+  // ver_114: the message carries their one-time invite link, not the plain sign-in page.
+  await expect(note).toContainText("Send them this so they can get in:");
+  const message = (await note.getByTestId("invite-message").textContent()) ?? "";
+  expect(message).toMatch(new RegExp(`^You're invited to ${NAME} in Flaw Patrol\\. Open this link to choose your password and sign in: http://localhost:3100/invite/\\S+ \\(works once, for 7 days\\)$`));
+  await note.getByRole("button", { name: "Copy message" }).click();
   await expect(note.getByText("Copied")).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(message);
   await page.goto(home);

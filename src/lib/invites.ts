@@ -4,13 +4,14 @@ import { headers } from "next/headers";
 import { db } from "./db";
 import { mailOn, sendMail } from "./mail";
 import { newLinkToken } from "./password";
+import { INVITE_LINK_DAYS } from "./invite-message";
 import { ROLE_LABEL } from "./permissions";
 import { signInButtons } from "./sign-in-config";
 
 // Invite links (ver_92): one-time, 7 days, so a new person lands on a page made
 // for them. Emailed when Workspace settings → Email is set up, else copied by hand.
 
-export const INVITE_DAYS = 7;
+export const INVITE_DAYS = INVITE_LINK_DAYS;
 export const RESET_HOURS = 24;
 
 export async function appOrigin() {
@@ -77,8 +78,17 @@ export async function inviteEmails(userIds: string[]) {
   return new Map(rows.map((r) => [r.userId, r.emailedAt!]));
 }
 
-/** What the Members list needs to offer email: whether it's set up, and when invites went out. */
+/**
+ * When each person's latest invite link runs out (ver_114), for "link works until Nov 7".
+ * A used link doesn't count; an expired one still shows, so admins know to copy a new one.
+ */
+export async function inviteLinkEnds(userIds: string[]) {
+  const rows = await db.passwordLink.findMany({ where: { userId: { in: userIds }, kind: "invite", usedAt: null }, select: { userId: true, expiresAt: true }, orderBy: { createdAt: "asc" } });
+  return new Map(rows.map((r) => [r.userId, r.expiresAt]));
+}
+
+/** What the Members list needs to offer email: whether it's set up, when invites went out, and when links run out. */
 export async function memberInviteInfo(userIds: string[]) {
-  const [canEmail, sent] = await Promise.all([mailOn(), inviteEmails(userIds)]);
-  return { canEmail, sent };
+  const [canEmail, sent, until] = await Promise.all([mailOn(), inviteEmails(userIds), inviteLinkEnds(userIds)]);
+  return { canEmail, sent, until };
 }
