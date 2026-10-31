@@ -3,8 +3,7 @@ import { titleWithTags } from "@/lib/tags";
 import { tagColorsFor } from "@/lib/tag-data";
 import { sentryConnected } from "@/lib/sentry-config";
 import { SentryCard } from "@/components/sentry-card";
-import { resultSteps } from "@/lib/result-steps";
-import { headingRows, withoutHeadings } from "@/lib/step-checks";
+import { headingRows } from "@/lib/step-checks";
 import { Fragment } from "react";
 import { CrumbName } from "@/components/crumb-name";
 import Link from "next/link";
@@ -22,8 +21,8 @@ import { LiveRefresh } from "@/components/live-refresh";
 import { HandOffNote } from "@/components/hand-off-note";
 import { AutomatedRun } from "./automated-run";
 import { RunEntries } from "@/components/run-entries";
+import { liveRowOf } from "@/lib/live-rows-data";
 import { flakyCases } from "@/lib/flaky";
-import { parseDraft } from "@/lib/run-draft";
 import { RunSheetButton, RunSheetStatus, type SheetState } from "@/components/run-sheet";
 import { StatusBar, StatusLegend } from "@/components/status";
 import { Badge, buttonClass, Card, LinkButton } from "@/components/ui";
@@ -53,6 +52,8 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   // FP_TIMING=1 prints how long each part took (ver_108). The independent lookups run side by
   // side instead of one after another, so the page shows sooner after Start.
   const timing = startTiming("Run page");
+  // Live rows read after this replace the list's rows straight away (ver_112).
+  const renderedAt = Date.now();
   const { key, number } = await params;
   const { handed, compare } = await searchParams;
   const [spelling, { project, user, who }] = await Promise.all([mySpelling(), timing.step("sign-in and project", projectAccess(key))]);
@@ -142,7 +143,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
 
   return (
     <div className="mx-auto max-w-6xl">
-      <LiveRefresh url={`/api/live/runs/${run.id}`} />
+      <LiveRefresh url={`/api/live/runs/${run.id}`} rows renderedAt={renderedAt} />
       <CrumbName href={`/p/${project.key}/runs/${run.number}`} label={run.name} />
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -332,16 +333,14 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         meId={user.id}
         sort={sort}
         tagColors={tagColors}
+        renderedAt={renderedAt}
         rows={sortCases(run.entries, sort, (e) => e.priority, (e) => e.status).map((e) => ({
-          id: e.id,
           caseKey: caseKey(e.testCase.project.key, e.testCase.number),
           caseNumber: e.testCase.number,
           ...titleWithTags(e.title, e.testCase.tags),
           folderPath: e.folderPath,
           priority: e.priority,
           charter: e.kind === "EXPLORATORY",
-          status: e.status,
-          assigneeId: e.assigneeId,
           lastTestedAt: e.lastTestedAt?.toISOString() ?? null,
           defects: defectsByEntry.get(e.id)?.size ?? 0,
           known: knownMap.get(e.id)?.length ?? 0,
@@ -358,20 +357,8 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           })(),
           flaky: flaky.get(e.caseId),
           regression: reg.flagged.has(e.id) ? regressionTip(reg.against.get(e.id)!, spelling) : undefined,
-          progress:
-            e.status === "IN_PROGRESS"
-              ? ((d) => (d ? withoutHeadings(e.steps, d.stepResults).map((s) => s.status) : null))(parseDraft(e.draft))
-              : e.status !== "UNTESTED" && e.results[0]
-                ? resultSteps(e.results[0].stepResults, e.steps)
-                : null,
-          lastChange:
-            e.status === "IN_PROGRESS"
-              ? e.draftAt
-                ? { name: e.draftByName, at: e.draftAt.toISOString(), mine: e.draftById === user.id }
-                : null
-              : e.status !== "UNTESTED" && e.results[0]
-                ? { name: e.results[0].testerName, at: e.results[0].createdAt.toISOString(), mine: e.results[0].testerId === user.id, saved: true }
-                : null,
+          // Status, step pips and who last changed it, worked out the same way the live check does.
+          ...liveRowOf(e, user.id),
         }))}
       />
     </div>

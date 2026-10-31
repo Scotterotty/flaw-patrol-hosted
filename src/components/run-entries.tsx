@@ -6,11 +6,12 @@ import { useSpelling } from "@/components/spelling";
 import type { Priority, ResultStatus } from "@prisma/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Fragment, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import { relativeTime } from "@/lib/format";
 import { STATUSES, STATUS_LABEL, STATUS_STYLE } from "@/lib/status";
 import { assignEntries, markRunCasesRunBefore } from "@/server/runs";
 import { useLiveSteps } from "@/lib/live-steps";
+import { useLiveRow, useLiveRows, type LiveRow } from "@/lib/live-rows";
 import { PersonLabel } from "./avatar";
 import type { CaseSort } from "@/lib/case-sort";
 import { PriorityBadge, TypeBadge, FlakyBadge, RegressionBadge } from "./badges";
@@ -58,7 +59,8 @@ export function RunEntries({
   projectKey,
   runId,
   runNumber,
-  rows,
+  rows: drawnRows,
+  renderedAt,
   members,
   canManage,
   canRun,
@@ -72,6 +74,8 @@ export function RunEntries({
   runId: string;
   runNumber: number;
   rows: EntryRow[];
+  /** Server time the rows were read; live rows read later replace them (ver_112). */
+  renderedAt: number;
   members: { id: string; name: string; avatarAt?: Date | null; frame?: string | null; title?: string | null }[];
   canManage: boolean;
   /** Can record results in this run (it's open and they're allowed): lets them run just the selected cases. */
@@ -83,6 +87,18 @@ export function RunEntries({
   canMarkRunBefore?: boolean;
 }) {
   const spelling = useSpelling();
+  // Other people's progress from the live check, without waiting for the page to reload (ver_112).
+  const live = useLiveRows(renderedAt);
+  const rows = useMemo(
+    () =>
+      live
+        ? drawnRows.map((r) => {
+            const l = live.get(r.id);
+            return l ? { ...r, status: l.status, assigneeId: l.assigneeId, progress: l.progress, lastChange: l.lastChange } : r;
+          })
+        : drawnRows,
+    [live, drawnRows],
+  );
   const [status, setStatus] = useState("");
   const [onlyReg, setOnlyReg] = useState(false);
   // All / New / Updated (ver_96).
@@ -457,4 +473,30 @@ export function LiveStepProgress({ entryId, steps, lastChange }: { entryId: stri
   const shown = live?.steps ?? steps;
   if (!shown?.some((s) => s !== "UNTESTED")) return null;
   return <StepProgress compact steps={shown} lastChange={live ? { name: "", at: live.at, mine: true } : lastChange} />;
+}
+
+const saved = (s: ResultStatus) => s !== "IN_PROGRESS" && s !== "UNTESTED";
+
+/** A runner list row's status dot, kept current by the live check (ver_112). */
+export function LiveStatusPip({ id, status, renderedAt }: { id: string; status: ResultStatus; renderedAt: number }) {
+  const s = useLiveRow(id, renderedAt)?.status ?? status;
+  return <span className={cx("st-pip mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full", STATUS_STYLE[s].bar)} />;
+}
+
+/** A runner list row's status word, kept current by the live check (ver_112). */
+export function LiveStatusLabel({ id, status, renderedAt }: { id: string; status: ResultStatus; renderedAt: number }) {
+  const s = useLiveRow(id, renderedAt)?.status ?? status;
+  return <span className="text-xs text-slate-500">{STATUS_LABEL[s]}</span>;
+}
+
+/**
+ * A runner list row's step pips: a saved case keeps its last result's, a case in progress shows
+ * its step results so far and who's on it, and the open case follows the runner as you mark steps.
+ * Other people's changes come from the live check, so they show even while you're mid-case (ver_112).
+ */
+export function LiveEntryProgress({ row, current, renderedAt }: { row: LiveRow; current: boolean; renderedAt: number }) {
+  const r = useLiveRow(row.id, renderedAt) ?? row;
+  if (saved(r.status)) return r.progress ? <StepProgress compact steps={r.progress} lastChange={r.lastChange} /> : null;
+  if (current) return <LiveStepProgress entryId={r.id} steps={r.progress} lastChange={r.lastChange} />;
+  return r.status === "IN_PROGRESS" && r.progress ? <StepProgress compact steps={r.progress} lastChange={r.lastChange} /> : null;
 }

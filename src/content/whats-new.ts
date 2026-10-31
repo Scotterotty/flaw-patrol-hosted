@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 112,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "better",
+        title: "See your teammates' progress sooner",
+        text: "When someone starts a case or marks a step, the Run List in the runner and the list on the run page now show it within about a second or two, instead of 4 to 6 seconds. It also keeps updating while you're partway through your own case, where before it waited until you saved.",
+      },
+    ],
+  },
+  {
     version: 111,
     date: "2026-10-31",
     items: [

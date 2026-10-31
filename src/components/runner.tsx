@@ -90,7 +90,8 @@ export type PreviousResult = {
   attachments: Attachment[];
 };
 
-const LIVE_MS = 2000;
+// How often the open case checks for step results other people mark (every 2 s until ver_112).
+const LIVE_MS = 1000;
 
 
 export function Runner({

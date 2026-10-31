@@ -2,8 +2,7 @@ import { titleWithTags } from "@/lib/tags";
 import { tagColorsFor } from "@/lib/tag-data";
 import { TagPills } from "@/components/tag-pill";
 import { sentryConnected } from "@/lib/sentry-config";
-import { resultSteps } from "@/lib/result-steps";
-import { headingRows, withoutHeadings } from "@/lib/step-checks";
+import { headingRows } from "@/lib/step-checks";
 import { startTiming } from "@/lib/timing";
 import { CrumbName } from "@/components/crumb-name";
 import { fieldBits } from "@/lib/run-fields";
@@ -16,7 +15,8 @@ import { readCaseSort } from "@/lib/case-sort-server";
 import { notFound, redirect } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { LiveRefresh } from "@/components/live-refresh";
-import { LiveStepProgress, StepProgress } from "@/components/run-entries";
+import { LiveEntryProgress, LiveStatusLabel, LiveStatusPip } from "@/components/run-entries";
+import { liveRowOf } from "@/lib/live-rows-data";
 import { FlagIcon } from "@/components/case-flag";
 import { Runner } from "@/components/runner";
 import { RunListFold } from "@/components/runner-case-list";
@@ -28,7 +28,7 @@ import { RunnerHistory } from "@/components/runner-history";
 import { caseNewsForRun } from "@/lib/case-news-data";
 import { shortDate } from "@/lib/spelling";
 import { TakeCase } from "@/components/take-case";
-import { countStatuses, isOpen, pct, STATUS_STYLE, STATUS_LABEL, totals } from "@/lib/status";
+import { countStatuses, isOpen, pct, STATUS_LABEL, totals } from "@/lib/status";
 import { cx } from "@/components/ui";
 import { db } from "@/lib/db";
 import { parseDraft } from "@/lib/run-draft";
@@ -57,6 +57,8 @@ export default async function ExecutePage({
   // FP_TIMING=1 prints how long each part took. Lookups that don't need each other run side by
   // side instead of one after another, so Save and next opens the next case sooner (ver_111).
   const timing = startTiming("Runner");
+  // Live rows read after this replace the list's rows straight away (ver_112).
+  const renderedAt = Date.now();
   const { key, number } = await params;
   const sp = await searchParams;
   const [spelling, { project, user, who }] = await Promise.all([mySpelling(), timing.step("sign-in and project", projectAccess(key))]);
@@ -201,7 +203,7 @@ export default async function ExecutePage({
   );
   return (
     <div className="mx-auto flex max-w-[110rem] flex-col gap-5 lg:flex-row bigtext:flex-col">
-      <LiveRefresh url={`/api/live/runs/${run.id}`} />
+      <LiveRefresh url={`/api/live/runs/${run.id}`} rows renderedAt={renderedAt} />
       <CrumbName href={`/p/${project.key}/runs/${run.number}`} label={run.name} />
       <aside className="lg:w-80 lg:shrink-0 xl:w-96 2xl:w-[28rem] bigtext:w-auto">
         <div className="flex flex-col gap-3 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] bigtext:static bigtext:max-h-none">
@@ -255,7 +257,7 @@ export default async function ExecutePage({
                     )}
                     title={`${e.title} · ${STATUS_LABEL[e.status as ResultStatus]}`}
                   >
-                    <span className={cx("st-pip mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full", STATUS_STYLE[e.status as ResultStatus].bar)} />
+                    <LiveStatusPip id={e.id} status={e.status} renderedAt={renderedAt} />
                     <span className="min-w-0 flex-1">
                       <span className="line-clamp-2 leading-snug font-medium">
                         <TagPills tags={titleWithTags(e.title, e.testCase.tags).tags} colors={tagColors} /> {titleWithTags(e.title).title}
@@ -263,9 +265,7 @@ export default async function ExecutePage({
                       <span className="mt-1 flex items-center gap-2">
                         <span className="font-mono text-xs text-slate-500">{caseKey(e.testCase.project.key, e.testCase.number)}</span>
                         <PriorityBadge priority={e.priority} />
-                        <span className="text-xs text-slate-500">
-                          {STATUS_LABEL[e.status as ResultStatus]}
-                        </span>
+                        <LiveStatusLabel id={e.id} status={e.status} renderedAt={renderedAt} />
                         {flakyIds.has(e.caseId) && <FlakyBadge flips={flakyIds.get(e.caseId)!} compact />}
                         {e.testCase.flag && (
                           <span title={`Flagged: ${flagLabel(e.testCase.flag)}`} className="text-orange-500">
@@ -273,29 +273,7 @@ export default async function ExecutePage({
                           </span>
                         )}
                       </span>
-                      {e.status !== "IN_PROGRESS" && e.status !== "UNTESTED" ? (
-                        // Saved: the last result's steps, until you change one and it's In progress again.
-                        e.results[0] &&
-                        resultSteps(e.results[0].stepResults, e.steps) && (
-                          <StepProgress
-                            compact
-                            steps={resultSteps(e.results[0].stepResults, e.steps)!}
-                            lastChange={{ name: e.results[0].testerName, at: e.results[0].createdAt.toISOString(), mine: e.results[0].testerId === user.id, saved: true }}
-                          />
-                        )
-                      ) : e.id === pick.id ? (
-                        <LiveStepProgress
-                          entryId={e.id}
-                          steps={stepsOf(e.draft, e.steps)}
-                          lastChange={e.draftAt ? { name: e.draftByName, at: e.draftAt.toISOString(), mine: e.draftById === user.id } : null}
-                        />
-                      ) : e.status === "IN_PROGRESS" && stepsOf(e.draft, e.steps) && (
-                        <StepProgress
-                          compact
-                          steps={stepsOf(e.draft, e.steps)!}
-                          lastChange={e.draftAt ? { name: e.draftByName, at: e.draftAt.toISOString(), mine: e.draftById === user.id } : null}
-                        />
-                      )}
+                      <LiveEntryProgress row={liveRowOf(e, user.id)} current={e.id === pick.id} renderedAt={renderedAt} />
                     </span>
                     {e.assigneeId && people.has(e.assigneeId) && <Avatar person={people.get(e.assigneeId)!} size={20} />}
                   </Link>
@@ -407,10 +385,4 @@ export default async function ExecutePage({
       </div>
     </div>
   );
-}
-
-/** Step results so far of a case in progress, for its progress bars. Heading rows take no result. */
-function stepsOf(json: unknown, caseSteps: unknown) {
-  const steps = parseDraft(json)?.stepResults;
-  return steps?.length ? withoutHeadings(caseSteps, steps).map((s) => s.status) : null;
 }
