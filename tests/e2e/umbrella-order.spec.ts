@@ -90,17 +90,18 @@ test("archive several test cycles from one test cycle's Settings", async ({ page
     { key: `TK2${TAG}`, name: `${name} Web RC2` },
     { key: `TK3${TAG}`, name: `${name} Web RC3` },
   ]);
+  // ver_117: a test cycle's settings are its row in the umbrella's Settings; ⋯ → Archive… opens the card with it ticked.
   await page.goto(`/p/TK1${TAG}/settings`);
+  await page.getByTestId("cycle-settings").getByRole("button", { name: "More for Web RC1" }).click();
+  await page.getByRole("menuitem", { name: "Archive…" }).click();
   const card = page.getByTestId("archive-card");
-  await card.getByRole("button", { name: "Archive…" }).click();
-  // Test cycles is the starting choice, with the one you're on ticked.
   await expect(card.getByRole("radio", { name: "Test cycles" })).toHaveAttribute("aria-checked", "true");
   const list = card.getByRole("list", { name: "Test cycles to archive" });
   await expect(list.getByRole("checkbox", { name: new RegExp(`${name} Web RC1`) })).toBeChecked();
   await list.getByRole("checkbox", { name: new RegExp(`${name} Web RC2`) }).check();
   await card.getByRole("button", { name: "Archive 2 test cycles" }).click();
   await card.getByRole("button", { name: "Yes, archive 2" }).click();
-  await expect(card.getByRole("button", { name: "Restore this test cycle…" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Yes, archive 2" })).toHaveCount(0);
   const db = new PrismaClient();
   try {
     const rows = await db.project.findMany({ where: { name: { startsWith: `${name} ` } }, select: { name: true, archivedAt: true }, orderBy: { name: "asc" } });

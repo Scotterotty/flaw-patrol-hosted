@@ -22,6 +22,23 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 117,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "better",
+        title: "One Settings page for an umbrella and its test cycles",
+        text: "The left menu now has one Settings link. A Test cycles table at the bottom shows each test cycle's team, Jira and Slack, marked Same or Its own. Press Change on a row to set something different for that test cycle only. Test cycles under an umbrella no longer have a settings page of their own, and old links open their row.",
+        link: "/g/{umbrella}/settings#test-cycles",
+      },
+      {
+        kind: "new",
+        title: "Other settings, explained",
+        text: "Every settings page ends with a small box that says what Your account (only you) and Workspace settings (the whole company) are for.",
+      },
+    ],
+  },
+  {
     version: 116,
     date: "2026-10-31",
     items: [

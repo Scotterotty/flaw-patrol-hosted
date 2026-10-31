@@ -67,8 +67,10 @@ test("projects are made inside umbrellas: New umbrella makes its first projects,
   await page.getByRole("dialog").getByRole("radio", { name: new RegExp(`Loose ${TAG}`) }).check();
   await page.getByRole("button", { name: `Move into ${NAME}` }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  // ver_117: its old settings address opens its row in the umbrella's Settings.
   await page.goto(`/p/${LOOSE}/settings`);
-  await expect(page.getByText(`Part of ${NAME}`)).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/settings#cycle-${LOOSE.toLowerCase()}$`));
+  await expect(page.getByRole("heading", { name: new RegExp(`what's different from ${NAME}$`) })).toBeVisible();
 });
 
 test("a brand-new umbrella offers New project and Move in right on its hub", async ({ page }) => {

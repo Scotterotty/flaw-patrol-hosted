@@ -133,7 +133,8 @@ test("the umbrella's Bug template row leads to the import", async ({ page }) => 
   await page.goto(settingsUrl);
   await expect(row).toContainText("OKO bug layout (shared)");
   await expect(row.getByRole("button", { name: "Change", exact: true })).toBeVisible();
-  await expect(page.getByRole("cell").filter({ hasText: "OKO layout" })).toHaveCount(1);
+  // ver_117: the Test cycles table's Jira chip says the test cycle uses the umbrella's Jira and bug template.
+  await expect(page.getByTestId("cycle-settings").getByTitle(/Jira connection and bug template, set above/)).toHaveCount(1);
 
   // With no test cycles left, the box says so.
   const db = new PrismaClient();

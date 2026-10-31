@@ -24,6 +24,9 @@ import { APP_VERSION } from "@/lib/version";
 import { KeepSeparateSwitch } from "@/components/umbrella-ui";
 import { UmbrellaIcon } from "@/components/umbrella-nav";
 import { HashRedirect } from "@/components/settings-row";
+import { CycleSettingsRedirect } from "@/components/cycle-settings";
+import { OtherSettings } from "@/components/other-settings";
+import { loadUmbrella } from "@/lib/umbrella";
 
 export const metadata = { title: "Test cycle settings" };
 
@@ -32,6 +35,9 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
   // The umbrella's own library project has no settings page of its own: its team and Jira are on the umbrella's.
   const hubOf = await db.projectGroup.findUnique({ where: { hubProjectId: project.id }, select: { id: true, name: true } });
   if (hubOf) return <HashRedirect to={`/g/${hubOf.id}/settings`} />;
+  // Since ver_117 a test cycle under an umbrella is set in the umbrella's Settings → Test cycles, on its own row.
+  // Someone on a separate test cycle's team but not the umbrella's still gets this page.
+  if (project.groupId && (await loadUmbrella(project.groupId, user))) return <CycleSettingsRedirect groupId={project.groupId} cycleKey={project.key} />;
   const members = await db.projectMember.findMany({
     where: { projectId: project.id },
     include: { user: true },
@@ -68,12 +74,6 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <PageHeader title="Test cycle settings" subtitle={<>Test cycle key <code className="font-mono">{project.key}</code></>} />
-      <Card className="flex flex-wrap items-center justify-between gap-2 p-4 text-sm text-slate-600">
-        <span>Your name, picture, appearance, radio and password are on your own account page.</span>
-        <Link href="/account" className="font-medium text-accent-700 hover:underline">
-          Your account
-        </Link>
-      </Card>
       {umbrella && (
         <Card className="space-y-3 p-5">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
@@ -180,6 +180,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
       )}
       {/* One Archive… card: this test cycle, others in its umbrella, or the whole umbrella. */}
       {archive && <ArchiveCard data={archive} />}
+      <OtherSettings admin={user.isAdmin} />
       <p className="pt-2 text-center text-xs text-slate-400">
         Flaw Patrol version <span className="font-mono">{APP_VERSION}</span>
       </p>

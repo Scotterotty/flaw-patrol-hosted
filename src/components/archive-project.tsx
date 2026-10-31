@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { archiveProjects, setArchived } from "@/server/projects";
 import { setUmbrellaArchived } from "@/server/umbrella";
 import { Button, Card, cx, ErrorText, InfoTip } from "./ui";
@@ -57,6 +57,9 @@ export type ArchiveCardData = {
   } | null;
 };
 
+/** Sent with a test cycle's id to open the umbrella's Archive card with it ticked. */
+export const ARCHIVE_CYCLE_EVENT = "fp:archive-cycle";
+
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
 /** "OKO Web RC23" under OKO reads "Web RC23"; the full name stays on hover. */
@@ -93,6 +96,19 @@ export function ArchiveCard({ data }: { data: ArchiveCardData }) {
   const [asking, setAsking] = useState<null | "archive" | "restore-cycle" | "restore-umbrella" | "archive-one">(null);
   const { current, umbrella } = data;
   const [ticked, setTicked] = useState<Set<string>>(() => new Set(current && !current.archived ? [current.id] : []));
+  // ⋯ → Archive… on a Test cycles row (ver_117) opens this card with that test cycle ticked.
+  useEffect(() => {
+    const pick = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      setOpen(true);
+      setMode("cycles");
+      setAsking(null);
+      setTicked(new Set([id]));
+      requestAnimationFrame(() => document.getElementById("archive")?.scrollIntoView({ block: "start", behavior: "smooth" }));
+    };
+    window.addEventListener(ARCHIVE_CYCLE_EVENT, pick);
+    return () => window.removeEventListener(ARCHIVE_CYCLE_EVENT, pick);
+  }, []);
   const act = (fn: () => Promise<{ ok: true } | { ok: false; error: string }>) =>
     start(async () => {
       const r = await fn();

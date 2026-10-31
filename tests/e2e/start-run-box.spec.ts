@@ -83,7 +83,8 @@ test("one Start a run box: whole library, a suite or picked cases, in one or mor
   await expect(nav.getByRole("link", { name: "Shared steps" })).toBeVisible();
   await expect(nav.getByText("Test cycles · RC4")).toBeVisible();
   await expect(nav.getByRole("link", { name: "Unity", exact: true })).toHaveAttribute("aria-current", "page");
-  await expect(nav.getByRole("link", { name: "Unity RC4 settings" })).toBeVisible();
+  // ver_117: one Settings link for the umbrella and its test cycles.
+  await expect(nav.getByRole("link", { name: "Settings", exact: true })).toBeVisible();
   await expect(nav.locator("[aria-current=page]")).toHaveCount(1);
   await page.getByRole("button", { name: "Start a run" }).click();
   await pickKind(page);

@@ -7,7 +7,7 @@ import { DEFAULT_STORIES, parseStoriesConfig } from "@/lib/stories-config";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { EditGroupButton, type GroupChoice } from "@/components/group-dialogs";
-import { buttonClass, Card, InfoTip, PageHeader } from "@/components/ui";
+import { buttonClass, Card, PageHeader } from "@/components/ui";
 import { AddUmbrellaProject } from "@/components/umbrella-ui";
 import { ArchiveCard } from "@/components/archive-project";
 import { RolesCard } from "@/components/roles-card";
@@ -42,8 +42,14 @@ import { can } from "@/lib/permissions";
 import { requireUser } from "@/lib/session";
 import { bugTemplateView } from "@/lib/shared-template-data";
 import { loadUmbrella, looseProjects, platformColor } from "@/lib/umbrella";
+import { CycleSettingsTable, type CycleChip, type CycleRow } from "@/components/cycle-settings";
+import { CyclePanel } from "@/components/cycle-panel";
+import { OtherSettings } from "@/components/other-settings";
+import { cycleHash } from "@/lib/cycle-hash";
 
 export const metadata = { title: "Settings" };
+
+const MODES = ["umbrella", "choose", "off"] as const;
 
 const projectsOfSentry = (v: unknown) => (Array.isArray(v) ? v.filter((p): p is { id: string; slug: string } => !!p && typeof p.id === "string" && typeof p.slug === "string") : []);
 
@@ -57,7 +63,10 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
   const [jira, members, ownJira] = await Promise.all([
     db.jiraConfig.findUnique({ where: { projectId: u.hub.id } }),
     db.projectMember.findMany({ where: { projectId: u.hub.id }, include: { user: true }, orderBy: [{ role: "asc" }, { user: { email: "asc" } }] }),
-    db.jiraConfig.findMany({ where: { projectId: { in: u.projects.map((p) => p.id) } }, select: { projectId: true, jiraProjectKey: true, bugTemplate: true } }),
+    db.jiraConfig.findMany({
+      where: { projectId: { in: u.projects.map((p) => p.id) } },
+      select: { projectId: true, siteUrl: true, email: true, jiraProjectKey: true, issueType: true, tokenEncrypted: true, bugTemplate: true, stories: true, severity: true },
+    }),
   ]);
   const { template, shared } = await bugTemplateView(u.hub.id, user.email);
   const sentry = await db.sentryConfig.findUnique({ where: { projectId: u.hub.id } });
@@ -103,9 +112,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
   const ciText = ciTokens.length
     ? `${ciTokens.length} ${ciTokens.length === 1 ? "token" : "tokens"} · ${ciTokens.some((t) => t.lastUsedAt) ? `last upload ${relativeTime(new Date(Math.max(...ciTokens.map((t) => t.lastUsedAt?.getTime() ?? 0))), spelling)}` : "no uploads yet"}`
     : "Let your pipeline send its results file after every build, with no one pressing Upload.";
-  const own = new Map(ownJira.map((j) => [j.projectId, { key: j.jiraProjectKey, kind: templateKind(parseTemplateSettings(j.bugTemplate)) }]));
   const hubKind = templateKind(template);
-  const hubImported = hubKind !== "plain";
   const kindLabel = (k: "plain" | "imported" | "detailed") => (k === "imported" ? "Imported" : k === "detailed" ? "OKO layout" : "Plain layout");
   const whose = name.endsWith("s") ? `${name}'` : `${name}'s`;
   const site = jira?.siteUrl.replace(/^https?:\/\//, "");
@@ -144,16 +151,128 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
     }));
   }
 
+  // Test cycles (ver_117): each one's row in the table, with what it can set for itself opening below.
+  const cycles = [...u.current, ...u.older];
+  const ids = cycles.map((p) => p.id);
+  const [myRoles, cycleMembers, umbrellaChannelIds] = await Promise.all([
+    db.projectMember.findMany({ where: { userId: user.id, projectId: { in: ids } }, select: { projectId: true, role: true } }),
+    db.projectMember.findMany({ where: { projectId: { in: ids } }, include: { user: true }, orderBy: [{ role: "asc" }, { user: { email: "asc" } }] }),
+    Promise.resolve(slack.map((c) => c.id)),
+  ]);
+  const roleIn = new Map(myRoles.map((m) => [m.projectId, m.role]));
+  const cycleInvites = await memberInviteInfo([...new Set(cycleMembers.map((m) => m.userId))]);
+  const jiraOf = new Map(ownJira.map((j) => [j.projectId, j]));
+  const canArchiveCycles = !!archive?.umbrella?.cycles.length;
+  const rows: CycleRow[] = await Promise.all(
+    cycles.map(async (p) => {
+      const cw = { role: user.isAdmin ? ("ADMIN" as const) : (roleIn.get(p.id) ?? null), rules: u.who.rules };
+      const mine = jiraOf.get(p.id);
+      const people = cycleMembers.filter((m) => m.projectId === p.id);
+      const fromUmbrella = people.filter((m) => m.fromUmbrella).length;
+      const mode = (MODES as readonly string[]).includes(p.slackMode) ? (p.slackMode as (typeof MODES)[number]) : "umbrella";
+      const picked = p.slackChannelIds.filter((id) => umbrellaChannelIds.includes(id));
+      const [ownChannels, view, requestsHere] = await Promise.all([
+        slackChannelsOf({ projectId: p.id }),
+        mine ? bugTemplateView(p.id, user.email) : Promise.resolve(null),
+        p.keepMembersSeparate && can(cw, "members:manage") ? joinRequestRows(p.id) : Promise.resolve([]),
+      ]);
+      const team: CycleChip = p.keepMembersSeparate
+        ? { tone: "own", text: `Its own · ${people.length} ${people.length === 1 ? "person" : "people"}`, tip: "Only the people added to this test cycle can see it." }
+        : { tone: "same", text: "Same", tip: `Everyone on ${whose} team can see and test it.` };
+      const jiraChip: CycleChip = mine
+        ? { tone: "own", text: `Its own · ${mine.jiraProjectKey}`, tip: `Files bugs into its own Jira project, ${mine.jiraProjectKey}, with ${kindLabel(templateKind(parseTemplateSettings(mine.bugTemplate))).toLowerCase()}.` }
+        : jira
+          ? { tone: "same", text: jira.jiraProjectKey, tip: `Uses ${whose} Jira connection and bug template, set above.` }
+          : { tone: "off", text: "Not connected", tip: `${name} isn't connected to Jira yet. Connect it above.` };
+      const slackChip: CycleChip =
+        mode === "off"
+          ? { tone: "own", text: "Its own · Off", tip: "Nothing from this test cycle posts to Slack." }
+          : mode === "choose"
+            ? (() => {
+                const n = picked.length + ownChannels.length;
+                return { tone: "own" as const, text: `Its own · ${n} ${n === 1 ? "channel" : "channels"}`, tip: `Posts to ${[...slack.filter((c) => picked.includes(c.id)), ...ownChannels].map((c) => c.name).join(", ") || "no channels"}.` };
+              })()
+            : slack.length
+              ? { tone: "same", text: "Same", tip: `Posts to ${slack.map((c) => c.name).join(", ")}, like ${name}.` }
+              : { tone: "off", text: "No channels", tip: `${name} has no Slack channels yet. Add them in Slack alerts above.` };
+      const jiraSummary = mine
+        ? `${p.name} files bugs into its own Jira project, ${mine.jiraProjectKey}. Disconnect it below to use ${whose} instead.`
+        : jira
+          ? `✓ Using ${whose} Jira: ${site} · Jira project ${jira.jiraProjectKey}${hubKind !== "plain" ? `, with ${whose} bug template` : ""}.`
+          : `${name} hasn't connected Jira yet. Connect it once above and every test cycle under it uses it.`;
+      const archivedAlone = !!p.archivedAt && !p.archivedWithUmbrella;
+      const panel = (
+        <CyclePanel
+          restore={archivedAlone && can(cw, "cycle:archive") ? <ArchiveCard data={{ current: { id: p.id, name: p.name, archived: true }, umbrella: null }} /> : null}
+          anchor={cycleHash(p.key)}
+          umbrella={name}
+          details={can(cw, "project:manage") ? { projectId: p.id, name: p.name, description: p.description } : null}
+          team={{
+            projectId: p.id,
+            separate: p.keepMembersSeparate,
+            canSeparate: can(cw, "project:separate"),
+            fromUmbrella,
+            members: p.keepMembersSeparate ? (
+              <MembersPanel
+                projectId={p.id}
+                me={user.id}
+                canManage={can(cw, "members:manage")}
+                canEmail={cycleInvites.canEmail}
+                requests={requestsHere}
+                team={p.name}
+                members={people.map((m) => ({ userId: m.userId, email: m.user.email, name: m.user.name, role: m.role, signedIn: !!m.user.lastLoginAt, hasPassword: !!m.user.passwordSetAt, avatarAt: m.user.avatarAt, inviteSentAt: cycleInvites.sent.get(m.userId) ?? null, inviteUntil: cycleInvites.until.get(m.userId) ?? null, ...badgeOf(m.user) }))}
+              />
+            ) : null,
+          }}
+          jira={{
+            canManage: can(cw, "jira:manage"),
+            own: !!mine,
+            summary: jiraSummary,
+            form: mine ? (
+              <JiraSettings
+                projectId={p.id}
+                current={{ siteUrl: mine.siteUrl, email: mine.email, jiraProjectKey: mine.jiraProjectKey, issueType: mine.issueType, tokenReadable: canOpen(mine.tokenEncrypted) }}
+                template={view!.template}
+                shared={view!.shared}
+                stories={parseStoriesConfig(mine.stories)}
+                severity={parseSeverityConfig(mine.severity)}
+              />
+            ) : (
+              <JiraSettings projectId={p.id} current={null} template={parseTemplateSettings(null)} />
+            ),
+          }}
+          slack={{
+            projectId: p.id,
+            mode,
+            picked: p.slackChannelIds,
+            umbrella: name,
+            umbrellaChannels: slack,
+            own: ownChannels,
+            canManage: can(cw, "jira:manage"),
+            settingsHref: `/g/${u.group.id}/settings#slack`,
+          }}
+        />
+      );
+      return { key: p.key, id: p.id, archived: archivedAlone, name: p.name.startsWith(`${name} `) ? p.name.slice(name.length + 1) : p.name, fullName: p.name, color: platformColor(u.platforms, p.platform), older: u.older.some((o) => o.id === p.id), team, jira: jiraChip, slack: slackChip, panel };
+    }),
+  );
+
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-4xl">
       <PageHeader
-        title={`${name} settings`}
-        subtitle={`Shared by every test cycle under ${name}`}
+        title="Settings"
+        subtitle={`${name} and its test cycles`}
         actions={
           groupManager ? <EditGroupButton group={u.group} choices={choices} label="Name and test cycles" /> : undefined
         }
       />
-      <div className="grid items-start gap-5 lg:grid-cols-[3fr_2fr]">
+      <p className="mb-5 flex items-start gap-2 rounded-lg bg-accent-50 px-4 py-2.5 text-sm text-accent-700" data-testid="settings-scope">
+        <UmbrellaIcon className="mt-0.5 size-4 flex-none" />
+        <span>
+          Changes here apply to <b>every test cycle in {name}</b>. The <b>Test cycles</b> table below shows any that are set differently.
+        </span>
+      </p>
+      <div>
         <Card>
           <h2 className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-900">Set once for {name}</h2>
           <ul className="divide-y divide-slate-100">
@@ -352,111 +471,14 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             </SettingsRows>
           </ul>
         </Card>
-        <Card>
-          <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
-            <h2 className="flex items-center gap-1.5 font-semibold text-slate-900">
-              Where each test cycle files bugs
-              <InfoTip text={`Test cycles use ${whose} Jira connection and bug template (set on the left) unless they have their own. Click a test cycle to open its Settings.`} />
-            </h2>
-            {can(u.who, "cycle:create") && !u.group.archivedAt && <AddUmbrellaProject groupId={u.group.id} umbrella={name} platforms={u.platforms.map((p) => p.name)} colors={u.platforms.map((p) => platformColor(u.platforms, p.name))} loose={await looseProjects(user)} label="Add test cycle" />}
-          </div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-[11px] tracking-wide text-slate-500 uppercase">
-                <th className="px-4 py-2 font-semibold">Test cycle</th>
-                <th className="px-4 py-2 font-semibold">
-                  <span className="inline-flex items-center gap-1">
-                    Jira project <InfoTip text="The Jira project this test cycle's bugs go into." />
-                  </span>
-                </th>
-                <th className="px-4 py-2 font-semibold">
-                  <span className="inline-flex items-center gap-1">
-                    Bug template <InfoTip text="The layout new bugs use: a template imported from an example Jira bug, or the plain layout." />
-                  </span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {u.current.map((p) => {
-                const mine = own.get(p.id);
-                return (
-                  <tr key={p.id}>
-                    <td className="px-4 py-2">
-                      <Link href={`/p/${p.key}/settings`} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-2 py-0.5 text-xs text-slate-800 hover:border-accent-500">
-                        <span aria-hidden className="size-1.5 rounded-full" style={{ background: platformColor(u.platforms, p.platform) }} />
-                        {p.name}
-                      </Link>
-                      {p.keepMembersSeparate && (
-                        <span className="ml-1.5 cursor-help text-xs text-slate-500" title="Only people added to this test cycle can see it.">
-                          Private team
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2">
-                      {mine ? (
-                        <Chip tone="own" tip="This test cycle has its own Jira settings, so changes on the left don't affect it. Change them in its Settings.">
-                          {mine.key} · its own
-                        </Chip>
-                      ) : jira ? (
-                        <Chip tone="shared" tip={`Uses ${whose} Jira connection, set on the left.`}>
-                          <UmbrellaIcon className="size-3" />
-                          {jira.jiraProjectKey} · {whose}
-                        </Chip>
-                      ) : (
-                        <Chip tone="off" tip={`${name} isn't connected to Jira yet, so bugs can't be sent to Jira. Connect it on the left.`}>
-                          Not connected
-                        </Chip>
-                      )}
-                    </td>
-                    <td className="px-4 py-2">
-                      {mine ? (
-                        <Chip tone={mine.kind !== "plain" ? "own" : "off"} tip={mine.kind === "imported" ? "Uses the template imported in its own Jira settings." : mine.kind === "detailed" ? "Uses the OKO bug layout, picked in its own Jira settings." : "No template picked in its own Jira settings, so bugs use the plain layout."}>
-                          {kindLabel(mine.kind)} · its own
-                        </Chip>
-                      ) : jira ? (
-                        <Chip
-                          tone={hubImported ? "shared" : "off"}
-                          tip={hubKind === "imported" ? `Uses the template ${name} imported from Jira, set on the left.` : hubKind === "detailed" ? `Uses the OKO bug layout ${name} picked, set on the left.` : `${name} has no template imported, so bugs use the plain layout. Import one in ${whose} Jira settings on the left.`}
-                        >
-                          <UmbrellaIcon className="size-3" />
-                          {kindLabel(hubKind)} · {whose}
-                        </Chip>
-                      ) : (
-                        <Chip tone="off" tip="Available once Jira is connected.">
-                          —
-                        </Chip>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-              {u.current.length === 0 && u.older.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="px-4 py-3">
-                    <span className="inline-flex items-center gap-1.5 text-slate-500">
-                      No test cycles yet
-                      <InfoTip text="Each test cycle you add shows here with the Jira project and bug template its bugs use. Use Add test cycle above." />
-                    </span>
-                  </td>
-                </tr>
-              )}
-              {u.older.length > 0 && (
-                <tr>
-                  <td className="px-4 py-2 text-slate-500">
-                    <Link href={`/g/${u.group.id}/projects`} className="hover:underline">
-                      + {u.older.length} older release {u.older.length === 1 ? "test cycle" : "test cycles"}
-                    </Link>
-                  </td>
-                  <td colSpan={2} className="px-4 py-2 text-slate-500">
-                    <Link href={`/g/${u.group.id}/projects`} className="hover:underline">
-                      See the full list
-                    </Link>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </Card>
+      </div>
+      <div className="mt-5">
+        <CycleSettingsTable
+          rows={rows}
+          umbrella={name}
+          canArchive={canArchiveCycles}
+          addButton={can(u.who, "cycle:create") && !u.group.archivedAt ? <AddUmbrellaProject groupId={u.group.id} umbrella={name} platforms={u.platforms.map((p) => p.name)} colors={u.platforms.map((p) => platformColor(u.platforms, p.name))} loose={await looseProjects(user)} label="Add test cycle" /> : undefined}
+        />
       </div>
       {can(u.who, "members:manage") && (
         <div className="mt-5">
@@ -468,6 +490,9 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
           <ArchiveCard data={archive} />
         </div>
       )}
+      <div className="mt-5">
+        <OtherSettings admin={user.isAdmin} />
+      </div>
     </div>
   );
 }
@@ -491,15 +516,5 @@ function Row({ title, text, action, href }: { title: string; text: string; actio
       </span>
       {action}
     </li>
-  );
-}
-
-/** A small chip in the bugs box, with what it means on hover. */
-function Chip({ tone, tip, children }: { tone: "shared" | "own" | "off"; tip: string; children: ReactNode }) {
-  const look = tone === "shared" ? "bg-accent-50 text-accent-700" : tone === "own" ? "bg-orange-50 text-orange-700" : "bg-slate-100 text-slate-600";
-  return (
-    <span tabIndex={0} title={tip} className={`inline-flex cursor-help items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${look}`}>
-      {children}
-    </span>
   );
 }

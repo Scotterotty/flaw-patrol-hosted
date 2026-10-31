@@ -1,4 +1,5 @@
 import "server-only";
+import { cycleHash } from "./cycle-hash";
 import { db } from "./db";
 import { isSevere } from "./severity";
 import { severityScaleFor } from "./severity-server";
@@ -55,7 +56,7 @@ export async function shortcutChoices(u: Umbrella, release: string | Promise<str
         { label: "Flagged cases", sub: "Cases to fix", href: `${hub}/cases?flagged=1`, icon: "folder" },
         { label: "Reports", sub: "Each test cycle's reports", href: `${g}/reports`, icon: "chart" },
         { label: "Import cases", sub: `Into the ${u.group.name} case library`, href: `${hub}/import`, icon: "down" },
-        { label: "Settings", sub: `${u.group.name} settings`, href: `${g}/settings`, icon: "cog" },
+        { label: "Settings", sub: `${u.group.name} and its test cycles`, href: `${g}/settings`, icon: "cog" },
       ],
     },
   ];
@@ -70,7 +71,7 @@ export async function shortcutChoices(u: Umbrella, release: string | Promise<str
         { label: `${short} · Reports`, sub: `${short} only`, href: `${base}/reports`, icon: "chart" },
         ...saved.filter((s) => s.projectId === p.id).map((s) => ({ label: `${short} · ${s.name}`, sub: "Saved report", href: `${base}/reports?${s.query}`, icon: "chart" as const })),
         { label: `${short} · Bugs`, sub: "Bugs", href: `${base}/bugs`, icon: "bug" },
-        { label: `${short} · Settings`, sub: "Test cycle settings", href: `${base}/settings`, icon: "cog" },
+        { label: `${short} · Settings`, sub: `Its row in ${u.group.name} Settings`, href: `${g}/settings#${cycleHash(p.key)}`, icon: "cog" },
       ],
     });
   }

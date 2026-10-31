@@ -89,8 +89,9 @@ test("umbrella: shared library, platforms, Start next release, bugs and shortcut
   await page.getByRole("link", { name: `${NAME} Web RC7` }).first().click();
   await page.waitForURL(/\/p\/[^/]+/);
   const key = page.url().split("/p/")[1].split("/")[0];
+  // ver_117: set on its row in the umbrella's Settings → Test cycles.
   await page.goto(`/p/${key}/settings`);
-  await expect(page.getByText(`Part of ${NAME}`)).toBeVisible();
+  await expect(page.getByRole("heading", { name: new RegExp(`what's different from ${NAME}$`) })).toBeVisible();
   await page.getByRole("switch", { name: /Keep members separate/ }).check();
   await expect(page.getByText(/Only the people listed below/)).toBeVisible();
 });

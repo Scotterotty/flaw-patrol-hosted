@@ -78,6 +78,6 @@ test("admins archive an umbrella with its projects, and restoring brings back on
   await page.context().clearCookies();
   await signIn(page, "lead@example.com", "Demo Lead");
   await page.goto(`${home}/settings`);
-  await expect(page.getByRole("heading", { name: `${NAME} settings` })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
   await expect(page.getByTestId("archive-card")).toHaveCount(0);
 });

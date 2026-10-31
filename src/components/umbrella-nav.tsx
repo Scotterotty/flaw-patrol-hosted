@@ -71,12 +71,8 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
     },
     {
       label: "Settings",
-      // Every current test cycle's settings sit next to the umbrella's on every page (ver_95; before, only the
-      // one you were in), plus an older test cycle's while you're in it.
-      items: [
-        { href: `${g}/settings`, id: "settings", label: `${u.name} settings` },
-        ...[...u.current, ...(c?.older ? [c] : [])].map((p) => ({ href: `/p/${p.key}/settings`, id: c?.older && p.key === c.key ? undefined : `${cycleKey(p.key)}:settings`, label: `${p.name} settings` })),
-      ],
+      // One link (ver_117): the umbrella's Settings, where each test cycle has its own row under Test cycles.
+      items: [{ href: `${g}/settings`, id: "settings", label: "Settings", tip: `${u.name} and its test cycles` }],
     },
   ];
   const under = (href: string) => path === href || path.startsWith(`${href}/`);

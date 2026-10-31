@@ -84,9 +84,8 @@ test("invite message, Test cycles label, roomier runner, underlined links and Sk
   await expect(nav.getByRole("link", { name: "iOS", exact: true })).toBeVisible();
   await expect(nav.getByRole("link", { name: "Test cycle settings" })).toHaveCount(0);
   const settingsLinks = await nav.getByRole("list").last().getByRole("link").allTextContents();
-  // ver_95: every current test cycle keeps its settings link, in Test cycles order.
-  expect(settingsLinks[0]).toBe(`${NAME} settings`);
-  expect([...settingsLinks.slice(1)].sort()).toEqual(["Web 4.2 settings", "iOS 4.2 settings"].sort());
+  // ver_117: one Settings link; each test cycle is a row in it.
+  expect(settingsLinks).toEqual(["Settings"]);
 
   // #29: the "You're on this case" bar is above the title, and the comment box has its own full-width line.
   const bar = page.getByText("You're testing this case.");
@@ -101,6 +100,7 @@ test("invite message, Test cycles label, roomier runner, underlined links and Sk
 
   // #29: on a long page the left menu's background runs all the way down.
   await page.goto(`/p/${web}/settings`);
+  await expect(page).toHaveURL(/\/g\/.+\/settings#cycle-/);
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   const menu = page.getByRole("navigation", { name: `${NAME} umbrella` }).first();
   const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -109,7 +109,7 @@ test("invite message, Test cycles label, roomier runner, underlined links and Sk
   await expect(menu).toBeInViewport();
 
   // A3: a link inside a sentence is underlined; menu links aren't.
-  const inSentence = page.getByRole("link", { name: `Change in ${NAME} settings` });
+  const inSentence = page.getByTestId("other-settings").getByRole("link", { name: "Your account" });
   await expect(inSentence).toHaveCSS("text-decoration-line", "underline");
   await expect(menu.getByRole("link", { name: "Bugs" })).toHaveCSS("text-decoration-line", "none");
 
