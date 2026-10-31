@@ -13,6 +13,7 @@ import { parseTemplateSettings } from "@/lib/bug-template";
 import { bugTemplateView } from "@/lib/shared-template-data";
 import { canOpen } from "@/lib/crypto";
 import { db } from "@/lib/db";
+import { joinRequestRows } from "@/lib/link-access-server";
 import { memberInviteInfo } from "@/lib/invites";
 import { can } from "@/lib/permissions";
 import { RolesCard } from "@/components/roles-card";
@@ -37,6 +38,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
     orderBy: [{ role: "asc" }, { user: { email: "asc" } }],
   });
   const invites = await memberInviteInfo(members.map((m) => m.userId));
+  const requests = can(who, "members:manage") ? await joinRequestRows(project.id) : [];
   const canManage = can(who, "project:manage");
   const canMembers = can(who, "members:manage");
   const canJira = can(who, "jira:manage");
@@ -94,6 +96,8 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
         me={user.id}
         canManage={canMembers}
         canEmail={invites.canEmail}
+        requests={requests}
+        team={project.name}
         nudge={!project.groupId && !project.rolesChosenAt && <RolesNudge target={{ projectId: project.id }} href={`/p/${project.key}/settings#roles`} />}
                 members={members.map((m) => ({ userId: m.userId, email: m.user.email, name: m.user.name, role: m.role, signedIn: !!m.user.lastLoginAt, hasPassword: !!m.user.passwordSetAt, avatarAt: m.user.avatarAt, inviteSentAt: invites.sent.get(m.userId) ?? null, inviteUntil: invites.until.get(m.userId) ?? null, ...badgeOf(m.user) }))}
       />

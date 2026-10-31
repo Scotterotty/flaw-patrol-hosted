@@ -5,7 +5,7 @@ import { useRef, useState, useEffect, type ReactNode } from "react";
 import { useMenuPlace } from "./menu-place";
 
 /** Your name in the top bar: a small menu with your account, appearance, the mini game and Sign out. */
-export function AccountMenu({ children, label, admin, signOut }: { children: ReactNode; label: string; admin?: boolean; signOut: () => Promise<void> }) {
+export function AccountMenu({ children, label, admin, signOut, joins }: { children: ReactNode; label: string; admin?: boolean; signOut: () => Promise<void>; joins?: { count: number; href: string } | null }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -39,6 +39,16 @@ export function AccountMenu({ children, label, admin, signOut }: { children: Rea
       </button>
       {open && (
         <div ref={list} role="menu" style={place} onClick={() => setOpen(false)} className="absolute top-full right-0 z-40 w-52 rounded-lg border border-slate-200 bg-surface p-1 shadow-lg">
+          {/* Ask to join (ver_115): the dot on the avatar leads here. */}
+          {joins && (
+            <>
+              <Link role="menuitem" href={joins.href} className={`${item} font-medium text-accent-700`}>
+                <span aria-hidden className="mr-1.5 inline-block h-2 w-2 rounded-full bg-red-500" />
+                {joins.count === 1 ? "1 person asking to join" : `${joins.count} people asking to join`}
+              </Link>
+              <div className="my-1 h-px bg-slate-200" />
+            </>
+          )}
           <Link role="menuitem" href="/account" className={item}>
             Your account
           </Link>

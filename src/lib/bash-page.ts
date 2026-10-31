@@ -2,15 +2,17 @@ import "server-only";
 import { notFound } from "next/navigation";
 import { can } from "./permissions";
 import { bashReport, bashView, loadBashFull, type BashReport } from "./bash-summary";
-import { projectAccess } from "./session";
+import { projectAccessOrGuest } from "./session";
 import type { ReportData } from "@/components/bash-report";
 
 /** The bash on a /p/KEY/bashes/ID page, for someone who can see the project. */
 export async function bashPageData(key: string, id: string) {
-  const { project, user, who } = await projectAccess(key);
+  const { project, user, who, guest } = await projectAccessOrGuest(key);
+  // A guest (ver_115) sees only the bash their link opened.
+  if (guest && guest.bashId !== id) notFound();
   const full = await loadBashFull(id);
   if (!full || full.bash.projectId !== project.id) notFound();
-  return { project, user, who, full, view: bashView(full, { id: user.id, canManage: can(who, "run:manage") }) };
+  return { project, user, who, guest: !!guest, full, view: bashView(full, { id: user.id, canManage: !guest && can(who, "run:manage") }) };
 }
 
 export function reportData(r: BashReport, file?: ReportData["file"]): ReportData {

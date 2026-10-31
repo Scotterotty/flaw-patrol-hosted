@@ -1,7 +1,8 @@
 import { TopBar } from "@/components/top-bar";
 import { UmbrellaNav } from "@/components/umbrella-nav";
 import { loadUmbrella, navOf } from "@/lib/umbrella";
-import { requireUser } from "@/lib/session";
+import { notOnTeam, requireUser } from "@/lib/session";
+import { db } from "@/lib/db";
 import { can } from "@/lib/permissions";
 import { UmbrellaArchivedBanner } from "@/components/archive-project";
 import { glossaryMenu } from "@/lib/glossary-data";
@@ -11,7 +12,12 @@ export default async function GroupLayout({ children, params }: { children: Reac
   const { id } = await params;
   const user = await requireUser();
   const u = await loadUmbrella(id, user);
-  if (!u) return children;
+  if (!u) {
+    // An umbrella they aren't on (ver_115): say what it is and offer Ask to join.
+    const hub = await db.projectGroup.findUnique({ where: { id }, select: { hubProjectId: true } });
+    if (hub?.hubProjectId) return notOnTeam(`/g/${id}`);
+    return children;
+  }
   return (
     <>
       <TopBar user={user} project={{ key: u.hub.key, name: u.group.name, hub: u.group.id }} />

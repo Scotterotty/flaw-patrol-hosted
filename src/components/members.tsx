@@ -10,13 +10,14 @@ import { linkUntil } from "@/lib/invite-message";
 import { copyInviteLink, createPasswordLink, emailPasswordLink, sendInvite } from "@/server/passwords";
 import { addMember, changeRole, removeMember, updateProject } from "@/server/projects";
 import { Avatar } from "./avatar";
+import { JoinRequests, type JoinRequestRow } from "./join-request";
 import { RoleBadge } from "./badges";
 import { Button, Card, ErrorText, Field, Input, Select, Textarea } from "./ui";
 
 type Member = { userId: string; email: string; name: string | null; role: Role; signedIn: boolean; hasPassword: boolean; avatarAt: Date | null; inviteSentAt?: Date | null; inviteUntil?: Date | null; title: string | null; frame: string | null };
 
 
-export function MembersPanel({ projectId, members, canManage, me, canEmail = false, nudge }: { projectId: string; members: Member[]; canManage: boolean; me: string; canEmail?: boolean; nudge?: ReactNode }) {
+export function MembersPanel({ projectId, members, canManage, me, canEmail = false, nudge, requests = [], team = "" }: { projectId: string; members: Member[]; canManage: boolean; me: string; canEmail?: boolean; nudge?: ReactNode; requests?: JoinRequestRow[]; team?: string }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -46,7 +47,10 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
             What each role can do →
           </a>
         </p>
-      )}      <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+      )}
+      <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+      {/* Ask to join (ver_115): people who opened a link here and asked, on top for admins. */}
+      {canManage && <JoinRequests requests={requests} team={team} />}
       <ul className="mt-2 divide-y divide-slate-100">
         {members.map((m) => (
           <li key={m.userId} className="flex flex-wrap items-center gap-3 py-2">

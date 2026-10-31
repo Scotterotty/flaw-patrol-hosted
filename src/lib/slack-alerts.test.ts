@@ -4,7 +4,7 @@ import { alertSummary, atLeast, channelName, DEFAULT_ALERTS, parseAlerts, webhoo
 describe("Slack alerts", () => {
   it("defaults to regressions, serious bugs (B or worse), run finished and RC done", () => {
     expect(parseAlerts(null)).toEqual(DEFAULT_ALERTS);
-    expect(alertSummary(DEFAULT_ALERTS)).toBe("Regression, Serious bug (B or worse), Run finished, Release testing done");
+    expect(alertSummary(DEFAULT_ALERTS)).toBe("Regression, Serious bug (B or worse), Someone asks to join, Run finished, Release testing done");
   });
   it("reads saved switches and ignores junk", () => {
     expect(parseAlerts({ reg: false, start: true, sev: "SHOWSTOPPER", bogus: 1 })).toMatchObject({ reg: false, start: true, sev: "SHOWSTOPPER", run: true });

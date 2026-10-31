@@ -50,7 +50,7 @@ test("stories, Slack alerts and a regression from one run", async ({ page }) => 
   await card.getByRole("switch", { name: "Run started" }).check();
   await card.getByRole("button", { name: "Save channel" }).click();
   await expect(card.getByText("#qa-alerts")).toBeVisible();
-  await expect(card.getByText(/Regression, Serious bug \(B or worse\), Run finished, Release testing done, Run started/)).toBeVisible();
+  await expect(card.getByText(/Regression, Serious bug \(B or worse\), Someone asks to join, Run finished, Release testing done, Run started/)).toBeVisible();
 
   await newCase(page, KEY, `Join from an invite ${run}`);
   await newCase(page, KEY, `Expired invite ${run}`);

@@ -143,7 +143,7 @@ const autoName = (umbrella: string, platform: string, rc: string) => [umbrella.t
  * start new work: the box can make the umbrella's first projects (one per platform)
  * and take in projects that aren't in an umbrella yet, cases and all.
  */
-export function NewUmbrellaButton({ choices, label = "New umbrella", variant = "primary" }: { choices: GroupChoice[]; label?: string; variant?: "primary" | "secondary" }) {
+export function NewUmbrellaButton({ choices, label = "New umbrella", variant = "primary" }: { choices: GroupChoice[]; label?: string; variant?: "primary" | "secondary" | "link" }) {
   const [open, setOpen] = useState(false);
   const { pending, error, setError, run, router } = useAction();
   const [name, setName] = useState("");
@@ -165,10 +165,17 @@ export function NewUmbrellaButton({ choices, label = "New umbrella", variant = "
   const summary = [making.length && plural(making.length, "new test cycle"), ticked.size && `${ticked.size} moved in`].filter(Boolean).join(" and ");
   return (
     <>
-      <Button variant={variant} onClick={() => setOpen(true)} title="One home for a product's test cases, Jira and team, with a test cycle for each round of testing">
-        <UmbrellaIcon className="mr-1 inline size-4 align-[-3px]" />
-        {label}
-      </Button>
+      {/* A small link (ver_115) on the home page of someone waiting to join a team. */}
+      {variant === "link" ? (
+        <button type="button" onClick={() => setOpen(true)} className="font-medium text-accent-700 hover:underline">
+          {label}
+        </button>
+      ) : (
+        <Button variant={variant} onClick={() => setOpen(true)} title="One home for a product's test cases, Jira and team, with a test cycle for each round of testing">
+          <UmbrellaIcon className="mr-1 inline size-4 align-[-3px]" />
+          {label}
+        </Button>
+      )}
       <Modal open={open} onClose={() => setOpen(false)} title="New umbrella" wide>
         <p className="text-sm text-slate-500">
           An umbrella holds one product&apos;s test cases, Jira settings and team. Every test cycle under it uses them. Test cycles are where you run tests, one for each

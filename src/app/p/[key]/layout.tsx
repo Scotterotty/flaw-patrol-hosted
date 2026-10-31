@@ -2,14 +2,22 @@ import { ProjectMenu } from "@/components/project-menu";
 import { TopBar } from "@/components/top-bar";
 import { db } from "@/lib/db";
 import { recordVisit } from "@/lib/project-visits";
-import { projectAccess } from "@/lib/session";
+import { projectAccessOrGuest } from "@/lib/session";
 import { loadUmbrella } from "@/lib/umbrella";
 import { ArchivedBanner, UmbrellaArchivedBanner } from "@/components/archive-project";
 import { can } from "@/lib/permissions";
 
 export default async function ProjectLayout({ children, params }: { children: React.ReactNode; params: Promise<{ key: string }> }) {
   const { key } = await params;
-  const { user, project, role } = await projectAccess(key);
+  const { user, project, role, guest } = await projectAccessOrGuest(key);
+  // Someone outside the team in a bug bash (ver_115): just the bash, without the team's menu.
+  if (guest)
+    return (
+      <>
+        <TopBar user={user} />
+        <main className="min-w-0 px-4 pt-6 pb-16 sm:px-6 md:pb-6">{children}</main>
+      </>
+    );
   await recordVisit(user.id, project.id);
   // An umbrella's hub project is shown as the umbrella itself, with the umbrella's menu.
   const hubOf = await db.projectGroup.findUnique({ where: { hubProjectId: project.id }, select: { id: true } });

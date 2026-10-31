@@ -35,6 +35,7 @@ import { archiveCardData } from "@/lib/archive-card";
 import { UmbrellaIcon } from "@/components/umbrella-nav";
 import { parseTemplateSettings, templateKind } from "@/lib/bug-template";
 import { db } from "@/lib/db";
+import { joinRequestRows } from "@/lib/link-access-server";
 import { memberInviteInfo } from "@/lib/invites";
 import { canManageGroups } from "@/lib/groups";
 import { can } from "@/lib/permissions";
@@ -62,6 +63,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
   const sentry = await db.sentryConfig.findUnique({ where: { projectId: u.hub.id } });
   const leads = members.filter((m) => m.role === "LEAD" || m.role === "ADMIN").length;
   const invites = await memberInviteInfo(members.map((m) => m.userId));
+  const requests = can(u.who, "members:manage") ? await joinRequestRows(u.hub.id) : [];
   const manage = can(u.who, "jira:manage");
   const archive = await archiveCardData(user, u.group.id, null);
   const runFields = parseRunFields(u.group.runFields);
@@ -333,7 +335,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               id="members"
               hashes={["members"]}
               title="Members"
-              text={`${members.length} ${members.length === 1 ? "person" : "people"} · ${leads} ${leads === 1 ? "lead or admin" : "leads and admins"} · everyone gets every ${name} test cycle unless it keeps members separate`}
+              text={`${requests.length ? `${requests.length} asking to join · ` : ""}${members.length} ${members.length === 1 ? "person" : "people"} · ${leads} ${leads === 1 ? "lead or admin" : "leads and admins"} · everyone gets every ${name} test cycle unless it keeps members separate`}
               label={can(u.who, "members:manage") ? "Manage" : "View"}
             >
               <MembersPanel
@@ -341,6 +343,8 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                 me={user.id}
                 canManage={can(u.who, "members:manage")}
                 canEmail={invites.canEmail}
+                requests={requests}
+                team={u.group.name}
                 nudge={!u.group.rolesChosenAt && <RolesNudge target={{ groupId: u.group.id }} href={`/g/${u.group.id}/settings#roles`} />}
                 members={members.map((m) => ({ userId: m.userId, email: m.user.email, name: m.user.name, role: m.role, signedIn: !!m.user.lastLoginAt, hasPassword: !!m.user.passwordSetAt, avatarAt: m.user.avatarAt, inviteSentAt: invites.sent.get(m.userId) ?? null, inviteUntil: invites.until.get(m.userId) ?? null, ...badgeOf(m.user) }))}
               />

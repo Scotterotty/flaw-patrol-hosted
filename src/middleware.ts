@@ -10,7 +10,11 @@ export function middleware(req: NextRequest) {
     url.searchParams.set("callbackUrl", req.nextUrl.pathname + req.nextUrl.search);
     return NextResponse.redirect(url);
   }
-  return NextResponse.next();
+  // Pages read the path they were opened at (ver_115), so a shared link someone can't open
+  // yet can say what it is and offer Ask to join instead of Not found.
+  const headers = new Headers(req.headers);
+  headers.set("x-fp-path", req.nextUrl.pathname + req.nextUrl.search);
+  return NextResponse.next({ request: { headers } });
 }
 
 export const config = { matcher: ["/((?!api/auth|api/ci/|signin|_next|favicon.ico|icon|apple-icon|brand/|reset/|invite/).*)"] };

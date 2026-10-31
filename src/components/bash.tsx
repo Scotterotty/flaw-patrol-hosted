@@ -186,13 +186,14 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
       for (const f of list) {
         const form = new FormData();
         form.set("file", f);
+        form.set("bashId", bash.id);
         const r = await uploadAttachment(bash.runProjectId, form);
         if (r.ok) setFiles((a) => [...a, { id: r.attachment.id, fileName: r.attachment.fileName }]);
         else setError(r.error);
       }
       setUploading(false);
     },
-    [bash.runProjectId],
+    [bash.runProjectId, bash.id],
   );
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {

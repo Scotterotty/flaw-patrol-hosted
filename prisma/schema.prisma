@@ -99,6 +99,8 @@ model User {
   activity         ActivityEntry[]
   // Glossary (ver_113): dotted underlines under known terms all over the app; off hides them for this person only.
   glossaryUnderline Boolean        @default(true)
+  // Ask to join (ver_115): teams this person asked to be added to from a shared link.
+  joinRequests     JoinRequest[]
 }
 
 // Workspace-wide settings, one row (id 1). launchedAt is when an admin launched
@@ -259,6 +261,8 @@ model Project {
   charterTemplates     CharterTemplate[]
   bugBashes            BugBash[]
   riskRatings          RiskRating[]
+  /// Ask to join (ver_115): people who opened a link here and asked to be added. Kept on the team (hub or lone test cycle).
+  joinRequests         JoinRequest[]
 
   @@index([groupId])
 }
@@ -415,6 +419,26 @@ model ProjectPin {
   hidden    Boolean   @default(false)
 
   @@id([userId, projectId])
+}
+
+/**
+ * Ask to join (ver_115): someone signed in opened a link to a team they aren't on and asked
+ * to be added. It sits on the team's project (an umbrella's hub, or a test cycle on its own)
+ * until an admin presses Add or Ignore, or they cancel it.
+ */
+model JoinRequest {
+  id        String   @id @default(cuid())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  /// What the link opened ("a report") and its path, for "opened a report link".
+  what      String   @default("")
+  path      String   @default("")
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, userId])
+  @@index([userId])
 }
 
 model ProjectMember {

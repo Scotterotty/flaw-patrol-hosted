@@ -12,6 +12,9 @@ import { canMakeUmbrellas, canManageGroups, visibleGroups } from "@/lib/groups";
 import { requireUser, mySpelling } from "@/lib/session";
 import { NewUmbrellaButton } from "@/components/umbrella-ui";
 import { can } from "@/lib/permissions";
+import { WaitingToJoin } from "@/components/join-request";
+import { LiveRefresh } from "@/components/live-refresh";
+import { adminsOf } from "@/lib/link-access-server";
 
 export default async function HomePage() {
   const user = await requireUser();
@@ -140,7 +143,12 @@ export default async function HomePage() {
     <>
       <TopBar user={user} />
       <main className="mx-auto max-w-5xl px-4 py-8">
-        {empty ? (
+        {empty && !user.isAdmin ? (
+          <WaitingHome
+            userId={user.id}
+            make={maker ? <NewUmbrellaButton choices={choices} label="Make an umbrella" variant="link" /> : null}
+          />
+        ) : empty ? (
           <>
             <PageHeader title="Umbrellas" />
             <EmptyState
@@ -225,5 +233,36 @@ export default async function HomePage() {
         )}
       </main>
     </>
+  );
+}
+
+/**
+ * Someone signed in who isn't on any team yet (ver_115, audit findings #2 and #3): their
+ * requests to join, or how to get added, with making an umbrella as a small link.
+ */
+async function WaitingHome({ userId, make }: { userId: string; make: React.ReactNode }) {
+  const rows = await db.joinRequest.findMany({
+    where: { userId },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, createdAt: true, projectId: true, project: { select: { name: true, hubOf: { select: { name: true } } } } },
+  });
+  const requests = await Promise.all(
+    rows.map(async (r) => ({ id: r.id, team: r.project.hubOf?.name ?? r.project.name, at: r.createdAt.toISOString(), admins: await adminsOf(r.projectId) })),
+  );
+  return (
+    <div className="mx-auto max-w-xl space-y-4 py-6">
+      <h1 className="sr-only">Your home page</h1>
+      <LiveRefresh url="/api/live/me" />
+      {requests.length ? (
+        requests.map((r) => <WaitingToJoin key={r.id} request={r} />)
+      ) : (
+        <EmptyState title="Waiting to be added?">Ask whoever invited you for your invite link. Opening a link someone shared with you also lets you ask to join that team.</EmptyState>
+      )}
+      {make && (
+        <p className="text-center text-sm text-slate-500">
+          Starting a brand-new product instead? {make}
+        </p>
+      )}
+    </div>
   );
 }

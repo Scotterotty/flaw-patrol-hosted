@@ -13,7 +13,7 @@ export const metadata = { title: "Bug bash" };
 export default async function BashPage({ params }: { params: Promise<{ key: string; id: string }> }) {
   const { key, id } = await params;
   await bashTick(id).catch(() => {});
-  const { view } = await bashPageData(key, id);
+  const { view, guest } = await bashPageData(key, id);
   if (view.phase === "wrapped") redirect(`/p/${view.homeKey}/bashes/${id}/report`);
   const jira = !!(await jiraConfigFor(view.runProjectId));
   return (
@@ -25,7 +25,7 @@ export default async function BashPage({ params }: { params: Promise<{ key: stri
           Bug bash · {view.name}
           {view.phase === "ended" && <span className="ml-2 text-base font-normal text-slate-500">· Wrap up</span>}
         </h1>
-        {view.runHref && (
+        {view.runHref && !guest && (
           <Link href={view.runHref} className="text-xs text-slate-500 hover:underline">
             Its test run
           </Link>

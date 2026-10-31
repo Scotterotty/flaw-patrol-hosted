@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { bashGuestOk } from "@/lib/link-access-server";
+
+async function bashItemGuest(itemId: string, userId: string) {
+  const item = await db.bashItem.findUnique({ where: { id: itemId }, select: { bashId: true } });
+  return !!item && !!(await bashGuestOk(item.bashId, userId));
+}
 
 // Serves an attachment to signed-in members of its project.
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -12,7 +18,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!a) return new NextResponse("Not found", { status: 404 });
   const user = await db.user.findUnique({ where: { id: userId } });
   const member = await db.projectMember.findUnique({ where: { projectId_userId: { projectId: a.projectId, userId } } });
-  if (!user?.isAdmin && !member) return new NextResponse("Not found", { status: 404 });
+  // Screenshots in a bug bash are for people outside the team who may be in it too (ver_115).
+  const guest = !member && !user?.isAdmin && (a.uploadedById === userId || (a.bashItemId && (await bashItemGuest(a.bashItemId, userId))));
+  if (!user?.isAdmin && !member && !guest) return new NextResponse("Not found", { status: 404 });
   const inline = /^(image\/(png|jpeg|gif|webp)|application\/pdf|text\/plain|video\/(mp4|webm))$/.test(a.contentType);
   const data = new Uint8Array(a.data);
   // Videos are fetched in byte ranges so they can be scrubbed (Safari won't play them otherwise).

@@ -22,6 +22,33 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 115,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "better",
+        title: "Anyone can join a live bug bash from its link",
+        text: "Share a bug bash link anywhere, like in Slack. Anyone signed in to your Flaw Patrol can open it, pick an area and log bugs, even if they aren't on your team. They see that bug bash only.",
+      },
+      {
+        kind: "new",
+        title: "Ask to join from a shared link",
+        text: "Opening any other link to a team you aren't on now says what it is and who its admins are, with an Ask to join button, instead of Not found.",
+      },
+      {
+        kind: "new",
+        title: "Add people who ask to join",
+        text: "When someone asks, you'll see a red dot on your picture. Their request is at the top of Settings → Members: pick a role and press Add, or Ignore. If Slack alerts are set up, the request is posted there too.",
+        who: "admin",
+      },
+      {
+        kind: "better",
+        title: "A clearer first page for people on no team yet",
+        text: "It shows who will see your request to join, with Cancel request, or tells you to ask whoever invited you for your invite link.",
+      },
+    ],
+  },
+  {
     version: 114,
     date: "2026-10-31",
     items: [

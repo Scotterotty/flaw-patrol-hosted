@@ -16,8 +16,9 @@ import { BLANK_CHARTER, type SessionNote } from "@/lib/charter";
 import { templateById } from "@/lib/charter-templates";
 import { charterHome, teamTemplates } from "@/lib/charter-data";
 import { db } from "@/lib/db";
-import { can } from "@/lib/permissions";
-import { requireProjectAction, requireUser } from "@/lib/session";
+import { can, type Who } from "@/lib/permissions";
+import { Forbidden, requireProjectAction, requireUser } from "@/lib/session";
+import { bashGuestOk } from "@/lib/link-access-server";
 import { channelNamesFor, esc, postBash } from "@/lib/slack";
 import { jiraConfigFor } from "@/lib/umbrella";
 import { createLocalDefect, fileJiraBug } from "./jira";
@@ -45,11 +46,22 @@ async function loadBash(bashId: string) {
   return { ...bash, run: bash.run };
 }
 
-/** Anyone on the bash's test cycle can join and log. */
+/**
+ * Anyone on the bash's test cycle can join and log. So can anyone signed in while it's on,
+ * and people who took part (ver_115): they act like a Viewer inside this bash only.
+ */
 async function requireIn(bashId: string) {
   const bash = await loadBash(bashId);
-  const { user, who } = await requireProjectAction(bash.run.projectId, "bash:join");
-  return { bash, user, who };
+  try {
+    const { user, who } = await requireProjectAction(bash.run.projectId, "bash:join");
+    return { bash, user, who };
+  } catch (e) {
+    if (!(e instanceof Forbidden)) throw e;
+    const user = await requireUser();
+    if (!(await bashGuestOk(bashId, user.id))) throw e;
+    const who: Who = { role: "VIEWER", rules: null };
+    return { bash, user, who };
+  }
 }
 
 /** Whoever started it wraps up, whatever their role; so can leads and admins. */

@@ -13,9 +13,12 @@ import { RadioPlayer } from "./radio-player";
 import { LiveBashPill } from "./bash";
 import { charterHome } from "@/lib/charter-data";
 import { liveBashOf } from "@/lib/umbrella";
+import { joinRequestsFor } from "@/lib/link-access-server";
 
-export function TopBar({ user, project }: { user: { id: string; name: string | null; email: string; avatarAt: Date | null; gameEnabled?: boolean; gameTitle?: string | null; gameFrame?: string | null; isAdmin?: boolean }; project?: { key: string; name: string; group?: { id: string; name: string } | null; hub?: string } }) {
+export async function TopBar({ user, project }: { user: { id: string; name: string | null; email: string; avatarAt: Date | null; gameEnabled?: boolean; gameTitle?: string | null; gameFrame?: string | null; isAdmin?: boolean }; project?: { key: string; name: string; group?: { id: string; name: string } | null; hub?: string } }) {
   const badge = badgeOf(user);
+  // Ask to join (ver_115): a dot on admins' avatars while someone is waiting.
+  const joins = await joinRequestsFor({ id: user.id, isAdmin: !!user.isAdmin }).catch(() => ({ count: 0, href: null }));
   return (
     <header className="fp-bar sticky top-0 z-40 border-b border-slate-200 bg-surface/95 backdrop-blur">
       <div className="flex h-12 items-center gap-3 px-4">
@@ -33,12 +36,20 @@ export function TopBar({ user, project }: { user: { id: string; name: string | n
         <AccountMenu
           label={`${user.email} · your account`}
           admin={!!user.isAdmin}
+          joins={joins.count && joins.href ? { count: joins.count, href: joins.href } : null}
           signOut={async () => {
             "use server";
             await signOut({ redirectTo: "/signin" });
           }}
         >
-          <Avatar person={{ ...user, ...badge }} size={26} />
+          <span className="relative inline-flex">
+            <Avatar person={{ ...user, ...badge }} size={26} />
+            {joins.count > 0 && (
+              <span data-testid="join-dot" className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-surface">
+                <span className="sr-only">{joins.count === 1 ? "1 person is asking to join" : `${joins.count} people are asking to join`}</span>
+              </span>
+            )}
+          </span>
           <span className="hidden truncate sm:inline">
             {user.name ?? user.email}
             {badge.title && <span className="text-slate-400"> · {badge.title}</span>}

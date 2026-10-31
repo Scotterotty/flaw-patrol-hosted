@@ -9,7 +9,8 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { sessionLogSchema } from "@/lib/charter";
 import { draftSchema, parseDraft, type Draft, type DraftInput } from "@/lib/run-draft";
-import { requireProjectAction } from "@/lib/session";
+import { Forbidden, requireProjectAction, requireUser } from "@/lib/session";
+import { bashGuestOk } from "@/lib/link-access-server";
 import { DEFAULT_SEVERITY, severitySchema } from "@/lib/severity";
 import { OPEN } from "@/lib/status";
 import { alertsForResult } from "@/lib/slack";
@@ -237,7 +238,15 @@ const ALLOWED = /^(image\/(png|jpeg|gif|webp)|text\/plain|application\/(pdf|json
 export async function uploadAttachment(projectId: string, form: FormData) {
   return attempt(async () => {
     // Viewers attach screenshots to bug bash bugs (ver_94); a file only joins a result someone can record.
-    const { user } = await requireProjectAction(projectId, "bash:join");
+    const { user } = await requireProjectAction(projectId, "bash:join").catch(async (e) => {
+      // Someone outside the team in a bug bash (ver_115) can attach to their bugs there.
+      const bashId = form.get("bashId");
+      if (!(e instanceof Forbidden) || typeof bashId !== "string") throw e;
+      const me = await requireUser();
+      const guest = await bashGuestOk(bashId, me.id);
+      if (!guest || guest.runProjectId !== projectId) throw e;
+      return { user: me };
+    });
     const file = form.get("file");
     if (!(file instanceof File)) throw new UserError("Choose a file.");
     if (!file.size) throw new UserError(`${file.name || "That file"} is empty, so it wasn't attached.`);

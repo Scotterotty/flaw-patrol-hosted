@@ -2,16 +2,17 @@ import type { Severity } from "@prisma/client";
 
 // Slack alerts (ver_82): which alerts a channel gets. Shared by the server and the settings card.
 
-export type AlertId = "reg" | "bug" | "block" | "run" | "rc" | "start";
+export type AlertId = "reg" | "bug" | "block" | "run" | "rc" | "start" | "join";
 export type Alerts = Record<AlertId, boolean> & { sev: Severity };
 
-export const DEFAULT_ALERTS: Alerts = { reg: true, bug: true, sev: "CRITICAL", block: false, run: true, rc: true, start: false };
+export const DEFAULT_ALERTS: Alerts = { reg: true, bug: true, sev: "CRITICAL", block: false, run: true, rc: true, start: false, join: true };
 
 /** In the order the card lists them: what needs attention now, then progress. */
 export const ALERTS: { id: AlertId; group: "now" | "progress"; label: string; tip: string }[] = [
   { id: "reg", group: "now", label: "Regression", tip: "A case that passed last time on the same platform now fails." },
   { id: "bug", group: "now", label: "Serious bug filed", tip: "A Jira bug filed from a run at the chosen severity or worse. Linking an existing bug doesn't post." },
   { id: "block", group: "now", label: "Case blocked", tip: "A tester marks a case Blocked, with their comment." },
+  { id: "join", group: "now", label: "Someone asks to join", tip: "Someone opened a shared link and pressed Ask to join. Admins add them in Settings → Members." },
   { id: "run", group: "progress", label: "Run finished", tip: "When every case in a run has a result, or the run is closed: pass and fail counts, regressions and bugs." },
   { id: "rc", group: "progress", label: "Release testing done", tip: "Every test cycle's run of one release is done or closed, like the Release status page." },
   { id: "start", group: "progress", label: "Run started", tip: "Someone starts a new run." },

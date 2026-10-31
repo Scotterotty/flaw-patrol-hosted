@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
+import { bashGuestOk } from "@/lib/link-access-server";
 import { currentUser } from "@/lib/session";
 import { bashTick } from "@/server/bashes";
 
@@ -20,7 +21,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     },
   });
   if (!bash) return new Response(null, { status: 404 });
-  if (!user.isAdmin && !(await db.projectMember.findUnique({ where: { projectId_userId: { projectId: bash.projectId, userId: user.id } } }))) return new Response(null, { status: 404 });
+  // People outside the team who may be in this bash (ver_115) see it too.
+  if (!user.isAdmin && !(await db.projectMember.findUnique({ where: { projectId_userId: { projectId: bash.projectId, userId: user.id } } })) && !(await bashGuestOk(id, user.id))) return new Response(null, { status: 404 });
   await bashTick(id).catch(() => {});
   const hash = createHash("sha1").update(`${bash.endedAt?.getTime() ?? ""}|${bash.wrappedAt?.getTime() ?? ""}`);
   for (const p of bash.people) hash.update(`|${p.userId}:${p.areaId}`);

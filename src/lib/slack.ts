@@ -269,6 +269,16 @@ export async function alertRunStarted(cycle: CycleRef, runId: string, by: string
   });
 }
 
+/** Ask to join (ver_115): someone opened a link to the team and asked to be added. */
+export async function alertJoinRequest(teamId: string, who: { name: string; email: string; what: string }, membersPath: string) {
+  await notify(teamId, "join", (base) => ({
+    tone: "blue",
+    title: `🙋 ${who.name} wants to join`,
+    lines: [`${esc(who.email)}${who.what ? ` · opened ${esc(who.what)} link` : ""}`, "An admin can add them in Settings → Members."],
+    button: { label: "Open Members", url: `${base}${membersPath}` },
+  }));
+}
+
 /** For the card: channels without their webhook links. */
 export async function slackChannelsOf(where: { groupId: string } | { projectId: string }) {
   const rows = await db.slackChannel.findMany({ where, orderBy: { createdAt: "asc" } });
