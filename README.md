@@ -159,13 +159,27 @@ Needs only [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 1. Unzip the code and open a terminal in the unzipped folder.
 2. Run `docker compose up --build`. The first run downloads and builds for a few minutes.
 3. When the log says "Ready", open http://localhost:3000.
-4. Sign in with your email (no password in this local mode). The first person to
-   sign in becomes the admin. Create a project, then add cases or import a file.
+4. Sign in with your email and choose a password. The first person to sign in
+   becomes the admin. Create a project, then add cases or import a file.
 
 Stop it with Ctrl+C. Your data is kept for next time; `docker compose down -v`
 deletes it. To start with a sample project instead, set `SEED_DEMO: "true"` in
 `docker-compose.yml`, then sign in as `admin@example.com` with the password the log
 prints after "Seeded project SHOP" (or set `SEED_PASSWORD` to choose it).
+
+This uses `Dockerfile.dev`, which runs the app in development mode (slower,
+detailed error pages). It's for trying Flaw Patrol out, not for hosting.
+
+## Production Docker image
+
+`Dockerfile` builds the hosting image: `next build` in one stage, then a small
+final stage that runs the production server as a non-root user. It applies any
+new schema changes each time it starts and loads no demo data.
+
+```bash
+docker build -t flaw-patrol .
+docker run -p 3000:3000 -e DATABASE_URL=postgresql://... -e AUTH_SECRET=... -e AUTH_URL=https://your-site flaw-patrol
+```
 
 ## Develop with Node 22
 
@@ -180,7 +194,7 @@ npm run dev                   # http://localhost:3000
 
 People sign in with their email and a password. Anyone who doesn't have a
 password yet (newly invited people, and everyone from before passwords existed)
-chooses one the first time they sign in. A project admin can make a one-time
+chooses one through their invite or password link. A project admin can make a one-time
 "Password link" for a member who forgot theirs (Settings → Members); ten wrong
 passwords lock an account for 15 minutes. Passwords are stored as scrypt
 hashes. With the demo data, sign in as `admin@example.com`; `lead@example.com`
@@ -196,6 +210,7 @@ For Google sign-in create an OAuth client with redirect URI
 npm test             # unit tests (Vitest): import parsing, steps, permissions, diff
 npm run test:e2e     # browser tests (Playwright) against `next dev` and a mock Jira (tests/e2e/mock-jira.mjs)
 npm run lint && npm run typecheck
+npm run audit:check  # npm audit on shipped packages; fails on high/critical not in security/audit-allowlist.json
 npm run e2e:preflight  # 2-minute check before a full browser test run (below)
 npm run e2e:all        # preflight, every browser test on a production build, the card check, then the 2 that need next dev
 npm run check:cards    # every Umbrellas page card built the old way and the ver_100 way must match exactly

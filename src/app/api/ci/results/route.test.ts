@@ -8,7 +8,9 @@ vi.mock("@/lib/db", () => ({
     project: { findMany: async () => [] },
   },
 }));
-vi.mock("@/lib/ci-token", () => ({ CI_PREFIX: "fp_ci_", ciHash: (t: string) => (t === "fp_ci_good" ? "good" : "bad"), ciRateLimited: () => false }));
+vi.mock("@/lib/ci-token", () => ({ CI_PREFIX: "fp_ci_", ciHash: (t: string) => (t === "fp_ci_good" ? "good" : "bad") }));
+const limited = vi.fn(async () => false);
+vi.mock("@/lib/ci-rate-limit", () => ({ ciRateLimited: () => limited() }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/server/result", () => ({ UserError: class extends Error {} }));
 vi.mock("@/lib/automation-save", () => ({ saveAutomationRun: vi.fn() }));
@@ -22,6 +24,11 @@ describe("POST /api/ci/results", () => {
   it("refuses a missing or wrong token", async () => {
     expect((await post(null)).status).toBe(401);
     expect((await post("fp_ci_bad")).status).toBe(401);
+  });
+
+  it("answers 429 when the token is over its limit", async () => {
+    limited.mockResolvedValueOnce(true);
+    expect((await post("fp_ci_good")).status).toBe(429);
   });
 
   it("stops an upload over 200 MB even without a Content-Length", async () => {

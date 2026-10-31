@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { expandUpload } from "@/lib/automation-media";
 import { saveAutomationRun } from "@/lib/automation-save";
-import { ciHash, ciRateLimited, CI_PREFIX } from "@/lib/ci-token";
+import { ciHash, CI_PREFIX } from "@/lib/ci-token";
+import { ciRateLimited } from "@/lib/ci-rate-limit";
 import { db } from "@/lib/db";
 import { readForm } from "@/lib/zip-limits";
 import { UserError } from "@/server/result";
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
   if (!token.startsWith(CI_PREFIX)) return fail(401, "Send the token as: Authorization: Bearer fp_ci_…");
   const row = await db.ciToken.findUnique({ where: { hash: ciHash(token) }, include: { group: { select: { id: true, name: true, archivedAt: true, hubProjectId: true } } } });
   if (!row) return fail(401, "That token isn't valid. It may have been revoked.");
-  if (ciRateLimited(row.id)) return fail(429, "Too many uploads with this token. Wait a minute and try again.");
+  if (await ciRateLimited(row.id)) return fail(429, "Too many uploads with this token. Wait a minute and try again.");
   if (row.group.archivedAt) return fail(409, `${row.group.name} is archived. Restore it to send results.`);
   // Counted while reading, so a missing or wrong Content-Length can't get past the cap.
   let form: FormData | null;

@@ -316,8 +316,20 @@ model CiToken {
   createdBy   String       @default("")
   createdAt   DateTime     @default(now())
   lastUsedAt  DateTime?
+  hits        CiTokenHit[]
 
   @@index([groupId])
+}
+
+/// One accepted CI upload, kept for a minute so the per-token rate limit holds
+/// across restarts and across several server instances.
+model CiTokenHit {
+  id      String   @id @default(cuid())
+  token   CiToken  @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  tokenId String
+  at      DateTime @default(now())
+
+  @@index([tokenId, at])
 }
 
 /**

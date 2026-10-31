@@ -17,7 +17,10 @@ services:
       retries: 20
 
   app:
-    build: .
+    # Development-mode image for trying it out; the production image is Dockerfile.
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     depends_on:
       db:
         condition: service_healthy

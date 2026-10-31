@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 104,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "fix",
+        title: "The limit on CI uploads now holds everywhere",
+        text: "Each CI token can still send 20 uploads a minute. The count is now kept in the database, so it holds after a restart and when Flaw Patrol runs on more than one server. A pipeline over the limit is told to wait a minute.",
+        who: "lead",
+      },
+    ],
+  },
+  {
     version: 103,
     date: "2026-10-31",
     items: [

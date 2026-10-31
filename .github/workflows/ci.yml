@@ -29,6 +29,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Fails on a high or critical advisory in shipped packages unless it's on
+      # security/audit-allowlist.json with a reason and an unexpired review date.
+      - name: Vulnerability check (npm audit)
+        run: npm run audit:check
       - run: npx prisma migrate deploy
       - run: npm run lint
       - run: npm run typecheck

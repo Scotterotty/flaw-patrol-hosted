@@ -65,7 +65,11 @@ test("What's new opens once after a new version, filtered by role, and can be op
   await setSeen("tester@example.com", 91);
   await page.goto("/");
   await expect(win).toBeVisible();
-  await expect(win.getByText(WHATS_NEW[0].items[0].title).first()).toBeVisible();
+  // The newest change meant for everyone (a lead-only change, like version 104's, is left out for a tester).
+  const forAll = WHATS_NEW.flatMap((e) => e.items).find((i) => !i.game && (i.who ?? "all") === "all")!;
+  await expect(win.getByText(forAll.title).first()).toBeVisible();
+  const leadOnly = WHATS_NEW[0].items.find((i) => i.who && i.who !== "all");
+  if (leadOnly) await expect(win.getByText(leadOnly.title)).toHaveCount(0);
   // Workspace and admin-only changes are left out for a tester (version 92 had only those).
   await expect(win.locator("summary", { hasText: "Version 92" })).toHaveCount(0);
   await expect(win.getByText("Company sign-in, invite emails, the activity log")).toHaveCount(0);

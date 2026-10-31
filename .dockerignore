@@ -5,3 +5,7 @@ test-results
 playwright-report
 *.tsbuildinfo
 docs
+dist
+.e2e-database
+*.zip
+.git
