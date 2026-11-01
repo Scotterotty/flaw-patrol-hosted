@@ -23,7 +23,7 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
     version: 127,
-    date: "2026-10-31",
+    date: "2026-11-01",
     items: [
       {
         kind: "fix",
