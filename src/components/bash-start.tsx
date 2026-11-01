@@ -92,7 +92,7 @@ export function StartBashAuto({ projectId }: { projectId: string }) {
 }
 
 /** Until its data arrives (ver_120) the box takes a Name and How long; the area ideas show a spinner. */
-const NO_DATA: StartBoxData = { homeId: "", homeKey: "", homeName: "", cycles: [], defaultCycleId: "", suggestions: [], last: null, templates: [], slackChannels: 0 };
+const NO_DATA: StartBoxData = { homeId: "", homeKey: "", homeName: "", cycles: [], defaultCycleId: "", suggestions: [], last: null, templates: [], slackChannels: 0, bugTemplates: [], bugTemplateDefault: null };
 
 function StartBashForm({
   data: loaded,
@@ -127,6 +127,9 @@ function StartBashForm({
   const [slackPick, setSlack] = useState<boolean | null>(null);
   const slack = slackPick ?? data.slackChannels > 0;
   const [fun, setFun] = useState(false);
+  // Bug template (ver_125): the team's default until someone picks; "" is the plain one-line bug.
+  const [tplPick, setTpl] = useState<string | null>(null);
+  const bugTemplateId = tplPick ?? data.bugTemplateDefault ?? "";
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [done, setDone] = useState<{ id: string; key: string; posted: string[]; later: boolean } | null>(null);
@@ -148,7 +151,7 @@ function StartBashForm({
       if (later) at.setHours(Number(later.split(":")[0]), Number(later.split(":")[1]), 0, 0);
       const startsAt = later ? at.toISOString() : "";
       const all = draft.trim() && !has(draft) ? [...areas, { name: draft.trim(), template: null }] : areas;
-      const res = await startBugBash(data.homeId, { name, minutes, areas: all, startsAt, cycleId, collectFirst, slack, funExtras: fun });
+      const res = await startBugBash(data.homeId, { name, minutes, areas: all, startsAt, cycleId, collectFirst, slack, funExtras: fun, bugTemplateId: bugTemplateId || null });
       if (!res.ok) return setError(res.error);
       setDone({ id: res.id, key: res.key, posted: res.posted, later: !!later });
       router.refresh();
@@ -278,6 +281,28 @@ function StartBashForm({
               </label>
             ))}
           </div>
+        </fieldset>
+      )}
+      {data.bugTemplates.length > 0 && (
+        <fieldset data-testid="bash-bug-template">
+          <legend className="mb-1.5 text-xs font-semibold text-slate-600">Bug template</legend>
+          <div role="radiogroup" aria-label="Bug template" className="flex flex-wrap gap-1.5">
+            {[{ id: "", name: "Plain bug", hint: "" }, ...data.bugTemplates].map((t) => (
+              <button
+                key={t.id || "plain"}
+                type="button"
+                role="radio"
+                aria-checked={bugTemplateId === t.id}
+                onClick={() => setTpl(t.id)}
+                className={cx("rounded-full border px-3 py-1 text-[13px]", bugTemplateId === t.id ? "border-accent-600 bg-accent-600 text-white" : "border-slate-300 bg-surface text-slate-700 hover:border-slate-400")}
+              >
+                {t.name}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-slate-500">
+            {bugTemplateId ? `Bugs in this bash use ${data.bugTemplates.find((t) => t.id === bugTemplateId)?.name ?? "it"}${bugTemplateId === data.bugTemplateDefault ? ", your team's default" : ""}. People can still switch for one bug while they log it.` : "One line, how bad and any details, like before."}
+          </p>
         </fieldset>
       )}
       <div>

@@ -73,6 +73,8 @@ export const startSchema = z.object({
   collectFirst: z.boolean().default(true),
   slack: z.boolean().default(true),
   funExtras: z.boolean().default(false),
+  /** The bug template bugs use (ver_125); null is the plain one-line bug. */
+  bugTemplateId: z.string().max(40).nullable().default(null),
 });
 export type StartInput = z.input<typeof startSchema>;
 
@@ -90,12 +92,24 @@ export const sevRank = (s: Severity) => ["SHOWSTOPPER", "CRITICAL", "PROBLEMATIC
 export const ITEM_KINDS = ["bug", "question", "note", "idea"] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number] | "covered";
 
+/** What was typed under a template's headings, by heading id (ver_125). */
+export const valuesSchema = z
+  .record(z.string().max(40), z.object({ text: z.string().max(20000).default(""), files: z.array(z.object({ id: z.string().max(40), fileName: z.string().max(200) })).max(10).default([]) }))
+  .refine((v) => Object.keys(v).length <= 40, "Too many headings.");
+/** The person's own automatic table cells: their time (in their zone) and their browser. */
+export const seenSchema = z.object({ now: z.string().max(80).default(""), device: z.string().max(120).default("") });
+export type Seen = z.input<typeof seenSchema>;
+
 export const logSchema = z.object({
   kind: z.enum(ITEM_KINDS).default("bug"),
   text: z.string().trim().min(1, "Say what you found, in one line.").max(300),
   details: z.string().trim().max(5000).default(""),
   severity: z.enum(["SHOWSTOPPER", "CRITICAL", "PROBLEMATIC", "MINOR"]).default("PROBLEMATIC"),
   attachmentIds: z.array(z.string()).max(10).default([]),
+  /** A bug logged with a bug template (ver_125): which one, and what was typed under its headings. */
+  templateId: z.string().max(40).nullable().default(null),
+  values: valuesSchema.default({}),
+  seen: seenSchema.optional(),
 });
 
 export type BashPhase = "scheduled" | "live" | "ended" | "wrapped";

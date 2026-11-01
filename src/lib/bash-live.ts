@@ -1,5 +1,6 @@
 import "server-only";
 import { ITEM_KINDS, parseAreas, parseLinks, phaseOf, plusOnesOf } from "./bash";
+import { findTemplate } from "./bash-template";
 import { db } from "./db";
 
 // Live finds (ver_96): what the Log a bug page's panel polls every 2 seconds, apart from the
@@ -20,7 +21,7 @@ export async function bashFinds(bashId: string) {
       items: {
         where: { kind: { in: [...ITEM_KINDS, "add"] }, mergedIntoId: null },
         orderBy: { createdAt: "desc" },
-        select: { id: true, areaId: true, kind: true, replyToId: true, text: true, details: true, severity: true, byId: true, byName: true, plusOnes: true, defectId: true, createdAt: true, attachments: { select: { id: true, fileName: true, contentType: true } } },
+        select: { id: true, areaId: true, kind: true, replyToId: true, text: true, details: true, severity: true, byId: true, byName: true, plusOnes: true, defectId: true, templateName: true, layout: true, answers: true, createdAt: true, attachments: { select: { id: true, fileName: true, contentType: true } } },
       },
     },
   });
@@ -47,6 +48,8 @@ export async function bashFinds(bashId: string) {
         plusOnes: plusOnesOf(i.plusOnes),
         at: i.createdAt.toISOString(),
         attachments: i.attachments,
+        // Its bug template (ver_125): what it still needs, so anyone can add it.
+        template: findTemplate(i, i.attachments),
         bug: i.defectId ? (keyOf.get(i.defectId) ?? null) : null,
         adds: adds
           .filter((a) => a.replyToId === i.id)

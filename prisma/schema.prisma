@@ -1093,6 +1093,8 @@ model BugBash {
   collectFirst Boolean      @default(true)
   slack        Boolean      @default(true)
   funExtras    Boolean      @default(false)
+  /// The bug template bugs use (ver_125); null means the plain one-line bug.
+  bugTemplateId String?
   /// When the start post, the 10-minute warning and the summary went to Slack.
   slackStartAt DateTime?
   slackWarnAt  DateTime?
@@ -1145,6 +1147,11 @@ model BashItem {
   defectId     String?
   /// Why filing it failed at wrap-up (ver_94); cleared once it's filed.
   fileError    String       @default("")
+  /// Logged with a bug template (ver_125): which one, its name and layout then, and what was filled in.
+  templateId   String?
+  templateName String       @default("")
+  layout       Json?
+  answers      Json?
   createdAt    DateTime     @default(now())
   attachments  Attachment[]
 

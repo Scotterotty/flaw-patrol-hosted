@@ -6,7 +6,7 @@ import { Prisma, type Severity } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity";
-import { linkSchema, logSchema, parseAreas, parseLinks, phaseOf, plusOnesOf, sevRank, startSchema, webLink, type BashArea, type BashLink, type StartInput } from "@/lib/bash";
+import { linkSchema, logSchema, parseAreas, seenSchema, valuesSchema, parseLinks, phaseOf, plusOnesOf, sevRank, startSchema, webLink, type BashArea, type BashLink, type StartInput } from "@/lib/bash";
 import { open } from "@/lib/crypto";
 import { GitHubClient } from "@/lib/github";
 import { jiraFor } from "@/lib/jira";
@@ -22,7 +22,12 @@ import { bashGuestOk } from "@/lib/link-access-server";
 import { channelNamesFor, esc, postBash } from "@/lib/slack";
 import { jiraConfigFor } from "@/lib/umbrella";
 import { startBoxData } from "@/lib/bash-data";
-import { createLocalDefect, fileJiraBug } from "./jira";
+import { createLocalDefect, fileJiraBug, fileTemplatedBug } from "./jira";
+import { bugContext } from "@/lib/bug-context";
+import { sectionText } from "@/lib/jira-format";
+import { listWords, nowCell, parseLayout, type AutoCells } from "@/lib/bug-layout";
+import { templateHome } from "@/lib/bug-templates-data";
+import { bashAnswers, itemTemplate, mergeValues, needsLine, needsOf, withoutSeenRow, withSeenRow, type BashValues } from "@/lib/bash-template";
 import { attempt, UserError } from "./result";
 import { buildEntries } from "./snapshot";
 
@@ -72,6 +77,32 @@ async function requireOwner(bashId: string) {
   return { bash, user };
 }
 
+/** A bug template from the umbrella (or test cycle) a bash's run belongs to, or null. */
+async function bashTemplate(runProjectId: string, id: string | null) {
+  if (!id) return null;
+  const project = await db.project.findUniqueOrThrow({ where: { id: runProjectId }, select: { id: true, key: true, groupId: true } });
+  const home = await templateHome(project);
+  const t = await db.bugTemplate.findFirst({ where: { id, projectId: home.id }, select: { id: true, name: true, layout: true } });
+  if (!t) throw new UserError("That bug template is gone. Someone may have deleted it. Pick another one.");
+  return { id: t.id, name: t.name, layout: parseLayout(t.layout) };
+}
+
+/** The run's details and a person's automatic table cells, for a bug in this area (ver_125). */
+async function bashFill(bash: Awaited<ReturnType<typeof loadBash>>, areaId: string, who: string, seen?: z.input<typeof seenSchema>) {
+  const area = parseAreas(bash.areas).find((a) => a.id === areaId);
+  const entry = await db.runEntry.findFirst({ where: { runId: bash.run.id, caseId: area?.caseId ?? "" }, select: { id: true } });
+  const ctx = entry ? (await bugContext(bash.run.projectId, entry.id, null, "")).ctx : null;
+  const s = seenSchema.parse(seen ?? {});
+  const auto: AutoCells = {
+    now: s.now || nowCell(),
+    build: [ctx?.build, ctx?.fields?.find((f) => /csp/i.test(f.name))?.value].filter(Boolean).join(" · ") || ctx?.release || "",
+    env: ctx?.environment ?? "",
+    device: s.device,
+    who,
+  };
+  return { env: ctx ? sectionText("env", ctx) : "", auto };
+}
+
 /** Start a bug bash: a charter per area, one run in the test cycle, and a Slack post. */
 /** The Start a bug bash box's area ideas and choices, fetched when the box opens or is about to (ver_120). */
 export async function startBoxFor(projectId: string) {
@@ -90,6 +121,7 @@ export async function startBugBash(homeId: string, input: StartInput) {
     const cycles = home.hubOf ? await db.project.findMany({ where: { groupId: home.hubOf.id, archivedAt: null, id: { not: home.id } }, orderBy: { createdAt: "desc" }, select: { id: true } }) : [];
     const cycleId = data.cycleId && (data.cycleId === home.id || cycles.some((c) => c.id === data.cycleId)) ? data.cycleId : home.id;
     const { project: cycle } = await requireProjectAction(cycleId, "run:create");
+    const bugTemplate = await bashTemplate(cycle.id, data.bugTemplateId);
     const library = home.id === cycle.id ? [cycle.id] : [cycle.id, home.id];
     const team = await teamTemplates((await charterHome(home)).id);
     const now = new Date();
@@ -145,7 +177,7 @@ export async function startBugBash(homeId: string, input: StartInput) {
           },
         });
         return tx.bugBash.create({
-          data: { projectId: home.id, runId: run.id, name: data.name, release: cycle.rcName, minutes: data.minutes, startsAt, endsAt, areas: areas as Prisma.InputJsonValue, collectFirst: data.collectFirst, slack: data.slack, funExtras: data.funExtras, createdById: user.id, createdBy: by },
+          data: { projectId: home.id, runId: run.id, name: data.name, release: cycle.rcName, minutes: data.minutes, startsAt, endsAt, areas: areas as Prisma.InputJsonValue, collectFirst: data.collectFirst, slack: data.slack, funExtras: data.funExtras, bugTemplateId: bugTemplate?.id ?? null, createdById: user.id, createdBy: by },
         });
       },
       { timeout: 60_000 },
@@ -218,25 +250,98 @@ export async function logBashItem(bashId: string, input: z.input<typeof logSchem
     if (phase === "scheduled") throw new UserError("This bash hasn't started yet.");
     const me = await db.bashPerson.findUnique({ where: { bashId_userId: { bashId, userId: user.id } } });
     if (!me) throw new UserError("Pick an area first.");
-    const item = await db.bashItem.create({ data: { bashId, areaId: me.areaId, kind: data.kind, text: data.text, details: data.details, severity: data.severity as Severity, byId: user.id, byName: nameOf(user) } });
-    if (data.attachmentIds.length) await db.attachment.updateMany({ where: { id: { in: data.attachmentIds }, projectId: bash.run.projectId, uploadedById: user.id, resultId: null }, data: { bashItemId: item.id } });
+    // A bug with a bug template (ver_125) keeps the template as it is now, and what was typed under it.
+    const tpl = data.kind === "bug" ? await bashTemplate(bash.run.projectId, data.templateId) : null;
+    let kept = {};
+    if (tpl) {
+      const fill = await bashFill(bash, me.areaId, nameOf(user), data.seen);
+      const answers = bashAnswers(tpl.layout, await ownFiles(data.values, bash.run.projectId, user.id), { env: fill.env, actual: data.details || data.text }, fill.auto);
+      kept = { templateId: tpl.id, templateName: tpl.name, layout: tpl.layout as unknown as Prisma.InputJsonValue, answers: answers as unknown as Prisma.InputJsonValue };
+    }
+    const item = await db.bashItem.create({ data: { bashId, areaId: me.areaId, kind: data.kind, text: data.text, details: data.details, severity: data.severity as Severity, byId: user.id, byName: nameOf(user), ...kept } });
+    const fileIds = [...data.attachmentIds, ...Object.values(data.values).flatMap((v) => v.files.map((f) => f.id))];
+    if (fileIds.length) await db.attachment.updateMany({ where: { id: { in: fileIds }, projectId: bash.run.projectId, uploadedById: user.id, resultId: null }, data: { bashItemId: item.id } });
+    const needs = tpl ? await itemNeeds(item.id) : [];
     let filed: string | null = null;
-    if (!bash.collectFirst && data.kind === "bug") filed = await fileItem(bash, item.id).catch((e) => (e instanceof UserError ? `Logged here, but filing failed: ${e.message}` : null));
+    // Logging never waits on a template's must-haves (Scott, ver_125); filing does.
+    if (!bash.collectFirst && data.kind === "bug" && needs.length) filed = `Logged. It goes to ${(await jiraConfigFor(bash.run.projectId)) ? "Jira" : "the bug list"} once ${listWords(needs)} ${needs.length === 1 ? "is" : "are"} added.`;
+    else if (!bash.collectFirst && data.kind === "bug") filed = await fileItem(bash, item.id).catch((e) => (e instanceof UserError ? `Logged here, but filing failed: ${e.message}` : null));
     refresh(bash.project.key);
     if (data.kind === "bug") after(() => refreshCrownsFor(bash.projectId));
-    return { id: item.id, filed };
+    return { id: item.id, filed, needs };
   });
 }
 
-/** "+1, I see it too" (or take it back). */
-export async function plusOneBash(itemId: string, on: boolean) {
+/** Only files this person uploaded and nobody has used yet, named as stored. */
+async function ownFiles(values: z.output<typeof valuesSchema>, projectId: string, userId: string): Promise<BashValues> {
+  const ids = Object.values(values).flatMap((v) => v.files.map((f) => f.id));
+  const ok = ids.length ? await db.attachment.findMany({ where: { id: { in: ids }, projectId, uploadedById: userId, resultId: null, defectId: null }, select: { id: true, fileName: true } }) : [];
+  return Object.fromEntries(Object.entries(values).map(([k, v]) => [k, { text: v.text, files: v.files.flatMap((f) => ok.filter((x) => x.id === f.id)) }]));
+}
+
+/** What a templated bash bug still needs before it's filed (its files count as screenshots). */
+async function itemNeeds(itemId: string) {
+  const it = await db.bashItem.findUniqueOrThrow({ where: { id: itemId }, select: { templateName: true, layout: true, answers: true, attachments: { select: { fileName: true, contentType: true } } } });
+  const t = itemTemplate(it);
+  return t ? needsOf(t.layout, t.answers, it.attachments).words : [];
+}
+
+/**
+ * Fill in (ver_125): anyone in the bash adds what a bug's template still needs, from Live finds
+ * or at wrap-up. A straight-to-Jira bash files the bug as soon as it has everything.
+ */
+export async function fillBashItem(itemId: string, input: { values: z.input<typeof valuesSchema>; attachmentIds?: string[] }) {
   return attempt(async () => {
-    const item = await db.bashItem.findUnique({ where: { id: itemId }, select: { bashId: true, byId: true, plusOnes: true } });
+    const it = await db.bashItem.findUnique({ where: { id: itemId }, select: { bashId: true, kind: true, defectId: true, templateName: true, layout: true, answers: true } });
+    const t = it ? itemTemplate(it) : null;
+    if (!it || !t) throw new UserError("That bug isn't here anymore.");
+    const { bash, user } = await requireIn(it.bashId);
+    if (phaseOf(bash) === "wrapped") throw new UserError("This bash is wrapped up.");
+    if (it.defectId) throw new UserError("It's already filed, so change it there.");
+    const values = await ownFiles(valuesSchema.parse(input.values), bash.run.projectId, user.id);
+    const answers = mergeValues(t.answers, t.layout, values);
+    await db.bashItem.update({ where: { id: itemId }, data: { answers: answers as unknown as Prisma.InputJsonValue } });
+    const ids = [...z.array(z.string().max(40)).max(10).parse(input.attachmentIds ?? []), ...Object.values(values).flatMap((v) => v.files.map((f) => f.id))];
+    if (ids.length) await db.attachment.updateMany({ where: { id: { in: ids }, projectId: bash.run.projectId, uploadedById: user.id, resultId: null, defectId: null }, data: { bashItemId: itemId } });
+    const needs = await itemNeeds(itemId);
+    // Ready now: a hold-back from wrap-up no longer applies.
+    if (!needs.length) await db.bashItem.updateMany({ where: { id: itemId, fileError: { startsWith: "Needs " } }, data: { fileError: "" } });
+    let filed: string | null = null;
+    if (!needs.length && !bash.collectFirst && phaseOf(bash) === "live") filed = await fileItem(bash, itemId).catch((e) => (e instanceof UserError ? `Saved, but filing failed: ${e.message}` : null));
+    refresh(bash.project.key);
+    return { needs, filed };
+  });
+}
+
+/** Whoever started it switches the bug template while it's on. Bugs already logged keep theirs. */
+export async function setBashTemplate(bashId: string, templateId: string | null) {
+  return attempt(async () => {
+    const { bash } = await requireOwner(bashId);
+    if (phaseOf(bash) === "wrapped") throw new UserError("This bash is wrapped up.");
+    const t = await bashTemplate(bash.run.projectId, templateId);
+    await db.bugBash.update({ where: { id: bashId }, data: { bugTemplateId: t?.id ?? null } });
+    refresh(bash.project.key);
+    return {};
+  });
+}
+
+/** "+1, I see it too" (or take it back). With a growing table, it adds the person's own row (ver_125). */
+export async function plusOneBash(itemId: string, on: boolean, seen?: z.input<typeof seenSchema>) {
+  return attempt(async () => {
+    const item = await db.bashItem.findUnique({ where: { id: itemId }, select: { bashId: true, areaId: true, byId: true, plusOnes: true, defectId: true, templateName: true, layout: true, answers: true } });
     if (!item) throw new UserError("That bug isn't here anymore.");
     const { bash, user } = await requireIn(item.bashId);
     if (item.byId === user.id) throw new UserError("That's your own bug.");
-    const others = plusOnesOf(item.plusOnes).filter((p) => p.id !== user.id);
-    await db.bashItem.update({ where: { id: itemId }, data: { plusOnes: (on ? [...others, { id: user.id, name: nameOf(user) }] : others) as Prisma.InputJsonValue } });
+    const before = plusOnesOf(item.plusOnes);
+    const others = before.filter((p) => p.id !== user.id);
+    const t = itemTemplate(item);
+    const had = before.length !== others.length;
+    let answers = t?.answers;
+    if (t && !item.defectId && t.answers.some((a) => a.growing)) {
+      if (on && !had) answers = withSeenRow(t.answers, (await bashFill(bash, item.areaId, nameOf(user), seen)).auto);
+      if (!on && had) answers = withoutSeenRow(t.answers, nameOf(user));
+    }
+    await db.bashItem.update({ where: { id: itemId }, data: { plusOnes: (on ? [...others, { id: user.id, name: nameOf(user) }] : others) as Prisma.InputJsonValue, ...(answers && t && answers !== t.answers && { answers: answers as unknown as Prisma.InputJsonValue }) } });
     refresh(bash.project.key);
     return {};
   });
@@ -450,7 +555,35 @@ async function fileItem(bash: Awaited<ReturnType<typeof loadBash>>, itemId: stri
     .join("\n\n");
   const stories = [...new Set(links.filter((l) => l.kind === "jira").map((l) => l.key))].slice(0, 10);
   let defectId: string, key: string;
-  if (await jiraConfigFor(bash.run.projectId)) {
+  const t = itemTemplate(item);
+  if (t) {
+    // With its bug template (ver_125): held back until it has what the template must have.
+    const needs = needsOf(t.layout, t.answers, await db.attachment.findMany({ where: { bashItemId: item.id }, select: { fileName: true, contentType: true } })).words;
+    if (needs.length) throw new UserError(needsLine(needs));
+    const inSections = new Set(t.answers.flatMap((a) => (a.files ?? []).map((f) => f.id)));
+    const r = await fileTemplatedBug(bash.run.projectId, entry.id, {
+      templateId: item.templateId ?? "bash",
+      bashItemId: item.id,
+      summary: item.text.slice(0, 200),
+      platform: "",
+      area: area?.name ?? "",
+      build: "",
+      severity: item.severity,
+      stepIndex: null,
+      actual: item.details || item.text,
+      answers: t.answers,
+      attachmentIds: item.attachments.map((a) => a.id).filter((id) => !inSections.has(id)),
+      stories,
+      notes: [
+        adds.length ? { name: "Added during the bash", text: adds.map((a) => `- ${a.byName}: ${a.text}`).join("\n") } : null,
+        links.some((l) => l.kind !== "jira") ? { name: "What was being tested", text: links.filter((l) => l.kind !== "jira").map((l) => `- ${l.key}${l.title ? ` ${l.title}` : ""}: ${l.url}`).join("\n") } : null,
+        { name: "Found in", text: `The bug bash ${bash.name}, area ${area?.name ?? ""}, by ${item.byName}${seen.length ? `. Also seen by ${seen.map((p) => p.name).join(", ")}` : ""}.` },
+      ].filter((n): n is { name: string; text: string } => !!n),
+    });
+    if (!r.ok) throw new UserError(r.error);
+    defectId = r.defect.id;
+    key = r.defect.externalKey ?? `D-${r.defect.number}`;
+  } else if (await jiraConfigFor(bash.run.projectId)) {
     const r = await fileJiraBug(bash.run.projectId, entry.id, { summary: item.text.slice(0, 250), severity: item.severity, stepIndex: null, actual, attachmentIds: item.attachments.map((a) => a.id), stories });
     if (!r.ok) throw new UserError(r.error);
     defectId = r.defect.id;

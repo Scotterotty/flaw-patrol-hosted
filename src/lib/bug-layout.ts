@@ -330,7 +330,8 @@ export const acceptOf = (types: string) =>
 /** "Oct 31, 2026, 6:14 PM PDT" in the reporter's own time zone (persona check: times say their zone). */
 export function nowCell(d = new Date(), locale?: string) {
   try {
-    return d.toLocaleString(locale, { dateStyle: "medium", timeStyle: "short", timeZoneName: "short" } as Intl.DateTimeFormatOptions);
+    // dateStyle can't be mixed with timeZoneName (it throws), so the parts are named one by one (ver_125).
+    return d.toLocaleString(locale, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
   } catch {
     return d.toISOString();
   }

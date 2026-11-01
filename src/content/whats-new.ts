@@ -22,8 +22,34 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 125,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "new",
+        title: "Bug bashes use your bug templates",
+        text: "Start a bug bash has a Bug template choice that starts on your team's default. Log a bug shows the template's headings, and you can switch template for one bug.",
+      },
+      {
+        kind: "new",
+        title: "Log now, fill in the rest later",
+        text: "A missing Must have never stops you logging. Live finds shows Needs 1 or Ready, and anyone can open the bug and add what's missing.",
+      },
+      {
+        kind: "better",
+        title: "Wrap up shows which bugs are ready",
+        text: "A Ready? column with Fill in. Bugs still missing something stay here when the rest are filed, and they go to Jira or Bugs with the template's headings.",
+      },
+      {
+        kind: "fix",
+        title: "Times in template tables read normally",
+        text: "The Date and time cell in tables like Reproduction history shows a plain date and time with your time zone, not a long code.",
+      },
+    ],
+  },
+  {
     version: 124,
-    date: "2026-11-01",
+    date: "2026-10-31",
     items: [
       {
         kind: "better",

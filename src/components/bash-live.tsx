@@ -4,8 +4,11 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransitio
 import type { Severity } from "@prisma/client";
 import { LINK_KIND_LABEL, similarBugs, type BashLink } from "@/lib/bash";
 import type { BashFinds, LiveFind } from "@/lib/bash-live";
-import { addToBashItem, deleteBashItem, editBashItem, plusOneBash, searchBashLinks, setBashLinks } from "@/server/bashes";
-import { SevChip } from "./bash";
+import { addToBashItem, deleteBashItem, editBashItem, fillBashItem, plusOneBash, searchBashLinks, setBashLinks } from "@/server/bashes";
+import { listWords } from "@/lib/bug-layout";
+import type { BashValues } from "@/lib/bash-template";
+import { SevChip, useBashUpload } from "./bash";
+import { AnswerTables, NeedsTag, seenHere, TemplateFields } from "./bash-template";
 import { Button, cx, ErrorText } from "./ui";
 
 // Live finds (ver_96): the panel on Log a bug that fills in as people log, so nobody logs the
@@ -72,7 +75,9 @@ export function LiveFinds({
   openId,
   setOpenId,
   live,
+  projectId,
 }: {
+  projectId: string;
   bashId: string;
   data: LiveData;
   reload: () => Promise<void>;
@@ -83,7 +88,6 @@ export function LiveFinds({
   setOpenId: (id: string | null) => void;
   live: boolean;
 }) {
-  void bashId;
   const [scope, setScope] = useState<Scope>("area");
   const [kind, setKind] = useState<"all" | FindKind>("all");
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +95,10 @@ export function LiveFinds({
   // Half-typed additions, by find: kept in state here, so refreshes never touch them.
   const [typed, setTyped] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
+  // What's being typed to fill in a bug's missing headings (ver_125), by find.
+  const [filling, setFilling] = useState<Record<string, BashValues>>({});
+  const [shots, setShots] = useState<Record<string, { id: string; fileName: string }[]>>({});
+  const upload = useBashUpload(projectId, bashId, setError);
   const [now, setNow] = useState(() => Date.now());
   const [folded, setFolded] = useState(true);
   const list = useRef<HTMLUListElement>(null);
@@ -286,6 +294,7 @@ export function LiveFinds({
                         <span>{ago(i.at, now)}</span>
                         {scope !== "area" && <span>· {area}</span>}
                         {i.kind === "bug" && <SevChip s={i.severity as Severity} />}
+                        {!i.bug && <NeedsTag t={i.template} />}
                         {i.plusOnes.length > 0 && <span title={i.plusOnes.map((p) => p.name).join(", ")}>+{i.plusOnes.length}</span>}
                         {i.kind === "question" ? i.adds.length > 0 && <span className="font-semibold text-emerald-700">Answered</span> : i.adds.length > 0 && <span>{i.adds.length} added</span>}
                         {i.bug && <span className="font-mono text-red-700">{i.bug.key}</span>}
@@ -295,6 +304,55 @@ export function LiveFinds({
                   {open && (
                     <div className="mt-2 space-y-2 border-l-2 border-accent-200 pl-2" data-testid="find-open">
                       {i.details && <p className="text-xs whitespace-pre-wrap text-slate-600">{i.details}</p>}
+                      {i.template && <p className="text-[11px] text-slate-500">{i.template.name}</p>}
+                      {i.template && !i.bug && i.template.needs.length > 0 && live && (
+                        <div className="space-y-2 rounded-md bg-amber-50 p-2 ring-1 ring-amber-200 ring-inset" data-testid="find-needs">
+                          <p className="text-xs text-amber-900">
+                            Still needed before it&apos;s filed: <b className="font-semibold">{listWords(i.template.needs)}</b>. Anyone can add {i.template.needs.length === 1 ? "it" : "them"}.
+                          </p>
+                          <TemplateFields layout={i.template.layout} values={filling[i.id] ?? {}} setValues={(fn) => setFilling((f) => ({ ...f, [i.id]: fn(f[i.id] ?? {}) }))} only={i.template.needIds} upload={upload} idPrefix={`fill-${i.id}`} />
+                          {i.template.shot && (
+                            <p className="flex flex-wrap items-center gap-1.5 text-xs">
+                              <label className="cursor-pointer rounded-md px-2 py-1 font-medium text-accent-700 ring-1 ring-slate-300 hover:bg-white">
+                                Add a screenshot or video
+                                <input
+                                  type="file"
+                                  hidden
+                                  accept="image/*,video/*"
+                                  onChange={async (e) => {
+                                    const l = [...(e.target.files ?? [])];
+                                    e.target.value = "";
+                                    const up = await upload(l);
+                                    setShots((x) => ({ ...x, [i.id]: [...(x[i.id] ?? []), ...up] }));
+                                  }}
+                                />
+                              </label>
+                              {(shots[i.id] ?? []).map((f) => (
+                                <span key={f.id} className="rounded bg-white px-1.5 py-0.5 text-slate-700">
+                                  {f.fileName}
+                                </span>
+                              ))}
+                            </p>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            disabled={pending}
+                            onClick={() =>
+                              act(
+                                () => fillBashItem(i.id, { values: filling[i.id] ?? {}, attachmentIds: (shots[i.id] ?? []).map((f) => f.id) }),
+                                () => {
+                                  setFilling((f) => ({ ...f, [i.id]: {} }));
+                                  setShots((x) => ({ ...x, [i.id]: [] }));
+                                },
+                              )
+                            }
+                          >
+                            Add
+                          </Button>
+                        </div>
+                      )}
+                      {i.template && <AnswerTables answers={i.template.answers} />}
                       {i.attachments.length > 0 && (
                         <p className="flex flex-wrap gap-1 text-xs">
                           {i.attachments.map((a) => (
@@ -328,7 +386,7 @@ export function LiveFinds({
                       ) : (
                         <div className="flex flex-wrap gap-1.5">
                           {!mine && i.kind !== "question" && live && (
-                            <Button size="sm" variant={iPlus ? "secondary" : "primary"} disabled={pending} onClick={() => act(() => plusOneBash(i.id, !iPlus))}>
+                            <Button size="sm" variant={iPlus ? "secondary" : "primary"} disabled={pending} onClick={() => act(() => plusOneBash(i.id, !iPlus, seenHere()))}>
                               {iPlus ? "✓ You see it too" : i.kind === "bug" ? "+1, I see it too" : "+1"}
                             </Button>
                           )}

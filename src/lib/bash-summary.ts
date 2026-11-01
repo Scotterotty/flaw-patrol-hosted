@@ -1,6 +1,8 @@
 import "server-only";
 import { parseAreas, parseLinks, phaseOf, plusOnesOf, sevRank, timeRange } from "./bash";
 import { parseCharter } from "./charter";
+import { findTemplate } from "./bash-template";
+import { loadBugTemplates } from "./bug-templates-data";
 import { db } from "./db";
 import { severityScaleFor } from "./severity-server";
 
@@ -42,11 +44,17 @@ export async function loadBashFull(bashId: string) {
     mergedIntoId: i.mergedIntoId,
     at: i.createdAt,
     attachments: i.attachments,
+    template: findTemplate(i, i.attachments),
     bug: i.defectId ? (defectOf.get(i.defectId) ?? null) : null,
     adds: addsOf(i.id),
   }));
+  // Bug templates (ver_125): the team's list, for the log box and for switching the bash's template.
+  const runProject = bash.run ? await db.project.findUnique({ where: { id: bash.run.projectId }, select: { id: true, key: true, groupId: true } }) : null;
+  const choices = runProject ? (await loadBugTemplates(runProject)).templates.map(({ id, name, hint, layout }) => ({ id, name, hint, layout })) : [];
   return {
     bash,
+    bugTemplates: choices,
+    bugTemplate: choices.find((t) => t.id === bash.bugTemplateId) ?? null,
     phase: phaseOf(bash),
     areas: areas.map((a) => ({ ...a, charter: charterOf.get(a.caseId) ?? null, people: bash.people.filter((p) => p.areaId === a.id).map((p) => ({ id: p.userId, name: p.name })) })),
     items,
@@ -136,6 +144,8 @@ export function bashView(full: BashFull, me: { id: string; canManage: boolean })
     createdBy: bash.createdBy,
     isOwner: bash.createdById === me.id || me.canManage,
     collectFirst: bash.collectFirst,
+    bugTemplates: full.bugTemplates,
+    bugTemplateId: full.bugTemplate?.id ?? null,
     funExtras: bash.funExtras,
     homeKey: bash.project.key,
     entryOf: full.entryOf,

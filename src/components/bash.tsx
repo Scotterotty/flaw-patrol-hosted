@@ -2,12 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { Severity } from "@prisma/client";
 import { BASH_SEVERITIES, sevLabel, similarBugs, type BashSeverity, type ItemKind } from "@/lib/bash";
 import type { BashView } from "@/lib/bash-summary";
 import { clock } from "@/lib/charter";
-import { bashBugFiled, coverBashPrompt, endBashEarly, joinBash, logBashItem, mergeBashItems, plusOneBash, reviewBashItem, wrapUpBash } from "@/server/bashes";
+import { bashBugFiled, coverBashPrompt, endBashEarly, fillBashItem, joinBash, logBashItem, mergeBashItems, plusOneBash, reviewBashItem, setBashTemplate, wrapUpBash } from "@/server/bashes";
+import { bashAnswers, isNeedsLine, isShot, needsOf, valuesOf, type BashValues } from "@/lib/bash-template";
+import { listWords } from "@/lib/bug-layout";
+import { TemplatePicker } from "./templated-bug-form";
+import { AnswerTables, FilledForYou, NeedsTag, seenHere, TemplateFields } from "./bash-template";
 import { FIND_LABEL, KindTag, LinkChips, LiveFinds, useLiveFinds, WhatYoureTesting, type FindKind, type LiveData } from "./bash-live";
 import { uploadAttachment } from "@/server/results";
 import { BugDialog } from "./bug-dialog";
@@ -80,6 +84,68 @@ const initials = (name: string) =>
     .join("");
 
 /** Join: pick an area, Start exploring. Nobody needs to know what a charter or a run is. */
+/** Uploads files into the bash (ver_125), for a template heading or a missing screenshot. */
+export function useBashUpload(projectId: string, bashId: string, setError: (e: string) => void) {
+  return useCallback(
+    async (list: File[]) => {
+      const out: { id: string; fileName: string }[] = [];
+      for (const f of list) {
+        const form = new FormData();
+        form.set("file", f);
+        form.set("bashId", bashId);
+        const r = await uploadAttachment(projectId, form);
+        if (r.ok) out.push({ id: r.attachment.id, fileName: r.attachment.fileName });
+        else setError(r.error);
+      }
+      return out;
+    },
+    [projectId, bashId, setError],
+  );
+}
+
+/** "Bugs use: UI bug" (ver_125). Whoever started it can switch; bugs already logged keep theirs. */
+function BugsUse({ bash, onError }: { bash: BashView; onError: (e: string) => void }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const name = bash.bugTemplates.find((t) => t.id === bash.bugTemplateId)?.name ?? "Plain bug";
+  if (!bash.isOwner || bash.phase === "wrapped")
+    return (
+      <div>
+        <p className="text-xs text-slate-500">Bugs use</p>
+        <p className="text-sm font-medium text-slate-900" data-testid="bugs-use">{name}</p>
+      </div>
+    );
+  return (
+    <div>
+      <label htmlFor="bugs-use" className="block text-xs text-slate-500">
+        Bugs use
+      </label>
+      <select
+        id="bugs-use"
+        className="mt-0.5 h-8 w-full rounded-md border border-slate-300 bg-surface px-2 text-sm"
+        value={bash.bugTemplateId ?? ""}
+        disabled={pending}
+        onChange={(e) => {
+          const to = e.target.value || null;
+          start(async () => {
+            const r = await setBashTemplate(bash.id, to);
+            if (!r.ok) onError(r.error);
+            router.refresh();
+          });
+        }}
+      >
+        <option value="">Plain bug</option>
+        {bash.bugTemplates.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.name}
+          </option>
+        ))}
+      </select>
+      <p className="mt-0.5 text-[11px] text-slate-500">Bugs already logged keep theirs.</p>
+    </div>
+  );
+}
+
 export function JoinPicker({ bash, onCancel }: { bash: BashView; onCancel?: () => void }) {
   const router = useRouter();
   const [pick, setPick] = useState(bash.me.areaId ?? [...bash.areas].sort((a, b) => a.people.length - b.people.length)[0]?.id ?? "");
@@ -160,6 +226,12 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
   const [severity, setSeverity] = useState<BashSeverity>("PROBLEMATIC");
   const [kind, setKind] = useState<"bug" | "question" | "note" | "idea">("bug");
   const [files, setFiles] = useState<{ id: string; fileName: string }[]>([]);
+  // Bug template (ver_125): the bash's, unless this person picks another for their bugs.
+  const [tplPick, setTplPick] = useState<string | null>(null);
+  const tplId = tplPick ?? bash.bugTemplateId ?? "";
+  const tpl = kind === "bug" ? (bash.bugTemplates.find((t) => t.id === tplId) ?? null) : null;
+  const [values, setValues] = useState<BashValues>({});
+  const needs = tpl ? needsOf(tpl.layout, bashAnswers(tpl.layout, values, { env: "", actual: "-" }, { now: "", build: "", env: "", device: "", who: "" }), files.filter(isShot)).words : [];
   const [different, setDifferent] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -204,6 +276,7 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
     },
     [bash.runProjectId, bash.id],
   );
+  const uploadFor = useBashUpload(bash.runProjectId, bash.id, setError);
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
       const list = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith("image/"));
@@ -229,15 +302,16 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
     start(async () => {
       setError(null);
       const sent = text;
-      const r = await logBashItem(bash.id, { kind, text, details, severity, attachmentIds: files.map((f) => f.id) });
+      const r = await logBashItem(bash.id, { kind, text, details, severity, attachmentIds: files.map((f) => f.id), templateId: tpl?.id ?? null, values: tpl ? values : {}, seen: seenHere() });
       if (!r.ok) return setError(r.error);
       // Only clear what was sent: anything typed while it saved stays (ver_96).
       setText((t) => (t === sent ? "" : t));
       setDetails("");
       setShowDetails(false);
       setFiles([]);
+      setValues({});
       // Always say it worked (ver_121), not only when it was filed too.
-      const said = `${KIND_LABEL[kind]} logged. It's at the top of Live finds.`;
+      const said = r.needs.length && !r.filed ? `${KIND_LABEL[kind]} logged. It's at the top of Live finds, marked Needs ${r.needs.length}.` : `${KIND_LABEL[kind]} logged. It's at the top of Live finds.`;
       setNote(r.filed ? (r.filed.startsWith("Logged") ? r.filed : `${said} Filed as ${r.filed}.`) : said);
       void reload();
       router.refresh();
@@ -247,7 +321,7 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[19rem_minmax(0,1fr)] xl:grid-cols-[19rem_minmax(0,1fr)_16rem]">
       <div className="order-2 lg:order-1 lg:row-span-2">
-        <LiveFinds bashId={bash.id} data={data} reload={reload} meId={bash.me.id} areaId={area.id} draft={text} openId={openId} setOpenId={setOpenId} live={live} />
+        <LiveFinds bashId={bash.id} projectId={bash.runProjectId} data={data} reload={reload} meId={bash.me.id} areaId={area.id} draft={text} openId={openId} setOpenId={setOpenId} live={live} />
       </div>
       <Card className="order-1 p-4 lg:order-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -300,7 +374,7 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
                   disabled={pending}
                   onClick={() =>
                     start(async () => {
-                      const r = await plusOneBash(match.id, true);
+                      const r = await plusOneBash(match.id, true, seenHere());
                       if (!r.ok) return setError(r.error);
                       setText("");
                       setNote(`Added you to ${match.byName}'s ${KIND_LABEL[match.kind].toLowerCase()}.`);
@@ -332,6 +406,17 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
             <span className="ml-1 text-slate-500" data-testid="bash-files-as">Files as {bash.sevNames[severity]}</span>
           </div>
         )}
+        {kind === "bug" && bash.bugTemplates.length > 0 && (
+          <div className="mt-3 space-y-2.5 rounded-md border border-slate-200 p-3" data-testid="bash-template-box">
+            <TemplatePicker current={{ name: "Plain bug", kind: "plain" }} templates={bash.bugTemplates} value={tplId} onChange={(id) => setTplPick(id)} />
+            {tpl && (
+              <>
+                <TemplateFields key={tpl.id} layout={tpl.layout} values={values} setValues={setValues} disabled={!live} upload={uploadFor} idPrefix="log" />
+                <FilledForYou layout={tpl.layout} area={area.name} />
+              </>
+            )}
+          </div>
+        )}
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
           <span className="text-slate-500">Paste a screenshot, or</span>
           <Button size="sm" disabled={!live || uploading || !capture.ok} title={capture.ok ? undefined : capture.why} onClick={async () => {
@@ -357,11 +442,18 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
               </button>
             </span>
           ))}
-          <button type="button" className="ml-auto font-medium text-accent-700 hover:underline" aria-expanded={showDetails} onClick={() => setShowDetails((v) => !v)}>
-            Add steps and details
-          </button>
+          {!tpl && (
+            <button type="button" className="ml-auto font-medium text-accent-700 hover:underline" aria-expanded={showDetails} onClick={() => setShowDetails((v) => !v)}>
+              Add steps and details
+            </button>
+          )}
         </div>
-        {showDetails && <Textarea className="mt-2" rows={3} aria-label="Steps and details" value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Steps to see it, what you expected, anything else" />}
+        {tpl && needs.length > 0 && text.trim() && (
+          <p className="mt-2 rounded-md bg-amber-50 px-3 py-1.5 text-xs text-amber-900" data-testid="bash-still-needed">
+            Still needed before it&apos;s filed: <b className="font-semibold">{listWords(needs)}</b>. You can log it now and add {needs.length === 1 ? "it" : "them"} later.
+          </p>
+        )}
+        {showDetails && !tpl && <Textarea className="mt-2" rows={3} aria-label="Steps and details" value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Steps to see it, what you expected, anything else" />}
         <div className="mt-3 flex items-center justify-between gap-2">
           <span className="text-xs text-slate-500">Area, time and your name are filled in for you. Everyone in this bash sees what you log.</span>
           <Button variant="primary" disabled={!live || pending || !text.trim()} onClick={log}>
@@ -402,6 +494,7 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
               ))}
             </select>
           </div>
+          {bash.bugTemplates.length > 0 && <BugsUse bash={bash} onError={setError} />}
           <div>
             <p className="text-xs text-slate-500">In here with you</p>
             <p className="text-sm text-slate-800">{others.length ? others.map((p) => p.name).join(", ") : "Just you"}</p>
@@ -468,6 +561,7 @@ export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-600">
           {bash.phase === "scheduled" ? "Starts" : "Started"} {time(bash.startsAt)} by {bash.createdBy} · {bash.people.length} {bash.people.length === 1 ? "person" : "people"}
+          {bash.bugTemplateId && <> · Bugs use <b className="font-medium text-slate-800" data-testid="board-bugs-use">{bash.bugTemplates.find((t) => t.id === bash.bugTemplateId)?.name ?? "Plain bug"}</b></>}
         </p>
         <div className="flex items-center gap-2">
           <Countdown bash={bash} className="mr-2 text-2xl font-semibold text-slate-900" />
@@ -714,6 +808,14 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
   const bugs = useMemo(() => bash.items.filter((i) => i.kind === "bug" && !i.mergedIntoId).map((i) => ({ ...i, ...mine[i.id] })), [bash.items, mine]);
   const toFile = bugs.filter((b) => b.review === "file" && !b.bug);
   const failed = toFile.filter((b) => b.fileError);
+  // Held back for a template's must-haves (ver_125) apart from bugs Jira refused.
+  const held = failed.filter((b) => isNeedsLine(b.fileError));
+  const refused = failed.filter((b) => !isNeedsLine(b.fileError));
+  const notReady = toFile.filter((b) => b.template?.needs.length);
+  const templated = bugs.some((b) => b.template);
+  const [fillId, setFillId] = useState<string | null>(null);
+  const [fillValues, setFillValues] = useState<BashValues>({});
+  const upload = useBashUpload(bash.runProjectId, bash.id, setError);
   const tried = bugs.filter((b) => b.review === "file" && (b.bug || b.fileError));
   const plusOnes = bugs.reduce((n, b) => n + b.plusOnes.length, 0);
   const people = new Set([...bash.people.map((p) => p.id), ...bash.items.map((i) => i.byId)]).size;
@@ -763,10 +865,18 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
         ))}
       </div>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
-      {failed.length > 0 && (
+      {held.length > 0 && (
+        <div role="alert" className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="bash-held">
+          <p className="font-semibold">
+            {plural(held.length)} still {held.length === 1 ? "needs" : "need"} something, so {held.length === 1 ? "it stays" : "they stay"} here
+          </p>
+          Press <b>Fill in</b> to add what&apos;s missing, untick {held.length === 1 ? "it" : "them"}, or wrap up anyway and file {held.length === 1 ? "it" : "them"} later from the report.
+        </div>
+      )}
+      {refused.length > 0 && (
         <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800" data-testid="bash-not-filed">
           <p className="font-semibold">
-            {failed.length} of {plural(tried.length)} didn&apos;t go to {jiraConnected ? "Jira" : "the bug list"}
+            {refused.length} of {plural(tried.length)} didn&apos;t go to {jiraConnected ? "Jira" : "the bug list"}
           </p>
           Nothing is lost. Press <b>File this bug…</b> to fix it, or wrap up now and file it later from the report.
         </div>
@@ -803,6 +913,7 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
                   </th>
                   <th className="px-3 py-2 font-medium">File it</th>
                   <th className="px-3 py-2 font-medium">Bug</th>
+                  {templated && <th className="px-3 py-2 font-medium">Ready?</th>}
                   <th className="px-3 py-2 font-medium">Area</th>
                   <th className="px-3 py-2 font-medium">Severity</th>
                   <th className="px-3 py-2 font-medium">Seen by</th>
@@ -812,7 +923,8 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
                 {bugs.map((b) => {
                   const left = b.review === "skip" && !b.bug;
                   return (
-                    <tr key={b.id} className={cx(left && "text-slate-400")}>
+                    <Fragment key={b.id}>
+                    <tr className={cx(left && "text-slate-400")}>
                       <td className="px-3 py-2">
                         <input type="checkbox" aria-label={`Select ${b.text} to merge`} disabled={!!b.bug} checked={ticked.has(b.id)} onChange={(e) => setTicked((t) => { const n = new Set(t); if (e.target.checked) n.add(b.id); else n.delete(b.id); return n; })} />
                       </td>
@@ -831,17 +943,40 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
                       <td className="px-3 py-2">
                         <span className="block">
                           {b.text}
-                          {(left || b.fileError) && !b.bug && <UnfiledTag left={left} why={b.fileError} />}
+                          {(left || b.fileError) && !b.bug && <UnfiledTag left={left} why={isNeedsLine(b.fileError) ? undefined : b.fileError} />}
                         </span>
                         <span className="block text-xs text-slate-500">
                           {[b.attachments.length && `${b.attachments.length} ${b.attachments.length === 1 ? "file" : "files"}`, b.details && "has details"].filter(Boolean).join(" · ") || "Only one line"}
                         </span>
-                        {b.fileError && !b.bug && !left && (
+                        {b.fileError && !isNeedsLine(b.fileError) && !b.bug && !left && (
                           <span className="mt-1 block">
                             <FileBashBug bug={b} projectId={bash.runProjectId} entryId={bash.entryOf[b.areaId] ?? null} jiraConnected={jiraConnected} />
                           </span>
                         )}
                       </td>
+                      {templated && (
+                        <td className="px-3 py-2 text-xs">
+                          {b.template && !b.bug ? (
+                            <>
+                              <NeedsTag t={b.template} />
+                              <span className="mt-0.5 block text-slate-500">{b.template.name}</span>
+                              <Button
+                                size="sm"
+                                className="mt-1"
+                                aria-expanded={fillId === b.id}
+                                onClick={() => {
+                                  setFillValues(valuesOf(b.template!.answers));
+                                  setFillId(fillId === b.id ? null : b.id);
+                                }}
+                              >
+                                {b.template.needs.length ? "Fill in" : "Edit"}
+                              </Button>
+                            </>
+                          ) : (
+                            <span className="text-slate-400">{b.template ? b.template.name : "Plain bug"}</span>
+                          )}
+                        </td>
+                      )}
                       <td className="px-3 py-2 text-xs">
                         {areaName(b.areaId)}
                         <span className="mt-0.5 block">
@@ -862,6 +997,41 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
                         {b.plusOnes.length > 0 && <span className="text-slate-500" title={b.plusOnes.map((p) => p.name).join(", ")}> +{b.plusOnes.length}</span>}
                       </td>
                     </tr>
+                    {fillId === b.id && b.template && (
+                      <tr>
+                        <td colSpan={7} className="bg-accent-50 px-4 py-3">
+                          <div className="max-w-2xl space-y-2.5" data-testid="bash-fill-in">
+                            <p className="text-sm font-semibold text-slate-800">
+                              {b.template.needs.length ? "Fill in" : "Edit"}: {b.text} <span className="font-normal text-slate-500">· {b.template.name}</span>
+                            </p>
+                            {b.template.needs.length > 0 && <p className="text-xs text-amber-900">Still needed: {listWords(b.template.needs)}</p>}
+                            <TemplateFields layout={b.template.layout} values={fillValues} setValues={setFillValues} open upload={upload} idPrefix={`wrap-${b.id}`} />
+                            <AnswerTables answers={b.template.answers} />
+                            <div className="flex justify-end gap-2">
+                              <Button size="sm" onClick={() => setFillId(null)}>
+                                Cancel
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                disabled={pending}
+                                onClick={() =>
+                                  start(async () => {
+                                    const r = await fillBashItem(b.id, { values: fillValues });
+                                    if (!r.ok) return setError(r.error);
+                                    setFillId(null);
+                                    router.refresh();
+                                  })
+                                }
+                              >
+                                Save
+                              </Button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -873,6 +1043,11 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
             Everyone&apos;s notes, questions and ideas are saved as their session on the area&apos;s charter.
             <InfoTip text="Under the hood the bash is a test run. It shows on Test runs, stays out of every pass rate, and joins a report through + Attach wrap-ups." />
           </p>
+          {notReady.length > 0 && failed.length === 0 && (
+            <span className="text-xs text-amber-800" data-testid="bash-not-ready">
+              {plural(notReady.length)} still {notReady.length === 1 ? "needs" : "need"} something and {notReady.length === 1 ? "stays" : "stay"} here when you file the rest.
+            </span>
+          )}
           {failed.length > 0 ? (
             <Button variant="primary" disabled={pending} onClick={() => wrap(true)}>
               {pending ? "Wrapping up…" : "Wrap up anyway"}

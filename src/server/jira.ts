@@ -915,6 +915,10 @@ const templatedSchema = z.object({
   regression: z.boolean().default(false),
   sentry: z.array(z.unknown()).max(20).default([]),
   fromDefectId: z.string().optional(),
+  /** A bug from a bug bash (ver_125): its saved layout is used, as it was when it was logged. */
+  bashItemId: z.string().max(40).optional(),
+  /** Lines that go under the headings, like where in the bash it was found. */
+  notes: z.array(z.object({ name: z.string().max(120), text: z.string().max(10000) })).max(6).default([]),
 });
 
 /** Only the headings the template has, in its order, with what was filled in under each. */
@@ -943,7 +947,9 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
   return wrap(async () => {
     const { user, project } = await requireProjectAction(projectId, "run:execute");
     const data = templatedSchema.parse(input);
-    const { name, layout } = await layoutOf(projectId, data.templateId);
+    const fromBash = data.bashItemId ? await db.bashItem.findFirst({ where: { id: data.bashItemId, bash: { run: { projectId } } }, select: { templateName: true, layout: true } }) : null;
+    if (data.bashItemId && !fromBash?.layout) throw new UserError("That bug bash bug isn't here anymore.");
+    const { name, layout } = fromBash?.layout ? { name: fromBash.templateName, layout: parseLayout(fromBash.layout) } : await layoutOf(projectId, data.templateId);
     let answers = cleanAnswers(layout, data.answers);
     const sectionFileIds = answers.flatMap((a) => (a.files ?? []).map((f) => f.id));
     const ids = [...new Set([...data.attachmentIds, ...sectionFileIds])];
@@ -957,7 +963,8 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
     const allFiles = [...general, ...found.filter((f) => sectionFileIds.includes(f.id) && !general.some((g) => g.id === f.id))];
     answers = answers.map((a) => withFileNames(a, allFiles.map((f) => f.fileName)));
     const summary = layoutTitle(layout.title, { platform: data.platform, area: data.area, build: data.build, summary: data.summary });
-    const keep = { templateName: name, layout: layout as unknown as Prisma.InputJsonValue, answers: answers as unknown as Prisma.InputJsonValue, description: answersText(answers) };
+    const notes = data.notes.filter((n) => n.text.trim());
+    const keep = { templateName: name, layout: layout as unknown as Prisma.InputJsonValue, answers: answers as unknown as Prisma.InputJsonValue, description: [answersText(answers), ...notes.map((n) => `${n.name}\n${n.text}`)].filter(Boolean).join("\n\n").slice(0, 60000) };
     const client = await jiraFor(projectId);
     const local = data.fromDefectId ? await db.defect.findFirst({ where: { id: data.fromDefectId, projectId } }) : null;
     if (data.fromDefectId && !local) throw new UserError("That bug isn't in this test cycle anymore.");
@@ -1003,7 +1010,7 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
       description: (left) =>
         answersAdf(answers, {
           reportedBy: account && left.reporterSet ? null : tester,
-          extra: [...extra, ...left.dropped.filter((n) => valueOf.get(n)).map((n) => ({ name: n, text: valueOf.get(n)! }))],
+          extra: [...notes, ...extra, ...left.dropped.filter((n) => valueOf.get(n)).map((n) => ({ name: n, text: valueOf.get(n)! }))],
           trace,
         }),
       severity: data.severity,
@@ -1042,7 +1049,8 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
     if (data.stories.length) {
       const own = await db.runEntry.findFirst({ where: { id: entryId }, select: { testCase: { select: { jiraStories: true } } } });
       const failed: string[] = [];
-      for (const story of data.stories.filter((k) => own?.testCase.jiraStories.includes(k))) await client.relate(key, story).catch(() => failed.push(story));
+      // A bash bug relates to what its area was testing (ver_125); a run's bug to its case's stories.
+      for (const story of data.stories.filter((k) => fromBash || own?.testCase.jiraStories.includes(k))) await client.relate(key, story).catch(() => failed.push(story));
       if (failed.length) linkError = `${key} was created, but Jira wouldn't link it to ${failed.join(", ")}.`;
     }
     await alertBugFiled(project, { key, url: issue.url, title: issue.summary || summary, severity: data.severity }, { tester, caseKey: ctx.caseKey, step: data.stepIndex }).catch(() => {});

@@ -2,6 +2,7 @@ import "server-only";
 import { parseAreas, phaseOf, type BashLink } from "./bash";
 import { BUILT_IN } from "./charter-templates";
 import { charterHome, teamTemplates } from "./charter-data";
+import { loadBugTemplates } from "./bug-templates-data";
 import { db } from "./db";
 import { storyInfo } from "./stories";
 import { umbrellaOf } from "./umbrella";
@@ -18,6 +19,9 @@ export type StartBoxData = {
   last: { name: string; areas: string[] } | null;
   templates: { id: string; name: string; group: string }[];
   slackChannels: number;
+  /** Bug templates (ver_125): the team's list and the default one; null is the plain one-line bug. */
+  bugTemplates: { id: string; name: string; hint: string }[];
+  bugTemplateDefault: string | null;
 };
 
 /** Where a project's bashes live: the umbrella's hub, or the project itself. */
@@ -41,6 +45,7 @@ export async function startBoxData(project: { id: string; key: string; name: str
     db.testCase.findMany({ where: { projectId: home.id, type: "EXPLORATORY", archived: false, folder: { name: { not: "Bug bashes" } } }, orderBy: { updatedAt: "desc" }, take: 6, select: { title: true } }),
     teamTemplates(home.id),
   ]);
+  const bugTemplates = await loadBugTemplates(project).catch(() => null);
   const slackChannels = await db.slackChannel.count({ where: { paused: false, OR: [{ projectId: { in: [home.id, ...cycles.map((c) => c.id)] } }, ...(u ? [{ groupId: u.group.id }] : [])] } });
   const seen = new Set<string>();
   const suggestions: StartBoxData["suggestions"] = [];
@@ -65,6 +70,8 @@ export async function startBoxData(project: { id: string; key: string; name: str
     last: last ? { name: last.name, areas: parseAreas(last.areas).map((a) => a.name) } : null,
     templates: [...BUILT_IN, ...team].map((t) => ({ id: t.id, name: t.name, group: t.group })),
     slackChannels,
+    bugTemplates: bugTemplates?.templates.map((t) => ({ id: t.id, name: t.name, hint: t.hint })) ?? [],
+    bugTemplateDefault: bugTemplates?.defaultId || null,
   };
 }
 
