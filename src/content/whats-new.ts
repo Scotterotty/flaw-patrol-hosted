@@ -22,6 +22,24 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 131,
+    date: "2026-11-01",
+    items: [
+      {
+        kind: "new",
+        title: "See how testing is going on your umbrella's home",
+        text: "A new box under Shortcuts shows the pass rate for your last 6 releases, with manual and automated results kept apart, plus cases tested, bugs found, and cases that are flaky or keep failing.",
+        link: "/g/{umbrella}",
+      },
+      {
+        kind: "new",
+        title: "Show more releases, or hide the box",
+        text: "Pick Last 10, Last 20 or All releases from its menu, or press Hide to fold it to one line. Flaw Patrol remembers both just for you.",
+        link: "/g/{umbrella}",
+      },
+    ],
+  },
+  {
     version: 130,
     date: "2026-11-01",
     items: [
