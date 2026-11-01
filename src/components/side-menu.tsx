@@ -7,6 +7,7 @@ import { applyOrder, EMPTY_NAV_ORDER, isDefaultOrder, moveItem, type NavOrder } 
 import { saveMyNavOrder } from "@/server/account";
 import { useNavOrder } from "./nav-order";
 import { Button, cx } from "./ui";
+import { VersionLine } from "./version-line";
 
 /**
  * One menu link. `sub` indents it under the link above; `inner` indents it one more step (under the test cycle you're in).
@@ -328,6 +329,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
                 <span aria-hidden>⠿</span> Arrange menu order
               </button>
             )}
+            <VersionLine className="mt-0.5" />
           </div>
         </nav>
       </div>

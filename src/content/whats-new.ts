@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 122,
+    date: "2026-11-01",
+    items: [
+      {
+        kind: "better",
+        title: "The version number is easy to find",
+        text: "It's now in small gray text under Arrange menu order at the bottom of the left menu, and at the bottom of the menu under your name. Click it to copy it for a bug report.",
+      },
+    ],
+  },
+  {
     version: 121,
     date: "2026-11-01",
     items: [

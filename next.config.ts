@@ -1,8 +1,11 @@
 import type { NextConfig } from "next";
+import pkg from "./package.json";
 
 const nextConfig: NextConfig = {
   // `npm run release` packs this self-contained server into the ready-to-run build.
   output: "standalone",
+  // The version under Arrange menu order and in the name menu (ver_122). Inlined at build so client code needn't ship package.json.
+  env: { APP_VERSION: pkg.version },
   experimental: {
     // Screen recordings attach up to 75 MB (other files stay at 10 MB, checked in uploadAttachment).
     serverActions: { bodySizeLimit: "80mb" },

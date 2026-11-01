@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRef, useState, useEffect, type ReactNode } from "react";
 import { useMenuPlace } from "./menu-place";
+import { VersionLine } from "./version-line";
 
 /** Your name in the top bar: a small menu with your account, appearance, the mini game and Sign out. */
 export function AccountMenu({ children, label, admin, signOut, joins }: { children: ReactNode; label: string; admin?: boolean; signOut: () => Promise<void>; joins?: { count: number; href: string } | null }) {
@@ -73,6 +74,8 @@ export function AccountMenu({ children, label, admin, signOut, joins }: { childr
               Sign out
             </button>
           </form>
+          <div className="my-1 h-px bg-slate-200" />
+          <VersionLine className="px-3 py-1 text-xs" />
         </div>
       )}
     </div>
