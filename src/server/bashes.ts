@@ -194,7 +194,9 @@ export async function startBugBash(homeId: string, input: StartInput) {
 async function slackStart(bashId: string) {
   const b = await db.bugBash.findUnique({ where: { id: bashId }, include: { project: { select: { key: true } }, run: { select: { projectId: true } } } });
   if (!b?.run || b.slackStartAt || !b.slack) return [];
-  await db.bugBash.update({ where: { id: b.id }, data: { slackStartAt: new Date() } });
+  // Claim the start in one step so two people opening the page at once can't both post it (ver_127).
+  const claimed = await db.bugBash.updateMany({ where: { id: b.id, slackStartAt: null }, data: { slackStartAt: new Date() } });
+  if (!claimed.count) return [];
   const areas = parseAreas(b.areas);
   const n = await postBash(b.run.projectId, (base) => ({
     tone: "blue",
@@ -331,6 +333,7 @@ export async function plusOneBash(itemId: string, on: boolean, seen?: z.input<ty
     const item = await db.bashItem.findUnique({ where: { id: itemId }, select: { bashId: true, areaId: true, byId: true, plusOnes: true, defectId: true, templateName: true, layout: true, answers: true } });
     if (!item) throw new UserError("That bug isn't here anymore.");
     const { bash, user } = await requireIn(item.bashId);
+    if (phaseOf(bash) === "wrapped") throw new UserError("This bash is wrapped up, so +1s are closed.");
     if (item.byId === user.id) throw new UserError("That's your own bug.");
     const before = plusOnesOf(item.plusOnes);
     const others = before.filter((p) => p.id !== user.id);
@@ -457,6 +460,7 @@ export async function searchBashLinks(bashId: string, q: string) {
 export async function coverBashPrompt(bashId: string, prompt: string, on: boolean) {
   return attempt(async () => {
     const { bash, user } = await requireIn(bashId);
+    if (phaseOf(bash) === "wrapped") throw new UserError("This bash is wrapped up, so its checklist is closed.");
     const me = await db.bashPerson.findUnique({ where: { bashId_userId: { bashId, userId: user.id } } });
     if (!me) throw new UserError("Pick an area first.");
     const text = z.string().trim().min(1).max(300).parse(prompt);

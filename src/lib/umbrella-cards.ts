@@ -54,6 +54,8 @@ function card(u: Umbrella, row: Row, choices: Awaited<ReturnType<typeof shortcut
     position: row.pins[0]?.position ?? null,
     hidden: row.pins[0]?.hidden ?? false,
     canArchive: can(u.who, "umbrella:archive"),
+    // Move into an umbrella… only offers umbrellas where you may add a test cycle (ver_127).
+    canAddCycle: can(u.who, "cycle:create"),
     activity: at,
     cycles: u.projects.map((p) => ({
       id: p.id,

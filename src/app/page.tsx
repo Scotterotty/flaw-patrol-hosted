@@ -183,7 +183,9 @@ export default async function HomePage() {
             looseHeading={umbrellas.length > 0 && loose}
             umbrellas={
               user.isAdmin
-                ? liveUmbrellas.map((u) => ({ id: u.id, name: u.name }))
+                ? liveUmbrellas
+                    .filter((u) => u.canAddCycle)
+                    .map((u) => ({ id: u.id, name: u.name }))
                 : []
             }
             groups={groups

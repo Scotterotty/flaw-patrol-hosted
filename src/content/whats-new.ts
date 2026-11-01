@@ -22,6 +22,28 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 127,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "fix",
+        title: "Moving a test cycle into an umbrella follows its Roles",
+        text: "You can move a test cycle into an umbrella only if you can add test cycles there. Move into an umbrella lists just those umbrellas.",
+        who: "lead",
+      },
+      {
+        kind: "fix",
+        title: "A bug bash start posts to Slack once",
+        text: "When two people open a scheduled bash right as it starts, Slack gets one start message, not two.",
+      },
+      {
+        kind: "fix",
+        title: "A wrapped-up bash stays as it was",
+        text: "Once a bug bash is wrapped up, its +1s and area checklists can't change anymore.",
+      },
+    ],
+  },
+  {
     version: 126,
     date: "2026-10-31",
     items: [

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { canManageGroups, groupableProjectIds } from "@/lib/groups";
-import { requireProjectAction, requireUser } from "@/lib/session";
+import { Forbidden, requireProjectAction, requireUser } from "@/lib/session";
 import { syncUmbrellaMembers } from "@/lib/umbrella";
 import { attempt, UserError } from "./result";
 
@@ -85,6 +85,18 @@ export async function setProjectGroup(projectId: string, groupId: string | null)
     if (target) {
       const group = await db.projectGroup.findUniqueOrThrow({ where: { id: target } });
       if (group.archivedAt) throw new UserError(`${group.name} is archived. Restore it before moving test cycles in.`);
+      // Moving a test cycle into an umbrella adds a test cycle there, so it needs the
+      // same right as Add test cycle on that umbrella (ver_127). Plain groups stay as they were.
+      if (group.hubProjectId && group.id !== project.groupId) {
+        const allowed = await requireProjectAction(group.hubProjectId, "cycle:create").then(
+          () => true,
+          (e) => {
+            if (e instanceof Forbidden) return false;
+            throw e;
+          },
+        );
+        if (!allowed) throw new UserError(`You can't add test cycles to ${group.name}. Ask one of its admins to move it in.`);
+      }
     }
     if (await db.projectGroup.findUnique({ where: { hubProjectId: projectId } })) throw new UserError("This is an umbrella's hub; it can't move to a group.");
     await db.project.update({ where: { id: projectId }, data: { groupId: target, archivedWithUmbrella: false } });

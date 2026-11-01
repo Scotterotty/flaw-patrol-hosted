@@ -84,6 +84,8 @@ export type UmbrellaEntry = UmbrellaCardData &
     hidden: boolean;
     /** The viewer may archive it (admins). */
     canArchive: boolean;
+    /** The viewer may add a test cycle to it, so Move into an umbrella… can offer it (ver_127). */
+    canAddCycle: boolean;
   };
 
 type Props = {
