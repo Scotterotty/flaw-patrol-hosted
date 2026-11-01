@@ -12,18 +12,18 @@ export type GroupChoice = { id: string; key: string; name: string; archived: boo
 export type GroupInfo = { id: string; name: string; description: string };
 
 /** "Edit group" on a group page. */
-export function EditGroupButton({ group, choices, label = "Edit group" }: { group: GroupInfo; choices: GroupChoice[]; label?: string }) {
+export function EditGroupButton({ group, choices, label = "Edit group", umbrella = false }: { group: GroupInfo; choices: GroupChoice[]; label?: string; umbrella?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <Button onClick={() => setOpen(true)}>{label}</Button>
-      {open && <GroupDialog group={group} choices={choices} onClose={() => setOpen(false)} />}
+      {open && <GroupDialog group={group} choices={choices} umbrella={umbrella} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-/** Rename an existing group, describe it, tick its projects, or delete it. */
-export function GroupDialog({ group, choices, onClose }: { group: GroupInfo; choices: GroupChoice[]; onClose: () => void }) {
+/** Rename an existing group, describe it, tick its projects, or delete it. Umbrellas can't be deleted, only archived (ver_126). */
+export function GroupDialog({ group, choices, umbrella = false, onClose }: { group: GroupInfo; choices: GroupChoice[]; umbrella?: boolean; onClose: () => void }) {
   const router = useRouter();
   const [name, setName] = useState(group?.name ?? "");
   const [description, setDescription] = useState(group?.description ?? "");
@@ -101,7 +101,8 @@ export function GroupDialog({ group, choices, onClose }: { group: GroupInfo; cho
           )}
         </fieldset>
         <div className="flex items-center gap-2">
-          {group &&
+          {umbrella && <span className="text-xs text-slate-500" data-testid="umbrella-archive-hint">To put this umbrella away, use Archive in its Settings.</span>}
+          {group && !umbrella &&
             (confirmDelete ? (
               <span className="flex items-center gap-2 text-sm">
                 <span className="text-slate-700">Delete the group? Its test cycles stay, just ungrouped.</span>

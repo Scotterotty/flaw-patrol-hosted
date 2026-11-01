@@ -235,6 +235,58 @@ export function importedAdf(sections: { heading: string; text: string }[], opts:
   return { type: "doc", version: 1, content };
 }
 
+const tableCell = (t: string, header = false): Node => ({ type: header ? "tableHeader" : "tableCell", attrs: {}, content: [header ? para(bold(t)) : paraLines(t.trim() || "-")] });
+const tableRow = (cells: string[]): Node => ({ type: "tableRow", content: cells.map((c) => tableCell(c)) });
+
+/** A template table as a Jira table: a header row of column names, then the rows with anything in them. Null when no row has. */
+function answerTable(a: Answer): Node | null {
+  const rows = (a.rows ?? []).filter((r) => r.some((c) => c.trim()));
+  if (!a.columns || !rows.length) return null;
+  return {
+    type: "table",
+    attrs: { isNumberColumnEnabled: false, layout: "default" },
+    content: [{ type: "tableRow", content: a.columns.map((c) => tableCell(c.name, true)) }, ...rows.map((r) => tableRow(a.columns!.map((_, i) => r[i] ?? "")))],
+  };
+}
+
+/** All the words in a piece of Jira's document, run together. */
+function plain(n: unknown): string {
+  if (!n || typeof n !== "object") return "";
+  const o = n as { text?: unknown; content?: unknown };
+  return (typeof o.text === "string" ? o.text : "") + (Array.isArray(o.content) ? o.content.map(plain).join(" ") : "");
+}
+const same = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
+
+/**
+ * I saw it again (ver_126): the bug's description as it is in Jira now, with one row added to the
+ * end of that heading's table. Everything else stays as Jira has it, edits made there included.
+ * The table is the one under the heading, or else the one whose header row has the same column
+ * names. When neither is there (someone took it out in Jira), the heading and table go at the end.
+ */
+export function addRowToAdf(description: unknown, a: Answer, row: string[]): Node {
+  const doc = description && typeof description === "object" && Array.isArray((description as Node).content) ? (description as Node) : { type: "doc", version: 1, content: [] };
+  const content = [...(doc.content as Node[])];
+  const isTable = (n: Node | undefined) => n?.type === "table" && Array.isArray(n.content);
+  const header = (n: Node) => ((n.content as Node[])[0]?.content as Node[] | undefined)?.map(plain) ?? [];
+  const columns = (a.columns ?? []).map((c) => c.name);
+  let at = content.findIndex((n, i) => isTable(n) && i > 0 && content[i - 1].type === "paragraph" && same(plain(content[i - 1]), a.heading));
+  if (at < 0) at = content.findIndex((n) => isTable(n) && header(n).length === columns.length && header(n).every((h, i) => same(h, columns[i])));
+  if (at >= 0) {
+    const table = content[at];
+    const width = Math.max(header(table).length, 1);
+    const cells = Array.from({ length: width }, (_, i) => row[i] ?? "");
+    content[at] = { ...table, content: [...(table.content as Node[]), tableRow(cells)] };
+    return { ...doc, content };
+  }
+  const table = answerTable(a);
+  if (!table) return { ...doc, content };
+  // Before the "Filed from Flaw Patrol" line when it's last, so that line stays at the bottom.
+  const last = content.at(-1);
+  const end = last && last.type === "paragraph" && plain(last).startsWith("Filed from Flaw Patrol") ? content.length - 1 : content.length;
+  content.splice(end, 0, para(bold(a.heading)), table);
+  return { ...doc, content };
+}
+
 /**
  * A bug reported with a bug template (ver_119): each heading in bold with its text, tables as
  * Jira tables, and the files added under a heading as links. Headings left empty are skipped.
@@ -245,17 +297,11 @@ export function answersAdf(
 ): Node {
   const content: Node[] = [];
   if (opts.reportedBy) content.push(para(bold("Reported by: "), text(`${opts.reportedBy} (via Flaw Patrol)`)));
-  const cell = (t: string, header = false): Node => ({ type: header ? "tableHeader" : "tableCell", attrs: {}, content: [header ? para(bold(t)) : paraLines(t.trim() || "-")] });
   for (const a of answers) {
     if (a.columns && a.rows) {
-      const rows = a.rows.filter((r) => r.some((c) => c.trim()));
-      if (!rows.length) continue;
-      content.push(para(bold(a.heading)));
-      content.push({
-        type: "table",
-        attrs: { isNumberColumnEnabled: false, layout: "default" },
-        content: [{ type: "tableRow", content: a.columns.map((c) => cell(c.name, true)) }, ...rows.map((r) => ({ type: "tableRow", content: a.columns!.map((_, i) => cell(r[i] ?? "")) }))],
-      });
+      const table = answerTable(a);
+      if (!table) continue;
+      content.push(para(bold(a.heading)), table);
       continue;
     }
     const files = a.files ?? [];

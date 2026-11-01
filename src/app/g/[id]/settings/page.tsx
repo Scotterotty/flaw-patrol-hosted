@@ -37,7 +37,6 @@ import { parseTemplateSettings, templateKind } from "@/lib/bug-template";
 import { db } from "@/lib/db";
 import { joinRequestRows } from "@/lib/link-access-server";
 import { memberInviteInfo } from "@/lib/invites";
-import { canManageGroups } from "@/lib/groups";
 import { can } from "@/lib/permissions";
 import { requireUser } from "@/lib/session";
 import { bugTemplateView } from "@/lib/shared-template-data";
@@ -90,7 +89,8 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
     }),
     // CI uploads (ver_91): tokens a pipeline sends with its results file.
     db.ciToken.findMany({ where: { groupId: u.group.id }, orderBy: { createdAt: "asc" } }),
-    canManageGroups(user),
+    // Renaming and moving test cycles follow the umbrella's own Roles card (ver_126), not a role on any team.
+    Promise.resolve(can(u.who, "umbrella:manage")),
     // Test cycles (ver_117): who's on each, for its row in the table.
     db.projectMember.findMany({ where: { userId: user.id, projectId: { in: ids } }, select: { projectId: true, role: true } }),
     db.projectMember.findMany({ where: { projectId: { in: ids } }, include: { user: true }, orderBy: [{ role: "asc" }, { user: { email: "asc" } }] }),
@@ -268,7 +268,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
         title="Settings"
         subtitle={`${name} and its test cycles`}
         actions={
-          groupManager ? <EditGroupButton group={u.group} choices={choices} label="Name and test cycles" /> : undefined
+          groupManager ? <EditGroupButton group={u.group} choices={choices} label="Name and test cycles" umbrella /> : undefined
         }
       />
       <p className="mb-5 flex items-start gap-2 rounded-lg bg-accent-50 px-4 py-2.5 text-sm text-accent-700" data-testid="settings-scope">

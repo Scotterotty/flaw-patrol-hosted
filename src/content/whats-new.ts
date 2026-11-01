@@ -22,6 +22,28 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 126,
+    date: "2026-10-31",
+    items: [
+      {
+        kind: "fix",
+        title: "Umbrellas are archived, never deleted",
+        text: "Name and test cycles no longer has Delete group for an umbrella. To put one away, use Archive in its Settings, which keeps everything and can be undone.",
+      },
+      {
+        kind: "fix",
+        title: "Renaming an umbrella follows its Roles",
+        text: "Only people the umbrella's Roles card allows can rename it or move test cycles in and out. People who aren't on the umbrella can't change it at all.",
+        who: "lead",
+      },
+      {
+        kind: "fix",
+        title: "I saw it again keeps your Jira edits",
+        text: "Adding a row now only adds that row to the table in the Jira bug. Anything you changed in the Jira description, and the link back to the run, stays as it is.",
+      },
+    ],
+  },
+  {
     version: 125,
     date: "2026-10-31",
     items: [

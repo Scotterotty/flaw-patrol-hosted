@@ -452,12 +452,18 @@ export class JiraClient {
    * Replace an issue's description. Jira lets only admins turn off the "issue
    * updated" email (notifyUsers=false), so this edit sends Jira's usual one.
    */
-  async setDescription(key: string, description: object) {
+  async setDescription(key: string, description: object, opts: { asIs?: boolean } = {}) {
     await this.call(`/rest/api/3/issue/${encodeURIComponent(key)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fields: { description: this.withLead(description) } }),
+      body: JSON.stringify({ fields: { description: opts.asIs ? description : this.withLead(description) } }),
     });
+  }
+
+  /** An issue's description as Jira has it now (its document), or null when it has none. */
+  async getDescription(key: string): Promise<unknown> {
+    const raw = await this.call<{ fields?: { description?: unknown } }>(`/rest/api/3/issue/${encodeURIComponent(key)}?fields=description`);
+    return raw.fields?.description ?? null;
   }
 
   /**

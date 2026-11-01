@@ -34,7 +34,7 @@ import {
   type TemplateSettings,
 } from "@/lib/bug-template";
 import { JiraClient, JiraError, jiraFor, jiraValue, normalizeSite, refreshDefectStatuses, type FieldValue, type JiraIssue, type JiraUser, type MetaField } from "@/lib/jira";
-import { answersAdf, bugAdf, defaultSummary, importedAdf, parseIssueKey, sectionText, templateAdf, type BugContext, type FileRef } from "@/lib/jira-format";
+import { addRowToAdf, answersAdf, bugAdf, defaultSummary, importedAdf, parseIssueKey, sectionText, templateAdf, type BugContext, type FileRef } from "@/lib/jira-format";
 import { requireProjectAction, requireUser } from "@/lib/session";
 import { DEFAULT_SEVERITY, PLAIN_SCALE, SEVERITIES, severitySchema, type SeverityConfig } from "@/lib/severity";
 import { alertBugFiled } from "@/lib/slack";
@@ -1089,7 +1089,9 @@ export async function addBugRow(projectId: string, input: z.input<typeof rowSche
       if (client) {
         try {
           if (files.length) await client.attach(defect.externalKey, files.map((f) => ({ fileName: f.fileName, contentType: f.contentType, data: f.data })));
-          await client.setDescription(defect.externalKey, answersAdf(answers, { trace: { label: `Updated from Flaw Patrol`, link: null } }));
+          // Only the table changes (ver_126): the rest of the description stays as Jira has it, edits made there included.
+          const now = await client.getDescription(defect.externalKey);
+          await client.setDescription(defect.externalKey, addRowToAdf(now, answers[at], row), { asIs: true });
         } catch (e) {
           jiraError = `The row is saved here, but Jira didn't take it: ${e instanceof Error ? e.message : "it couldn't be reached"}.`;
         }

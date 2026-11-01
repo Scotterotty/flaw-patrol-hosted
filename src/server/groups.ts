@@ -38,9 +38,11 @@ function refresh(groupId?: string) {
 /** Rename a group and set which of the projects you lead are in it. Projects you can't move stay as they are. */
 export async function updateGroup(groupId: string, input: z.input<typeof groupSchema>) {
   return attempt(async () => {
-    const user = await requireManager();
+    const group = await db.projectGroup.findUnique({ where: { id: groupId }, select: { hubProjectId: true } });
+    if (!group) throw new UserError("That group isn't here anymore.");
+    // An umbrella is changed by people its own Roles card allows (ver_126), not by anyone on any team.
+    const user = group.hubProjectId ? (await requireProjectAction(group.hubProjectId, "umbrella:manage")).user : await requireManager();
     const data = groupSchema.parse(input);
-    await db.projectGroup.findUniqueOrThrow({ where: { id: groupId } });
     await nameFree(data.name, groupId);
     const current = await db.project.findMany({ where: { groupId }, select: { id: true } });
     const leaving = await groupableProjectIds(
@@ -63,6 +65,10 @@ export async function updateGroup(groupId: string, input: z.input<typeof groupSc
 
 export async function deleteGroup(groupId: string) {
   return attempt(async () => {
+    // Umbrellas are archived, never deleted (Scott, ver_126): Settings → Archive keeps everything.
+    const group = await db.projectGroup.findUnique({ where: { id: groupId }, select: { hubProjectId: true } });
+    if (!group) throw new UserError("That group is already gone.");
+    if (group.hubProjectId) throw new UserError("Umbrellas can't be deleted. To put one away, use Archive in its Settings.");
     const user = await requireManager();
     const gone = await db.projectGroup.delete({ where: { id: groupId } });
     await logActivity({ actor: user, kind: "delete", action: `Deleted project group ${gone.name}` });
