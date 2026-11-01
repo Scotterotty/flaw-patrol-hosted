@@ -22,6 +22,33 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 133,
+    date: "2026-11-01",
+    items: [
+      {
+        kind: "better",
+        title: "Automated results don't need a release",
+        text: "Upload automation results and Pull from GitHub now ask Where they go. Picking a release candidate test cycle no longer counts the run toward its release unless you tick Count these toward release. Your pick is remembered for each GitHub repo.",
+      },
+      {
+        kind: "new",
+        title: "Make a test cycle right in the upload box",
+        text: "Pick + New test cycle in Where they go. It starts as Build health with no release, a place for builds you just want to keep an eye on.",
+      },
+      {
+        kind: "new",
+        title: "By build in How testing is going",
+        text: "On your umbrella's home, By build shows one bar per automated run, newest on the right, with a Last build line on top. Click a bar to open that run.",
+        link: "/g/{umbrella}",
+      },
+      {
+        kind: "better",
+        title: "No release tag on Test runs",
+        text: "Automated runs that don't count toward any release say No release, so it's clear they aren't part of release testing.",
+      },
+    ],
+  },
+  {
     version: 132,
     date: "2026-11-01",
     items: [
