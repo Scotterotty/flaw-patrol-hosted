@@ -22,6 +22,27 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 130,
+    date: "2026-11-01",
+    items: [
+      {
+        kind: "better",
+        title: "Loading signs stay out of the way",
+        text: "Pressing a result, Save, a tick or a filter now only shows the thin line at the top, so nothing covers the buttons you're using.",
+      },
+      {
+        kind: "better",
+        title: "Your spinner shows when you move to another page",
+        text: "Clicking a menu item, a library tab, a link or Back shows your spinner in the corner with where you're going, same as before.",
+      },
+      {
+        kind: "better",
+        title: "Slow saves say so at the top",
+        text: "If a save takes more than 10 seconds, a small Still saving, hang tight tag shows at the top middle.",
+      },
+    ],
+  },
+  {
     version: 129,
     date: "2026-11-01",
     items: [
