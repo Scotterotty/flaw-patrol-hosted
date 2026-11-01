@@ -284,17 +284,26 @@ export async function alertJoinRequest(teamId: string, who: { name: string; emai
 
 /** For the card: channels without their webhook links. */
 export async function slackChannelsOf(where: { groupId: string } | { projectId: string }) {
-  const rows = await db.slackChannel.findMany({ where, orderBy: { createdAt: "asc" } });
-  return rows.map((r) => {
-    let hook = "";
-    try {
-      hook = open(r.webhookEncrypted);
-    } catch {
-      hook = "";
-    }
-    // Only the end of the link shows, so a screenshot doesn't leak it.
-    return { id: r.id, name: r.name, alerts: parseAlerts(r.alerts), paused: r.paused, readable: !!hook, hookEnd: hook ? `…${hook.slice(-6)}` : "" };
-  });
+  return (await db.slackChannel.findMany({ where, orderBy: { createdAt: "asc" } })).map(channelView);
+}
+
+/** Each test cycle's own channels, for several at once (ver_129): one lookup instead of one per cycle. */
+export async function slackChannelsByProject(projectIds: string[]) {
+  const out = new Map<string, ReturnType<typeof channelView>[]>(projectIds.map((id) => [id, []]));
+  if (!projectIds.length) return out;
+  for (const r of await db.slackChannel.findMany({ where: { projectId: { in: projectIds } }, orderBy: { createdAt: "asc" } })) out.get(r.projectId!)?.push(channelView(r));
+  return out;
+}
+
+function channelView(r: { id: string; name: string; webhookEncrypted: string; alerts: unknown; paused: boolean }) {
+  let hook = "";
+  try {
+    hook = open(r.webhookEncrypted);
+  } catch {
+    hook = "";
+  }
+  // Only the end of the link shows, so a screenshot doesn't leak it.
+  return { id: r.id, name: r.name, alerts: parseAlerts(r.alerts), paused: r.paused, readable: !!hook, hookEnd: hook ? `…${hook.slice(-6)}` : "" };
 }
 
 export type SlackChannelView = Awaited<ReturnType<typeof slackChannelsOf>>[number];

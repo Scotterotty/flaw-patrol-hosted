@@ -57,21 +57,64 @@ export async function caseNewsForRun(run: { id: string; createdAt: Date }, entri
   return out;
 }
 
-/** New and Updated counts for the Test runs list, open runs only. */
+/**
+ * New and Updated counts for the Test runs list, open runs only. ver_129: every run at once, in
+ * two lookups that compare fingerprints of the steps in the database instead of loading every
+ * step of every case run by run. Steps are only loaded for the few cases whose fingerprint
+ * changed, to tell real edits apart, so the counts match caseNewsForRun exactly.
+ */
 export async function caseNewsCounts(runIds: string[]) {
   const out = new Map<string, { new: number; updated: number }>();
   if (!runIds.length) return out;
-  const runs = await db.testRun.findMany({
-    where: { id: { in: runIds } },
-    select: { id: true, createdAt: true, entries: { select: { id: true, caseId: true, steps: true, preconditions: true, caseVersion: true } } },
-  });
-  await Promise.all(
-    runs.map(async (r) => {
-      const news = [...(await caseNewsForRun(r, r.entries)).values()];
-      const c = { new: news.filter((n) => n.kind === "new").length, updated: news.filter((n) => n.kind === "updated").length };
-      if (c.new || c.updated) out.set(r.id, c);
-    }),
-  );
+  type Row = { id: string; runId: string; caseId: string; at: Date; hash: string; preconditions: string };
+  const [entries, earlier] = await Promise.all([
+    db.$queryRaw<(Row & { runBefore: boolean })[]>`
+      select e.id, e."runId", e."caseId", r."createdAt" as at, md5(e.steps::text) as hash, e.preconditions, c."runBefore"
+      from "RunEntry" e join "TestRun" r on r.id = e."runId" join "TestCase" c on c.id = e."caseId"
+      where e."runId" = any(${runIds})`,
+    // Every other run's copy of those cases, newest first, and whether anyone saved a result on it.
+    db.$queryRaw<(Row & { tested: boolean })[]>`
+      select x.id, x."runId", x."caseId", xr."createdAt" as at, md5(x.steps::text) as hash, x.preconditions,
+        exists (select 1 from "TestResult" t where t."entryId" = x.id) as tested
+      from "RunEntry" x join "TestRun" xr on xr.id = x."runId"
+      where x."caseId" in (select "caseId" from "RunEntry" where "runId" = any(${runIds}))
+      order by xr."createdAt" desc`,
+  ]);
+  const byCase = new Map<string, (typeof earlier)[number][]>();
+  for (const x of earlier) {
+    const list = byCase.get(x.caseId) ?? [];
+    list.push(x);
+    byCase.set(x.caseId, list);
+  }
+  const counts = new Map<string, { new: number; updated: number }>();
+  const bump = (runId: string, kind: "new" | "updated") => {
+    const c = counts.get(runId) ?? { new: 0, updated: 0 };
+    c[kind]++;
+    counts.set(runId, c);
+  };
+  // Same steps fingerprint: nothing changed. Different: load both copies' steps below.
+  const check: [runId: string, now: string, before: string][] = [];
+  for (const e of entries) {
+    const before = (byCase.get(e.caseId) ?? []).filter((x) => x.runId !== e.runId && x.at < e.at);
+    if (!e.runBefore && !before.some((x) => x.tested)) {
+      bump(e.runId, "new");
+      continue;
+    }
+    const last = before[0];
+    if (!last) continue;
+    if (last.preconditions.trim() !== e.preconditions.trim()) bump(e.runId, "updated");
+    else if (last.hash !== e.hash) check.push([e.runId, e.id, last.id]);
+  }
+  if (check.length) {
+    const steps = new Map(
+      (await db.runEntry.findMany({ where: { id: { in: [...new Set(check.flatMap(([, a, b]) => [a, b]))] } }, select: { id: true, steps: true } })).map((r) => [r.id, asSteps(r.steps)]),
+    );
+    for (const [runId, now, before] of check) {
+      const { steps: changed, removed } = stepChanges(steps.get(before) ?? [], steps.get(now) ?? []);
+      if (Object.keys(changed).length || removed) bump(runId, "updated");
+    }
+  }
+  for (const [id, c] of counts) if (c.new || c.updated) out.set(id, c);
   return out;
 }
 

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Role } from "@prisma/client";
 import { RunFieldsPanel } from "@/components/run-fields-settings";
 import { RunKindsPanel } from "@/components/run-kinds-settings";
 import { parseRunKinds } from "@/lib/run-kinds";
@@ -30,7 +31,7 @@ import { relativeTime } from "@/lib/format";
 import { mySpelling } from "@/lib/session";
 import { badgeOf } from "@/lib/game";
 import { canOpen } from "@/lib/crypto";
-import { slackChannelsOf } from "@/lib/slack";
+import { slackChannelsByProject, slackChannelsOf } from "@/lib/slack";
 import { archiveCardData } from "@/lib/archive-card";
 import { UmbrellaIcon } from "@/components/umbrella-nav";
 import { parseTemplateSettings, templateKind } from "@/lib/bug-template";
@@ -67,41 +68,82 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
   // Asked for together (ver_120): one round trip's wait instead of twenty in a row.
   const cycles = [...u.current, ...u.older];
   const ids = cycles.map((p) => p.id);
-  const [jira, members, ownJira, { template, shared }, sentry, requests, bugTemplates, archive, kindSuites, slack, usage, spelling, repos, ciTokens, groupManager, myRoles, cycleMembers] = await Promise.all([
-    db.jiraConfig.findUnique({ where: { projectId: u.hub.id } }),
-    db.projectMember.findMany({ where: { projectId: u.hub.id }, include: { user: true }, orderBy: [{ role: "asc" }, { user: { email: "asc" } }] }),
-    db.jiraConfig.findMany({
+  // ver_129: lookups that wait on another one (invites for the members found, each test cycle's
+  // bug template, join requests and Slack channels, the Name and test cycles choices) start as soon
+  // as what they need arrives, inside the same batch, instead of in rounds after it.
+  const cycleWho = (role: Role | null) => ({ role: user.isAdmin ? ("ADMIN" as const) : role, rules: u.who.rules });
+  const membersP = db.projectMember.findMany({ where: { projectId: u.hub.id }, include: { user: true }, orderBy: [{ role: "asc" }, { user: { email: "asc" } }] }).then((x) => x);
+  const cycleMembersP = db.projectMember.findMany({ where: { projectId: { in: ids } }, include: { user: true }, orderBy: [{ role: "asc" }, { user: { email: "asc" } }] }).then((x) => x);
+  const ownJiraP = db.jiraConfig
+    .findMany({
       where: { projectId: { in: u.projects.map((p) => p.id) } },
       select: { projectId: true, siteUrl: true, email: true, jiraProjectKey: true, issueType: true, tokenEncrypted: true, bugTemplate: true, stories: true, severity: true },
-    }),
-    bugTemplateView(u.hub.id, user.email),
-    db.sentryConfig.findUnique({ where: { projectId: u.hub.id } }),
-    can(u.who, "members:manage") ? joinRequestRows(u.hub.id) : Promise.resolve([]),
-    // Bug templates (ver_119): a list on the umbrella, used by every test cycle in it.
-    loadBugTemplates({ id: u.hub.id, key: u.hub.key, groupId: null }),
-    archiveCardData(user, u.group.id, null),
-    db.testSuite.findMany({ where: { projectId: u.hub.id, archived: false }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    slackChannelsOf({ groupId: u.group.id }),
-    storageUsage(u.group.id),
-    mySpelling(),
-    // GitHub (ver_85): connected repos, and the newest run pulled from each.
-    db.gitHubRepo.findMany({
-      where: { groupId: u.group.id },
-      orderBy: { createdAt: "asc" },
-      include: { runs: { orderBy: { createdAt: "desc" }, take: 1, select: { githubRunNo: true, createdAt: true } } },
-    }),
-    // CI uploads (ver_91): tokens a pipeline sends with its results file.
-    db.ciToken.findMany({ where: { groupId: u.group.id }, orderBy: { createdAt: "asc" } }),
-    // Renaming and moving test cycles follow the umbrella's own Roles card (ver_126), not a role on any team.
-    Promise.resolve(can(u.who, "umbrella:manage")),
-    // Test cycles (ver_117): who's on each, for its row in the table.
-    db.projectMember.findMany({ where: { userId: user.id, projectId: { in: ids } }, select: { projectId: true, role: true } }),
-    db.projectMember.findMany({ where: { projectId: { in: ids } }, include: { user: true }, orderBy: [{ role: "asc" }, { user: { email: "asc" } }] }),
+    })
+    .then((x) => x);
+  const myRolesP = db.projectMember.findMany({ where: { userId: user.id, projectId: { in: ids } }, select: { projectId: true, role: true } }).then((x) => x);
+  // Renaming and moving test cycles follow the umbrella's own Roles card (ver_126), not a role on any team.
+  const groupManagerP = Promise.resolve(can(u.who, "umbrella:manage"));
+  const [
+    [jira, members, ownJira, { template, shared }, sentry, requests, bugTemplates, archive, kindSuites, slack, usage, spelling, repos, ciTokens, groupManager, myRoles, cycleMembers],
+    [invites, cycleInvites, cycleViews, cycleRequests, ownSlack, visible, loose, holdings],
+  ] = await Promise.all([
+    Promise.all([
+      db.jiraConfig.findUnique({ where: { projectId: u.hub.id } }),
+      membersP,
+      ownJiraP,
+      bugTemplateView(u.hub.id, user.email),
+      db.sentryConfig.findUnique({ where: { projectId: u.hub.id } }),
+      can(u.who, "members:manage") ? joinRequestRows(u.hub.id) : Promise.resolve([]),
+      // Bug templates (ver_119): a list on the umbrella, used by every test cycle in it.
+      loadBugTemplates({ id: u.hub.id, key: u.hub.key, groupId: null }),
+      archiveCardData(user, u.group.id, null),
+      db.testSuite.findMany({ where: { projectId: u.hub.id, archived: false }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+      slackChannelsOf({ groupId: u.group.id }),
+      storageUsage(u.group.id),
+      mySpelling(),
+      // GitHub (ver_85): connected repos, and the newest run pulled from each.
+      db.gitHubRepo.findMany({
+        where: { groupId: u.group.id },
+        orderBy: { createdAt: "asc" },
+        include: { runs: { orderBy: { createdAt: "desc" }, take: 1, select: { githubRunNo: true, createdAt: true } } },
+      }),
+      // CI uploads (ver_91): tokens a pipeline sends with its results file.
+      db.ciToken.findMany({ where: { groupId: u.group.id }, orderBy: { createdAt: "asc" } }),
+      groupManagerP,
+      // Test cycles (ver_117): who's on each, for its row in the table.
+      myRolesP,
+      cycleMembersP,
+    ]),
+    Promise.all([
+      membersP.then((m) => memberInviteInfo(m.map((x) => x.userId))),
+      cycleMembersP.then((m) => memberInviteInfo([...new Set(m.map((x) => x.userId))])),
+      // Test cycles with their own Jira show their own bug template.
+      ownJiraP.then(async (own) => {
+        const here = own.filter((j) => ids.includes(j.projectId));
+        return new Map(await Promise.all(here.map(async (j) => [j.projectId, await bugTemplateView(j.projectId, user.email)] as const)));
+      }),
+      // Join requests for test cycles with their own team, where this person can manage members.
+      myRolesP.then(async (roles) => {
+        const roleIn = new Map(roles.map((m) => [m.projectId, m.role]));
+        const asked = cycles.filter((p) => p.keepMembersSeparate && can(cycleWho(roleIn.get(p.id) ?? null), "members:manage"));
+        return new Map(await Promise.all(asked.map(async (p) => [p.id, await joinRequestRows(p.id)] as const)));
+      }),
+      slackChannelsByProject(ids),
+      groupManagerP.then((ok) =>
+        ok
+          ? db.project.findMany({
+              where: { hubOf: null, ...(user.isAdmin ? {} : { members: { some: { userId: user.id } } }) },
+              include: { members: { where: { userId: user.id } }, group: { select: { name: true } } },
+              orderBy: { name: "asc" },
+            })
+          : [],
+      ),
+      can(u.who, "cycle:create") && !u.group.archivedAt ? looseProjects(user) : Promise.resolve([]),
+      toolHoldings(u, TOOL_IDS),
+    ]),
   ]);
   // Tools (ver_128): off tools' rows leave Settings, like they leave the menu.
   const on = (t: ToolId) => u.tools.includes(t);
-  const holdings = await toolHoldings(u, TOOL_IDS);
-  const [invites, cycleInvites] = await Promise.all([memberInviteInfo(members.map((m) => m.userId)), memberInviteInfo([...new Set(cycleMembers.map((m) => m.userId))])]);
   const leads = members.filter((m) => m.role === "LEAD" || m.role === "ADMIN").length;
   const manage = can(u.who, "jira:manage");
   const canTemplates = can(u.who, "bugtemplate:edit");
@@ -153,11 +195,6 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
 
   let choices: GroupChoice[] = [];
   if (groupManager) {
-    const visible = await db.project.findMany({
-      where: { hubOf: null, ...(user.isAdmin ? {} : { members: { some: { userId: user.id } } }) },
-      include: { members: { where: { userId: user.id } }, group: { select: { name: true } } },
-      orderBy: { name: "asc" },
-    });
     choices = visible.map((p) => ({
       id: p.id,
       key: p.key,
@@ -174,99 +211,95 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
   const roleIn = new Map(myRoles.map((m) => [m.projectId, m.role]));
   const jiraOf = new Map(ownJira.map((j) => [j.projectId, j]));
   const canArchiveCycles = !!archive?.umbrella?.cycles.length;
-  const rows: CycleRow[] = await Promise.all(
-    cycles.map(async (p) => {
-      const cw = { role: user.isAdmin ? ("ADMIN" as const) : (roleIn.get(p.id) ?? null), rules: u.who.rules };
-      const mine = jiraOf.get(p.id);
-      const people = cycleMembers.filter((m) => m.projectId === p.id);
-      const fromUmbrella = people.filter((m) => m.fromUmbrella).length;
-      const mode = (MODES as readonly string[]).includes(p.slackMode) ? (p.slackMode as (typeof MODES)[number]) : "umbrella";
-      const picked = p.slackChannelIds.filter((id) => umbrellaChannelIds.includes(id));
-      const [ownChannels, view, requestsHere] = await Promise.all([
-        slackChannelsOf({ projectId: p.id }),
-        mine ? bugTemplateView(p.id, user.email) : Promise.resolve(null),
-        p.keepMembersSeparate && can(cw, "members:manage") ? joinRequestRows(p.id) : Promise.resolve([]),
-      ]);
-      const team: CycleChip = p.keepMembersSeparate
-        ? { tone: "own", text: `Its own · ${people.length} ${people.length === 1 ? "person" : "people"}`, tip: "Only the people added to this test cycle can see it." }
-        : { tone: "same", text: "Same", tip: `Everyone on ${whose} team can see and test it.` };
-      const jiraChip: CycleChip = mine
-        ? { tone: "own", text: `Its own · ${mine.jiraProjectKey}`, tip: `Files bugs into its own Jira project, ${mine.jiraProjectKey}, with ${kindLabel(templateKind(parseTemplateSettings(mine.bugTemplate))).toLowerCase()}.` }
-        : jira
-          ? { tone: "same", text: jira.jiraProjectKey, tip: `Uses ${whose} Jira connection and bug template, set above.` }
-          : { tone: "off", text: "Not connected", tip: `${name} isn't connected to Jira yet. Connect it above.` };
-      const slackChip: CycleChip =
-        mode === "off"
-          ? { tone: "own", text: "Its own · Off", tip: "Nothing from this test cycle posts to Slack." }
-          : mode === "choose"
-            ? (() => {
-                const n = picked.length + ownChannels.length;
-                return { tone: "own" as const, text: `Its own · ${n} ${n === 1 ? "channel" : "channels"}`, tip: `Posts to ${[...slack.filter((c) => picked.includes(c.id)), ...ownChannels].map((c) => c.name).join(", ") || "no channels"}.` };
-              })()
-            : slack.length
-              ? { tone: "same", text: "Same", tip: `Posts to ${slack.map((c) => c.name).join(", ")}, like ${name}.` }
-              : { tone: "off", text: "No channels", tip: `${name} has no Slack channels yet. Add them in Slack alerts above.` };
-      const jiraSummary = mine
-        ? `${p.name} files bugs into its own Jira project, ${mine.jiraProjectKey}. Disconnect it below to use ${whose} instead.`
-        : jira
-          ? `✓ Using ${whose} Jira: ${site} · Jira project ${jira.jiraProjectKey}${hubKind !== "plain" ? `, with ${whose} bug template` : ""}.`
-          : `${name} hasn't connected Jira yet. Connect it once above and every test cycle under it uses it.`;
-      const archivedAlone = !!p.archivedAt && !p.archivedWithUmbrella;
-      const panel = (
-        <CyclePanel
-          restore={archivedAlone && can(cw, "cycle:archive") ? <ArchiveCard data={{ current: { id: p.id, name: p.name, archived: true }, umbrella: null }} /> : null}
-          anchor={cycleHash(p.key)}
-          umbrella={name}
-          details={can(cw, "project:manage") ? { projectId: p.id, name: p.name, description: p.description } : null}
-          team={{
-            projectId: p.id,
-            separate: p.keepMembersSeparate,
-            canSeparate: can(cw, "project:separate"),
-            fromUmbrella,
-            members: p.keepMembersSeparate ? (
-              <MembersPanel
-                projectId={p.id}
-                me={user.id}
-                canManage={can(cw, "members:manage")}
-                canEmail={cycleInvites.canEmail}
-                requests={requestsHere}
-                team={p.name}
-                members={people.map((m) => ({ userId: m.userId, email: m.user.email, name: m.user.name, role: m.role, signedIn: !!m.user.lastLoginAt, hasPassword: !!m.user.passwordSetAt, avatarAt: m.user.avatarAt, inviteSentAt: cycleInvites.sent.get(m.userId) ?? null, inviteUntil: cycleInvites.until.get(m.userId) ?? null, ...badgeOf(m.user) }))}
-              />
-            ) : null,
-          }}
-          jira={{
-            canManage: can(cw, "jira:manage"),
-            own: !!mine,
-            summary: jiraSummary,
-            form: mine ? (
-              <JiraSettings
-                projectId={p.id}
-                current={{ siteUrl: mine.siteUrl, email: mine.email, jiraProjectKey: mine.jiraProjectKey, issueType: mine.issueType, tokenReadable: canOpen(mine.tokenEncrypted) }}
-                template={view!.template}
-                shared={view!.shared}
-                stories={parseStoriesConfig(mine.stories)}
-                severity={parseSeverityConfig(mine.severity)}
-              />
-            ) : (
-              <JiraSettings projectId={p.id} current={null} template={parseTemplateSettings(null)} />
-            ),
-          }}
-          slack={{
-            projectId: p.id,
-            mode,
-            picked: p.slackChannelIds,
-            umbrella: name,
-            umbrellaChannels: slack,
-            own: ownChannels,
-            canManage: can(cw, "jira:manage"),
-            settingsHref: `/g/${u.group.id}/settings#slack`,
-          }}
-        />
-      );
-      return { key: p.key, id: p.id, archived: archivedAlone, name: p.name.startsWith(`${name} `) ? p.name.slice(name.length + 1) : p.name, fullName: p.name, color: platformColor(u.platforms, p.platform), older: u.older.some((o) => o.id === p.id), team, jira: jiraChip, slack: slackChip, panel };
-    }),
-  );
+  const rows: CycleRow[] = cycles.map((p) => {
+    const cw = cycleWho(roleIn.get(p.id) ?? null);
+    const mine = jiraOf.get(p.id);
+    const people = cycleMembers.filter((m) => m.projectId === p.id);
+    const fromUmbrella = people.filter((m) => m.fromUmbrella).length;
+    const mode = (MODES as readonly string[]).includes(p.slackMode) ? (p.slackMode as (typeof MODES)[number]) : "umbrella";
+    const picked = p.slackChannelIds.filter((id) => umbrellaChannelIds.includes(id));
+    const ownChannels = ownSlack.get(p.id) ?? [];
+    const view = mine ? (cycleViews.get(p.id) ?? null) : null;
+    const requestsHere = cycleRequests.get(p.id) ?? [];
+    const team: CycleChip = p.keepMembersSeparate
+      ? { tone: "own", text: `Its own · ${people.length} ${people.length === 1 ? "person" : "people"}`, tip: "Only the people added to this test cycle can see it." }
+      : { tone: "same", text: "Same", tip: `Everyone on ${whose} team can see and test it.` };
+    const jiraChip: CycleChip = mine
+      ? { tone: "own", text: `Its own · ${mine.jiraProjectKey}`, tip: `Files bugs into its own Jira project, ${mine.jiraProjectKey}, with ${kindLabel(templateKind(parseTemplateSettings(mine.bugTemplate))).toLowerCase()}.` }
+      : jira
+        ? { tone: "same", text: jira.jiraProjectKey, tip: `Uses ${whose} Jira connection and bug template, set above.` }
+        : { tone: "off", text: "Not connected", tip: `${name} isn't connected to Jira yet. Connect it above.` };
+    const slackChip: CycleChip =
+      mode === "off"
+        ? { tone: "own", text: "Its own · Off", tip: "Nothing from this test cycle posts to Slack." }
+        : mode === "choose"
+          ? (() => {
+              const n = picked.length + ownChannels.length;
+              return { tone: "own" as const, text: `Its own · ${n} ${n === 1 ? "channel" : "channels"}`, tip: `Posts to ${[...slack.filter((c) => picked.includes(c.id)), ...ownChannels].map((c) => c.name).join(", ") || "no channels"}.` };
+            })()
+          : slack.length
+            ? { tone: "same", text: "Same", tip: `Posts to ${slack.map((c) => c.name).join(", ")}, like ${name}.` }
+            : { tone: "off", text: "No channels", tip: `${name} has no Slack channels yet. Add them in Slack alerts above.` };
+    const jiraSummary = mine
+      ? `${p.name} files bugs into its own Jira project, ${mine.jiraProjectKey}. Disconnect it below to use ${whose} instead.`
+      : jira
+        ? `✓ Using ${whose} Jira: ${site} · Jira project ${jira.jiraProjectKey}${hubKind !== "plain" ? `, with ${whose} bug template` : ""}.`
+        : `${name} hasn't connected Jira yet. Connect it once above and every test cycle under it uses it.`;
+    const archivedAlone = !!p.archivedAt && !p.archivedWithUmbrella;
+    const panel = (
+      <CyclePanel
+        restore={archivedAlone && can(cw, "cycle:archive") ? <ArchiveCard data={{ current: { id: p.id, name: p.name, archived: true }, umbrella: null }} /> : null}
+        anchor={cycleHash(p.key)}
+        umbrella={name}
+        details={can(cw, "project:manage") ? { projectId: p.id, name: p.name, description: p.description } : null}
+        team={{
+          projectId: p.id,
+          separate: p.keepMembersSeparate,
+          canSeparate: can(cw, "project:separate"),
+          fromUmbrella,
+          members: p.keepMembersSeparate ? (
+            <MembersPanel
+              projectId={p.id}
+              me={user.id}
+              canManage={can(cw, "members:manage")}
+              canEmail={cycleInvites.canEmail}
+              requests={requestsHere}
+              team={p.name}
+              members={people.map((m) => ({ userId: m.userId, email: m.user.email, name: m.user.name, role: m.role, signedIn: !!m.user.lastLoginAt, hasPassword: !!m.user.passwordSetAt, avatarAt: m.user.avatarAt, inviteSentAt: cycleInvites.sent.get(m.userId) ?? null, inviteUntil: cycleInvites.until.get(m.userId) ?? null, ...badgeOf(m.user) }))}
+            />
+          ) : null,
+        }}
+        jira={{
+          canManage: can(cw, "jira:manage"),
+          own: !!mine,
+          summary: jiraSummary,
+          form: mine ? (
+            <JiraSettings
+              projectId={p.id}
+              current={{ siteUrl: mine.siteUrl, email: mine.email, jiraProjectKey: mine.jiraProjectKey, issueType: mine.issueType, tokenReadable: canOpen(mine.tokenEncrypted) }}
+              template={view!.template}
+              shared={view!.shared}
+              stories={parseStoriesConfig(mine.stories)}
+              severity={parseSeverityConfig(mine.severity)}
+            />
+          ) : (
+            <JiraSettings projectId={p.id} current={null} template={parseTemplateSettings(null)} />
+          ),
+        }}
+        slack={{
+          projectId: p.id,
+          mode,
+          picked: p.slackChannelIds,
+          umbrella: name,
+          umbrellaChannels: slack,
+          own: ownChannels,
+          canManage: can(cw, "jira:manage"),
+          settingsHref: `/g/${u.group.id}/settings#slack`,
+        }}
+      />
+    );
+    return { key: p.key, id: p.id, archived: archivedAlone, name: p.name.startsWith(`${name} `) ? p.name.slice(name.length + 1) : p.name, fullName: p.name, color: platformColor(u.platforms, p.platform), older: u.older.some((o) => o.id === p.id), team, jira: jiraChip, slack: slackChip, panel };
+  });
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -522,7 +555,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
           rows={rows}
           umbrella={name}
           canArchive={canArchiveCycles}
-          addButton={can(u.who, "cycle:create") && !u.group.archivedAt ? <AddUmbrellaProject groupId={u.group.id} umbrella={name} platforms={u.platforms.map((p) => p.name)} colors={u.platforms.map((p) => platformColor(u.platforms, p.name))} loose={await looseProjects(user)} label="Add test cycle" /> : undefined}
+          addButton={can(u.who, "cycle:create") && !u.group.archivedAt ? <AddUmbrellaProject groupId={u.group.id} umbrella={name} platforms={u.platforms.map((p) => p.name)} colors={u.platforms.map((p) => platformColor(u.platforms, p.name))} loose={loose} label="Add test cycle" /> : undefined}
         />
       </div>
       )}

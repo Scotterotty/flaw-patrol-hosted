@@ -69,7 +69,7 @@ async function afterChange() {
   revalidatePath("/", "layout");
   try {
     const groups = await db.projectGroup.findMany({ where: { hubProjectId: { not: null }, archivedAt: null }, select: { id: true } });
-    for (const g of groups) await refreshCrowns(g.id);
+    await refreshCrowns(groups.map((g) => g.id));
   } catch (e) {
     console.error("Crowns: counting failed", e);
   }

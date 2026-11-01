@@ -1,10 +1,9 @@
 import { ProjectMenu } from "@/components/project-menu";
 import { TopBar } from "@/components/top-bar";
 import { after } from "next/server";
-import { db } from "@/lib/db";
 import { recordVisit } from "@/lib/project-visits";
 import { projectAccessOrGuest } from "@/lib/session";
-import { cycleSettingsHref, hubGroupId, loadUmbrella } from "@/lib/umbrella";
+import { cycleSettingsHref, loadUmbrella } from "@/lib/umbrella";
 import { ArchivedBanner, UmbrellaArchivedBanner } from "@/components/archive-project";
 import { can } from "@/lib/permissions";
 import { ViewerNoteFor } from "@/components/viewer-note-server";
@@ -13,7 +12,7 @@ import { gateInfo } from "@/lib/tools-data";
 
 export default async function ProjectLayout({ children, params }: { children: React.ReactNode; params: Promise<{ key: string }> }) {
   const { key } = await params;
-  const { user, project, role, guest } = await projectAccessOrGuest(key);
+  const { user, project, role, guest, frame } = await projectAccessOrGuest(key);
   // Someone outside the team in a bug bash (ver_115): just the bash, without the team's menu.
   if (guest)
     return (
@@ -27,10 +26,8 @@ export default async function ProjectLayout({ children, params }: { children: Re
   // A Viewer is told so, with who can change it (ver_124, persona audit #6).
   const viewer = role === "VIEWER" && !user.isAdmin;
   // An umbrella's hub project is shown as the umbrella itself, with the umbrella's menu.
-  const [hubOf, group] = await Promise.all([
-    hubGroupId(project.id),
-    project.groupId ? db.projectGroup.findUnique({ where: { id: project.groupId }, select: { id: true, name: true, archivedAt: true, hubProjectId: true } }) : null,
-  ]);
+  // Which umbrella, and the group's name, came with the project itself (ver_129): no extra lookups here.
+  const { hubOf, group } = frame;
   const umbrella = hubOf ? await loadUmbrella(hubOf, user) : null;
   if (umbrella) {
     return (

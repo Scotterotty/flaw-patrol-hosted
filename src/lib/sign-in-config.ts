@@ -42,14 +42,25 @@ const shared = globalThis as unknown as { fpSignInCache?: { at: number; rows: Si
 export async function savedProviders(): Promise<SignInProvider[]> {
   const cache = shared.fpSignInCache;
   if (cache && Date.now() - cache.at < 5_000) return cache.rows;
-  try {
-    const rows = await db.signInProvider.findMany();
-    shared.fpSignInCache = { at: Date.now(), rows };
-    return rows;
-  } catch {
-    // Before the ver_92 migration has run there is no table yet.
-    return [];
+  const load = async () => {
+    try {
+      const rows = await db.signInProvider.findMany();
+      shared.fpSignInCache = { at: Date.now(), rows };
+      return rows;
+    } catch {
+      // Before the ver_92 migration has run there is no table yet.
+      return [];
+    }
+  };
+  // ver_129: every page asks for this before anything else, so after the first time it answers
+  // from the last list at once and reads a fresh one in the background. Changes here call
+  // forgetSavedProviders, and sign-in itself reads the provider fresh.
+  if (cache) {
+    cache.at = Date.now();
+    void load();
+    return cache.rows;
   }
+  return load();
 }
 
 export function forgetSavedProviders() {

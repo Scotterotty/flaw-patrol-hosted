@@ -14,6 +14,8 @@
     "e2e:all": "node scripts/e2e-all.mjs",
     "check:cards": "node --conditions=react-server --import tsx scripts/check-umbrella-cards.ts",
     "check:xp": "node --conditions=react-server --import tsx scripts/check-xp.ts",
+    "check:news": "node --conditions=react-server --import tsx scripts/check-news.ts",
+    "check:crowns": "node --conditions=react-server --import tsx scripts/check-crowns.ts",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",

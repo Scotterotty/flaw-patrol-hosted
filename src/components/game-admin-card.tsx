@@ -1,6 +1,6 @@
 import { levelFor, totalXp } from "@/lib/game";
 import { db } from "@/lib/db";
-import { gameStats } from "@/lib/xp";
+import { gameStatsMany } from "@/lib/xp";
 import { GameAdmin } from "./game-admin";
 
 /** Workspace admins only: everyone's XP, resets, and going live. */
@@ -12,9 +12,11 @@ export async function GameAdminCard() {
     }),
     db.workspace.findUnique({ where: { id: 1 } }),
   ]);
+  // Everyone counted together, sharing run and quest lookups (ver_129).
+  const stats = await gameStatsMany(users.map((u) => u.id));
   const people = await Promise.all(
     users.map(async (u) => {
-      const xp = totalXp(await gameStats(u.id));
+      const xp = totalXp(stats.get(u.id)!);
       return {
         id: u.id,
         name: u.name ?? u.email,

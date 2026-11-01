@@ -14,7 +14,7 @@ const resolve = (Module as unknown as { _resolveFilename: (r: string, ...a: unkn
 
 async function main() {
   const { db } = await import("@/lib/db");
-  const { gameStats } = await import("@/lib/xp");
+  const { gameStats, gameStatsMany } = await import("@/lib/xp");
   const { gameStatsBefore } = await import("./xp-before-ver120");
   const users = await db.user.findMany({ select: { id: true, email: true } });
   let bad = 0;
@@ -33,6 +33,19 @@ async function main() {
       console.log(`✗ ${u.email}: ` + keys.filter((k) => !isDeepStrictEqual(old[k], now[k])).map((k) => `${k} ${JSON.stringify(old[k])} → ${JSON.stringify(now[k])}`).join(", "));
     }
   }
+  // ver_129: the Workspace Game admin card counts everyone together; it must match one by one.
+  let t = performance.now();
+  const many = await gameStatsMany(users.map((u) => u.id));
+  const together = performance.now() - t;
+  t = performance.now();
+  for (const u of users) {
+    const one = await gameStats(u.id);
+    if (!isDeepStrictEqual(one, many.get(u.id))) {
+      bad++;
+      console.log(`✗ ${u.email} (everyone together): ${JSON.stringify(one)} → ${JSON.stringify(many.get(u.id))}`);
+    }
+  }
+  console.log(`Everyone together: ${Math.round(together)} ms (one by one ${Math.round(performance.now() - t)} ms).`);
   console.log(`XP check: ${users.length} people, ${bad} different. Old way ${Math.round(before)} ms, new way ${Math.round(after)} ms in all.`);
   await db.$disconnect();
   if (bad) process.exit(1);

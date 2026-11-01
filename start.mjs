@@ -1,9 +1,13 @@
 // One-step local start without Docker: `node start.mjs`.
 // First run asks for a Postgres connection string (for example a free Neon
 // database), writes .env, installs packages and sets up the database.
+// `node start.mjs --fast` (ver_129) builds the app once (a couple of minutes, and
+// again only when the code changes), then runs the finished build, so pages open
+// quickly instead of being built on your first visit to each.
 import { execSync } from "node:child_process";
-import { randomBytes } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash, randomBytes } from "node:crypto";
+import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
 
 const major = Number(process.versions.node.split(".")[0]);
@@ -68,8 +72,44 @@ if (process.argv.includes("--demo")) run("npm run db:seed");
 
 await checkJiraTokens();
 
-console.log("\nStarting. Open http://localhost:3000 when it says Ready. Press Ctrl+C to stop.\n");
-run("npx next dev -p 3000");
+if (process.argv.includes("--fast")) {
+  // Build again only when the code changed since the last fast start.
+  const stamp = codeStamp();
+  const stampFile = join(".next", "flaw-patrol-build");
+  const built = existsSync(join(".next", "BUILD_ID")) && existsSync(stampFile) && readFileSync(stampFile, "utf8") === stamp;
+  if (!built) {
+    console.log("\nBuilding the app (first fast start after an update, takes a few minutes)…\n");
+    // A dev-mode .next folder trips up the build, so start clean.
+    rmSync(".next", { recursive: true, force: true });
+    run("npx next build", { FP_PLAIN_BUILD: "1" });
+    writeFileSync(stampFile, stamp);
+  }
+  console.log("\nStarting. Open http://localhost:3000 when it says Ready. Press Ctrl+C to stop.\n");
+  run("npx next start -p 3000", { FP_PLAIN_BUILD: "1" });
+} else {
+  // next dev can't use the finished build a fast start left behind.
+  if (existsSync(join(".next", "BUILD_ID"))) rmSync(".next", { recursive: true, force: true });
+  console.log("\nStarting. Open http://localhost:3000 when it says Ready. Press Ctrl+C to stop.");
+  console.log("Tip: node start.mjs --fast opens pages faster (it builds the app once first).\n");
+  run("npx next dev -p 3000");
+}
+
+/** A fingerprint of the app's code: every file's path, size and change time under the folders a build uses. */
+function codeStamp() {
+  const h = createHash("sha256");
+  const walk = (dir) => {
+    if (!existsSync(dir)) return;
+    for (const name of readdirSync(dir).sort()) {
+      const p = join(dir, name);
+      const st = statSync(p);
+      if (st.isDirectory()) walk(p);
+      else h.update(`${p}:${st.size}:${st.mtimeMs}\n`);
+    }
+  };
+  for (const f of ["package.json", "package-lock.json", "next.config.ts", "tsconfig.json", "postcss.config.mjs", ".env"]) if (existsSync(f)) h.update(`${f}:${statSync(f).mtimeMs}\n`);
+  for (const d of ["src", "public", "prisma"]) walk(d);
+  return h.digest("hex");
+}
 
 // Jira API tokens are sealed with AUTH_SECRET (src/lib/crypto.ts). Warn when
 // this copy's secret can't open them, which happens when the .env was recreated

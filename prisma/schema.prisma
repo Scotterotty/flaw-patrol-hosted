@@ -1,5 +1,7 @@
 generator client {
   provider = "prisma-client-js"
+  // ver_129: a query with include/select of related rows is one database trip instead of one per relation.
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {

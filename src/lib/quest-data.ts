@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "./db";
 import { caseKey } from "./format";
 import { foeLine, foundRewards, generateQuest, RARITY_LABEL, sentence, type Completion, type QuestMap } from "./quest";
-import { autoSlotFor, parseGear, partyOf, photoUrl, questRecord, rescueFinds, rescueLine, SLOT_LABEL, teamwork, troubleLine, type Look, type Slot } from "./quest-gear";
+import { autoSlotFor, parseGear, partyOf, photoUrl, questRecord, rescueFinds, rescueLine, SLOT_LABEL, teamwork, troubleLine, type Look, type QuestRecord, type Slot } from "./quest-gear";
 
 const DONE = { notIn: ["UNTESTED", "IN_PROGRESS"] as ("UNTESTED" | "IN_PROGRESS")[] };
 
@@ -107,6 +107,39 @@ export async function questRecordFor(userId: string) {
     }),
     user.xpSince ?? undefined,
   );
+}
+
+/**
+ * Quest records for several people at once (ver_129, the Workspace Game admin card): every run
+ * anyone tested is loaded and its map built once for everyone, instead of once per person.
+ * Each record matches questRecordFor for that person.
+ */
+export async function questRecordsFor(userIds: string[]) {
+  const out = new Map<string, QuestRecord>();
+  if (!userIds.length) return out;
+  const [users, mine] = await Promise.all([
+    db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, xpSince: true } }),
+    db.testResult.findMany({ where: { testerId: { in: userIds }, status: DONE }, distinct: ["testerId", "runId"], select: { testerId: true, runId: true } }),
+  ]);
+  const runIds = [...new Set(mine.map((m) => m.runId))];
+  const runs = runIds.length ? await db.testRun.findMany({ where: { id: { in: runIds }, automated: false }, select: RUN_SELECT }) : [];
+  const done = await completions(runs.map((r) => r.id));
+  const built = new Map(
+    runs.map((r) => {
+      const q = quest(r, done.get(r.id) ?? []);
+      return [r.id, { map: q.map, done: q.order, steps: q.steps }];
+    }),
+  );
+  const runsOf = new Map<string, (typeof built extends Map<string, infer V> ? V : never)[]>();
+  for (const m of mine) {
+    const b = m.testerId ? built.get(m.runId) : undefined;
+    if (!b) continue;
+    const list = runsOf.get(m.testerId!) ?? [];
+    list.push(b);
+    runsOf.set(m.testerId!, list);
+  }
+  for (const u of users) out.set(u.id, questRecord(u.id, runsOf.get(u.id) ?? [], u.xpSince ?? undefined));
+  return out;
 }
 
 export type QuestMoment = { emoji: string; text: string; sub: string; href?: string; link?: string };

@@ -3,7 +3,8 @@ import pkg from "./package.json";
 
 const nextConfig: NextConfig = {
   // `npm run release` packs this self-contained server into the ready-to-run build.
-  output: "standalone",
+  // `node start.mjs --fast` runs `next start` instead, which doesn't need it (ver_129).
+  output: process.env.FP_PLAIN_BUILD ? undefined : "standalone",
   // The version under Arrange menu order and in the name menu (ver_122). Inlined at build so client code needn't ship package.json.
   env: { APP_VERSION: pkg.version },
   experimental: {

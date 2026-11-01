@@ -30,6 +30,10 @@ if (pre) {
   ok = part("Umbrella card check", "npm", ["run", "check:cards"], { DATABASE_URL: readFileSync(join(root, ".e2e-database"), "utf8").trim() }) && ok;
   // Everyone's mini game XP the old way and the ver_120 way must match exactly.
   ok = part("Mini game XP check", "npm", ["run", "check:xp"], { DATABASE_URL: readFileSync(join(root, ".e2e-database"), "utf8").trim() }) && ok;
+  // Test runs New/Updated counts the old way and the ver_129 way must match exactly.
+  ok = part("Test runs New/Updated check", "npm", ["run", "check:news"], { DATABASE_URL: readFileSync(join(root, ".e2e-database"), "utf8").trim() }) && ok;
+  // Everyone's crowns the old way and the ver_129 way must match exactly.
+  ok = part("Mini game crowns check", "npm", ["run", "check:crowns"], { DATABASE_URL: readFileSync(join(root, ".e2e-database"), "utf8").trim() }) && ok;
   // next dev can't share the production build's .next folder.
   rmSync(join(root, ".next"), { recursive: true, force: true });
   ok = part("Specs that need next dev", "npx", ["playwright", "test", ...DEV_ONLY], { E2E_SERVER: "dev" }) && ok;

@@ -169,18 +169,21 @@ export function loadUmbrella(groupId: string, user: Viewer) {
 // The layout, the left menu and the page each ask for the umbrella; one load per page view (ver_120).
 const loadUmbrellaOnce = cache(async (groupId: string, userId: string, isAdmin: boolean) => {
   const user = { id: userId, isAdmin };
-  const group = await db.projectGroup.findUnique({ where: { id: groupId }, include: { hub: { include: { members: { where: { userId: user.id } } } } } });
+  // The umbrella and its test cycles together (ver_129): the cycles only need the id, so they don't wait.
+  const [group, projects] = await Promise.all([
+    db.projectGroup.findUnique({ where: { id: groupId }, include: { hub: { include: { members: { where: { userId: user.id } } } } } }),
+    db.project.findMany({
+      where: { groupId, ...(user.isAdmin ? {} : { members: { some: { userId: user.id } } }) },
+      include: { _count: { select: { runs: { where: { state: "ACTIVE", ...NOT_BASH_RUN } } } } },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
   if (!group?.hub) return null;
   const hub = group.hub;
   const role: Role | null = user.isAdmin ? "ADMIN" : (hub.members[0]?.role ?? null);
   if (!role) return null;
   const who: Who = { role, rules: parseRoleRules(group.roleRules) };
   const platforms = parsePlatforms(group.platforms);
-  const projects = await db.project.findMany({
-    where: { groupId, ...(user.isAdmin ? {} : { members: { some: { userId: user.id } } }) },
-    include: { _count: { select: { runs: { where: { state: "ACTIVE", ...NOT_BASH_RUN } } } } },
-    orderBy: { createdAt: "desc" },
-  });
   // The newest live project for each platform is "current"; projects without a platform always are.
   // In an archived umbrella, the projects archived with it still count as live.
   const live = (p: (typeof projects)[number]) => !p.archivedAt || (!!group.archivedAt && p.archivedWithUmbrella);

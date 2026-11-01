@@ -50,17 +50,23 @@ export const projectAccessOrGuest = cache(async (key: string) => {
   // The Roles card rules come along in the same query (ver_120), instead of a second trip.
   const row = await db.project.findUnique({
     where: { key: key.toUpperCase() },
-    include: { members: { where: { userId: user.id } }, hubOf: { select: { roleRules: true } }, group: { select: { roleRules: true, hubProjectId: true } } },
+    // ver_129: the umbrella this is the hub of, and its group's name, come along too for the layout.
+    include: {
+      members: { where: { userId: user.id } },
+      hubOf: { select: { id: true, roleRules: true } },
+      group: { select: { id: true, name: true, archivedAt: true, roleRules: true, hubProjectId: true } },
+    },
   });
   if (!row) notFound();
   const { hubOf, group, ...project } = row;
+  const frame = { hubOf: hubOf?.id ?? null, group: group && { id: group.id, name: group.name, archivedAt: group.archivedAt, hubProjectId: group.hubProjectId } };
   const memberRole = project.members[0]?.role ?? null;
   const role: Role | null = user.isAdmin ? "ADMIN" : memberRole;
   if (role) {
     // Same rules as roleRulesFor: the umbrella's (hub or test cycle in it), else the project's own.
     const umbrellaRules = hubOf ?? (group?.hubProjectId ? group : null);
     const who: Who = { role, rules: parseRoleRules(umbrellaRules ? umbrellaRules.roleRules : project.roleRules) };
-    return { guest: null, user, project, role, who };
+    return { guest: null, user, project, role, who, frame };
   }
   const path = await currentPath();
   const at = path ? bashGuestPath(path) : null;
@@ -70,7 +76,7 @@ export const projectAccessOrGuest = cache(async (key: string) => {
   if (!bash.joined && at.page !== "join" && at.page !== "") redirect(`/p/${project.key}/bashes/${bash.id}?join=1`);
   // A guest acts like a Viewer inside the bash: join, log, +1 and attach. Nothing else.
   const who: Who = { role: "VIEWER", rules: null };
-  return { guest: { bashId: bash.id }, user, project, role: "VIEWER" as Role, who };
+  return { guest: { bashId: bash.id }, user, project, role: "VIEWER" as Role, who, frame };
 });
 
 /** Load a project by key with the viewer's role; 404 when it doesn't exist, Ask to join when they aren't on it. */

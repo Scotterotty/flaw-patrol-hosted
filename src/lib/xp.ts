@@ -3,17 +3,49 @@ import { Prisma, type ResultStatus } from "@prisma/client";
 import { db } from "./db";
 import { parseSessionLog } from "./charter";
 import { SESSION_BUG_CAP, streaks, type GameStats } from "./game";
-import { questRecordFor } from "./quest-data";
+import { questRecordFor, questRecordsFor } from "./quest-data";
 import { glossaryStatsFrom } from "./glossary";
 import { glossaryWork } from "./glossary-data";
 
 const VERDICTS: ResultStatus[] = ["PASSED", "FAILED", "BLOCKED", "EXPLORED"];
 
+type Shared = {
+  users: Promise<Map<string, { xpSince: Date | null; earlyAdopter: boolean }>>;
+  workspace: Promise<Awaited<ReturnType<typeof db.workspace.findUnique>>>;
+  quests: Promise<Map<string, Awaited<ReturnType<typeof questRecordFor>>>>;
+  glossary: Promise<Awaited<ReturnType<typeof glossaryWork>>>;
+};
+
+/**
+ * Everyone's XP numbers at once (ver_129, the Workspace Game admin card). Lookups that are the
+ * same for everyone, and each run's quest map, are done once and shared; the numbers match
+ * gameStats for each person (npm run check:xp checks).
+ */
+export async function gameStatsMany(userIds: string[]): Promise<Map<string, GameStats>> {
+  const shared: Shared = {
+    users: db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, xpSince: true, earlyAdopter: true } }).then((rows) => new Map(rows.map((u) => [u.id, u]))),
+    workspace: db.workspace.findUnique({ where: { id: 1 } }).then((w) => w),
+    quests: questRecordsFor(userIds),
+    // Every term with a meaning; glossaryStatsFrom keeps only the ones each person wrote.
+    glossary: glossaryWork().then((rows) => rows),
+  };
+  // Keep a failed shared lookup from showing up as an unhandled rejection before it's awaited.
+  for (const p of Object.values(shared)) (p as Promise<unknown>).catch(() => {});
+  const stats = await Promise.all(userIds.map((id) => gameStats(id, shared)));
+  return new Map(userIds.map((id, i) => [id, stats[i]]));
+}
+
 /** Everything one person's XP is made of, across all projects. */
-export async function gameStats(userId: string): Promise<GameStats> {
+export async function gameStats(userId: string, shared?: Shared): Promise<GameStats> {
   const [user, workspace] = await Promise.all([
-    db.user.findUniqueOrThrow({ where: { id: userId }, select: { xpSince: true, earlyAdopter: true } }),
-    db.workspace.findUnique({ where: { id: 1 } }),
+    shared
+      ? shared.users.then((m) => {
+          const u = m.get(userId);
+          if (!u) throw new Error(`No user ${userId}`);
+          return u;
+        })
+      : db.user.findUniqueOrThrow({ where: { id: userId }, select: { xpSince: true, earlyAdopter: true } }),
+    shared ? shared.workspace : db.workspace.findUnique({ where: { id: 1 } }),
   ]);
   // After an admin resets someone, only work from then on counts.
   const since = user.xpSince ? { gte: user.xpSince } : undefined;
@@ -64,7 +96,7 @@ export async function gameStats(userId: string): Promise<GameStats> {
       select: { suiteId: true },
     }),
     // Glossary (ver_113): terms whose meaning you wrote, and teammates who opened them.
-    glossaryWork({ OR: [{ createdById: userId }, { answeredById: userId }] }),
+    shared ? shared.glossary : glossaryWork({ OR: [{ createdById: userId }, { answeredById: userId }] }),
   ]);
 
   const entries = new Set(mine.map((r) => r.entryId));
@@ -95,7 +127,7 @@ export async function gameStats(userId: string): Promise<GameStats> {
       : [],
     runIds.length ? db.testRun.count({ where: { id: { in: runIds }, state: "COMPLETED" } }) : 0,
     // Quest map rescues (Field Medic); no XP, they only unlock the title.
-    mine.length ? questRecordFor(userId) : null,
+    mine.length ? (shared ? shared.quests.then((m) => m.get(userId) ?? null) : questRecordFor(userId)) : null,
   ]);
   const caught = new Set(failures.filter((f) => passedBefore(passes, f)).map((f) => `${f.runId}:${f.caseId}`));
   const sessionBug = sessions.reduce((sum, r) => sum + Math.min(SESSION_BUG_CAP, parseSessionLog(r.sessionLog).filter((n) => n.kind === "bug").length), 0);
