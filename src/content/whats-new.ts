@@ -22,6 +22,29 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 129,
+    date: "2026-11-01",
+    items: [
+      {
+        kind: "better",
+        title: "Your account opens much faster with the mini game on",
+        text: "Crowns are counted once for all your umbrellas, so the page takes about 2 seconds instead of 12 or more.",
+        game: true,
+      },
+      {
+        kind: "better",
+        title: "Settings and Test runs pages open faster",
+        text: "Umbrella Settings, Test runs and every page's menu ask the database for what they need in fewer steps.",
+      },
+      {
+        kind: "better",
+        title: "Workspace settings opens about twice as fast",
+        text: "It works out the mini game numbers for everyone together instead of one person at a time.",
+        who: "workspace",
+      },
+    ],
+  },
+  {
     version: 128,
     date: "2026-11-01",
     items: [
