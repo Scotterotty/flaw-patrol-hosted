@@ -59,7 +59,7 @@ test("a charter from a tour, then a bug bash from start to report", async ({ pag
   await page.goto(`/p/${KEY}/bashes`);
   await page.getByRole("link", { name: "Join" }).first().click();
   await page.getByRole("radio").first().check();
-  await page.getByRole("button", { name: "Start exploring" }).click();
+  await page.getByRole("button", { name: "Start bashing" }).click();
   const find = page.getByLabel("What did you find?");
   await find.fill("Order placed twice after reconnecting");
   await page.getByRole("button", { name: "Log bug" }).click();

@@ -48,7 +48,7 @@ function card(u: Umbrella, row: Row, choices: Awaited<ReturnType<typeof shortcut
     choices: can(u.who, "umbrella:shortcuts") ? choices : null,
     archived: !!u.group.archivedAt,
     // A bug bash on now (ver_93): the card says so, with Join.
-    live: u.live ? { href: `/p/${u.hub.key}/bashes/${u.live.id}/join`, endsAt: u.live.endsAt } : null,
+    live: u.live ? { href: `/p/${u.hub.key}/bashes/${u.live.id}?join=1`, endsAt: u.live.endsAt } : null,
     restore: u.group.archivedAt && can(u.who, "umbrella:archive") ? u.current.filter((p) => p.archivedWithUmbrella).map((p) => p.name) : null,
     starred: row.pins[0]?.starred ?? false,
     position: row.pins[0]?.position ?? null,

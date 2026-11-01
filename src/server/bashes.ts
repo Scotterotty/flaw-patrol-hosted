@@ -168,7 +168,7 @@ async function slackStart(bashId: string) {
     tone: "blue",
     title: `🐞 Bug bash · ${b.name} is on!`,
     lines: [`${b.minutes} minutes, ${areas.length} ${areas.length === 1 ? "area" : "areas"}: ${areas.map((a) => esc(a.name)).join(", ")}. Started by ${esc(b.createdBy)}.`],
-    button: { label: "Join the bash", url: `${base}/p/${b.project.key}/bashes/${b.id}/join` },
+    button: { label: "Join the bash", url: `${base}/p/${b.project.key}/bashes/${b.id}?join=1` },
   }));
   if (!n) return [];
   return channelNamesFor(b.run.projectId);

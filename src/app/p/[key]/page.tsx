@@ -181,7 +181,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
                   const lv = r.live;
                   const button =
                     lv?.type === "bash"
-                      ? lv.live && { href: `/p/${lv.homeKey}/bashes/${lv.bashId}/join`, label: "Join the bash" }
+                      ? lv.live && { href: `/p/${lv.homeKey}/bashes/${lv.bashId}?join=1`, label: "Join the bash" }
                       : lv?.type === "explore"
                         ? canExecute && { href: `/p/${project.key}/runs/${r.number}/execute`, label: lv.started ? "Keep exploring" : "Start exploring" }
                         : canExecute && r.t.tested < r.t.total && { href: `/p/${project.key}/runs/${r.number}/execute${r.mineLeft ? "?mine=1" : ""}`, label: r.t.tested === 0 ? "Start testing" : "Resume" };

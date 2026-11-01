@@ -353,7 +353,7 @@ function Invite({ bashId, homeKey, posted, later, onClose }: { bashId: string; h
   const [copied, setCopied] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
   const [link, setLink] = useState("");
-  useEffect(() => setLink(`${window.location.origin}/p/${homeKey}/bashes/${bashId}/join`), [homeKey, bashId]);
+  useEffect(() => setLink(`${window.location.origin}/p/${homeKey}/bashes/${bashId}?join=1`), [homeKey, bashId]);
   return (
     <div className="space-y-4" data-testid="bash-invite">
       <h2 className="text-lg font-semibold text-slate-900">{later ? "Your bash is scheduled. Invite people." : "Your bash is live. Invite people."}</h2>

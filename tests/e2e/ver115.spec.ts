@@ -58,11 +58,11 @@ test("someone outside the team joins a live bash, asks to join, and an admin add
 
   // A live bug bash link: straight in, this bash only.
   await r.goto(`/p/${KEY}/bashes/${bashId}`);
-  await expect(r).toHaveURL(new RegExp(`/bashes/${bashId}/join`));
+  await expect(r).toHaveURL(new RegExp(`/bashes/${bashId}(\\?join=1)?$`));
   await expect(r.getByText("You'll see this bug bash only.")).toBeVisible();
   await expect(r.getByText(`Demo Admin started this bug bash in ${NAME}.`)).toBeVisible();
   await r.getByRole("radio").first().check();
-  await r.getByRole("button", { name: "Start exploring" }).click();
+  await r.getByRole("button", { name: "Start bashing" }).click();
   await r.getByLabel("What did you find?").fill(`Coupon box ignores Enter ${TAG}`);
   await r.getByRole("button", { name: "Log bug" }).click();
   await expect(r.getByText(`Coupon box ignores Enter ${TAG}`).first()).toBeVisible();

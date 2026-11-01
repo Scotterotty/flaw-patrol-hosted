@@ -58,7 +58,7 @@ async function oldCards(user: { id: string; isAdmin: boolean }, rows: { id: stri
       shortcuts: (picked.length ? picked : defaultShortcuts(u)).map((s) => ({ ...s, sub: fresh.get(s.href)?.sub ?? s.sub })),
       choices: can(u.who, "umbrella:shortcuts") ? choices : null,
       archived: !!u.group.archivedAt,
-      live: u.live ? { href: `/p/${u.hub.key}/bashes/${u.live.id}/join`, endsAt: u.live.endsAt } : null,
+      live: u.live ? { href: `/p/${u.hub.key}/bashes/${u.live.id}?join=1`, endsAt: u.live.endsAt } : null,
       restore: u.group.archivedAt && can(u.who, "umbrella:archive") ? u.current.filter((p) => p.archivedWithUmbrella).map((p) => p.name) : null,
       starred: row.pins[0]?.starred ?? false,
       position: row.pins[0]?.position ?? null,

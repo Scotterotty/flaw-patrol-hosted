@@ -4,16 +4,19 @@ import { BashBoard, WrapUp } from "@/components/bash";
 import { CrumbName } from "@/components/crumb-name";
 import { LiveRefresh } from "@/components/live-refresh";
 import { bashPageData } from "@/lib/bash-page";
+import { teamOf } from "@/lib/link-access-server";
+import { BashGuestNote } from "@/components/join-request";
 import { jiraConfigFor } from "@/lib/umbrella";
 import { bashTick } from "@/server/bashes";
 
 export const metadata = { title: "Bug bash" };
 
 /** The bash board while it's on; the wrap-up when time's up; the report once wrapped. */
-export default async function BashPage({ params }: { params: Promise<{ key: string; id: string }> }) {
+export default async function BashPage({ params, searchParams }: { params: Promise<{ key: string; id: string }>; searchParams: Promise<{ join?: string }> }) {
   const { key, id } = await params;
+  const { join } = await searchParams;
   await bashTick(id).catch(() => {});
-  const { view, guest } = await bashPageData(key, id);
+  const { view, guest, project } = await bashPageData(key, id);
   if (view.phase === "wrapped") redirect(`/p/${view.homeKey}/bashes/${id}/report`);
   const jira = !!(await jiraConfigFor(view.runProjectId));
   return (
@@ -31,7 +34,17 @@ export default async function BashPage({ params }: { params: Promise<{ key: stri
           </Link>
         )}
       </div>
-      {view.phase === "ended" ? <WrapUp bash={view} jiraConnected={jira} /> : <BashBoard bash={view} />}
+      {/* People outside the team (ver_115) land here from the link now (ver_121): say what they'll see. */}
+      {guest && !view.me.areaId && view.phase !== "ended" && (
+        <BashGuestNote
+          team={(await teamOf(project)).name}
+          startedBy={view.createdBy}
+          people={view.people.length}
+          bugs={view.items.filter((i) => i.kind === "bug").length}
+          askHref={`/access?to=${encodeURIComponent(`/p/${project.key}`)}`}
+        />
+      )}
+      {view.phase === "ended" ? <WrapUp bash={view} jiraConnected={jira} /> : <BashBoard bash={view} openJoin={join === "1" || !!guest} />}
     </div>
   );
 }

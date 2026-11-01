@@ -48,7 +48,7 @@ export default async function BashesPage({ params, searchParams }: { params: Pro
           </div>
           <Countdown bash={{ startsAt: b.startsAt.toISOString(), endsAt: b.endsAt.toISOString(), phase: b.phase }} className="text-lg font-semibold text-slate-900" />
           {b.phase !== "ended" && (
-            <Link href={`/p/${home.key}/bashes/${b.id}/join`} className="inline-flex h-9 items-center rounded-md bg-accent-600 px-3 text-sm font-medium text-white hover:bg-accent-700">
+            <Link href={`/p/${home.key}/bashes/${b.id}?join=1`} className="inline-flex h-9 items-center rounded-md bg-accent-600 px-3 text-sm font-medium text-white hover:bg-accent-700">
               Join
             </Link>
           )}

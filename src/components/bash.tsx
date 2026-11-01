@@ -80,20 +80,20 @@ const initials = (name: string) =>
     .join("");
 
 /** Join: pick an area, Start exploring. Nobody needs to know what a charter or a run is. */
-export function JoinPicker({ bash }: { bash: BashView }) {
+export function JoinPicker({ bash, onCancel }: { bash: BashView; onCancel?: () => void }) {
   const router = useRouter();
   const [pick, setPick] = useState(bash.me.areaId ?? [...bash.areas].sort((a, b) => a.people.length - b.people.length)[0]?.id ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const fewest = Math.min(...bash.areas.map((a) => a.people.length));
   return (
-    <Card className="mx-auto max-w-xl p-5">
+    <Card className={cx("p-5", onCancel ? "border-accent-500 ring-1 ring-accent-500" : "mx-auto max-w-xl")} aria-label="Pick an area">
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 className="font-semibold text-slate-900">Pick an area</h2>
+        <h2 className="font-semibold text-slate-900">Pick an area to test</h2>
         <Countdown bash={bash} className="text-sm text-slate-600" />
       </div>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
-      <div role="radiogroup" aria-label="Area" className="space-y-2">
+      <div role="radiogroup" aria-label="Area" className={onCancel ? "grid gap-2 sm:grid-cols-2" : "space-y-2"}>
         {bash.areas.map((a) => (
           <label key={a.id} className={cx("flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5", pick === a.id ? "border-accent-500 bg-accent-50 ring-1 ring-accent-500" : "border-slate-200 hover:bg-slate-50")}>
             <input type="radio" name="area" checked={pick === a.id} onChange={() => setPick(a.id)} />
@@ -121,6 +121,8 @@ export function JoinPicker({ bash }: { bash: BashView }) {
       )}
       <div className="mt-4 flex items-center justify-between gap-2">
         <span className="text-xs text-slate-500">You can switch areas any time.</span>
+        <span className="flex gap-2">
+        {onCancel && <Button onClick={onCancel}>Cancel</Button>}
         <Button
           variant="primary"
           disabled={!pick || pending || bash.phase === "wrapped"}
@@ -132,8 +134,9 @@ export function JoinPicker({ bash }: { bash: BashView }) {
             })
           }
         >
-          {pending ? "Joining…" : "Start exploring"}
+          {pending ? "Joining…" : "Start bashing"}
         </Button>
+        </span>
       </div>
     </Card>
   );
@@ -160,6 +163,12 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
   const [different, setDifferent] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  useEffect(() => {
+    // A filing problem stays until the next find; a plain "logged" fades.
+    if (!note || note.startsWith("Logged here")) return;
+    const t = setTimeout(() => setNote(null), 6000);
+    return () => clearTimeout(t);
+  }, [note]);
   const [pending, start] = useTransition();
   const [uploading, setUploading] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
@@ -227,7 +236,9 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
       setDetails("");
       setShowDetails(false);
       setFiles([]);
-      setNote(r.filed ? (r.filed.startsWith("Logged") ? r.filed : `Filed as ${r.filed}.`) : null);
+      // Always say it worked (ver_121), not only when it was filed too.
+      const said = `${KIND_LABEL[kind]} logged. It's at the top of Live finds.`;
+      setNote(r.filed ? (r.filed.startsWith("Logged") ? r.filed : `${said} Filed as ${r.filed}.`) : said);
       void reload();
       router.refresh();
       box.current?.focus();
@@ -429,8 +440,11 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
 }
 
 /** The bash board: one countdown, who's where, and the bug list as it grows. */
-export function BashBoard({ bash }: { bash: BashView }) {
+export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin?: boolean }) {
   const router = useRouter();
+  // Join right here on the board (ver_121): the steps strip, then the area cards in place.
+  const canJoin = !bash.me.areaId && bash.phase !== "wrapped" && bash.phase !== "ended";
+  const [joining, setJoining] = useState(openJoin && canJoin);
   const [show, setShow] = useState<string>("all");
   const [kind, setKind] = useState<"all" | FindKind>("all");
   const [pending, start] = useTransition();
@@ -457,9 +471,9 @@ export function BashBoard({ bash }: { bash: BashView }) {
         </p>
         <div className="flex items-center gap-2">
           <Countdown bash={bash} className="mr-2 text-2xl font-semibold text-slate-900" />
-          {bash.phase !== "wrapped" && (
-            <Link href={`/p/${bash.homeKey}/bashes/${bash.id}/${bash.me.areaId ? "explore" : "join"}`} className="inline-flex h-9 items-center rounded-md bg-accent-600 px-3 text-sm font-medium text-white hover:bg-accent-700">
-              {bash.me.areaId ? "Back to exploring" : "Join"}
+          {bash.phase !== "wrapped" && bash.me.areaId && (
+            <Link href={`/p/${bash.homeKey}/bashes/${bash.id}/explore`} className="inline-flex h-9 items-center rounded-md bg-accent-600 px-3 text-sm font-medium text-white hover:bg-accent-700">
+              Back to bashing
             </Link>
           )}
           {bash.isOwner && bash.phase === "live" && !ending && (
@@ -491,6 +505,26 @@ export function BashBoard({ bash }: { bash: BashView }) {
           )}
         </div>
       </div>
+      {canJoin && !joining && (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-lg border border-slate-200 bg-surface px-4 py-3" data-testid="join-strip">
+          <ol className="flex min-w-0 flex-1 flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600">
+            {[
+              <>Click <b className="font-semibold text-slate-900">Join the bug bash</b></>,
+              <>Pick an area to test</>,
+              bash.phase === "scheduled" ? <>Log bugs, questions and ideas once it starts at {time(bash.startsAt)}</> : <>Log bugs, questions and ideas as you find them</>,
+            ].map((t, n) => (
+              <li key={n} className="flex items-center gap-2">
+                <span className={cx("flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold", n === 0 ? "bg-accent-600 text-white" : "text-slate-700 ring-1 ring-slate-300")}>{n + 1}</span>
+                <span>{t}</span>
+              </li>
+            ))}
+          </ol>
+          <Button variant="primary" className="h-11 px-5 text-base font-semibold" onClick={() => setJoining(true)}>
+            Join the bug bash
+          </Button>
+        </div>
+      )}
+      {canJoin && joining && <JoinPicker bash={bash} onCancel={() => setJoining(false)} />}
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {[
           [bugs.length, "Bugs logged"],
@@ -530,7 +564,19 @@ export function BashBoard({ bash }: { bash: BashView }) {
             </p>
           )}
           {shown.length === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-500">{finds.length ? "Nothing here." : "No bugs yet. The first one wins bragging rights."}</p>
+            <p className="py-6 text-center text-sm text-slate-500">{finds.length ? (
+                "Nothing here."
+              ) : canJoin ? (
+                <>
+                  No bugs yet.{" "}
+                  <button type="button" className="font-medium text-accent-700 hover:underline" onClick={() => setJoining(true)}>
+                    Join the bug bash
+                  </button>{" "}
+                  to log the first one.
+                </>
+              ) : (
+                "No bugs yet. The first one wins bragging rights."
+              )}</p>
           ) : (
             <ul className="divide-y divide-slate-100" aria-label="Finds">
               {shown.map((b) => (
@@ -565,7 +611,19 @@ export function BashBoard({ bash }: { bash: BashView }) {
           <Card className="p-4">
             <h2 className="mb-2 text-sm font-semibold text-slate-800">Who&apos;s where</h2>
             {bash.people.length === 0 ? (
-              <p className="text-sm text-slate-500">Nobody has joined yet. Share the link.</p>
+              <p className="text-sm text-slate-500">
+                Nobody has joined yet.{" "}
+                {canJoin ? (
+                  <>
+                    <button type="button" className="font-medium text-accent-700 hover:underline" onClick={() => setJoining(true)}>
+                      Join
+                    </button>{" "}
+                    and share the link.
+                  </>
+                ) : (
+                  "Share the link."
+                )}
+              </p>
             ) : (
               <ul className="space-y-1.5 text-sm">
                 {bash.people.slice(0, 12).map((p) => (

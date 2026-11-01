@@ -22,6 +22,27 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 121,
+    date: "2026-11-01",
+    items: [
+      {
+        kind: "better",
+        title: "Joining a bug bash is easy to spot",
+        text: "Until you join, the bug bash page shows three short steps and a big Join the bug bash button. Click it, pick an area right there on the page, then Start bashing. Slack and shared links open the same page with the areas ready to pick.",
+      },
+      {
+        kind: "better",
+        title: "Add to it closes the find",
+        text: "In a bug bash, Add to it and Answer save and close the find, with a green line saying it worked. Every open find also has a Close button.",
+      },
+      {
+        kind: "better",
+        title: "Logging a find always says it worked",
+        text: "After Log bug, Log question, Log note or Log idea, a green line says it's logged and at the top of Live finds, even when it isn't filed to Jira.",
+      },
+    ],
+  },
+  {
     version: 120,
     date: "2026-10-31",
     items: [

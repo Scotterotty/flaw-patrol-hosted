@@ -96,5 +96,5 @@ async function liveBashFor(projectKey: string) {
   if (!p) return null;
   const home = await charterHome(p);
   const live = await liveBashOf(home.id);
-  return live ? { href: `/p/${home.key}/bashes/${live.id}/join`, endsAt: live.endsAt } : null;
+  return live ? { href: `/p/${home.key}/bashes/${live.id}?join=1`, endsAt: live.endsAt } : null;
 }

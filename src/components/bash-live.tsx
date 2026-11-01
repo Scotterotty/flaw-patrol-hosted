@@ -102,6 +102,13 @@ export function LiveFinds({
   const [shownAt, setShownAt] = useState<Set<string> | null>(null);
   const anchor = useRef<{ id: string; top: number } | null>(null);
   const [newSince, setNewSince] = useState(0);
+  // After Add to it / Answer (ver_121): the find closes, a green line says it worked, the row glows.
+  const [done, setDone] = useState<{ id: string; text: string } | null>(null);
+  useEffect(() => {
+    if (!done) return;
+    const t = setTimeout(() => setDone(null), 6000);
+    return () => clearTimeout(t);
+  }, [done]);
   const lastCount = useRef(data.items.length);
 
   useEffect(() => {
@@ -242,6 +249,11 @@ export function LiveFinds({
               {held.length ? `${held.length} new ${held.length === 1 ? "find" : "finds"} waiting · Show` : `${newSince} new ↑`}
             </button>
           )}
+          {done && (
+            <p role="status" className="border-b border-slate-100 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800" data-testid="find-done">
+              {done.text}
+            </p>
+          )}
           <ul
             ref={list}
             className="max-h-[32rem] divide-y divide-slate-100 overflow-y-auto"
@@ -257,8 +269,11 @@ export function LiveFinds({
               const isAlike = alike.includes(i);
               const area = data.areas.find((a) => a.id === i.areaId)?.name ?? "";
               return (
-                <li key={i.id} data-row={i.id} className={cx("px-3 py-2 text-sm transition-colors duration-[2000ms]", isAlike ? "bg-amber-50" : fresh(i.id) ? "bg-accent-50" : open ? "bg-slate-50" : "")}>
-                  <button type="button" className="flex w-full items-start gap-2 text-left" aria-expanded={open} onClick={() => setOpenId(open ? null : i.id)}>
+                <li key={i.id} data-row={i.id} className={cx("px-3 py-2 text-sm transition-colors duration-[2000ms]", isAlike ? "bg-amber-50" : done?.id === i.id ? "bg-emerald-50" : fresh(i.id) ? "bg-accent-50" : open ? "bg-slate-50" : "")}>
+                  <button type="button" className="flex w-full items-start gap-2 text-left" aria-expanded={open} onClick={() => {
+                      setDone(null);
+                      setOpenId(open ? null : i.id);
+                    }}>
                     <KindTag kind={i.kind} className="mt-0.5" />
                     <span className="min-w-0 flex-1">
                       <span className="block text-slate-900">
@@ -327,6 +342,9 @@ export function LiveFinds({
                               </Button>
                             </>
                           )}
+                          <Button size="sm" className="ml-auto" onClick={() => setOpenId(null)}>
+                            Close
+                          </Button>
                         </div>
                       )}
                       {live && (
@@ -336,7 +354,14 @@ export function LiveFinds({
                             e.preventDefault();
                             const text = typed[i.id]?.trim();
                             if (!text) return;
-                            act(() => addToBashItem(i.id, text), () => setTyped((t) => ({ ...t, [i.id]: "" })));
+                            act(
+                              () => addToBashItem(i.id, text),
+                              () => {
+                                setTyped((t) => ({ ...t, [i.id]: "" }));
+                                setOpenId(null);
+                                setDone({ id: i.id, text: i.kind === "question" ? `Answered "${i.text}". Everyone sees it.` : `Added to "${i.text}". Everyone sees it.` });
+                              },
+                            );
                           }}
                         >
                           <input

@@ -12,7 +12,7 @@ export default async function ExploreBashPage({ params }: { params: Promise<{ ke
   const { key, id } = await params;
   const { view } = await bashPageData(key, id);
   if (view.phase === "wrapped") redirect(`/p/${view.homeKey}/bashes/${id}/report`);
-  if (!view.me.areaId) redirect(`/p/${view.homeKey}/bashes/${id}/join`);
+  if (!view.me.areaId) redirect(`/p/${view.homeKey}/bashes/${id}?join=1`);
   const area = view.areas.find((a) => a.id === view.me.areaId);
   const { projectId: _p, ...finds } = (await bashFinds(id))!; // eslint-disable-line @typescript-eslint/no-unused-vars
   return (

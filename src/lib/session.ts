@@ -66,8 +66,8 @@ export const projectAccessOrGuest = cache(async (key: string) => {
   const at = path ? bashGuestPath(path) : null;
   const bash = at && at.key === project.key ? await bashGuestOk(at.id, user.id) : null;
   if (!at || !bash || bash.projectId !== project.id) return notOnTeam(`/p/${project.key}`);
-  // Guests start on Join, where they pick an area; the report is for people who took part.
-  if (!bash.joined && at.page !== "join") redirect(`/p/${project.key}/bashes/${bash.id}/join`);
+  // Guests start on the bash page, where they join and pick an area (ver_121); the report is for people who took part.
+  if (!bash.joined && at.page !== "join" && at.page !== "") redirect(`/p/${project.key}/bashes/${bash.id}?join=1`);
   // A guest acts like a Viewer inside the bash: join, log, +1 and attach. Nothing else.
   const who: Who = { role: "VIEWER", rules: null };
   return { guest: { bashId: bash.id }, user, project, role: "VIEWER" as Role, who };

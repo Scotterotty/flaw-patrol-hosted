@@ -30,7 +30,7 @@ test("a bug left out at wrap-up still counts and can be filed from the report", 
   await page.goto(`/p/${KEY}/bashes`);
   await page.getByRole("link", { name: "Join" }).first().click();
   await page.getByRole("radio").first().check();
-  await page.getByRole("button", { name: "Start exploring" }).click();
+  await page.getByRole("button", { name: "Start bashing" }).click();
   const find = page.getByLabel("What did you find?");
   await find.fill("App crashed on a wrong password");
   // The bash's levels say what they file as.
