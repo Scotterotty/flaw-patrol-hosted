@@ -14,6 +14,8 @@ import { AvatarUpload } from "./avatar-upload";
 import { ChangePasswordForm } from "./change-password";
 import { GameCard } from "./game-card";
 import { JiraEmailForm } from "./jira-email";
+import { DigestPrefsForm } from "./digest-prefs";
+import { parsePrefs, prefsSummary } from "@/lib/digest-settings";
 import { LanguageSettings } from "./language-settings";
 import { MenuOrderReset } from "./menu-order-reset";
 import { RadioSettings } from "./radio-settings";
@@ -50,6 +52,7 @@ type Me = {
   openCards?: string[];
   spinners?: string[];
   questPawn?: string;
+  digestPrefs?: unknown;
 };
 
 const spinnerSummary = (ids: string[]) => (ids.length === 1 ? `${SPINNERS.find((s) => s.id === ids[0])?.label ?? "Plain ring"} spinner` : `${ids.length} spinners`);
@@ -125,6 +128,9 @@ export async function ProfileSettings({ user }: { user: Me }) {
         <AccountCard id="jira" title="Jira" summary={user.jiraEmail ? `Uses ${user.jiraEmail}` : "Uses your sign-in email"}>
           <JiraEmailForm jiraEmail={user.jiraEmail} email={user.email} />
         </AccountCard>
+        <AccountCard id="emails" title="Emails I get" summary={prefsSummary(parsePrefs(user.digestPrefs))}>
+          <DigestPrefsForm initial={parsePrefs(user.digestPrefs)} />
+        </AccountCard>
         <AccountCard id="accessibility" title="Accessibility" summary={access}>
           <AccessibilitySettings
             initial={{
@@ -155,4 +161,4 @@ export async function ProfileSettings({ user }: { user: Me }) {
   );
 }
 
-const CARDS = ["profile", "appearance", "language", "jira", "accessibility", "game", "radio", "password"];
+const CARDS = ["profile", "appearance", "language", "jira", "emails", "accessibility", "game", "radio", "password"];

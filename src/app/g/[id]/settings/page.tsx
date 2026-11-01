@@ -16,6 +16,9 @@ import { SentryPanel } from "@/components/sentry-settings";
 import { CrownNamesPanel } from "@/components/crown-names";
 import { RolesNudge } from "@/components/roles-nudge";
 import { SlackCard } from "@/components/slack-card";
+import { DigestCard } from "@/components/digest-card";
+import { digestCardData } from "@/lib/digest-data";
+import { digestSummary, parseDigestSettings } from "@/lib/digest-settings";
 import { RegressionPanel } from "@/components/regression-settings";
 import { COMPARE_MODES, parseRegressionSettings } from "@/lib/regression";
 import { ExpandRow, SettingsRows } from "@/components/settings-row";
@@ -85,7 +88,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
   const groupManagerP = Promise.resolve(can(u.who, "umbrella:manage"));
   const [
     [jira, members, ownJira, { template, shared }, sentry, requests, bugTemplates, archive, kindSuites, slack, usage, spelling, repos, ciTokens, groupManager, myRoles, cycleMembers],
-    [invites, cycleInvites, cycleViews, cycleRequests, ownSlack, visible, loose, holdings],
+    [invites, cycleInvites, cycleViews, cycleRequests, ownSlack, visible, loose, holdings, digest],
   ] = await Promise.all([
     Promise.all([
       db.jiraConfig.findUnique({ where: { projectId: u.hub.id } }),
@@ -140,6 +143,8 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
       ),
       can(u.who, "cycle:create") && !u.group.archivedAt ? looseProjects(user) : Promise.resolve([]),
       toolHoldings(u, TOOL_IDS),
+      // Email digests (ver_132): the umbrella's choice, the email groups and who can be picked.
+      digestCardData(u.group.emailDigest, [u.hub.id, ...ids]),
     ]),
   ]);
   // Tools (ver_128): off tools' rows leave Settings, like they leave the menu.
@@ -295,6 +300,19 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
           own: ownChannels,
           canManage: can(cw, "jira:manage"),
           settingsHref: `/g/${u.group.id}/settings#slack`,
+        }}
+        digest={{
+          projectId: p.id,
+          mode: (["umbrella", "choose", "off"].includes(p.emailDigestMode) ? p.emailDigestMode : "umbrella") as "umbrella" | "choose" | "off",
+          umbrella: name,
+          umbrellaSummary: digest.summary,
+          canManage: can(cw, "jira:manage"),
+          isAdmin: user.isAdmin,
+          team: p.name,
+          own: (() => {
+            const settings = parseDigestSettings(p.emailDigest);
+            return { ...digest, settings, summary: digestSummary(settings, settings.groupIds.map((id) => digest.groups.find((g) => g.id === id)?.name ?? "").filter(Boolean)) };
+          })(),
         }}
       />
     );
@@ -455,6 +473,9 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               label={manage ? (slack.length ? "Manage" : "Set up") : "View"}
             >
               <SlackCard target={{ groupId: u.group.id }} channels={slack} canManage={manage} tip={`Post to Slack when something needs the team's eyes. Each channel picks its own alerts. Every ${name} test cycle follows these channels unless its own Settings change that.`} />
+            </ExpandRow>
+            <ExpandRow id="email-digests" hashes={["email-digests"]} title="Email digests" text={digest.summary} label={manage ? (digest.settings.on ? "Change" : "Set up") : "View"}>
+              <DigestCard target={{ groupId: u.group.id }} data={digest} canManage={manage && !u.group.archivedAt} team={name} isAdmin={user.isAdmin} />
             </ExpandRow>
             <ExpandRow
               id="sentry"

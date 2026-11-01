@@ -7,13 +7,15 @@ import { db } from "./db";
 import { caseKey } from "./format";
 import { releaseKey } from "./rc-status";
 import { severityScaleFor } from "./severity-server";
+import { bashDigest, emailBashDigest, emailRcDigest, emailRunDigest, later, runDigest } from "./digests";
+import { bashSlackLines, runSlackLines, type RunDigest } from "./digest-render";
 import { atLeast, parseAlerts, type AlertId, type Alerts } from "./slack-alerts";
 import { OPEN } from "./status";
 
 // Slack alerts (ver_82): Flaw Patrol only sends messages out, through each channel's
 // incoming webhook, so it works without hosting. Sending never holds up a save.
 
-export type SlackMessage = { tone: "red" | "green" | "amber" | "blue"; title: string; lines: string[]; button?: { label: string; url: string } | null };
+export type SlackMessage = { tone: "red" | "green" | "amber" | "blue"; title: string; lines: string[]; button?: { label: string; url: string } | null; more?: { label: string; url: string }[] };
 type Channel = { id: string; name: string; webhook: string; alerts: Alerts };
 
 const COLOR = { red: "#D93F3F", green: "#2EA44F", amber: "#E3A008", blue: "#3B82F6" };
@@ -23,7 +25,8 @@ export const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;")
 
 export function payload(m: SlackMessage) {
   const blocks: unknown[] = [{ type: "section", text: { type: "mrkdwn", text: [`*${m.title}*`, ...m.lines].join("\n") } }];
-  if (m.button) blocks.push({ type: "actions", elements: [{ type: "button", text: { type: "plain_text", text: m.button.label }, url: m.button.url }] });
+  const buttons = [...(m.button ? [m.button] : []), ...(m.more ?? [])];
+  if (buttons.length) blocks.push({ type: "actions", elements: buttons.map((b) => ({ type: "button", text: { type: "plain_text", text: b.label }, url: b.url })) });
   return { text: m.title, attachments: [{ color: COLOR[m.tone], blocks }] };
 }
 
@@ -77,7 +80,7 @@ export async function slackSummaryFor(projectId: string) {
 }
 
 /** Where links in messages point: the Flaw Patrol the person was using. */
-async function origin() {
+export async function origin() {
   try {
     const h = await headers();
     return h.get("origin") ?? (h.get("host") ? `http://${h.get("host")}` : "http://localhost:3000");
@@ -86,16 +89,28 @@ async function origin() {
   }
 }
 
-/** Send an alert to every channel of the test cycle that has it on, after the response. */
-export async function notify(projectId: string, alert: AlertId, build: (base: string) => Promise<SlackMessage | null> | SlackMessage | null, severity?: Severity) {
+/** Whether a channel wants the longer post for this alert (ver_132): "Counts and what failed" / "Counts and top finds". */
+const wantsDetail = (a: Alerts, alert: AlertId) => (alert === "run" ? a.runDetail : alert === "bash" ? a.bashDetail : false);
+
+/** Send an alert to every channel of the test cycle that has it on, after the response. `detail` asks for the longer post. */
+export async function notify(projectId: string, alert: AlertId, build: (base: string, detail: boolean) => Promise<SlackMessage | null> | SlackMessage | null, severity?: Severity) {
   const base = await origin();
   const job = async () => {
     try {
       const channels = (await channelsFor(projectId)).filter((c) => c.alerts[alert] && (alert !== "bug" || (severity && atLeast(severity, c.alerts.sev))));
       if (!channels.length) return;
-      const m = await build(base);
-      if (!m) return;
-      await Promise.all(channels.map((c) => postToSlack(c.webhook, m).catch((e) => console.warn(`Slack alert to ${c.name} failed: ${e instanceof Error ? e.message : e}`))));
+      // Each message is built once, whichever channels want it.
+      const made = new Map<boolean, Promise<SlackMessage | null>>();
+      const message = (detail: boolean) => {
+        if (!made.has(detail)) made.set(detail, Promise.resolve(build(base, detail)));
+        return made.get(detail)!;
+      };
+      await Promise.all(
+        channels.map(async (c) => {
+          const m = await message(wantsDetail(c.alerts, alert));
+          if (m) await postToSlack(c.webhook, m).catch((e) => console.warn(`Slack alert to ${c.name} failed: ${e instanceof Error ? e.message : e}`));
+        }),
+      );
     } catch (e) {
       console.warn("Slack alert failed", e);
     }
@@ -188,7 +203,22 @@ async function regressionCount(cycle: CycleRef, runId: string, startedAt: Date) 
 export async function runFinished(cycle: CycleRef, runId: string, closedEarly: boolean) {
   const run = await db.testRun.findUnique({ where: { id: runId }, select: { id: true, number: true, name: true, build: true, release: true, automated: true, createdAt: true, entries: { select: { status: true } } } });
   if (!run || run.automated) return;
-  await notify(cycle.id, "run", async (base) => {
+  const base = await origin();
+  // The longer post and the email digest (ver_132) share one look at the run.
+  let digest: Promise<RunDigest | null> | null = null;
+  const details = () => (digest ??= runDigest(cycle, runId, base));
+  await notify(cycle.id, "run", async (base, detail) => {
+    if (detail) {
+      const d = await details();
+      if (d)
+        return {
+          tone: d.failed || d.blocked ? "amber" : "green",
+          title: `✅ Run finished · ${where(cycle)}`,
+          lines: runSlackLines(d),
+          button: { label: "Open run", url: d.runUrl },
+          more: d.firstFailUrl ? [{ label: "See what failed", url: d.firstFailUrl }] : [],
+        };
+    }
     const total = run.entries.length;
     const count = (s: ResultStatus[]) => run.entries.filter((e) => s.includes(e.status)).length;
     const done = total - count(OPEN);
@@ -208,16 +238,36 @@ export async function runFinished(cycle: CycleRef, runId: string, closedEarly: b
       button: { label: "Open run", url: `${base}/p/${cycle.key}/runs/${run.number}` },
     };
   });
-  if (run.release.trim()) await rcDone(cycle, run.release);
+  later(() => emailRunDigest(cycle, runId, base, details));
+  if (run.release.trim()) await rcDone(cycle, run.release, base);
+}
+
+/**
+ * Bug bash ended (ver_132): the summary to every channel with the Bug bash ended alert on
+ * (when the bash's own Post to Slack tick is on), and the email digest.
+ */
+export async function bashEnded(bashId: string, projectId: string, post: boolean, counts: () => Promise<string>) {
+  const base = await origin();
+  const bash = await db.bugBash.findUnique({ where: { id: bashId }, select: { name: true, project: { select: { key: true } } } });
+  if (!bash) return;
+  if (post)
+    await notify(projectId, "bash", async (base, detail) => {
+      const url = `${base}/p/${bash.project.key}/bashes/${bashId}/report`;
+      const d = detail ? await bashDigest(bashId, base) : null;
+      return d
+        ? { tone: "green", title: `🐞 Bug bash · ${bash.name} is done`, lines: bashSlackLines(d), button: { label: "See the report", url } }
+        : { tone: "green", title: `🐞 Bug bash · ${bash.name} is done.`, lines: [await counts()], button: { label: "See the report", url } };
+    });
+  later(() => emailBashDigest(bashId, base));
 }
 
 /** Release testing done: every run of this release in the umbrella (or this test cycle) is done or closed. */
-async function rcDone(cycle: CycleRef, release: string) {
+async function rcDone(cycle: CycleRef, release: string, base: string) {
   const key = releaseKey(release);
   const runs = (
     await db.testRun.findMany({
       where: { automated: false, release: { not: "" }, project: cycle.groupId ? { groupId: cycle.groupId, archivedAt: null } : { id: cycle.id } },
-      select: { release: true, state: true, project: { select: { name: true, platform: true } }, entries: { select: { status: true } } },
+      select: { id: true, release: true, state: true, project: { select: { name: true, platform: true } }, entries: { select: { status: true } } },
     })
   ).filter((r) => releaseKey(r.release) === key);
   const open = (r: (typeof runs)[number]) => r.entries.filter((e) => OPEN.includes(e.status)).length;
@@ -237,6 +287,12 @@ async function rcDone(cycle: CycleRef, release: string) {
       button: { label: "Open release status", url: cycle.groupId ? `${base}/g/${cycle.groupId}/rc?release=${encodeURIComponent(release.trim())}` : `${base}/p/${cycle.key}/reports/rc?release=${encodeURIComponent(release.trim())}` },
     };
   });
+  const url = cycle.groupId ? `${base}/g/${cycle.groupId}/rc?release=${encodeURIComponent(release.trim())}` : `${base}/p/${cycle.key}/reports/rc?release=${encodeURIComponent(release.trim())}`;
+  const platforms = runs.map((r) => {
+    const done = r.entries.length - open(r);
+    return { name: r.project.platform || r.project.name, passPct: done ? Math.round((r.entries.filter((e) => e.status === "PASSED").length / done) * 100) : null, notRun: r.entries.length - done };
+  });
+  later(() => emailRcDigest(cycle, release.trim(), runs.map((r) => r.id), { release: release.trim(), platforms, url }, base));
 }
 
 /** Serious bug filed from a run, to Jira. */

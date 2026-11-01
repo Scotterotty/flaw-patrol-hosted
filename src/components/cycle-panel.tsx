@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { ProjectDetailsForm } from "./members";
+import { CycleDigest } from "./digest-card";
 import { CycleSlack } from "./slack-card";
 import { KeepSeparateSwitch } from "./umbrella-ui";
 import { Card } from "./ui";
@@ -16,6 +17,7 @@ export function CyclePanel({
   team,
   jira,
   slack,
+  digest,
   restore,
 }: {
   restore?: ReactNode;
@@ -25,6 +27,7 @@ export function CyclePanel({
   team: { projectId: string; separate: boolean; canSeparate: boolean; members: ReactNode | null; fromUmbrella: number };
   jira: { canManage: boolean; own: boolean; summary: string; form: ReactNode };
   slack: Parameters<typeof CycleSlack>[0];
+  digest?: Parameters<typeof CycleDigest>[0];
 }) {
   return (
     <div className="space-y-4">
@@ -63,6 +66,7 @@ export function CyclePanel({
         </Card>
       )}
       <CycleSlack {...slack} />
+      {digest && <CycleDigest {...digest} />}
     </div>
   );
 }

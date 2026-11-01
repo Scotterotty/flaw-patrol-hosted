@@ -2,10 +2,12 @@
 
 const escape = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-export type Mail = { to: string; subject: string; lines: string[]; button?: { label: string; url: string }; footer?: string };
+export type Mail = { to: string; subject: string; lines: string[]; button?: { label: string; url: string }; footer?: string; rich?: { text: string; html: string } };
 
 /** Plain text and a small HTML version of the same message. */
 export function renderMail(m: Mail) {
+  // Digests (ver_132) bring their own layout, see src/lib/digest-render.ts.
+  if (m.rich) return m.rich;
   const text = [...m.lines, ...(m.button ? ["", `${m.button.label}: ${m.button.url}`] : []), ...(m.footer ? ["", m.footer] : [])].join("\n");
   const html = [
     `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:14px;line-height:1.5;color:#1d1a2b;max-width:520px">`,

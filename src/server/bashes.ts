@@ -19,7 +19,7 @@ import { db } from "@/lib/db";
 import { can, type Who } from "@/lib/permissions";
 import { Forbidden, requireProjectAction, requireUser } from "@/lib/session";
 import { bashGuestOk } from "@/lib/link-access-server";
-import { channelNamesFor, esc, postBash } from "@/lib/slack";
+import { bashEnded, channelNamesFor, esc, postBash } from "@/lib/slack";
 import { jiraConfigFor } from "@/lib/umbrella";
 import { startBoxData } from "@/lib/bash-data";
 import { createLocalDefect, fileJiraBug, fileTemplatedBug } from "./jira";
@@ -690,11 +690,9 @@ export async function wrapUpBash(bashId: string, anyway = false) {
       { timeout: 60_000 },
     );
     await logActivity({ actor: user, kind: "run", action: `Wrapped up the bug bash ${bash.name}`, project: bash.run.project, detail: `${filedCount} bugs filed` });
-    if (bash.slack && !bash.slackDoneAt) {
-      await db.bugBash.update({ where: { id: bashId }, data: { slackDoneAt: new Date() } });
-      const line = await bashSummaryLine(bashId);
-      await postBash(bash.run.projectId, (base) => ({ tone: "green", title: `🐞 Bug bash · ${bash.name} is done.`, lines: [line], button: { label: "See the report", url: `${base}/p/${bash.project.key}/bashes/${bashId}/report` } })).catch(() => {});
-    }
+    // The summary (ver_132): to Slack channels with Bug bash ended on, and the email digest. Only once.
+    const claimed = await db.bugBash.updateMany({ where: { id: bashId, slackDoneAt: null }, data: { slackDoneAt: new Date() } });
+    if (claimed.count) await bashEnded(bashId, bash.run.projectId, bash.slack, () => bashSummaryLine(bashId)).catch((e) => console.warn("Bug bash summary failed", e));
     refresh(bash.project.key, bash.run.project.key);
     return { filed: filedCount, errors, wrapped: true };
   });

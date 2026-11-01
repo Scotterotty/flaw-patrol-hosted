@@ -2,10 +2,11 @@ import type { Severity } from "@prisma/client";
 
 // Slack alerts (ver_82): which alerts a channel gets. Shared by the server and the settings card.
 
-export type AlertId = "reg" | "bug" | "block" | "run" | "rc" | "start" | "join";
-export type Alerts = Record<AlertId, boolean> & { sev: Severity };
+export type AlertId = "reg" | "bug" | "block" | "run" | "bash" | "rc" | "start" | "join";
+/** runDetail / bashDetail (ver_132): "Counts and what failed" / "Counts and top finds" instead of counts only. */
+export type Alerts = Record<AlertId, boolean> & { sev: Severity; runDetail: boolean; bashDetail: boolean };
 
-export const DEFAULT_ALERTS: Alerts = { reg: true, bug: true, sev: "CRITICAL", block: false, run: true, rc: true, start: false, join: true };
+export const DEFAULT_ALERTS: Alerts = { reg: true, bug: true, sev: "CRITICAL", block: false, run: true, runDetail: true, bash: true, bashDetail: true, rc: true, start: false, join: true };
 
 /** In the order the card lists them: what needs attention now, then progress. */
 export const ALERTS: { id: AlertId; group: "now" | "progress"; label: string; tip: string }[] = [
@@ -13,7 +14,8 @@ export const ALERTS: { id: AlertId; group: "now" | "progress"; label: string; ti
   { id: "bug", group: "now", label: "Serious bug filed", tip: "A Jira bug filed from a run at the chosen severity or worse. Linking an existing bug doesn't post." },
   { id: "block", group: "now", label: "Case blocked", tip: "A tester marks a case Blocked, with their comment." },
   { id: "join", group: "now", label: "Someone asks to join", tip: "Someone opened a shared link and pressed Ask to join. Admins add them in Settings → Members." },
-  { id: "run", group: "progress", label: "Run finished", tip: "When every case in a run has a result, or the run is closed: pass and fail counts, regressions and bugs." },
+  { id: "run", group: "progress", label: "Run finished", tip: "When every case in a run has a result, or the run is closed. Counts only, or counts plus what failed (regressions first), the bugs filed, who tested and the pass rate against the last run." },
+  { id: "bash", group: "progress", label: "Bug bash ended", tip: "The bug bash summary when whoever started it wraps it up. A bash started without Post to Slack ticked doesn't post." },
   { id: "rc", group: "progress", label: "Release testing done", tip: "Every test cycle's run of one release is done or closed, like the Release status page." },
   { id: "start", group: "progress", label: "Run started", tip: "Someone starts a new run." },
 ];
@@ -33,12 +35,16 @@ export function parseAlerts(v: unknown): Alerts {
   const out = { ...DEFAULT_ALERTS };
   for (const a of ALERTS) if (typeof r[a.id] === "boolean") out[a.id] = r[a.id]!;
   if (r.sev && SEV_ORDER.includes(r.sev)) out.sev = r.sev;
+  if (typeof r.runDetail === "boolean") out.runDetail = r.runDetail;
+  if (typeof r.bashDetail === "boolean") out.bashDetail = r.bashDetail;
   return out;
 }
 
 /** "Regression, Serious bug (B or worse), Run finished" for summaries. */
 export function alertSummary(a: Alerts) {
-  const on = ALERTS.filter((x) => a[x.id]).map((x) => (x.id === "bug" ? `Serious bug (${a.sev === "SHOWSTOPPER" ? "A" : a.sev === "CRITICAL" ? "B or worse" : "C or worse"})` : x.label));
+  const on = ALERTS.filter((x) => a[x.id]).map((x) =>
+    x.id === "bug" ? `Serious bug (${a.sev === "SHOWSTOPPER" ? "A" : a.sev === "CRITICAL" ? "B or worse" : "C or worse"})` : (x.id === "run" && !a.runDetail) || (x.id === "bash" && !a.bashDetail) ? `${x.label} (counts only)` : x.label,
+  );
   return on.length ? on.join(", ") : "No alerts on";
 }
 
@@ -57,3 +63,15 @@ export function webhookProblem(url: string, production = process.env.NODE_ENV ==
 
 /** "#qa-alerts" from "qa-alerts" or "#qa-alerts". */
 export const channelName = (name: string) => `#${name.trim().replace(/^#+/, "")}`;
+
+/** The two ways a Run finished or Bug bash ended post can look (ver_132). */
+export const DETAIL_CHOICES = {
+  run: [
+    { id: false, label: "Counts only" },
+    { id: true, label: "Counts and what failed" },
+  ],
+  bash: [
+    { id: false, label: "Counts only" },
+    { id: true, label: "Counts and top finds" },
+  ],
+} as const;

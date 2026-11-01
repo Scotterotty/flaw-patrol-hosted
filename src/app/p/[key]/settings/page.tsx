@@ -5,6 +5,9 @@ import { JiraSettings } from "@/components/jira-settings";
 import { parseSeverityConfig } from "@/lib/severity";
 import { CycleSlack, SlackCard } from "@/components/slack-card";
 import { slackChannelsOf } from "@/lib/slack";
+import { CycleDigest, DigestCard } from "@/components/digest-card";
+import { digestCardData } from "@/lib/digest-data";
+import { digestSummary, parseDigestSettings } from "@/lib/digest-settings";
 import { parseStoriesConfig } from "@/lib/stories-config";
 import Link from "next/link";
 import { MembersPanel, ProjectDetailsForm } from "@/components/members";
@@ -72,6 +75,9 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
   // Slack: a test cycle in an umbrella follows its channels (or picks); one outside an umbrella has its own card.
   const [slackOwn, slackUmbrella] = await Promise.all([slackChannelsOf({ projectId: project.id }), umbrella ? slackChannelsOf({ groupId: umbrella.id }) : []]);
   const templateView = await bugTemplateView(project.id, user.email);
+  // Email digests (ver_132): a test cycle outside an umbrella has its own card; one inside follows or chooses.
+  const digest = await digestCardData(project.emailDigest, [project.id]);
+  const umbrellaDigest = umbrella ? parseDigestSettings((await db.projectGroup.findUnique({ where: { id: umbrella.id }, select: { emailDigest: true } }))?.emailDigest) : null;
   // Bug templates (ver_119): a test cycle outside an umbrella keeps its own list.
   const bugTemplates = umbrella ? null : await loadBugTemplates(project);
   const jira = jiraRow && { siteUrl: jiraRow.siteUrl, email: jiraRow.email, jiraProjectKey: jiraRow.jiraProjectKey, issueType: jiraRow.issueType, tokenReadable: canOpen(jiraRow.tokenEncrypted) };
@@ -183,6 +189,20 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
         />
       ) : (
         <SlackCard target={{ projectId: project.id }} channels={slackOwn} canManage={canJira} tip="Post to Slack when something needs the team's eyes. Each channel picks its own alerts." />
+      )}
+      {umbrella && umbrellaDigest ? (
+        <CycleDigest
+          projectId={project.id}
+          mode={(["umbrella", "choose", "off"].includes(project.emailDigestMode) ? project.emailDigestMode : "umbrella") as "umbrella" | "choose" | "off"}
+          umbrella={umbrella.name}
+          umbrellaSummary={digestSummary(umbrellaDigest, umbrellaDigest.groupIds.map((id) => digest.groups.find((g) => g.id === id)?.name ?? "").filter(Boolean))}
+          canManage={canJira}
+          own={digest}
+          isAdmin={user.isAdmin}
+          team={project.name}
+        />
+      ) : (
+        <DigestCard target={{ projectId: project.id }} data={digest} canManage={canJira} team={project.name} isAdmin={user.isAdmin} />
       )}
       {/* Sentry (ver_96): test cycles in an umbrella use the umbrella's connection. */}
       {!umbrella && (

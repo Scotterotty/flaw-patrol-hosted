@@ -50,7 +50,7 @@ test("stories, Slack alerts and a regression from one run", async ({ page }) => 
   await card.getByRole("switch", { name: "Run started" }).check();
   await card.getByRole("button", { name: "Save channel" }).click();
   await expect(card.getByText("#qa-alerts")).toBeVisible();
-  await expect(card.getByText(/Regression, Serious bug \(B or worse\), Someone asks to join, Run finished, Release testing done, Run started/)).toBeVisible();
+  await expect(card.getByText(/Regression, Serious bug \(B or worse\), Someone asks to join, Run finished, Bug bash ended, Release testing done, Run started/)).toBeVisible();
 
   await newCase(page, KEY, `Join from an invite ${run}`);
   await newCase(page, KEY, `Expired invite ${run}`);
@@ -120,6 +120,12 @@ test("stories, Slack alerts and a regression from one run", async ({ page }) => 
   await expect.poll(() => slackFor(hook)).toContainEqual(expect.stringContaining("Regression"));
   await expect.poll(() => slackFor(hook)).toContainEqual(expect.stringContaining("B - Critical bug filed"));
   await expect.poll(() => slackFor(hook)).toContainEqual(expect.stringContaining("Run finished"));
+  // ver_132: the post says what failed (Counts and what failed is the default), regressions first.
+  const posts = (await (await fetch(`${JIRA}/__slack`)).json()) as { hook: string; text: string }[];
+  const finished = JSON.stringify(posts.find((m) => m.hook === hook && m.text.includes("Run finished")));
+  expect(finished).toContain("What failed");
+  expect(finished).toContain("REGRESSION");
+  expect(finished).toContain("See what failed");
   await expect.poll(() => slackFor(hook)).toContainEqual(expect.stringContaining("RC 22 testing done"));
 
   // Reports › Stories for this test cycle, and the bell on the run page.

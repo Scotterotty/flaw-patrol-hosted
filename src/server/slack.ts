@@ -23,8 +23,12 @@ const alertsSchema = z.object({
   sev: z.enum(["SHOWSTOPPER", "CRITICAL", "PROBLEMATIC"]),
   block: z.boolean(),
   run: z.boolean(),
+  runDetail: z.boolean().default(true),
+  bash: z.boolean().default(true),
+  bashDetail: z.boolean().default(true),
   rc: z.boolean(),
   start: z.boolean(),
+  join: z.boolean().default(true),
 });
 const nameSchema = z.string().trim().min(1, "Name the channel, like #qa-alerts").max(80).transform(channelName);
 const hookSchema = z

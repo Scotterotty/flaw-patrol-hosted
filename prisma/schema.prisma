@@ -93,6 +93,8 @@ model User {
   visionShapes      Boolean         @default(false)
   // Folding cards (ver_96): ids of the Account cards and Mini game sections this person keeps open.
   openCards         String[]        @default([])
+  /// Emails I get (ver_132): { runs: "tested"|"all"|"none", bashes: "joined"|"all"|"none", rc: boolean }, see src/lib/digest-settings.ts.
+  digestPrefs       Json            @default("{}")
   // Mini game crowns (ver_96): crowns this person held when last told, so take/lose toasts show once.
   crownsSeen        String[]        @default([])
   // The title worn before putting on a crown, so losing the crown puts it back.
@@ -129,6 +131,8 @@ model Workspace {
   mailPassEncrypted String?
   mailFromName      String    @default("Flaw Patrol")
   mailFromAddress   String    @default("")
+  /// Email digests (ver_132): addresses outside Flaw Patrol that pressed Stop these emails, lowercased.
+  digestStopped     String[]  @default([])
   // Activity log entries older than this are removed.
   activityKeepDays  Int       @default(365)
 }
@@ -259,6 +263,10 @@ model Project {
   /// slackChannelIds (ticked umbrella channels) plus its own, "off" sends nothing.
   slackMode            String            @default("umbrella")
   slackChannelIds      String[]          @default([])
+  /// Email digests (ver_132): "umbrella" follows the umbrella's, "choose" uses emailDigest, "off" sends none.
+  /// A test cycle outside an umbrella always uses emailDigest.
+  emailDigestMode      String            @default("umbrella")
+  emailDigest          Json              @default("{}")
   slackChannels        SlackChannel[]
   charterTemplates     CharterTemplate[]
   bugTemplates         BugTemplate[]
@@ -309,6 +317,8 @@ model ProjectGroup {
   runKinds        Json           @default("[]")
   /// Tools (ver_128): { off: [...] } names the tools this umbrella doesn't use, see src/lib/tools.ts. {} = every tool.
   tools           Json           @default("{}")
+  /// Email digests (ver_132): who gets a summary when a run finishes or a bug bash ends, see src/lib/digest-settings.ts. {} = off.
+  emailDigest     Json           @default("{}")
   slackChannels   SlackChannel[]
   githubRepos     GitHubRepo[]
   ciTokens        CiToken[]
@@ -1308,4 +1318,21 @@ model BugTemplate {
   updatedAt   DateTime @updatedAt
 
   @@index([projectId])
+}
+
+/**
+ * Email groups (ver_132): a named list of people and addresses, shared with the whole
+ * workspace and used in any umbrella's Email digests → Also send to. Anyone can make or
+ * edit one; only workspace admins delete one.
+ */
+model EmailGroup {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  userIds     String[] @default([])
+  /// Addresses for people outside Flaw Patrol, lowercased.
+  addresses   String[] @default([])
+  createdById String?
+  createdBy   String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

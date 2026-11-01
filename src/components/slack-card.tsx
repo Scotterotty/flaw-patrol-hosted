@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { ALERTS, alertSummary, DEFAULT_ALERTS, SEV_CHOICES, webhookProblem, type Alerts } from "@/lib/slack-alerts";
+import { ALERTS, alertSummary, DEFAULT_ALERTS, DETAIL_CHOICES, SEV_CHOICES, webhookProblem, type Alerts } from "@/lib/slack-alerts";
 import { addSlackChannel, pauseSlack, removeSlackChannel, setCycleSlack, testSlack, updateSlackChannel, type SlackTarget } from "@/server/slack";
 import { Button, Card, cx, ErrorText, InfoTip, Input, Select } from "./ui";
 
@@ -210,6 +210,20 @@ function ChannelForm({ target, channel, onDone }: { target: SlackTarget; channel
                     {a.label}
                   </label>
                   <InfoTip text={a.tip} />
+                  {(a.id === "run" || a.id === "bash") && alerts[a.id] && (
+                    <Select
+                      aria-label={a.id === "run" ? "Run finished post" : "Bug bash ended post"}
+                      value={String(a.id === "run" ? alerts.runDetail : alerts.bashDetail)}
+                      onChange={(e) => setAlerts((x) => ({ ...x, [a.id === "run" ? "runDetail" : "bashDetail"]: e.target.value === "true" }))}
+                      className="h-8 w-auto text-xs"
+                    >
+                      {DETAIL_CHOICES[a.id].map((c) => (
+                        <option key={String(c.id)} value={String(c.id)}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
                   {a.id === "bug" && alerts.bug && (
                     <Select aria-label="Severity" value={alerts.sev} onChange={(e) => setAlerts((x) => ({ ...x, sev: e.target.value as Alerts["sev"] }))} className="h-8 w-auto text-xs">
                       {SEV_CHOICES.map((s) => (
