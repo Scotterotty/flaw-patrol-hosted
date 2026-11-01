@@ -118,7 +118,7 @@ export function JoinRequests({ requests, team }: { requests: JoinRequestRow[]; t
               {[q.name && q.email, q.what && q.what !== MEMBER_ACCESS && `opened ${q.what} link`, relativeTime(new Date(q.at))].filter(Boolean).join(" · ")}
             </p>
           </div>
-          <Select aria-label={`Role for ${q.email}`} className="h-8 w-28 text-xs" value={roles[q.id] ?? "TESTER"} disabled={pending} onChange={(e) => setRoles((r) => ({ ...r, [q.id]: e.target.value as Role }))}>
+          <Select aria-label={`Role for ${q.email}`} className="h-8 w-auto max-w-full text-xs" value={roles[q.id] ?? "TESTER"} disabled={pending} onChange={(e) => setRoles((r) => ({ ...r, [q.id]: e.target.value as Role }))}>
             {ROLES_PICK.map((r) => (
               <option key={r} value={r}>
                 {ROLE_LABEL[r]}

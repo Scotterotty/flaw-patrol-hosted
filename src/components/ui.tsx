@@ -55,6 +55,8 @@ export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
   return <textarea className={cx(field, "py-1.5 leading-relaxed", className)} {...props} />;
 }
 
+// Inline dropdowns use w-auto max-w-full (plus min-w-* for long names), never a
+// fixed width: fonts differ in width and a fixed one cuts text off ("Membe").
 export function Select({ className, ...props }: ComponentProps<"select">) {
   return <select className={cx(field, "h-9 pr-8", className)} {...props} />;
 }

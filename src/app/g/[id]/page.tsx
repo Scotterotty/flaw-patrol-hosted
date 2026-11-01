@@ -140,7 +140,7 @@ export default async function GroupPage({
         <AutoFilterForm className="mb-4 flex flex-wrap items-center gap-2">
           {tab !== "suites" && <input type="hidden" name="tab" value={tab} />}
           {tab !== "projects" && (
-            <Select name="project" defaultValue={only?.key ?? ""} aria-label="Test cycle" className="w-56">
+            <Select name="project" defaultValue={only?.key ?? ""} aria-label="Test cycle" className="w-auto min-w-56 max-w-full">
               <option value="">All test cycles</option>
               {shown.map((p) => (
                 <option key={p.id} value={p.key}>
@@ -152,7 +152,7 @@ export default async function GroupPage({
           )}
           {tab === "suites" && <Input name="q" type="search" defaultValue={q} placeholder="Search suites" aria-label="Search suites" className="max-w-xs flex-1" />}
           {tab === "runs" && (
-            <Select name="state" defaultValue={sp.state ?? ""} aria-label="Run state" className="w-40">
+            <Select name="state" defaultValue={sp.state ?? ""} aria-label="Run state" className="w-auto max-w-full">
               <option value="">Active and closed</option>
               <option value="active">Active only</option>
               <option value="closed">Closed only</option>

@@ -76,7 +76,7 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
               <>
                 <Select
                   aria-label={`Role for ${m.email}`}
-                  className="h-8 w-28 text-xs"
+                  className="h-8 w-auto max-w-full text-xs"
                   value={m.role}
                   disabled={pending}
                   onChange={(e) => act(() => changeRole(projectId, m.userId, e.target.value))}
@@ -223,7 +223,7 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
               <Input id="invite" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="teammate@company.com" />
             </Field>
           </div>
-          <Select aria-label="Role" className="w-28" value={role} onChange={(e) => setRole(e.target.value as Role)}>
+          <Select aria-label="Role" className="w-auto max-w-full" value={role} onChange={(e) => setRole(e.target.value as Role)}>
             {ROLES_PICK.map((r) => (
               <option key={r} value={r}>
                 {ROLE_LABEL[r]}

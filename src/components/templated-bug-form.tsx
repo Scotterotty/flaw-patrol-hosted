@@ -49,7 +49,7 @@ export function TemplatePicker({ current, templates, value, onChange }: { curren
           ))}
         </div>
       ) : (
-        <Select aria-label="Template" value={value} onChange={(e) => onChange(e.target.value)} className="w-72">
+        <Select aria-label="Template" value={value} onChange={(e) => onChange(e.target.value)} className="w-auto min-w-72 max-w-full">
           {all.map((t) => (
             <option key={t.id || "current"} value={t.id}>
               {t.name}
@@ -153,7 +153,7 @@ export function TemplatedForm({
         <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="tb-severity">
           Severity
         </label>
-        <Select id="tb-severity" value={severity} onChange={(e) => setSeverity(e.target.value as Severity)} className="w-48">
+        <Select id="tb-severity" value={severity} onChange={(e) => setSeverity(e.target.value as Severity)} className="w-auto min-w-48 max-w-full">
           {scale.levels.map((x) => (
             <option key={x} value={x}>
               {scale.labels[x]}

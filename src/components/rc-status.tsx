@@ -140,7 +140,7 @@ export function RcStatusView({ releases, release, pick, columns, bugs, choices, 
       <Card className="mb-4 flex flex-wrap items-center gap-2 p-3">
         <label className="flex items-center gap-1.5 text-sm text-slate-600">
           Release
-          <Select aria-label="Release" value={release} onChange={(e) => save({ release: e.target.value, hide: [], add: [] }, `${base}?release=${encodeURIComponent(e.target.value)}`)} className="w-36">
+          <Select aria-label="Release" value={release} onChange={(e) => save({ release: e.target.value, hide: [], add: [] }, `${base}?release=${encodeURIComponent(e.target.value)}`)} className="w-auto min-w-36 max-w-full">
             {releases.map((r) => (
               <option key={r}>{r}</option>
             ))}

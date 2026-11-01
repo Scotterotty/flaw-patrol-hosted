@@ -99,7 +99,7 @@ export function InviteTeam({
         }}
       >
         <Input aria-label="Emails to invite" value={emails} onChange={(e) => setEmails(e.target.value)} placeholder="name@company.com, another@company.com" className="min-w-64 flex-1" />
-        <Select aria-label="Role" value={role} onChange={(e) => setRole(e.target.value as Role)} className="w-28">
+        <Select aria-label="Role" value={role} onChange={(e) => setRole(e.target.value as Role)} className="w-auto max-w-full">
           {ROLES_PICK.map((r) => (
             <option key={r} value={r}>
               {ROLE_LABEL[r]}

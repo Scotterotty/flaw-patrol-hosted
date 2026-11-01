@@ -100,7 +100,7 @@ export function SentryPanel({ projectId, saved, fields, canManage }: { projectId
           </div>
           {orgs.length > 0 && (
             <Field label={sp("Organization")} htmlFor="sentry-org">
-              <Select id="sentry-org" value={org} onChange={(e) => setOrg(e.target.value)} className="w-64">
+              <Select id="sentry-org" value={org} onChange={(e) => setOrg(e.target.value)} className="w-auto min-w-64 max-w-full">
                 {orgs.map((o) => (
                   <option key={o.slug} value={o.slug}>
                     {o.name === o.slug ? o.slug : `${o.name} (${o.slug})`}
@@ -178,7 +178,7 @@ export function SentryPanel({ projectId, saved, fields, canManage }: { projectId
             </div>
           </fieldset>
           <Field label="Environment" htmlFor="sentry-env" hint="Only errors from this environment, like staging. Any shows them all.">
-            <Select id="sentry-env" value={environment} onChange={(e) => setEnvironment(e.target.value)} className="w-56">
+            <Select id="sentry-env" value={environment} onChange={(e) => setEnvironment(e.target.value)} className="w-auto min-w-56 max-w-full">
               <option value="">Any</option>
               {[...new Set([...envs, ...(environment ? [environment] : [])])].map((e) => (
                 <option key={e} value={e}>

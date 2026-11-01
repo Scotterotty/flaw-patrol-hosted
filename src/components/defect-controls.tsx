@@ -39,7 +39,7 @@ export function LocalDefectStatus({ projectId, defect }: { projectId: string; de
   return (
     <Select
       aria-label="Bug status"
-      className="h-7 w-28 text-xs"
+      className="h-7 w-auto max-w-full text-xs"
       value={defect.status}
       disabled={pending}
       onChange={(e) =>

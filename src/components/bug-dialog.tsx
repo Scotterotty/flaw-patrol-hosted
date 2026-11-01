@@ -518,7 +518,7 @@ export function BugDialog({
                     </Field>
                   )}
                   <Field label="Severity" htmlFor="bug-severity">
-                    <Select id="bug-severity" value={severity} onChange={(e) => setSeverity(e.target.value as Severity)} className="w-48">
+                    <Select id="bug-severity" value={severity} onChange={(e) => setSeverity(e.target.value as Severity)} className="w-auto min-w-48 max-w-full">
                       {scale.levels.map((s) => (
                         <option key={s} value={s}>
                           {scale.labels[s]}
@@ -764,7 +764,7 @@ function ImportedForm({
         )}
       </div>
       <Field label="Severity" htmlFor="it-severity">
-        <Select id="it-severity" value={severity} onChange={(e) => e.target.value && setSeverity(e.target.value as Severity)} className="w-48">
+        <Select id="it-severity" value={severity} onChange={(e) => e.target.value && setSeverity(e.target.value as Severity)} className="w-auto min-w-48 max-w-full">
           {!severity && <option value="">Choose…</option>}
           {scale.levels.map((x) => (
             <option key={x} value={x}>

@@ -102,7 +102,7 @@ export default async function UmbrellaRunsPage({ params, searchParams }: { param
       <AutoFilterForm className="mb-4 flex flex-wrap items-center gap-2">
         {(closed || automated) && <input type="hidden" name="state" value={sp.state} />}
         {u.projects.length > 1 && (
-          <Select name="project" defaultValue={only?.key ?? ""} aria-label="Test cycle" className="w-64">
+          <Select name="project" defaultValue={only?.key ?? ""} aria-label="Test cycle" className="w-auto min-w-64 max-w-full">
             <option value="">All {u.group.name} test cycles</option>
             {u.projects.map((p) => (
               <option key={p.id} value={p.key}>
