@@ -7,6 +7,7 @@ import { projectAccessOrGuest } from "@/lib/session";
 import { cycleSettingsHref, hubGroupId, loadUmbrella } from "@/lib/umbrella";
 import { ArchivedBanner, UmbrellaArchivedBanner } from "@/components/archive-project";
 import { can } from "@/lib/permissions";
+import { ViewerNoteFor } from "@/components/viewer-note-server";
 
 export default async function ProjectLayout({ children, params }: { children: React.ReactNode; params: Promise<{ key: string }> }) {
   const { key } = await params;
@@ -21,6 +22,8 @@ export default async function ProjectLayout({ children, params }: { children: Re
     );
   // Recent on the Projects page is noted after the page is sent, so nobody waits for it (ver_120).
   after(() => recordVisit(user.id, project.id));
+  // A Viewer is told so, with who can change it (ver_124, persona audit #6).
+  const viewer = role === "VIEWER" && !user.isAdmin;
   // An umbrella's hub project is shown as the umbrella itself, with the umbrella's menu.
   const [hubOf, group] = await Promise.all([
     hubGroupId(project.id),
@@ -35,6 +38,7 @@ export default async function ProjectLayout({ children, params }: { children: Re
           <ProjectMenu project={project} user={user} umbrella={umbrella} />
           <main className="min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
             {umbrella.group.archivedAt && <UmbrellaArchivedBanner groupId={umbrella.group.id} name={umbrella.group.name} canRestore={can(umbrella.who, "umbrella:archive")} />}
+            {viewer && <ViewerNoteFor project={project} userId={user.id} />}
             {children}
           </main>
         </div>
@@ -54,6 +58,7 @@ export default async function ProjectLayout({ children, params }: { children: Re
           ) : (
             project.archivedAt && <ArchivedBanner settingsHref={await cycleSettingsHref(project, user, "archive")} canRestore={role === "ADMIN"} />
           )}
+          {viewer && <ViewerNoteFor project={project} userId={user.id} />}
           {children}
         </main>
       </div>

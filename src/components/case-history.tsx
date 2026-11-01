@@ -22,7 +22,7 @@ const runHref = (r: { automated: boolean; entryId: string | null; run: { number:
   r.automated || !r.entryId ? `/p/${r.run.project.key}/runs/${r.run.number}` : `/p/${r.run.project.key}/runs/${r.run.number}/execute?entry=${r.entryId}`;
 
 /** Every execution of a case across runs, newest first. */
-export async function CaseHistory({ caseId, charter }: { caseId: string; projectKey: string; charter?: boolean }) {
+export async function CaseHistory({ caseId, charter, canRun = true }: { caseId: string; projectKey: string; charter?: boolean; canRun?: boolean }) {
   const spelling = await mySpelling();
   const results = await db.testResult.findMany({
     where: { caseId },
@@ -85,7 +85,7 @@ export async function CaseHistory({ caseId, charter }: { caseId: string; project
         )}
       </div>
       {results.length === 0 ? (
-        <p className="px-4 py-6 text-sm text-slate-500">{charter ? "Not explored yet. Use Start exploring above." : "Not run yet. Use Run this case above, or add it to a suite."}</p>
+        <p className="px-4 py-6 text-sm text-slate-500">{!canRun ? (charter ? "Not explored yet." : "Not run yet. When someone runs it, the results show here.") : charter ? "Not explored yet. Use Start exploring above." : "Not run yet. Use Run this case above, or add it to a suite."}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

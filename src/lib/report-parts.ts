@@ -13,7 +13,7 @@ export const PART_TABS: { id: PartTab; label: string }[] = [
   { id: "regression", label: "Regression" },
   { id: "defects", label: "Bugs found" },
   { id: "cases", label: "Case history" },
-  { id: "testers", label: "Testers" },
+  { id: "testers", label: "People" },
   { id: "other", label: "Other tabs" },
 ];
 
@@ -41,7 +41,7 @@ export const PARTS = [
   { id: "cases.failing", tab: "cases", title: "Failing now" },
   { id: "cases.flaky", tab: "cases", title: "Flaky" },
   { id: "cases.all", tab: "cases", title: "Every case executed" },
-  { id: "testers", tab: "testers", title: "Testers" },
+  { id: "testers", tab: "testers", title: "People" },
   { id: "rc", tab: "other", title: "Release status summary" },
   { id: "requirements", tab: "other", title: "Requirements coverage" },
   { id: "wrapups", tab: "other", title: "Bug bash and exploring wrap-ups" },

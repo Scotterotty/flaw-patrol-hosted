@@ -114,7 +114,7 @@ export default async function UmbrellaRunsPage({ params, searchParams }: { param
         )}
         {!automated && <KindSelect kinds={kinds} value={sp.kind} />}
       </AutoFilterForm>
-      <Runs projectIds={ids} state={closed ? "closed" : automated ? "automated" : "active"} kind={sp.kind} kinds={kinds} />
+      <Runs projectIds={ids} state={closed ? "closed" : automated ? "automated" : "active"} kind={sp.kind} kinds={kinds} canStart={can(u.who, "run:create")} />
     </div>
   );
 }

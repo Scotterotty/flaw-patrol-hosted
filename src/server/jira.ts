@@ -240,6 +240,8 @@ const bugSchema = z.object({
   summary: z.string().trim().max(250).default(""),
   severity: severitySchema.default(DEFAULT_SEVERITY),
   stepIndex: z.number().int().min(0).nullable(),
+  /** A whole-case bug's first failed step (ver_124): its steps and Expected go in the description. */
+  focus: z.number().int().min(0).nullable().default(null),
   actual: z.string().max(10000).default(""),
   attachmentIds: z.array(z.string()).max(20).default([]),
   /** Stories of the case to link the new bug to, with Jira's "relates to". */
@@ -456,7 +458,7 @@ export async function fileJiraBug(projectId: string, entryId: string, input: z.i
     const local = data.fromDefectId ? await db.defect.findFirst({ where: { id: data.fromDefectId, projectId } }) : null;
     if (data.fromDefectId && !local) throw new UserError("That bug isn't in this test cycle anymore.");
     if (local?.externalKey) throw new UserError(`That bug is already ${local.externalKey} in Jira.`);
-    const { ctx } = await bugContext(projectId, entryId, data.stepIndex, data.actual);
+    const { ctx } = await bugContext(projectId, entryId, data.stepIndex, data.actual, data.focus);
     // The tester is the bug's Reporter in Jira. When that can't be set, their name goes in the description.
     const account = await jiraAccountOf(client, user);
     const tester = user.name ?? user.email;
@@ -571,15 +573,30 @@ async function rememberAnswers(userId: string, current: unknown, b: TemplateBug)
 }
 
 /** When Jira isn't connected: record the defect here only. */
-export async function createLocalDefect(projectId: string, input: { title: string; severity: Severity }) {
+export async function createLocalDefect(projectId: string, input: { title: string; severity: Severity; description?: string }) {
   return wrap(async () => {
     const { user } = await requireProjectAction(projectId, "run:execute");
-    const title = z.string().trim().min(1, "Add a title").max(300).parse(input.title);
+    const title = z.string().trim().min(1, "Add a summary").max(300).parse(input.title);
+    const description = z.string().max(20000).default("").parse(input.description ?? "").trim();
     const { defectSeq } = await db.project.update({ where: { id: projectId }, data: { defectSeq: { increment: 1 } } });
     const defect = await db.defect.create({
-      data: { projectId, number: defectSeq, title, severity: input.severity, createdById: user.id, createdBy: user.name ?? user.email },
+      data: { projectId, number: defectSeq, title, description, severity: input.severity, createdById: user.id, createdBy: user.name ?? user.email },
     });
     return { defect: toLinked(defect) };
+  });
+}
+
+/**
+ * Report a bug without Jira (ver_124, persona audit #4): the summary and the What happened text,
+ * filled from the run's details and the failed step, for the tester to change before saving.
+ */
+export async function previewLocalBug(projectId: string, entryId: string, stepIndex: number | null, actual: string, focus: number | null = null) {
+  return wrap(async () => {
+    await requireProjectAction(projectId, "run:execute");
+    const { ctx } = await bugContext(projectId, entryId, stepIndex, actual, focus);
+    const { bugText } = await import("@/lib/jira-format");
+    const blank = ctx.failedIndex === null && !actual.trim();
+    return { summary: blank ? "" : defaultSummary(ctx), body: bugText({ ...ctx, link: null }) };
   });
 }
 
@@ -611,10 +628,10 @@ export async function refreshFromJiraMany(projectIds: string[]) {
 }
 
 /** Preview data for the bug dialog, so the tester sees what will be filed. */
-export async function previewJiraBug(projectId: string, entryId: string, stepIndex: number | null, actual: string) {
+export async function previewJiraBug(projectId: string, entryId: string, stepIndex: number | null, actual: string, focus: number | null = null) {
   return wrap(async () => {
     const { user } = await requireProjectAction(projectId, "run:execute");
-    const { ctx, entry } = await bugContext(projectId, entryId, stepIndex, actual);
+    const { ctx, entry } = await bugContext(projectId, entryId, stepIndex, actual, focus);
     const client = await jiraFor(projectId);
     const reporter = client ? await reporterInfo(client, user) : null;
     const { bugText } = await import("@/lib/jira-format");
@@ -622,7 +639,9 @@ export async function previewJiraBug(projectId: string, entryId: string, stepInd
     const template = t && client ? templateDefaults(t, entry, ctx, await client.createMeta().catch(() => null), user.bugProfile) : null;
     const imp = client ? await importedOf(projectId) : null;
     const imported = imp && client ? importedDraft(imp, entry, ctx, await client.createMeta().catch(() => null)) : null;
-    return { summary: defaultSummary(ctx), body: bugText(reporter?.found === false ? { ...ctx, reportedBy: user.name ?? user.email } : ctx), reporter, template, imported, scale: client?.scale ?? PLAIN_SCALE };
+    // Nothing failed and nothing written (ver_124): an empty summary with a hint, never just the case's title.
+    const blank = ctx.failedIndex === null && !actual.trim();
+    return { summary: blank ? "" : defaultSummary(ctx), body: bugText(reporter?.found === false ? { ...ctx, reportedBy: user.name ?? user.email } : ctx), reporter, template, imported, scale: client?.scale ?? PLAIN_SCALE };
   });
 }
 

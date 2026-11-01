@@ -74,6 +74,8 @@ export function runWhere(scope: ReportScope, f: ReportFilters): Prisma.TestRunWh
 
 export type RunRow = {
   id: string;
+  /** A bug bash's run (ver_124): kept out of the Reports summary's run count. */
+  bash?: boolean;
   /** The test cycle the run belongs to: run numbers are only unique within it. */
   projectKey: string;
   projectName: string;
@@ -112,9 +114,11 @@ export async function runReport(scope: ReportScope, f: ReportFilters): Promise<R
       suite: { select: { name: true } },
       entries: { select: { caseId: true, status: true, steps: true, results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true } } } },
       results: { select: { defects: { select: { defectId: true } } } },
+      bugBash: { select: { id: true } },
     },
   });
   return runs.map((r) => ({
+    bash: !!r.bugBash,
     id: r.id,
     projectKey: r.project.key,
     projectName: r.project.name,

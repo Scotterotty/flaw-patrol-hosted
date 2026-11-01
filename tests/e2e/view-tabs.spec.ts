@@ -59,6 +59,6 @@ test("Active and Closed tabs on Test runs, Active and Archived tabs on Test case
   await expect(page.getByRole("heading", { name: "Test runs" })).toBeVisible();
   await expect(page.getByRole("link", { name: /R\d+ One/ })).toBeVisible();
   // The run buttons stay put on the Closed tab.
-  await expect(page.getByRole("link", { name: "Import a run" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Bring in results" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Start a run" })).toBeVisible();
 });

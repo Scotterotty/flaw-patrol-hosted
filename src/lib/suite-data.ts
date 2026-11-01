@@ -1,4 +1,5 @@
 import "server-only";
+import { NOT_BASH_CASE } from "@/lib/bash-cases";
 import { db } from "./db";
 import { badgeOf } from "./game";
 import { buildTree, flattenTree, pathOf, subtreeIds } from "./folders";
@@ -14,7 +15,7 @@ export async function suitePickerData(project: { id: string; groupId: string | n
   const [folders, cases, tagRows, keys, archived, umbrella] = await Promise.all([
     db.folder.findMany({ where: { projectId: { in: ids } }, select: { id: true, parentId: true, name: true, projectId: true } }),
     db.testCase.findMany({
-      where: { projectId: { in: ids }, archived: false },
+      where: { projectId: { in: ids }, archived: false, ...NOT_BASH_CASE },
       orderBy: [{ projectId: "asc" }, { number: "asc" }],
       select: { id: true, number: true, title: true, folderId: true, priority: true, tags: true, projectId: true },
     }),

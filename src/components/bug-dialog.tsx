@@ -9,7 +9,7 @@ import { DEFAULT_SEVERITY, defaultSeverityOf, PLAIN_SCALE, type SeverityScale } 
 import type { ImportedDraft, LinkedDefect, ReporterInfo } from "@/server/jira";
 import type { KnownBug } from "@/lib/known-bugs";
 import { importedTitle } from "@/lib/bug-template";
-import { createLocalDefect, fileJiraBug, fileTemplatedBug, linkJiraIssue, previewJiraBug, searchJira, startTemplatedBug } from "@/server/jira";
+import { createLocalDefect, fileJiraBug, fileTemplatedBug, linkJiraIssue, previewJiraBug, previewLocalBug, searchJira, startTemplatedBug } from "@/server/jira";
 import { bugTemplateChoices } from "@/server/bug-templates";
 import type { CurrentLayout } from "@/lib/bug-templates-data";
 import { deviceCell, nowCell, startAnswers, type Answer } from "@/lib/bug-layout";
@@ -57,7 +57,10 @@ export function BugDialog({
   regression = null,
   sentryOn = false,
   sentryErrors = [],
+  focus = null,
 }: {
+  /** A whole-case bug's first failed step (ver_124, persona audit #4): the bug starts from what failed there. */
+  focus?: number | null;
   /** Sentry is connected (ver_96): + Add offers "Sentry error…". */
   sentryOn?: boolean;
   /** Errors ticked under the step, put on the bug. */
@@ -102,6 +105,8 @@ export function BugDialog({
   const [tab, setTab] = useState<"new" | "link">("new");
   const [summary, setSummary] = useState("");
   const [body, setBody] = useState("");
+  // What happened (ver_124): without Jira, the bug's own description, filled in and editable.
+  const [happened, setHappened] = useState("");
   const [reporter, setReporter] = useState<ReporterInfo | null>(null);
   const [severity, setSeverity] = useState<Severity>(DEFAULT_SEVERITY);
   // The team's severity names, from its Jira (ver_91).
@@ -195,10 +200,12 @@ export function BugDialog({
     if (!jiraConnected) {
       setSummary(prefill?.title ?? suggested ?? (stepIndex === null ? "" : `${stepLabel} failed`));
       if (prefill) setSeverity(prefill.severity);
+      setHappened("");
+      void previewLocalBug(projectId, entryId, stepIndex, actual, focus).then((res) => res.ok && setHappened((n) => n || res.body));
       return;
     }
     start(async () => {
-      const res = await previewJiraBug(projectId, entryId, stepIndex, actual);
+      const res = await previewJiraBug(projectId, entryId, stepIndex, actual, focus);
       if (res.ok) {
         setSummary(fromDefect?.title ?? prefill?.title ?? res.summary);
         setScale(res.scale);
@@ -298,7 +305,7 @@ export function BugDialog({
         return;
       }
       if (!jiraConnected) {
-        const res = await createLocalDefect(projectId, { title: summary, severity });
+        const res = await createLocalDefect(projectId, { title: summary, severity, description: happened });
         return res.ok ? done(res.defect) : setError(res.error);
       }
       // Screenshots and videos first, then logs, as they appear on the bug.
@@ -307,6 +314,7 @@ export function BugDialog({
         summary,
         severity,
         stepIndex,
+        focus,
         actual,
         attachmentIds: ordered,
         stories: [...linkTo],
@@ -501,9 +509,14 @@ export function BugDialog({
                 </>
               ) : (
                 <>
-                  <Field label="Summary" htmlFor="bug-summary">
-                    <Input id="bug-summary" value={summary} onChange={(e) => setSummary(e.target.value)} required autoFocus />
+                  <Field label="Summary" htmlFor="bug-summary" hint={focus !== null && stepIndex === null ? "Filled from the failed step. Change it to say what's wrong." : undefined}>
+                    <Input id="bug-summary" value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="What went wrong? For example: Pay button does nothing" required autoFocus />
                   </Field>
+                  {!jiraConnected && (
+                    <Field label="What happened" htmlFor="bug-notes">
+                      <Textarea id="bug-notes" rows={6} value={happened} onChange={(e) => setHappened(e.target.value)} placeholder="Steps to make it happen, what you expected, and what happened instead" />
+                    </Field>
+                  )}
                   <Field label="Severity" htmlFor="bug-severity">
                     <Select id="bug-severity" value={severity} onChange={(e) => setSeverity(e.target.value as Severity)} className="w-48">
                       {scale.levels.map((s) => (

@@ -66,7 +66,8 @@ test("Release status, automation suggestions and a suite's last result from any 
     <testcase classname="checkout.CartTest" name="adds_an_item" time="0.4"/>
   </testsuite></testsuites>`;
   await page.goto(`/p/${KEY}/runs`);
-  await page.getByRole("button", { name: /Upload automation results/ }).click();
+  await page.getByRole("button", { name: "Bring in results" }).click();
+  await page.getByRole("menuitem", { name: /Automated test results/ }).click();
   await page.getByLabel("Results files").setInputFiles({ name: "results.xml", mimeType: "text/xml", buffer: Buffer.from(xml) });
   await page.getByRole("button", { name: "Next: check results" }).click();
   // ver_91: a same-name match is linked by itself, with Undo.

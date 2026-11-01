@@ -1,4 +1,5 @@
 import "server-only";
+import { NOT_BASH_CASE } from "@/lib/bash-cases";
 import { Prisma } from "@prisma/client";
 import { parseCharter, parseSessionLog, noteCounts } from "./charter";
 import { teamTemplate } from "./charter-templates";
@@ -22,7 +23,8 @@ export async function charterRows(projectId: string, opts: { archived?: boolean;
   const q = opts.q?.trim();
   const cases = await db.testCase.findMany({
     // Persona filter (ver_96): a persona's id, or "none".
-    where: { projectId, type: "EXPLORATORY", archived: !!opts.archived, ...(opts.persona ? { personaId: opts.persona === "none" ? null : opts.persona } : {}) },
+    // A bug bash's area charters stay with the bash, off this list (ver_124).
+    where: { projectId, type: "EXPLORATORY", archived: !!opts.archived, ...NOT_BASH_CASE, ...(opts.persona ? { personaId: opts.persona === "none" ? null : opts.persona } : {}) },
     orderBy: { number: "asc" },
     select: {
       id: true,

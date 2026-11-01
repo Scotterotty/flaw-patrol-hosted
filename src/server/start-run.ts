@@ -1,6 +1,7 @@
 "use server";
 
 import { libraryCaseNews } from "@/lib/case-news-data";
+import { NOT_BASH_CASE } from "@/lib/bash-cases";
 import { tagColorsFor } from "@/lib/tag-data";
 import { CSP_FIELD, parseRunFields } from "@/lib/run-fields";
 import { kindIdFor, parseRunKinds } from "@/lib/run-kinds";
@@ -76,7 +77,7 @@ export async function runBoxOptions(scope: RunBoxScope) {
       }),
       Promise.all(cycles.map((c) => projectMembers(c.id))),
       // "Whole Case library": the umbrella's library, or a lone project's own cases.
-      db.testCase.count({ where: { projectId: umbrella ? umbrella.hub.id : library.id, archived: false } }),
+      db.testCase.count({ where: { projectId: umbrella ? umbrella.hub.id : library.id, archived: false, ...NOT_BASH_CASE } }),
     ]);
     const colorOf = (platform: string) => (umbrella ? platformColor(umbrella.platforms, platform) : "#94a3b8");
     // Run kinds (ver_95): what kind of run it is, asked first in an umbrella.
@@ -145,7 +146,8 @@ export async function startRuns(input: z.input<typeof startSchema>) {
         // The whole library is the umbrella's Case library; outside an umbrella, the project's own cases.
         const ids = data.what === "all" ? (u && !u.isHub ? [u.hub.id] : [project.id]) : await libraryProjectIds(project);
         const cases = await db.testCase.findMany({
-          where: { projectId: { in: ids }, archived: false, ...(data.what === "cases" ? { id: { in: data.caseIds } } : {}) },
+          // The whole library never takes in a bug bash's area charters (ver_124).
+          where: { projectId: { in: ids }, archived: false, ...(data.what === "cases" ? { id: { in: data.caseIds } } : NOT_BASH_CASE) },
           orderBy: [{ projectId: "asc" }, { number: "asc" }],
           select: { id: true },
         });

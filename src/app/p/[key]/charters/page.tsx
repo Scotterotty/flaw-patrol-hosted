@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { NOT_BASH_CASE } from "@/lib/bash-cases";
 import { CloseMatchesLabel } from "@/components/close-matches";
 import Link from "next/link";
 import { NewCharterMenu } from "@/components/charters";
@@ -33,10 +34,10 @@ export default async function ChartersPage({ params, searchParams }: { params: P
   const [rows, team, archivedCount, personas] = await Promise.all([
     charterRows(project.id, { q, archived: archived === "1", persona: sp.persona }),
     teamTemplates(home.id),
-    db.testCase.count({ where: { projectId: project.id, type: "EXPLORATORY", archived: true } }),
+    db.testCase.count({ where: { projectId: project.id, type: "EXPLORATORY", archived: true, ...NOT_BASH_CASE } }),
     db.persona.findMany({ where: { projectId: project.id }, orderBy: { name: "asc" }, include: { cases: { where: { archived: false }, select: { type: true } } } }),
   ]);
-  const charterCount = await db.testCase.count({ where: { projectId: project.id, type: "EXPLORATORY", archived: false } });
+  const charterCount = await db.testCase.count({ where: { projectId: project.id, type: "EXPLORATORY", archived: false, ...NOT_BASH_CASE } });
   const canWrite = can(who, "case:edit");
   const canStart = can(who, "run:create");
   const activePersonas = personas.filter((p) => !p.archived);

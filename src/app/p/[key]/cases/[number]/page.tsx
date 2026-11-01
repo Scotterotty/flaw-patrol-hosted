@@ -216,7 +216,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
               <StepsView steps={steps} projectKey={project.key} />
             </Card>
           )}
-          <CaseHistory caseId={c.id} projectKey={project.key} charter={isCharter} />
+          <CaseHistory caseId={c.id} projectKey={project.key} charter={isCharter} canRun={can(who, "run:create")} />
         </div>
         <aside className="space-y-5">
           {/* Charters link to requirements too (ver_93), so the Risk board sees them. */}

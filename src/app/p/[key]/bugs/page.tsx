@@ -13,6 +13,7 @@ import { severityScaleFor } from "@/lib/severity-server";
 import { sendToJiraData } from "@/lib/send-to-jira";
 import { redirect } from "next/navigation";
 import { BugAnswers } from "@/components/bug-answers";
+import { BugDescription } from "@/components/bug-description";
 import { parseAnswers } from "@/lib/bug-layout";
 import { LastCheckLine } from "@/components/known-bugs-panel";
 import { cycleSettingsHref, hubGroupId, jiraConfigFor } from "@/lib/umbrella";
@@ -130,6 +131,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
                       <span className="text-slate-900">{d.title}</span>
                       {canSend && !d.externalKey && <span className="mt-0.5 block text-xs text-slate-500">Saved before Jira was connected</span>}
                       <LastCheckLine check={d.checks[0]} spelling={spelling} />
+                      {d.answers == null && !d.externalKey && <BugDescription text={d.description} />}
                       {d.answers != null && <BugAnswers projectId={project.id} defectId={d.id} templateName={d.templateName} answers={parseAnswers(d.answers)} canAdd={can(who, "run:execute") && d.status === "OPEN"} inJira={!!d.externalKey} />}
                     </td>
                     <td className="px-4 py-2">

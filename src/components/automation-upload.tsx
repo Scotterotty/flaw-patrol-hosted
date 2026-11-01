@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { mb, mediaWords, type MediaCounts } from "@/lib/automation-files";
 import { automationCycles, previewAutomation, readAutomationFiles, saveAutomation, type UploadCycle } from "@/server/automation";
 import { Modal } from "./modal";
+import { MoreMenu } from "./more-menu";
 import { Button, cx, ErrorText, Field, InfoTip, Input } from "./ui";
 
 type Files = { name: string; text: string }[];
@@ -86,6 +87,47 @@ export function UploadAutomationButton({ scope }: { scope: { groupId: string } |
       <Button onClick={() => setOpen(true)}>
         <span aria-hidden>🤖</span> Upload automation results
       </Button>
+      <Modal open={open} onClose={() => setOpen(false)} title="Upload automation results" wide>
+        <Flow scope={scope} onClose={() => setOpen(false)} />
+      </Modal>
+    </>
+  );
+}
+
+/**
+ * Test runs → Bring in results (ver_124, persona audit #8): Import a run and Upload
+ * automation results used to be two equal buttons that sounded the same. One menu now
+ * holds both, each saying what kind of file it takes, so Start a run stands out.
+ * The two choices stay in a fixed order.
+ */
+export function BringInResults({ scope, importHref, auto = true }: { scope: { groupId: string } | { projectKey: string }; importHref?: string; auto?: boolean }) {
+  const [open, setOpen] = useState(false);
+  if (!auto && !importHref) return null;
+  return (
+    <>
+      <MoreMenu label="Bring in results">
+        {auto && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => setOpen(true)}
+            className="grid w-72 max-w-[80vw] gap-0.5 rounded-md px-3 py-2 text-left text-sm text-slate-800 hover:bg-slate-100"
+          >
+            <span>Automated test results</span>
+            <span className="text-xs text-slate-500">A JUnit, NUnit or Playwright results file from your test pipeline</span>
+          </button>
+        )}
+        {importHref && (
+          <Link
+            href={importHref}
+            role="menuitem"
+            className="grid w-72 max-w-[80vw] gap-0.5 rounded-md px-3 py-2 text-left text-sm text-slate-800 hover:bg-slate-100"
+          >
+            <span>Results from a spreadsheet</span>
+            <span className="text-xs text-slate-500">A run you tracked by hand in Excel or Google Sheets</span>
+          </Link>
+        )}
+      </MoreMenu>
       <Modal open={open} onClose={() => setOpen(false)} title="Upload automation results" wide>
         <Flow scope={scope} onClose={() => setOpen(false)} />
       </Modal>

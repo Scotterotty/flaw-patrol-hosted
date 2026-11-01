@@ -148,7 +148,8 @@ test("automation results upload, Ctrl+K search and the Roles card", async ({ pag
     <testcase classname="LoginTests" name="remembers the user" time="0.4"><failure message="Expected true">stack line</failure></testcase>
   </testsuite></testsuites>`;
   await page.goto(`/p/${KEY}/runs`);
-  await page.getByRole("button", { name: /Upload automation results/ }).click();
+  await page.getByRole("button", { name: "Bring in results" }).click();
+  await page.getByRole("menuitem", { name: /Automated test results/ }).click();
   await page.getByLabel("Results files").setInputFiles({ name: "results.xml", mimeType: "text/xml", buffer: Buffer.from(xml) });
   await page.getByRole("button", { name: "Next: check results" }).click();
   await page.getByRole("button", { name: /^Save 2 results$/ }).click();

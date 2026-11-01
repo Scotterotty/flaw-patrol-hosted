@@ -59,7 +59,7 @@ export default async function BashesPage({ params, searchParams }: { params: Pro
       ))}
       <h2 className="mt-6 mb-2 text-sm font-semibold text-slate-800">Past bashes</h2>
       {past.length === 0 ? (
-        <EmptyState title="No bug bashes yet">Start one before a release: pick a few areas, invite the team, and everyone logs what they find for an hour.</EmptyState>
+        <EmptyState title="No bug bashes yet">{canStart ? "Start one before a release: pick a few areas, invite the team, and everyone logs what they find for an hour." : "When someone starts a bug bash, you can join it here."}</EmptyState>
       ) : (
         <Card className="overflow-x-auto">
           <table className="w-full text-sm">

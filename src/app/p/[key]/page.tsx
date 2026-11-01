@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FlagIcon } from "@/components/case-flag";
+import { LIVE_BASH, NOT_BASH_CASE, NOT_BASH_RUN } from "@/lib/bash-cases";
 import { StartRunBox } from "@/components/start-run-box";
 import { StatusBar } from "@/components/status";
 import { PassRateOverTime } from "@/components/trend-charts";
@@ -41,7 +42,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
   const [umbrella, memberCount] = await Promise.all([umbrellaOf(project), db.projectMember.count({ where: { projectId: project.id } })]);
   const [runs, openBugs, openBugCount, flagged, flaggedCount, caseCount, trend, health] = await Promise.all([
     db.testRun.findMany({
-      where: { projectId: project.id, state: "ACTIVE" },
+      where: { projectId: project.id, state: "ACTIVE", ...NOT_BASH_RUN },
       orderBy: { number: "desc" },
       take: 50,
       select: { id: true, number: true, name: true, kind: true, release: true, createdAt: true, entries: { select: { status: true, assigneeId: true, kind: true } } },
@@ -60,7 +61,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
       select: { number: true, title: true, flag: true, flagNote: true, flaggedBy: true, flaggedAt: true },
     }),
     db.testCase.count({ where: { projectId: project.id, archived: false, flag: { not: null } } }),
-    db.testCase.count({ where: { projectId: project.id, archived: false } }),
+    db.testCase.count({ where: { projectId: project.id, archived: false, ...NOT_BASH_CASE } }),
     trends(project.id, month),
     caseHealth(project.id, { from: new Date(now.getTime() - 90 * DAY), to: now }),
   ]);
@@ -76,7 +77,9 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
     return { bugs: acc.bugs + c.bug, questions: acc.questions + c.question };
   }, { bugs: 0, questions: 0 });
   const exploredMin = Math.round(explored.reduce((n, r) => n + (r.elapsedSec ?? 0), 0) / 60);
-  const libraryCount = umbrella && !umbrella.isHub ? await db.testCase.count({ where: { projectId: umbrella.hub.id, archived: false } }) : 0;
+  const libraryCount = umbrella && !umbrella.isHub ? await db.testCase.count({ where: { projectId: umbrella.hub.id, archived: false, ...NOT_BASH_CASE } }) : 0;
+  // A live bug bash gets its own tile instead of counting as a run (ver_124). Only while one is live.
+  const liveBash = await db.bugBash.findFirst({ where: { projectId: project.id, ...LIVE_BASH(now) }, orderBy: { startsAt: "desc" }, select: { id: true, name: true, endsAt: true } });
 
   const open = runs.map((r) => {
     const counts = countStatuses(r.entries.map((e) => e.status));
@@ -130,8 +133,16 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
         />
       )}
 
-      <div className={cx("mb-5 grid grid-cols-2 gap-3", explored.length ? "lg:grid-cols-5" : "lg:grid-cols-4")}>
+      <div className={cx("mb-5 grid grid-cols-2 gap-3", (explored.length ? 1 : 0) + (liveBash ? 1 : 0) === 2 ? "lg:grid-cols-6" : explored.length || liveBash ? "lg:grid-cols-5" : "lg:grid-cols-4")}>
         <Tile label="Runs in progress" value={String(active.length)} href={`/p/${project.key}/runs`} />
+        {liveBash && (
+          <Tile
+            label="Live bug bash"
+            value="1"
+            note={`${liveBash.name} · ${Math.max(1, Math.round((liveBash.endsAt.getTime() - now.getTime()) / 60000))} min left`}
+            href={`/p/${project.key}/bashes/${liveBash.id}`}
+          />
+        )}
         <Tile label="Pass rate, last 30 days" value={pct(monthRate)} note={`${trend.results} results${explored.length ? " · exploring not counted" : ""}`} href={`/p/${project.key}/reports?view=trends`} />
         {explored.length > 0 && (
           <Tile
@@ -165,7 +176,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
           <Section title="Runs in progress" more={active.length > 0 ? { href: `/p/${project.key}/runs`, label: "All runs" } : undefined}>
             {active.length === 0 ? (
               <div className="px-4 py-6 text-sm text-slate-500">
-                <p>No runs in progress. Press Start a run and it shows here.</p>
+                <p>{can(who, "run:create") ? "No runs in progress. Press Start a run and it shows here." : "No runs in progress. When someone starts a run, it shows here."}</p>
                 {!(user.gameEnabled && user.questMap) && (
                   <p className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
                     <span>

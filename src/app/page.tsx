@@ -1,5 +1,6 @@
 import { type GroupChoice } from "@/components/group-dialogs";
 import { ProjectsBrowser } from "@/components/projects-browser";
+import { LIVE_BASH, NOT_BASH_CASE, NOT_BASH_RUN } from "@/lib/bash-cases";
 import { cookies } from "next/headers";
 import { parseUmbrellaSort, UMBRELLA_SORT_COOKIE } from "@/lib/project-list";
 import { TopBar } from "@/components/top-bar";
@@ -41,10 +42,11 @@ export default async function HomePage() {
           pins: { where: { userId: user.id } },
           _count: {
             select: {
-              cases: { where: { archived: false } },
+              cases: { where: { archived: false, ...NOT_BASH_CASE } },
               suites: { where: { archived: false } },
               members: true,
-              runs: { where: { state: "ACTIVE" } },
+              runs: { where: { state: "ACTIVE", ...NOT_BASH_RUN } },
+              bugBashes: { where: LIVE_BASH(new Date()) },
             },
           },
         },
@@ -222,6 +224,7 @@ export default async function HomePage() {
                   cases: p._count.cases,
                   members: p._count.members,
                   activeRuns: p._count.runs,
+                  liveBashes: p._count.bugBashes,
                   runs:
                     runTotals.find((t) => t.projectId === p.id)?._count ?? 0,
                   activity: at

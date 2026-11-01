@@ -57,6 +57,8 @@ export type ProjectCardData = ProjectItem & {
   cases: number;
   members: number;
   activeRuns: number;
+  /** Bug bashes going on now (ver_124): shown on their own, not counted as runs. */
+  liveBashes?: number;
   /** Every run, open or closed, for the delete warning. */
   runs: number;
   /** "Active 2 h ago", worked out on the server so it renders the same everywhere. */
@@ -1247,6 +1249,7 @@ function GroupCard({
   const live = projects.filter((p) => p.archivedAt === null);
   const archivedCount = projects.length - live.length;
   const activeRuns = live.reduce((n, p) => n + p.activeRuns, 0);
+  const liveBashes = live.reduce((n, p) => n + (p.liveBashes ?? 0), 0);
   const plural = (n: number, word: string) =>
     `${n} ${word}${n === 1 ? "" : "s"}`;
   return (
@@ -1362,6 +1365,11 @@ function GroupCard({
           ) : (
             <span className="text-slate-500">No active runs</span>
           )}
+          {liveBashes > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 font-medium text-red-800" data-testid="live-bash-count">
+              {plural(liveBashes, "live bug bash").replace(/bashs$/, "bashes")}
+            </span>
+          )}
           {archivedCount > 0 && (
             <span className="text-slate-500">{archivedCount} archived</span>
           )}
@@ -1382,6 +1390,11 @@ function CardStats({ project: p }: { project: ProjectCardData }) {
           </span>
         ) : (
           <span className="text-slate-500">No active runs</span>
+        )}
+        {(p.liveBashes ?? 0) > 0 && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 font-medium text-red-800" data-testid="live-bash-count">
+            {p.liveBashes} live bug {p.liveBashes === 1 ? "bash" : "bashes"}
+          </span>
         )}
         <span className="text-slate-500">{p.activity}</span>
       </p>

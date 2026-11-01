@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 import { forgivingFilter } from "@/lib/fuzzy";
+import { NOT_BASH_CASE, NOT_BASH_RUN } from "@/lib/bash-cases";
 import { CloseMatchesLabel } from "@/components/close-matches";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -54,7 +55,7 @@ export default async function GroupPage({
     where: { groupId: id, ...(user.isAdmin ? {} : { members: { some: { userId: user.id } } }) },
     include: {
       members: { where: { userId: user.id } },
-      _count: { select: { cases: { where: { archived: false } }, members: true, runs: { where: { state: "ACTIVE" } } } },
+      _count: { select: { cases: { where: { archived: false, ...NOT_BASH_CASE } }, members: true, runs: { where: { state: "ACTIVE", ...NOT_BASH_RUN } } } },
     },
     orderBy: { name: "asc" },
   });

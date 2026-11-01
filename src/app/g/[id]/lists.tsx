@@ -14,7 +14,8 @@ import { shownKind, type RunKindDef } from "@/lib/run-kinds";
 import { RunKindTag } from "@/components/run-kind-tag";
 
 /** Runs across these projects, newest first. */
-export async function Runs({ projectIds, state, kind, kinds = [] }: { projectIds: string[]; state?: string; kind?: string; kinds?: RunKindDef[] }) {
+/** canStart false (ver_124, Viewers): the empty state says what will show, not which button to press. */
+export async function Runs({ projectIds, state, kind, kinds = [], canStart = true }: { projectIds: string[]; state?: string; kind?: string; kinds?: RunKindDef[]; canStart?: boolean }) {
   const spelling = await mySpelling();
   const runs = await db.testRun.findMany({
     where: {
@@ -31,9 +32,9 @@ export async function Runs({ projectIds, state, kind, kinds = [] }: { projectIds
   const newsCounts = await caseNewsCounts(runs.filter((r) => r.state === "ACTIVE" || r.automated).slice(0, 30).map((r) => r.id));
   if (runs.length === 0)
     return state === "automated" ? (
-      <EmptyState title="No automated runs yet">Upload automation results to bring in results from your automated tests. Each upload shows here.</EmptyState>
+      <EmptyState title="No automated runs yet">{canStart ? "Upload automation results to bring in results from your automated tests. Each upload shows here." : "When someone uploads results from automated tests, they show here."}</EmptyState>
     ) : (
-      <EmptyState title="No runs yet">Press Start a run to test by hand, or Upload automation results to bring in results from your automated tests.</EmptyState>
+      <EmptyState title="No runs yet">{canStart ? "Press Start a run to test by hand, or Upload automation results to bring in results from your automated tests." : "When someone starts a run, it shows here."}</EmptyState>
     );
   return (
     <Card className="divide-y divide-slate-100">

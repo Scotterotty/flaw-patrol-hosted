@@ -22,6 +22,47 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 124,
+    date: "2026-11-01",
+    items: [
+      {
+        kind: "better",
+        title: "Report bug for case starts from what failed",
+        text: "The summary comes from the first failed step and its note, not the case's title. Without Jira, a new What happened box fills in the run, build, steps, expected and actual result, and you can change it.",
+      },
+      {
+        kind: "better",
+        title: "A failed step's note box stays in view",
+        text: "Clicking Failed scrolls the step's note box and Report bug into view and puts the cursor in the note. The F key only scrolls. The Case result line has a Go to step link.",
+      },
+      {
+        kind: "new",
+        title: "Viewers are told they're Viewers",
+        text: "A short note at the top says what a Viewer can do, names the admins, and has Ask for Member access. Pages no longer tell Viewers to press buttons they don't have.",
+      },
+      {
+        kind: "fix",
+        title: "Bug bashes don't add test cases or count as runs",
+        text: "A bug bash's area charters stay with the bash. Case counts and Runs in progress only count what your team wrote and ran, and a live bug bash shows on its own.",
+      },
+      {
+        kind: "better",
+        title: "Test runs leads with Start a run",
+        text: "Import a run and Upload automation results are now one Bring in results menu: Automated test results, or Results from a spreadsheet.",
+      },
+      {
+        kind: "better",
+        title: "Stop testing instead of Hand it back",
+        text: "In the runner, Stop testing frees a case so someone else can test it. Your marks so far are kept, and it says so under the button.",
+      },
+      {
+        kind: "new",
+        title: "Reports opens with a one-line summary",
+        text: "Above the tabs: runs, pass rate, open bugs, blocked cases and where most failures are, for the dates and filters you picked. Copy summary puts it on the clipboard for Slack or email. The Testers tab is now People.",
+      },
+    ],
+  },
+  {
     version: 123,
     date: "2026-11-01",
     items: [

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { relativeTime } from "@/lib/format";
-import { andList } from "@/lib/link-access";
+import { andList, MEMBER_ACCESS } from "@/lib/link-access";
 import { ROLE_LABEL, ROLES_PICK } from "@/lib/permissions";
 import { answerJoinRequest, askToJoin, cancelJoinRequest } from "@/server/join-requests";
 import { Avatar } from "./avatar";
@@ -112,10 +112,10 @@ export function JoinRequests({ requests, team }: { requests: JoinRequestRow[]; t
           <Avatar person={{ id: q.userId, name: q.name, email: q.email, avatarAt: q.avatarAt }} size={32} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-slate-800">
-              {q.name ?? q.email} wants to join {team}
+              {q.what === MEMBER_ACCESS ? `${q.name ?? q.email} is a Viewer and asks for Member access in ${team}` : `${q.name ?? q.email} wants to join ${team}`}
             </p>
             <p className="truncate text-xs text-slate-500" suppressHydrationWarning>
-              {[q.name && q.email, q.what && `opened ${q.what} link`, relativeTime(new Date(q.at))].filter(Boolean).join(" · ")}
+              {[q.name && q.email, q.what && q.what !== MEMBER_ACCESS && `opened ${q.what} link`, relativeTime(new Date(q.at))].filter(Boolean).join(" · ")}
             </p>
           </div>
           <Select aria-label={`Role for ${q.email}`} className="h-8 w-28 text-xs" value={roles[q.id] ?? "TESTER"} disabled={pending} onChange={(e) => setRoles((r) => ({ ...r, [q.id]: e.target.value as Role }))}>

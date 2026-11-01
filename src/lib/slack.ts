@@ -273,8 +273,11 @@ export async function alertRunStarted(cycle: CycleRef, runId: string, by: string
 export async function alertJoinRequest(teamId: string, who: { name: string; email: string; what: string }, membersPath: string) {
   await notify(teamId, "join", (base) => ({
     tone: "blue",
-    title: `🙋 ${who.name} wants to join`,
-    lines: [`${esc(who.email)}${who.what ? ` · opened ${esc(who.what)} link` : ""}`, "An admin can add them in Settings → Members."],
+    title: who.what === "Member access" ? `🙋 ${who.name} asks for Member access` : `🙋 ${who.name} wants to join`,
+    lines: [
+      who.what === "Member access" ? `${esc(who.email)} · a Viewer now` : `${esc(who.email)}${who.what ? ` · opened ${esc(who.what)} link` : ""}`,
+      who.what === "Member access" ? "An admin can change their role in Settings → Members." : "An admin can add them in Settings → Members.",
+    ],
     button: { label: "Open Members", url: `${base}${membersPath}` },
   }));
 }

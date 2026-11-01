@@ -48,7 +48,7 @@ test("Add to report from a tab, then edit it: tick parts, a note, rename, own fi
   await expect(page.getByTestId("add-to-report-note")).toContainText(`Added to Weekly ${TAG}`);
 
   // The next box can go into the report just made.
-  await page.getByRole("link", { name: "Testers", exact: true }).click();
+  await page.getByRole("link", { name: "People", exact: true }).click();
   // No time logged on Testers (ver_101).
   await expect(page.getByRole("columnheader", { name: "Outcomes" })).toBeVisible();
   await expect(page.getByText("Time logged")).toHaveCount(0);
@@ -59,7 +59,7 @@ test("Add to report from a tab, then edit it: tick parts, a note, rename, own fi
   const body = page.locator("#custom-report-body");
   await expect(body.locator("section[data-part]")).toHaveCount(2);
   await expect(body.getByRole("heading", { name: "Pass rate by run" })).toBeVisible();
-  await expect(body.getByRole("heading", { name: "Testers" })).toBeVisible();
+  await expect(body.getByRole("heading", { name: "People" })).toBeVisible();
 
   // Edit: tick Bug list, add a note, rename a part, give it its own filters.
   await page.getByTestId("edit-report").click();

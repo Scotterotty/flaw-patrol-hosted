@@ -1,5 +1,6 @@
 import { ProjectNav } from "@/components/project-nav";
 import { UmbrellaNav } from "@/components/umbrella-nav";
+import { NOT_BASH_CASE, NOT_BASH_RUN } from "@/lib/bash-cases";
 import { db } from "@/lib/db";
 import { glossaryMenu } from "@/lib/glossary-data";
 import { liveBashOf, loadUmbrella, navOf, openBugCount, platformColor, type Umbrella } from "@/lib/umbrella";
@@ -16,7 +17,7 @@ export async function ProjectMenu({ project, user, umbrella }: { project: MenuPr
   const quests = user.gameEnabled && user.questMap;
   // Glossary (ver_113): one list for everyone, in every menu, with a dot when your question got answered.
   // Asked together (ver_120): the glossary, the umbrella, and the test cycle's own cases.
-  const ownCasesP = project.groupId ? db.testCase.count({ where: { projectId: project.id, archived: false } }).catch(() => 0) : Promise.resolve(0);
+  const ownCasesP = project.groupId ? db.testCase.count({ where: { projectId: project.id, archived: false, ...NOT_BASH_CASE } }).catch(() => 0) : Promise.resolve(0);
   const [glossary, group] = await Promise.all([
     glossaryMenu(user.id),
     umbrella ? null : project.groupId ? db.projectGroup.findUnique({ where: { id: project.groupId }, select: { id: true, name: true, hubProjectId: true } }) : null,
@@ -49,11 +50,11 @@ export async function ProjectMenu({ project, user, umbrella }: { project: MenuPr
   const [hub, cases, charters, suites, shared, personas, activeRuns, openBugs, live] = await Promise.all([
     group?.hubProjectId ? db.project.findUnique({ where: { id: group.hubProjectId }, select: { key: true } }) : null,
     db.testCase.count({ where: { ...where, type: { not: "EXPLORATORY" } } }),
-    db.testCase.count({ where: { ...where, type: "EXPLORATORY" } }),
+    db.testCase.count({ where: { ...where, type: "EXPLORATORY", ...NOT_BASH_CASE } }),
     db.testSuite.count({ where }),
     db.sharedStep.count({ where }),
     db.persona.count({ where }),
-    db.testRun.count({ where: { projectId: project.id, state: "ACTIVE" } }),
+    db.testRun.count({ where: { projectId: project.id, state: "ACTIVE", ...NOT_BASH_RUN } }),
     openBugCount([project.id]),
     liveBashOf(project.id),
   ]);

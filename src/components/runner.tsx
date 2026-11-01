@@ -423,6 +423,17 @@ export function Runner({
 
   // Don't let other people's live changes reset this case while you're filling it in.
   const busy = dirty || actuals.some((a) => a !== "") || bugFor !== undefined;
+  const firstFailed = statuses.findIndex((st) => st === "FAILED");
+  // Report bug for case (ver_124, persona audit #4): start from the first failed step, not the
+  // case's title. Other failed steps and the case comment go in What happened too.
+  const caseBug = (() => {
+    const failed = statuses.flatMap((st, i) => (st === "FAILED" ? [i] : []));
+    const focus = failed[0] ?? null;
+    if (focus === null) return { focus, actual: comment, suggested: comment.trim() ? bugTitle(entry.title, null, comment) : "" };
+    const more = failed.slice(1).map((i) => `Step ${entry.steps[i]?.number} also failed${actuals[i]?.trim() ? `: ${actuals[i].trim()}` : "."}`);
+    const actual = [actuals[focus]?.trim() ?? "", ...more, comment.trim() && `Comment: ${comment.trim()}`].filter(Boolean).join("\n\n");
+    return { focus, actual, suggested: bugTitle(entry.title, entry.steps[focus] ?? null, actuals[focus] ?? "") };
+  })();
   useEffect(() => (busy ? holdLive() : undefined), [busy]);
   // That hold also stops the run list refreshing, so hand it this case's step results directly.
   // Headings take no result, so they don't hold the case back or show as pips.
@@ -435,9 +446,13 @@ export function Runner({
   // No case result yet: saving keeps the progress and the case stays In progress.
   const partial = caseStatus === "UNTESTED";
 
+  // A failed step's note box and Report bug come into view (ver_124, persona audit #5).
+  // Clicking Failed also puts the cursor in the note; the F key only scrolls, so keys keep marking steps.
+  const [reveal, setReveal] = useState<{ i: number; focus: boolean; n: number } | null>(null);
   const setStep = useCallback(
     (i: number, s: ResultStatus) => {
       if (heading(i)) return;
+      if (s === "FAILED") setReveal((r) => ({ i, focus: false, n: (r?.n ?? 0) + 1 }));
       // A step with checks: its own buttons fill the empty checks, or set them all when none are empty.
       if (checkCount(i)) setCheckResults((prev) => prev.map((c, j) => (j === i ? fillChecks(c, s) : c)));
       // A status always sets that status, never toggles it off (pressing P twice used to clear a pass). U or Clear empties it.
@@ -770,6 +785,13 @@ export function Runner({
   useEffect(() => {
     document.querySelector(`[data-step="${current}"]`)?.scrollIntoView({ block: "nearest" });
   }, [current]);
+  useEffect(() => {
+    if (!reveal) return;
+    const box = document.querySelector<HTMLElement>(`[data-step="${reveal.i}"] [data-problem-box]`);
+    if (!box) return;
+    box.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    if (reveal.focus) box.querySelector("textarea")?.focus({ preventScroll: true });
+  }, [reveal]);
 
   const stepCounts = useMemo(() => {
     const c: Partial<Record<ResultStatus, number>> = {};
@@ -1010,6 +1032,7 @@ export function Runner({
                                 e.stopPropagation();
                                 setCurrent(i);
                                 setStep(i, status);
+                                if (status === "FAILED") setReveal((r) => ({ i, focus: true, n: (r?.n ?? 0) + 1 }));
                               }}
                               className={cx(
                                 "inline-flex h-7 items-center gap-1 rounded px-2 text-xs font-medium ring-1 ring-inset transition",
@@ -1093,7 +1116,7 @@ export function Runner({
                     </ul>
                   )}
                   {(problem || actuals[i] || stepDefects.length > 0 || stepFiles.length > 0 || recorder.rec?.stepIndex === i) && (
-                    <div className="mt-3 space-y-2 pl-12">
+                    <div className="mt-3 space-y-2 pl-12" data-problem-box>
                       {s === "FAILED" && regression && regression.passed.length === n && regression.passed[i] && (
                         <RegressionNote
                           projectId={projectId}
@@ -1185,6 +1208,18 @@ export function Runner({
                     .join(", ") || "none marked yet"
                 }`}
               </span>
+              {firstFailed >= 0 && (
+                <button
+                  type="button"
+                  className="text-xs text-accent-700 hover:underline"
+                  onClick={() => {
+                    setCurrent(firstFailed);
+                    setReveal((r) => ({ i: firstFailed, focus: false, n: (r?.n ?? 0) + 1 }));
+                  }}
+                >
+                  Go to step {entry.steps[firstFailed]?.number}
+                </button>
+              )}
               {!runClosed && (
                 <button type="button" className="text-xs text-accent-700 hover:underline" onClick={() => setChangingResult(true)}>
                   Set it yourself
@@ -1366,8 +1401,9 @@ export function Runner({
         known={bugFor === undefined ? [] : knownBugs.filter((b) => b.state !== "expected" && b.stepIndex === (bugFor ?? null) && checks[b.id] !== "still")}
         onKnownStill={(b) => checkKnown(b, "still")}
         stepLabel={bugFor === null || bugFor === undefined ? "whole case" : `step ${entry.steps[bugFor]?.number}`}
-        actual={bugFor === null || bugFor === undefined ? comment : actuals[bugFor]}
-        suggested={bugTitle(entry.title, bugFor === null || bugFor === undefined ? null : (entry.steps[bugFor] ?? null), bugFor === null || bugFor === undefined ? comment : (actuals[bugFor] ?? ""))}
+        actual={bugFor === null || bugFor === undefined ? caseBug.actual : actuals[bugFor]}
+        suggested={bugFor === null || bugFor === undefined ? caseBug.suggested : bugTitle(entry.title, entry.steps[bugFor] ?? null, actuals[bugFor] ?? "")}
+        focus={bugFor === null ? caseBug.focus : null}
         attachments={attachments.filter((a) => (bugFor === null ? true : a.stepIndex === bugFor)).map((a) => ({ ...a, label: fileLabel(a.stepIndex) }))}
         others={attachments.filter((a) => bugFor !== null && a.stepIndex !== bugFor).map((a) => ({ ...a, label: fileLabel(a.stepIndex) }))}
         captureName={captureName(bugFor ?? null)}

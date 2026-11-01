@@ -26,6 +26,9 @@ import { regressionReport } from "@/lib/regression-data";
 import { RegressionView } from "@/components/regression-report";
 import { ByCycle } from "@/components/by-cycle";
 
+import { summaryFor } from "@/lib/report-summary-data";
+import { ReportSummaryBar } from "@/components/report-summary";
+
 export const metadata = { title: "Reports" };
 
 const VIEWS = [
@@ -36,7 +39,7 @@ const VIEWS = [
   { id: "regression", label: "Regression" },
   { id: "defects", label: "Bugs found" },
   { id: "cases", label: "Case history" },
-  { id: "testers", label: "Testers" },
+  { id: "testers", label: "People" },
 ] as const;
 type View = (typeof VIEWS)[number]["id"];
 
@@ -162,6 +165,9 @@ export default async function UmbrellaReportsPage({ params, searchParams }: { pa
           </Link>
         )}
       </AutoFilterForm>
+
+      {/* The one-line answer (ver_124, persona audit #10), following the dates and filters. */}
+      {view !== "regression" && runs.length > 0 && <ReportSummaryBar summary={await summaryFor(scope, f, runs, when)} />}
 
       <nav className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200" aria-label="Report views">
         {VIEWS.map((v) => (

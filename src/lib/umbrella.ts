@@ -1,4 +1,5 @@
 import { cycleHash } from "@/lib/cycle-hash";
+import { NOT_BASH_CASE, NOT_BASH_RUN } from "./bash-cases";
 import { effectiveTemplate } from "./bug-template";
 import "server-only";
 import { cache } from "react";
@@ -176,7 +177,7 @@ const loadUmbrellaOnce = cache(async (groupId: string, userId: string, isAdmin: 
   const platforms = parsePlatforms(group.platforms);
   const projects = await db.project.findMany({
     where: { groupId, ...(user.isAdmin ? {} : { members: { some: { userId: user.id } } }) },
-    include: { _count: { select: { runs: { where: { state: "ACTIVE" } } } } },
+    include: { _count: { select: { runs: { where: { state: "ACTIVE", ...NOT_BASH_RUN } } } } },
     orderBy: { createdAt: "desc" },
   });
   // The newest live project for each platform is "current"; projects without a platform always are.
@@ -202,11 +203,11 @@ const loadUmbrellaOnce = cache(async (groupId: string, userId: string, isAdmin: 
   const [cases, charters, suites, shared, personas, activeRuns, openBugs, repos, liveBash] = await Promise.all([
     // Charters have their own page since ver_93, so the Case library counts only cases.
     db.testCase.count({ where: { projectId: hub.id, archived: false, type: { not: "EXPLORATORY" } } }),
-    db.testCase.count({ where: { projectId: hub.id, archived: false, type: "EXPLORATORY" } }),
+    db.testCase.count({ where: { projectId: hub.id, archived: false, type: "EXPLORATORY", ...NOT_BASH_CASE } }),
     db.testSuite.count({ where: { projectId: hub.id, archived: false } }),
     db.sharedStep.count({ where: { projectId: hub.id, archived: false } }),
     db.persona.count({ where: { projectId: hub.id, archived: false } }),
-    db.testRun.count({ where: { projectId: { in: ids }, state: "ACTIVE" } }),
+    db.testRun.count({ where: { projectId: { in: ids }, state: "ACTIVE", ...NOT_BASH_RUN } }),
     openBugCount(ids),
     db.gitHubRepo.count({ where: { groupId } }),
     liveBashOf(hub.id),

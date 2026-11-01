@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
-import { safeInside } from "@/lib/link-access";
+import { MEMBER_ACCESS, safeInside } from "@/lib/link-access";
 import { membersHref, resolveLink, teamOf } from "@/lib/link-access-server";
 import { ROLE_LABEL } from "@/lib/permissions";
 import { requireProjectAction, requireUser } from "@/lib/session";
@@ -77,5 +77,25 @@ export async function answerJoinRequest(requestId: string, input: z.input<typeof
     });
     revalidatePath("/", "layout");
     return {};
+  });
+}
+
+/**
+ * A Viewer asks for Member access (ver_124, persona audit #6). It goes in the same list as
+ * Ask to join, so admins answer both in one place: Add with Member (or any role) changes theirs.
+ */
+export async function askForMemberAccess(projectId: string, path: string) {
+  return attempt(async () => {
+    const { user, project, role } = await requireProjectAction(projectId, "bash:join");
+    if (role !== "VIEWER") return { asked: false };
+    const team = await teamOf(project);
+    const had = await db.joinRequest.findUnique({ where: { projectId_userId: { projectId: team.id, userId: user.id } } });
+    if (!had) {
+      await db.joinRequest.create({ data: { projectId: team.id, userId: user.id, what: MEMBER_ACCESS, path: safeInside(path) ?? `/p/${team.key}` } });
+      await logActivity({ actor: user, kind: "people", action: `${nameOf(user)} asked for Member access`, project: { id: team.id, name: team.name, groupId: team.groupId }, detail: "From the Viewer note" });
+      await alertJoinRequest(team.id, { name: nameOf(user), email: user.email, what: MEMBER_ACCESS }, membersHref(team));
+    }
+    revalidatePath("/", "layout");
+    return { asked: true };
   });
 }

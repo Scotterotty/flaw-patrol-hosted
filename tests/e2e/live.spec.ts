@@ -31,9 +31,9 @@ test("assignments show up live on other people's screens", async ({ browser }) =
 
   // Marking a step in the runner takes the case; the run page updates by itself.
   await b.goto(`/p/${KEY}/runs/1/execute`);
-  await expect(b.getByText("Mark a step to take this case.")).toBeVisible();
+  await expect(b.getByText("Mark a step to start testing. Your teammates will see you're on this case.")).toBeVisible();
   await b.keyboard.press("p");
-  await expect(b.getByText("You're testing this case.")).toBeVisible();
+  await expect(b.getByText("You're testing this case, so teammates see it's taken.")).toBeVisible();
   await expect(row).toContainText("Demo Admin", { timeout: 15000 });
 
   // Results show up live too.

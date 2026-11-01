@@ -595,8 +595,10 @@ export async function CasesView({ rows, only }: { rows: Awaited<ReturnType<typeo
 // No time logged here (ver_101): testing isn't a race, so nobody's time is shown.
 export function TestersView({ rows }: { rows: Awaited<ReturnType<typeof testerReport>> }) {
   return (
-    <Card className="overflow-x-auto" data-export-skip="">
-      <PartTitle part="testers" className="border-b border-slate-200 px-4 py-3">Testers</PartTitle>
+    <Card data-export-skip="">
+      <PartTitle part="testers" className="border-b border-slate-200 px-4 py-3">People</PartTitle>
+      {/* Only the table scrolls sideways, so the Add to report menu above it isn't cut off (ver_124). */}
+      <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
           <tr>
@@ -623,6 +625,7 @@ export function TestersView({ rows }: { rows: Awaited<ReturnType<typeof testerRe
           ))}
         </tbody>
       </table>
+      </div>
     </Card>
   );
 }

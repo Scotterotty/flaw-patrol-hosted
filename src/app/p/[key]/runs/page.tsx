@@ -9,11 +9,11 @@ import Link from "next/link";
 import { fieldBits } from "@/lib/run-fields";
 import { StartRunBox } from "@/components/start-run-box";
 import { StartBashButton } from "@/components/bash-start";
-import { UploadAutomationButton } from "@/components/automation-upload";
+import { BringInResults } from "@/components/automation-upload";
 import { StatusBar } from "@/components/status";
 import { ViewTabs } from "@/components/view-tabs";
 import { can } from "@/lib/permissions";
-import { Badge, Card, EmptyState, LinkButton, PageHeader } from "@/components/ui";
+import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { db } from "@/lib/db";
 import { relativeTime } from "@/lib/format";
 import { projectAccess, mySpelling } from "@/lib/session";
@@ -59,8 +59,7 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
         subtitle="Start a run from a test suite, or select cases in the library and run them."
         actions={
           <>
-            {can(who, "run:import") && <LinkButton href={`/p/${project.key}/runs/import`}>Import a run</LinkButton>}
-            {can(who, "run:import") && !project.archivedAt && <UploadAutomationButton scope={{ projectKey: project.key }} />}
+            {can(who, "run:import") && <BringInResults scope={{ projectKey: project.key }} importHref={`/p/${project.key}/runs/import`} auto={!project.archivedAt} />}
             {/* In an umbrella, Start a run's Bug bash kind opens this box (ver_95). */}
             {canStart && !project.archivedAt && <StartBashButton projectId={project.id} hideButton={inUmbrella} />}
             {picker}
@@ -77,13 +76,15 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
       />
       {runs.length === 0 ? (
         <EmptyState title={closed ? "No closed runs" : automated ? "No automated runs yet" : "No active runs"}>
-          {automated ? (
-            <>Upload automation results to bring in results from your automated tests. Each upload shows here.</>
+          {!canStart ? (
+            <>{automated ? "When someone uploads results from automated tests, they show here." : closed ? "When a run is closed, it moves here." : "When someone starts a run, it shows here."}</>
+          ) : automated ? (
+            <>Use Bring in results → Automated test results to add results from your automated tests. Each upload shows here.</>
           ) : closed ? (
             <>When a run is closed, it moves here. Open a closed run to reopen it.</>
           ) : (
             <>
-              Press Start a run to test by hand, or Upload automation results to bring in results from your automated tests.
+              Press Start a run to test by hand, or use Bring in results for results from your automated tests or a spreadsheet.
             </>
           )}
         </EmptyState>

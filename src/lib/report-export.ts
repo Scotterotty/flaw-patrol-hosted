@@ -36,7 +36,7 @@ export const EXPORT_TABS = [
   { id: "regression", label: "Regression" },
   { id: "defects", label: "Bugs found" },
   { id: "cases", label: "Case history" },
-  { id: "testers", label: "Testers" },
+  { id: "testers", label: "People" },
   { id: "requirements", label: "Requirements coverage" },
   { id: "findings", label: "Session findings" },
 ] as const;

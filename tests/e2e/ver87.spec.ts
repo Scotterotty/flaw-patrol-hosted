@@ -88,11 +88,11 @@ test("invite message, Test cycles label, roomier runner, underlined links and Sk
   expect(settingsLinks).toEqual(["Settings"]);
 
   // #29: the "You're on this case" bar is above the title, and the comment box has its own full-width line.
-  const bar = page.getByText("You're testing this case.");
+  const bar = page.getByText("You're testing this case, so teammates see it's taken.");
   const title = page.getByRole("heading", { name: "Sign in with email" });
   await expect(bar).toBeVisible();
   expect((await bar.boundingBox())!.y + 20).toBeLessThan((await title.boundingBox())!.y);
-  await expect(page.locator("[data-steps-scroll]").getByText("You're testing this case.")).toBeVisible();
+  await expect(page.locator("[data-steps-scroll]").getByText("You're testing this case, so teammates see it's taken.")).toBeVisible();
   const comment = page.getByRole("textbox", { name: "Comment" });
   const report = page.getByRole("button", { name: "Report bug for case" });
   expect((await comment.boundingBox())!.width).toBeGreaterThan(500);

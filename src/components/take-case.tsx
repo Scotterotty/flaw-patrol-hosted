@@ -45,7 +45,7 @@ export function TakeCase({
     >
       {assignee ? (
         mine ? (
-          <span>You&apos;re testing this case.</span>
+          <span>You&apos;re testing this case, so teammates see it&apos;s taken.</span>
         ) : (
           <span className="flex min-w-0 items-center gap-1.5">
             <PersonLabel person={assignee} size={18} />
@@ -53,7 +53,7 @@ export function TakeCase({
           </span>
         )
       ) : (
-        <span>{closed ? "Nobody took this case." : session ? "Write a note to take this session." : "Mark a step to take this case."}</span>
+        <span>{closed ? "Nobody took this case." : session ? "Write a note to start exploring. Your teammates will see you're on this session." : "Mark a step to start testing. Your teammates will see you're on this case."}</span>
       )}
       {!closed && assignee && !mine && (
         <Button size="sm" disabled={pending} onClick={() => act(true, true)} className="ml-auto">
@@ -61,9 +61,14 @@ export function TakeCase({
         </Button>
       )}
       {!closed && mine && (
-        <Button size="sm" disabled={pending} onClick={() => act(false)} className="ml-auto" title="Leaves the case unassigned so someone else can pick it up. Steps you marked stay.">
-          Hand it back
+        <Button size="sm" disabled={pending} onClick={() => act(false)} className="ml-auto">
+          Stop testing
         </Button>
+      )}
+      {!closed && mine && (
+        <p className="w-full text-xs text-slate-500" data-testid="stop-testing-help">
+          <b>Stop testing</b> frees this case so someone else can test it. Your marks so far are kept, and you can come back and pick it up again.
+        </p>
       )}
       {error && <div className="w-full text-xs"><ErrorText onDismiss={() => setError(null)}>{error}</ErrorText></div>}
     </div>
