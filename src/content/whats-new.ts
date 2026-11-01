@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 134,
+    date: "2026-11-01",
+    items: [
+      {
+        kind: "fix",
+        title: "Dropdowns show their whole text",
+        text: "Dropdowns are now as wide as their longest choice, so Member no longer shows as Membe. This covers Invite your team, Members, Join requests, bug status on Bugs, the test cycle and run pickers on your umbrella, and the release picker.",
+      },
+    ],
+  },
+  {
     version: 133,
     date: "2026-11-01",
     items: [
