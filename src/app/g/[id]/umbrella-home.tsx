@@ -1,6 +1,7 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { CrumbName } from "@/components/crumb-name";
+import { HomeTrends, HomeTrendsLoading } from "@/components/home-trends";
 import { Card, cx, EmptyState, InfoTip, LinkButton } from "@/components/ui";
 import { StartBashButton } from "@/components/bash-start";
 import { StartRunBox } from "@/components/start-run-box";
@@ -197,6 +198,13 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
           </li>
         ))}
       </ul>
+
+      {/* How testing is going (ver_131): pass rates by release or week, Flaky and Keeps failing. Streams in last. */}
+      {runsOn && (
+        <Suspense fallback={<HomeTrendsLoading />}>
+          <HomeTrends u={u} userId={user.id} startHref={canRun ? `${g}?start=run` : null} />
+        </Suspense>
+      )}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((c) => (
