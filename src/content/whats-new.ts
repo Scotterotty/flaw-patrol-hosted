@@ -22,6 +22,34 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 132,
+    date: "2026-11-01",
+    items: [
+      {
+        kind: "new",
+        title: "Email a summary when a run finishes or a bug bash ends",
+        text: "Turn it on in your umbrella's Settings → Email digests. Pick who gets them, add email groups or addresses, and press Send me a sample to see one.",
+        link: "/g/{umbrella}/settings#email-digests",
+      },
+      {
+        kind: "better",
+        title: "Slack posts say what failed",
+        text: "Run finished now lists what failed (regressions first), the bugs filed, who tested and the pass rate against the last run. Bug bash ended has its own alert. Each channel can pick Counts only instead.",
+      },
+      {
+        kind: "new",
+        title: "Choose which emails you get",
+        text: "Your account → Emails I get: runs you tested in, all runs or none, the same for bug bashes, and release testing done. Every email has a Stop link too.",
+        link: "/account#emails",
+      },
+      {
+        kind: "new",
+        title: "Email groups",
+        text: "Save a list of people and addresses once, like Mobile leads, and use it in any umbrella's Email digests. Make one right in the Also send to box.",
+      },
+    ],
+  },
+  {
     version: 131,
     date: "2026-11-01",
     items: [
