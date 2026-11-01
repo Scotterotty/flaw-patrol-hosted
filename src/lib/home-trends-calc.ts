@@ -24,6 +24,29 @@ export type TrendRow = {
   caseNumber: number;
   archived: boolean;
   bugs: { id: string; at: Date; severe: boolean; open: boolean }[];
+  /** For By build (ver_133): the run's link and what to call it. */
+  runKey?: string;
+  runNumber?: number;
+  runName?: string;
+  build?: string;
+};
+
+/** One automated run on By build (ver_133), release or not. */
+export type BuildPoint = {
+  runId: string;
+  href: string;
+  /** The build if the run has one, else "Run 12". */
+  label: string;
+  name: string;
+  /** When the run was saved, as an ISO string; shown in the viewer's own time. */
+  at: string;
+  platform: string;
+  passed: number;
+  failed: number;
+  /** Cases with any other result (skipped, blocked…). */
+  other: number;
+  /** Passed out of passed and failed; null when no test passed or failed. */
+  rate: number | null;
 };
 
 export type Rates = { man: number | null; auto: number | null };
@@ -62,6 +85,8 @@ export type TrendCase = {
 export type HomeTrendsData = {
   release: TrendPoint[];
   week: TrendPoint[];
+  /** Automated runs, oldest first, newest last (ver_133). */
+  build: BuildPoint[];
   hasManual: boolean;
   hasAuto: boolean;
   flaky: TrendCase[];
@@ -78,6 +103,8 @@ export const FAIL_STREAK = 3;
 export const LIST_ROWS = 5;
 /** Weeks kept for By week: about two years. */
 const MAX_WEEKS = 104;
+/** Automated runs kept for By build. */
+const MAX_BUILDS = 200;
 const WEEK = 7 * 86400_000;
 
 const rate = (s: ResultStatus[]) => (s.length ? totals(countStatuses(s)).passRate : null);
@@ -168,6 +195,35 @@ export function homeTrends(rows: TrendRow[], entries: Map<string, number>, now =
     }
   }
 
+  // By build (ver_133): every automated run on its own, so one broken build stands out.
+  const byRun = new Map<string, TrendRow[]>();
+  for (const r of kept) {
+    if (!r.automated) continue;
+    const list = byRun.get(r.runId);
+    if (list) list.push(r);
+    else byRun.set(r.runId, [r]);
+  }
+  const build: BuildPoint[] = [...byRun.values()]
+    .map((rs) => {
+      const r = rs[0];
+      const passed = rs.filter((x) => x.status === "PASSED").length;
+      const failed = rs.filter((x) => x.status === "FAILED").length;
+      return {
+        runId: r.runId,
+        href: r.runKey && r.runNumber ? `/p/${r.runKey}/runs/${r.runNumber}` : "",
+        label: r.build?.trim() || `Run ${r.runNumber ?? ""}`.trim(),
+        name: r.runName ?? "",
+        at: r.runAt.toISOString(),
+        platform: r.platform,
+        passed,
+        failed,
+        other: rs.length - passed - failed,
+        rate: passed + failed ? passed / (passed + failed) : null,
+      };
+    })
+    .sort((a, b) => a.at.localeCompare(b.at))
+    .slice(-MAX_BUILDS);
+
   // Flaky and Keeps failing: every result of each case, newest first, like the ⚡ Flaky badge.
   const byCase = new Map<string, TrendRow[]>();
   for (let i = sorted.length - 1; i >= 0; i--) {
@@ -203,6 +259,7 @@ export function homeTrends(rows: TrendRow[], entries: Map<string, number>, now =
   return {
     release,
     week,
+    build,
     hasManual: kept.some((r) => !r.automated),
     hasAuto: kept.some((r) => r.automated),
     flaky: flaky.slice(0, LIST_ROWS),
@@ -211,6 +268,17 @@ export function homeTrends(rows: TrendRow[], entries: Map<string, number>, now =
     failingTotal: failing.length,
     thisWeek,
   };
+}
+
+/** By build shows twice as many bars as releases or weeks: 12 builds unless the person picked more. */
+export const buildCount = (count: number) => count * 2;
+
+/** One line on build health: "Last 12 builds: 9 all passed, 2 had failures, 1 had no tests run". */
+export function buildHealth(points: BuildPoint[]) {
+  const all = points.filter((p) => p.rate === 1).length;
+  const failed = points.filter((p) => p.failed > 0).length;
+  const none = points.filter((p) => p.rate === null).length;
+  return { all, failed, none };
 }
 
 /** How many releases or weeks the chart shows: 6 unless the person picked more (0 is all). */

@@ -58,7 +58,7 @@ test("connect a GitHub repo, pull a workflow run's results and see the repo's te
   const box = page.getByRole("dialog", { name: "Pull from GitHub" });
   await expect(box.getByLabel("GitHub run 3")).toBeChecked();
   await expect(box.getByText("✕ Failed in GitHub")).toHaveCount(3);
-  await box.getByRole("button", { name: "Next: pick the test cycle" }).click();
+  await box.getByRole("button", { name: "Next: where they go" }).click();
   await expect(box.getByText("junit.xml from GitHub run 3 · 9 tests")).toBeVisible();
   await expect(box.getByLabel(`${NAME} Web RC 4`)).toBeChecked();
   await expect(box.getByLabel("Build")).toHaveValue("3");
@@ -91,7 +91,7 @@ test("connect a GitHub repo, pull a workflow run's results and see the repo's te
   const again = page.getByRole("dialog", { name: "Pull from GitHub" });
   await expect(again.getByLabel("GitHub run 1")).toBeChecked();
   await expect(again.getByText("Already pulled")).toBeVisible();
-  await again.getByRole("button", { name: "Next: pick the test cycle" }).click();
+  await again.getByRole("button", { name: "Next: where they go" }).click();
   await again.getByRole("button", { name: "Next: check results" }).click();
   await again.getByRole("button", { name: "Save 9 results" }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${CYCLE}/runs/2$`));

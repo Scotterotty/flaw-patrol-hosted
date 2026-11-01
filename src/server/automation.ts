@@ -30,12 +30,25 @@ export async function readAutomationFiles(files: Files) {
 
 export type UploadCycle = { id: string; key: string; name: string; color: string; rcName: string; current: boolean };
 
-/** The test cycles the viewer can upload results into: open ones in the umbrella, or the lone test cycle. */
-export async function automationCycles(scope: { groupId: string } | { projectKey: string }) {
+/** What step 2, Where they go (ver_133), needs besides the test cycles. */
+export type WhereInfo = {
+  /** The umbrella, when + New test cycle can make one there. */
+  newCycle: { groupId: string; platforms: string[]; release: string } | null;
+  /** The last pick for this repo: the test cycle, and whether its runs counted toward the release. */
+  remembered: { cycleId: string; countRelease: boolean } | null;
+};
+
+/**
+ * The test cycles the viewer can upload results into: open ones in the umbrella, or the lone
+ * test cycle. Since ver_133 an umbrella with no test cycles isn't an error when the viewer can
+ * make one with + New test cycle; `repoId` brings back the last pick for that repo.
+ */
+export async function automationCycles(scope: { groupId: string } | { projectKey: string }, repoId?: string) {
   return attempt(async () => {
     const user = await requireUser();
     let cycles: UploadCycle[] = [];
     let groupId: string | null = null;
+    let newCycle: WhereInfo["newCycle"] = null;
     if ("groupId" in scope) groupId = scope.groupId;
     else {
       const p = await db.project.findUnique({ where: { key: scope.projectKey.toUpperCase() } });
@@ -57,9 +70,20 @@ export async function automationCycles(scope: { groupId: string } | { projectKey
       cycles = live
         .filter((p) => can({ role: user.isAdmin ? "ADMIN" : (roleOf.get(p.id) ?? null), rules: u.who.rules }, "run:import"))
         .map((p) => ({ id: p.id, key: p.key, name: p.name, color: platformColor(u.platforms, p.platform), rcName: p.rcName, current: current.has(p.id) }));
-      if (!cycles.length) throw new UserError(live.length ? `You can't upload results to any ${u.group.name} test cycle. A lead or admin can.` : `${u.group.name} has no test cycles yet. Add one first: a run always goes in a test cycle.`);
+      // Making a test cycle here needs the same right as Add a test cycle, and uploading into it.
+      if (!u.group.archivedAt && can(u.who, "cycle:create") && can(u.who, "run:import")) {
+        const newest = u.current.find((p) => p.rcName.trim());
+        newCycle = { groupId: u.group.id, platforms: u.platforms.map((p) => p.name), release: newest?.rcName.trim() ?? "" };
+      }
+      if (!cycles.length && !newCycle) throw new UserError(live.length ? `You can't upload results to any ${u.group.name} test cycle. A lead or admin can.` : `${u.group.name} has no test cycles yet. Add one first: a run always goes in a test cycle.`);
     }
-    return { cycles };
+    // Your pick is remembered for each repo: the test cycle and release of its last pulled run.
+    let remembered: WhereInfo["remembered"] = null;
+    if (repoId) {
+      const last = await db.testRun.findFirst({ where: { githubRepoId: repoId, projectId: { in: cycles.map((c) => c.id) } }, orderBy: { createdAt: "desc" }, select: { projectId: true, release: true } });
+      if (last) remembered = { cycleId: last.projectId, countRelease: !!last.release.trim() };
+    }
+    return { cycles, newCycle, remembered } satisfies { cycles: UploadCycle[] } & WhereInfo;
   });
 }
 

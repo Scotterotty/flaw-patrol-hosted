@@ -58,6 +58,12 @@ export async function Runs({ projectIds, state, kind, kinds = [], canStart = tru
                     Closed
                   </Badge>
                 )}
+                {/* Automated runs that don't count toward any release (ver_133). */}
+                {r.automated && !r.release.trim() && (
+                  <Badge tone="gray" className="ml-1" data-testid="no-release">
+                    No release
+                  </Badge>
+                )}
                 {shownKind(r) && <RunKindTag kinds={kinds} kind={shownKind(r)} className="ml-1" />}
                 <KnownCountTag count={known.get(r.id)} />
                 <NewsCountTags count={newsCounts.get(r.id)} />

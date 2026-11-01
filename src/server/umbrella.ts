@@ -13,6 +13,7 @@ import { can, type Action } from "@/lib/permissions";
 import { requireProjectAction, requireUser } from "@/lib/session";
 import { type CarryOver, MAX_SHORTCUTS, OPEN_BUG, parsePlatforms, parseShortcuts, platformColor, SHORTCUT_ICONS, syncUmbrellaMembers, unionMembers } from "@/lib/umbrella";
 import { attempt, UserError } from "./result";
+import { keyCandidates } from "@/lib/cycle-key";
 import { TOOL_IDS, toolsOn, toolsValue, type ToolId } from "@/lib/tools";
 import { MAX_RUN_FIELDS, parseRunFields, type RunField } from "@/lib/run-fields";
 import { fieldsOrFail } from "./run-field-input";
@@ -289,6 +290,36 @@ export async function addUmbrellaProject(groupId: string, input: { name: string;
     });
     refresh(group.id, hub.key);
     return { key };
+  });
+}
+
+/**
+ * + New test cycle in Pull from GitHub and Upload automation results (ver_133): a place for
+ * automated runs, made right in the box. No key is asked for, so one is picked, and it has no
+ * release unless one is typed (then its runs count toward that release).
+ */
+export async function addAutomationCycle(groupId: string, input: { name: string; platform: string; release?: string }) {
+  return attempt(async () => {
+    const { user, role, group, hub } = await requireUmbrella(groupId, "cycle:create");
+    notArchived(group);
+    const name = z.string().trim().min(1, "Give the test cycle a name").max(100).parse(input.name);
+    const typed = z.string().trim().max(30, "Keep platform names under 30 characters.").parse(input.platform ?? "");
+    const rcName = z.string().trim().max(60, "Keep the release under 60 characters.").parse(input.release ?? "");
+    const platforms = parsePlatforms(group.platforms);
+    // Only the umbrella's own platforms are offered here; anything else is left blank.
+    const platform = platforms.find((p) => p.name.toLowerCase() === typed.toLowerCase())?.name ?? "";
+    const tries = keyCandidates(hub.key, name);
+    const taken = new Set((await db.project.findMany({ where: { key: { in: tries } }, select: { key: true } })).map((p) => p.key));
+    const key = tries.find((k) => !taken.has(k));
+    if (!key) throw new UserError("Couldn't find a free key for that name. Try another name.");
+    const made = await db.$transaction(async (tx) => {
+      const p = await tx.project.create({ data: { key, name, groupId: group.id, platform, rcName, members: { create: { userId: user.id, role } } } });
+      await syncUmbrellaMembers(group.id, tx);
+      return p;
+    });
+    await logActivity({ actor: user, kind: "settings", action: `Made test cycle ${name} for automated runs`, project: made });
+    refresh(group.id, hub.key);
+    return { cycle: { id: made.id, key: made.key, name: made.name, color: platformColor(platforms, platform), rcName: made.rcName, current: true } };
   });
 }
 

@@ -26,7 +26,7 @@ export async function loadHomeTrends(hubId: string, projectIds: string[]): Promi
         status: true,
         createdAt: true,
         testerName: true,
-        run: { select: { release: true, createdAt: true, automated: true, project: { select: { platform: true } } } },
+        run: { select: { release: true, createdAt: true, automated: true, number: true, name: true, build: true, project: { select: { platform: true, key: true } } } },
         entry: { select: { title: true, testCase: { select: { number: true, archived: true, project: { select: { key: true } } } } } },
         defects: { select: { defect: { select: { id: true, createdAt: true, severity: true, status: true, externalCategory: true } } } },
       },
@@ -52,6 +52,10 @@ export async function loadHomeTrends(hubId: string, projectIds: string[]): Promi
     caseProjectKey: r.entry.testCase.project.key,
     caseNumber: r.entry.testCase.number,
     archived: r.entry.testCase.archived,
+    runKey: r.run.project.key,
+    runNumber: r.run.number,
+    runName: r.run.name,
+    build: r.run.build,
     bugs: r.defects.map(({ defect: d }) => ({ id: d.id, at: d.createdAt, severe: isSevere(d.severity, scale), open: open(d) })),
   }));
   return homeTrends(rows, new Map(counts.map((c) => [c.runId, c._count])));

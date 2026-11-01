@@ -7,12 +7,20 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { mb, mediaWords, type MediaCounts } from "@/lib/automation-files";
-import { automationCycles, previewAutomation, readAutomationFiles, saveAutomation, type UploadCycle } from "@/server/automation";
+import { automationCycles, previewAutomation, readAutomationFiles, saveAutomation, type UploadCycle, type WhereInfo } from "@/server/automation";
+import { addAutomationCycle } from "@/server/umbrella";
 import { Modal } from "./modal";
 import { MoreMenu } from "./more-menu";
-import { Button, cx, ErrorText, Field, InfoTip, Input } from "./ui";
+import { Button, cx, ErrorText, Field, InfoTip, Input, Select } from "./ui";
 
 type Files = { name: string; text: string }[];
+
+// Where they go (ver_133): every part of step 2 sits on the same inset (a 1px border, seen or
+// not, plus 12px), and every pair of fields on the same two columns, so they all line up.
+const INSET = "border border-transparent px-3";
+const BOX = "grid gap-3 rounded-md border p-3";
+const GRID = "grid items-start gap-3 sm:grid-cols-2";
+const CHIP = "flex cursor-pointer items-center gap-1.5 rounded-full border py-1 pr-3 pl-2 text-sm";
 type Preview = Extract<Awaited<ReturnType<typeof previewAutomation>>, { ok: true }>;
 const MAX_BYTES = 50 * 1024 * 1024;
 const MAX_ZIP_BYTES = 200 * 1024 * 1024;
@@ -156,7 +164,15 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
   const [staged, setStaged] = useState<Staged>({ stageId: pulled?.stageId ?? null, media: pulled?.media ?? null });
   const [summary, setSummary] = useState<{ tests: number; build: string } | null>(pulled ? { tests: pulled.tests, build: pulled.build } : null);
   const [cycles, setCycles] = useState<UploadCycle[] | null>(null);
+  const [where, setWhere] = useState<WhereInfo>({ newCycle: null, remembered: null });
   const [cycleId, setCycleId] = useState("");
+  // Where they go (ver_133): + New test cycle, and whether the run counts toward the release.
+  const [makeNew, setMakeNew] = useState(false);
+  const [newName, setNewName] = useState("Build health");
+  const [newPlatform, setNewPlatform] = useState("");
+  const [newCounts, setNewCounts] = useState(false);
+  const [newRelease, setNewRelease] = useState("");
+  const [countRelease, setCountRelease] = useState(false);
   const [build, setBuild] = useState(pulled?.build ?? "");
   const [name, setName] = useState("");
   const [environment, setEnvironment] = useState("");
@@ -174,14 +190,31 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
   // Pulled from GitHub: the file is in hand, so load the test cycles straight away.
   useEffect(() => {
     if (!pulled) return;
-    automationCycles(scope).then((res) => {
+    automationCycles(scope, pulled.repoId).then((res) => {
       if (!res.ok) return setError(res.error);
       setCycles(res.cycles);
-      if (res.cycles.length === 1) setCycleId(res.cycles[0].id);
+      setWhere(res);
+      pickFirst(res, res.cycles);
     });
     // Once, when the pulled file arrives.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * What's picked for you: the last pick for this repo (ver_133), the test cycle the box was
+   * opened from (ver_85), the only one there is, or + New test cycle when there are none.
+   */
+  const pickFirst = (info: WhereInfo, list: UploadCycle[]) => {
+    if (cycleId || makeNew) return;
+    const here = "projectKey" in scope ? list.find((c) => c.key === scope.projectKey.toUpperCase()) : undefined;
+    const last = info.remembered && list.find((c) => c.id === info.remembered!.cycleId);
+    const pick = last ?? here ?? (list.length === 1 ? list[0] : undefined);
+    if (pick) {
+      setCycleId(pick.id);
+      setCountRelease(!!last && info.remembered!.countRelease);
+    } else if (!list.length && info.newCycle) setMakeNew(true);
+    if (info.newCycle) setNewRelease(info.newCycle.release);
+  };
 
   /** After the files are read (as text, or staged with their pictures): load the test cycles and move on. */
   const opened = async (read: Files, res: { tests: number; build: string }, stage: Staged) => {
@@ -189,14 +222,14 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
     if (opts && !opts.ok) return setError(opts.error);
     const list = opts?.ok ? opts.cycles : cycles!;
     setCycles(list);
+    if (opts?.ok) {
+      setWhere(opts);
+      pickFirst(opts, list);
+    }
     setFiles(read);
     setStaged(stage);
     setSummary({ tests: res.tests, build: res.build });
     setBuild(res.build);
-    // Opened from inside a test cycle: that one is picked for you (ver_85).
-    const here = "projectKey" in scope ? list.find((c) => c.key === scope.projectKey.toUpperCase()) : undefined;
-    if (list.length === 1) setCycleId(list[0].id);
-    else if (here && !cycleId) setCycleId(here.id);
     setStep("cycle");
   };
 
@@ -227,13 +260,27 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
     });
   };
 
-  const cycle = cycles?.find((c) => c.id === cycleId);
-  const autoName = pulled ? githubRunName(pulled.workflow ?? "", pulled.run.number) : ["Automation", cycle?.name, build && `build ${build}`].filter(Boolean).join(" · ");
+  const cycle = makeNew ? undefined : cycles?.find((c) => c.id === cycleId);
+  const autoName = pulled ? githubRunName(pulled.workflow ?? "", pulled.run.number) : ["Automation", makeNew ? newName.trim() : cycle?.name, build && `build ${build}`].filter(Boolean).join(" · ");
+  // The run counts toward the test cycle's release only when that's ticked (ver_133).
+  const counts = !!cycle?.rcName && countRelease;
+  const ready = makeNew ? !!newName.trim() && (!newCounts || !!newRelease.trim()) : !!cycleId;
 
   const check = () =>
     start(async () => {
       setError(null);
-      const res = await previewAutomation(cycleId, files, {}, staged.stageId ?? undefined);
+      let id = cycleId;
+      // + New test cycle: made when you go on, then picked like any other.
+      if (makeNew && where.newCycle) {
+        const made = await addAutomationCycle(where.newCycle.groupId, { name: newName, platform: newPlatform, release: newCounts ? newRelease : "" });
+        if (!made.ok) return setError(made.error);
+        id = made.cycle.id;
+        setCycles((list) => [...(list ?? []), made.cycle]);
+        setCycleId(id);
+        setCountRelease(newCounts);
+        setMakeNew(false);
+      }
+      const res = await previewAutomation(id, files, {}, staged.stageId ?? undefined);
       if (!res.ok) return setError(res.error);
       setPreview(res);
       setLinks({});
@@ -243,7 +290,7 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
   const save = (allowDuplicate: boolean) =>
     start(async () => {
       setError(null);
-      const res = await saveAutomation(cycleId, files, { name, build, environment, links, makeCases, allowDuplicate, ...(staged.stageId && { stageId: staged.stageId }), ...(pulled && { github: { repoId: pulled.repoId, runId: pulled.run.id } }) });
+      const res = await saveAutomation(cycleId, files, { name, build, environment, links, makeCases, allowDuplicate, release: counts ? undefined : "", ...(staged.stageId && { stageId: staged.stageId }), ...(pulled && { github: { repoId: pulled.repoId, runId: pulled.run.id } }) });
       if (!res.ok) return setError(res.error);
       onClose();
       router.push(`/p/${res.key}/runs/${res.number}`);
@@ -252,7 +299,7 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
   return (
     <div className="space-y-4">
       <ol className="flex gap-3 text-xs text-slate-500" aria-label="Steps">
-        {[pulled ? "Pick a GitHub run" : "Drop the file", "Pick the test cycle", "Check and save"].map((label, i) => (
+        {[pulled ? "Pick a GitHub run" : "Drop the file", "Where they go", "Check and save"].map((label, i) => (
           <li key={label} className={cx(["drop", "cycle", "check"].indexOf(step) === i && "font-semibold text-accent-700")} aria-current={["drop", "cycle", "check"].indexOf(step) === i ? "step" : undefined}>
             {i + 1}. {label}
           </li>
@@ -314,7 +361,7 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
 
       {step === "cycle" && summary && cycles && (
         <>
-          <p className="flex flex-wrap items-center gap-2 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          <p className="flex flex-wrap items-center gap-2 rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-700">
             <span className="min-w-0 flex-1">
               📄 <b>{files.map((f) => f.name).join(", ")}</b>
               {pulled && ` from GitHub run ${pulled.run.number}`} · {summary.tests} {summary.tests === 1 ? "test" : "tests"}
@@ -324,52 +371,121 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
               {pulled ? "Pick another run" : "Change file"}
             </button>
           </p>
-          <MediaLine media={staged.media} />
+          {staged.media && (
+            <div className={INSET}>
+              <MediaLine media={staged.media} />
+            </div>
+          )}
           {pulled?.already && (
             <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               GitHub run {pulled.run.number}&apos;s results are already in Flaw Patrol as Run {pulled.already.number}. Saving makes a second run.
             </p>
           )}
-          <section aria-labelledby="au-cycle">
+          <section aria-labelledby="au-cycle" className={INSET}>
             <h3 id="au-cycle" className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-              Which test cycle did these run on?
-              <InfoTip text="The release comes from the test cycle. Only open test cycles you can upload to are listed." />
+              Which test cycle should the run go in?
+              <InfoTip text="Only open test cycles you can upload to are listed. A run counts toward a release only when you tick it." />
             </h3>
             <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Test cycle">
               {cycles.map((c) => (
-                <label key={c.id} className={cx("flex cursor-pointer items-center gap-1.5 rounded-full border py-1 pr-3 pl-2 text-sm", cycleId === c.id ? "border-accent-500 bg-accent-50" : "border-slate-200 hover:bg-slate-50")}>
-                  <input type="radio" name="au-cycle" checked={cycleId === c.id} onChange={() => setCycleId(c.id)} />
+                <label key={c.id} className={cx(CHIP, !makeNew && cycleId === c.id ? "border-accent-500 bg-accent-50" : "border-slate-200 hover:bg-slate-50")}>
+                  <input
+                    type="radio"
+                    name="au-cycle"
+                    checked={!makeNew && cycleId === c.id}
+                    onChange={() => {
+                      setMakeNew(false);
+                      setCycleId(c.id);
+                      setCountRelease(where.remembered?.cycleId === c.id && where.remembered.countRelease);
+                    }}
+                  />
                   <span className="size-2 rounded-full" style={{ background: c.color }} />
                   {c.name}
                 </label>
               ))}
+              {where.newCycle && (
+                <label className={cx(CHIP, "border-dashed font-medium text-accent-700", makeNew ? "border-accent-500 bg-accent-50" : "border-slate-300 hover:bg-slate-50")}>
+                  <input type="radio" name="au-cycle" checked={makeNew} onChange={() => setMakeNew(true)} />+ New test cycle
+                </label>
+              )}
             </div>
-            {cycle?.rcName && <p className="mt-1 text-xs text-slate-500">Release {cycle.rcName} comes from the test cycle.</p>}
+            {pulled && <p className="mt-1.5 text-xs text-slate-500">Next time you pull from this repo, your choice is picked for you.</p>}
           </section>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Build" htmlFor="au-build">
-              <Input id="au-build" value={build} onChange={(e) => setBuild(e.target.value)} placeholder="The build that was tested" />
-            </Field>
-            <Field label="Run name" htmlFor="au-name">
-              <Input id="au-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={autoName} />
-            </Field>
-          </div>
-          <div>
-            <button type="button" className="text-xs text-slate-600 hover:underline" aria-expanded={more} onClick={() => setMore((m) => !m)}>
-              {more ? "▾" : "▸"} More: environment
-            </button>
-            {more && (
-              <div className="mt-2 max-w-sm">
-                <Field label="Environment" htmlFor="au-env">
-                  <Input id="au-env" value={environment} onChange={(e) => setEnvironment(e.target.value)} placeholder="Where the tests ran" />
+
+          {makeNew && where.newCycle && (
+            <div className={cx(BOX, "border-slate-200 bg-slate-50")} data-testid="au-new-cycle">
+              <div className={GRID}>
+                <Field label="Name" htmlFor="au-new-name" hint="A place for builds you just want to keep an eye on.">
+                  <Input id="au-new-name" value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={100} />
+                </Field>
+                <Field label="Platform (optional)" htmlFor="au-new-platform">
+                  <Select id="au-new-platform" value={newPlatform} onChange={(e) => setNewPlatform(e.target.value)}>
+                    <option value="">None</option>
+                    {where.newCycle.platforms.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </Select>
                 </Field>
               </div>
-            )}
+              <label className="flex items-start gap-2 text-sm text-slate-800">
+                <input type="checkbox" className="mt-1 accent-accent-600" checked={newCounts} onChange={(e) => setNewCounts(e.target.checked)} />
+                <span>
+                  Count these toward a release
+                  <span className="block text-xs text-slate-500">{newCounts ? "Its runs count on RC status and By release." : "Leave off to just watch build health. No release is set."}</span>
+                </span>
+              </label>
+              {newCounts && (
+                <div className={GRID}>
+                  <Field label="Release" htmlFor="au-new-release">
+                    <Input id="au-new-release" value={newRelease} onChange={(e) => setNewRelease(e.target.value)} placeholder="Like RC 23" maxLength={60} />
+                  </Field>
+                </div>
+              )}
+            </div>
+          )}
+
+          {cycle?.rcName && (
+            <div className={cx(BOX, "border-slate-200 bg-slate-50")}>
+              <label className="flex items-start gap-2 text-sm text-slate-800">
+                <input type="checkbox" className="mt-1 accent-accent-600" checked={countRelease} onChange={(e) => setCountRelease(e.target.checked)} />
+                <span>
+                  Count these toward release <b>{cycle.rcName}</b>
+                  <span className="block text-xs text-slate-500">
+                    {countRelease ? "On: the run counts on RC status and By release." : "Off: the run sits in this test cycle but doesn't count on RC status or By release."}
+                  </span>
+                </span>
+              </label>
+            </div>
+          )}
+
+          <div className={cx(INSET, "grid gap-3")}>
+            <div className={GRID}>
+              <Field label="Build" htmlFor="au-build">
+                <Input id="au-build" value={build} onChange={(e) => setBuild(e.target.value)} placeholder="The build that was tested" />
+              </Field>
+              <Field label="Run name" htmlFor="au-name">
+                <Input id="au-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={autoName} />
+              </Field>
+            </div>
+            <div>
+              <button type="button" className="text-xs text-slate-600 hover:underline" aria-expanded={more} onClick={() => setMore((m) => !m)}>
+                {more ? "▾" : "▸"} More: environment
+              </button>
+              {more && (
+                <div className={cx(GRID, "mt-2")}>
+                  <Field label="Environment" htmlFor="au-env">
+                    <Input id="au-env" value={environment} onChange={(e) => setEnvironment(e.target.value)} placeholder="Where the tests ran" />
+                  </Field>
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
             <Button onClick={onClose}>Cancel</Button>
-            <Button variant="primary" disabled={!cycleId || pending} onClick={check}>
-              {pending ? "Matching…" : "Next: check results"}
+            <Button variant="primary" disabled={!ready || pending} onClick={check}>
+              {pending ? (makeNew ? "Making the test cycle…" : "Matching…") : "Next: check results"}
             </Button>
           </div>
         </>
@@ -380,6 +496,7 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
           preview={preview}
           build={build}
           cycleName={cycle?.name ?? ""}
+          release={counts ? cycle!.rcName : ""}
           links={links}
           setLinks={setLinks}
           makeCases={makeCases}
@@ -422,6 +539,7 @@ function Check({
   preview,
   build,
   cycleName,
+  release,
   links,
   setLinks,
   makeCases,
@@ -433,6 +551,7 @@ function Check({
   preview: Preview;
   build: string;
   cycleName: string;
+  release: string;
   links: Record<string, string>;
   setLinks: (fn: (l: Record<string, string>) => Record<string, string>) => void;
   makeCases: boolean;
@@ -472,6 +591,7 @@ function Check({
       <div className="space-y-1 text-sm">
         <p className="font-semibold text-slate-900">
           {rows.length} tests{build && ` from build ${build}`} on {cycleName}
+          <span className="ml-1.5 text-xs font-normal text-slate-500">{release ? `· counts toward release ${release}` : "· no release"}</span>
         </p>
         <p className="flex flex-wrap gap-2 text-xs">
           <span className={cx("rounded-full px-2 py-0.5", STATUS_LOOK.PASSED)}>{count("PASSED")} Passed</span>

@@ -1,6 +1,7 @@
 import type { ResultStatus } from "@prisma/client";
 import { describe, expect, it } from "vitest";
-import { homeTrends, trendPrefs, withTrendPrefs, type TrendRow } from "./home-trends-calc";
+import { buildHealth, homeTrends, trendPrefs, withTrendPrefs, type TrendRow } from "./home-trends-calc";
+import { keyCandidates } from "./cycle-key";
 
 let n = 0;
 function row(over: Partial<Omit<TrendRow, "at">> & { status: ResultStatus; at: string }): TrendRow {
@@ -82,5 +83,35 @@ describe("trend prefs", () => {
     expect(trendPrefs(saved)).toEqual({ hidden: true, count: 20 });
     expect(trendPrefs(withTrendPrefs(saved, { hidden: false, count: 0 }))).toEqual({ hidden: false, count: 0 });
     expect(withTrendPrefs(saved, { hidden: false, count: 6 })).toEqual(["account:look"]);
+  });
+});
+
+describe("By build (ver_133)", () => {
+  it("makes one bar per automated run, release or not, oldest first", () => {
+    const rows = [
+      row({ status: "PASSED", at: "2026-11-01T10:00:00Z", runId: "a1", automated: true, runKey: "BH", runNumber: 1, build: "80" }),
+      row({ status: "PASSED", at: "2026-11-01T10:00:01Z", runId: "a1", automated: true, runKey: "BH", runNumber: 1, build: "80" }),
+      row({ status: "FAILED", at: "2026-11-01T12:00:00Z", runId: "a2", automated: true, runKey: "BH", runNumber: 2, build: "81", release: "RC 1" }),
+      row({ status: "PASSED", at: "2026-11-01T12:00:01Z", runId: "a2", automated: true, runKey: "BH", runNumber: 2, build: "81", release: "RC 1" }),
+      row({ status: "SKIPPED", at: "2026-11-01T13:00:00Z", runId: "a3", automated: true, runKey: "BH", runNumber: 3 }),
+      row({ status: "PASSED", at: "2026-11-01T11:00:00Z", runId: "m1" }),
+    ];
+    const t = homeTrends(rows, new Map(), new Date("2026-11-02T00:00:00Z"));
+    expect(t.build.map((b) => b.label)).toEqual(["80", "81", "Run 3"]);
+    expect(t.build[0]).toMatchObject({ passed: 2, failed: 0, rate: 1, href: "/p/BH/runs/1" });
+    expect(t.build[1]).toMatchObject({ passed: 1, failed: 1, rate: 0.5 });
+    expect(t.build[2]).toMatchObject({ rate: null, other: 1 });
+    expect(buildHealth(t.build)).toEqual({ all: 1, failed: 1, none: 1 });
+    // Runs with no release still show here, while By release leaves them out.
+    expect(t.release.map((r) => r.key)).toEqual(["RC 1"]);
+  });
+});
+
+describe("keyCandidates (ver_133)", () => {
+  it("joins the umbrella key and the name's letters, then numbers", () => {
+    expect(keyCandidates("OKO", "Build health").slice(0, 3)).toEqual(["OKOBH", "OKOBH2", "OKOBH3"]);
+    expect(keyCandidates("LONGUMBRELL", "Build health")[0]).toBe("LONGUMBREL");
+    expect(keyCandidates("LONGUMBRELL", "Build health")[1]).toBe("LONGUMBRE2");
+    for (const k of keyCandidates("A", "1")) expect(k).toMatch(/^[A-Z][A-Z0-9]{1,9}$/);
   });
 });

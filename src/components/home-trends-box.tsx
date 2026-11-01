@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { cx } from "@/components/ui";
-import { TREND_COUNTS, type HomeTrendsData, type TrendCase, type TrendCount, type TrendPoint } from "@/lib/home-trends-calc";
+import { buildCount, buildHealth, TREND_COUNTS, type BuildPoint, type HomeTrendsData, type TrendCase, type TrendCount, type TrendPoint } from "@/lib/home-trends-calc";
 import { saveHomeTrendPrefs } from "@/server/home-trends";
 
-type Mode = "release" | "week";
+type Mode = "release" | "week" | "build";
 type Kind = "man" | "auto";
 type Platform = { name: string; color: string };
 
@@ -47,6 +47,8 @@ export function HomeTrendsBox({
 
   const all = mode === "release" ? data.release : data.week;
   const shown = count ? all.slice(-count) : all;
+  // By build (ver_133): one bar per automated run.
+  const builds = count ? data.build.slice(-buildCount(count)) : data.build;
   const empty = !data.release.length && !data.week.some((p) => p.manCases + p.autoCases);
   // The tiles read the newest release, or the newest week with results.
   const withData = all.filter((p) => p.manCases + p.autoCases > 0);
@@ -56,7 +58,7 @@ export function HomeTrendsBox({
   const usedPlatforms = platforms.filter((p) => all.some((x) => x.plat[p.name]));
   const canSplit = usedPlatforms.length > 1;
   const both = data.hasManual && data.hasAuto;
-  const unit = mode === "release" ? "release" : "week";
+  const unit = mode === "release" ? "release" : mode === "week" ? "week" : "build";
 
   const fold = () => {
     const next = !hidden;
@@ -104,6 +106,7 @@ export function HomeTrendsBox({
                 options={[
                   { id: "release", label: "By release", disabled: !enoughReleases, title: enoughReleases ? undefined : "Needs two releases with results" },
                   { id: "week", label: "By week" },
+                  { id: "build", label: "By build", disabled: !data.build.length, title: data.build.length ? "Each automated run on its own" : "Needs an automated run" },
                 ]}
               />
               <select
@@ -119,7 +122,7 @@ export function HomeTrendsBox({
               >
                 {TREND_COUNTS.map((c) => (
                   <option key={c} value={c}>
-                    {c ? `Last ${c} ${unit}s` : `All ${unit}s`}
+                    {c ? `Last ${mode === "build" ? buildCount(c) : c} ${unit}s` : `All ${unit}s`}
                   </option>
                 ))}
               </select>
@@ -156,6 +159,21 @@ export function HomeTrendsBox({
               </div>
             </div>
           ) : (
+            mode === "build" ? (
+              <>
+                <BuildHealth points={builds} />
+                <div className="grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+                  <div className="relative min-w-0 border-b border-slate-200 p-4 lg:border-r lg:border-b-0">
+                    <h3 className="text-sm font-semibold text-slate-900">Pass rate by build</h3>
+                    <p className="mt-0.5 mb-2 text-xs text-slate-500">
+                      Automated runs only: each GitHub pull or upload, with a release or not. {count && data.build.length > builds.length ? `Last ${builds.length} builds.` : `All ${plural(builds.length, "build")}.`} Click a bar to open that run.
+                    </p>
+                    <BuildBars points={builds} />
+                  </div>
+                  <CaseLists data={data} list={list} setList={setList} g={g} />
+                </div>
+              </>
+            ) : (
             <>
               <Tiles last={last} prev={prev} when={when(last)} prevWhen={(k) => when(prev(k))} data={data} mode={mode} />
               <div className="grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
@@ -197,12 +215,92 @@ export function HomeTrendsBox({
                 <CaseLists data={data} list={list} setList={setList} g={g} />
               </div>
             </>
+            )
           )}
         </div>
       )}
     </section>
   );
 }
+
+/** "Nov 1, 1:05 PM PST", in the viewer's own time zone. */
+const timeOf = (iso: string) => new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+
+/** By build (ver_133): the newest automated run, and how the last ones went, in one line. */
+function BuildHealth({ points }: { points: BuildPoint[] }) {
+  const last = points.at(-1);
+  if (!last) return null;
+  const h = buildHealth(points);
+  const parts = [h.all && `${fmt(h.all)} all passed`, h.failed && `${fmt(h.failed)} had failures`, h.none && `${fmt(h.none)} had no tests run`].filter(Boolean);
+  return (
+    <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 border-b border-slate-200 px-4 py-3 text-sm" data-testid="build-health">
+      <b className="text-slate-900">Last build: {last.name || last.label}</b>
+      <span className={cx("rounded px-1.5 py-px text-xs font-medium", last.failed ? "bg-st-failed-soft text-st-failed-ink" : last.rate === null ? "bg-slate-100 text-slate-600" : "bg-st-passed-soft text-st-passed-ink")}>
+        {last.rate === null ? "No tests ran" : `${fmt(last.passed)} of ${fmt(last.passed + last.failed)} passed`}
+      </span>
+      <span className="text-slate-500" suppressHydrationWarning>
+        {timeOf(last.at)}
+        {last.platform && ` · ${last.platform}`}
+      </span>
+      {points.length > 1 && (
+        <span className="text-slate-500">
+          · Last {plural(points.length, "build")}: {parts.join(", ")}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** One bar per automated run, newest on the right; a failed test turns its bar red. */
+function BuildBars({ points }: { points: BuildPoint[] }) {
+  const every = Math.ceil(points.length / 12);
+  return (
+    <div>
+      <div className="flex h-36 items-end gap-1 border-b border-slate-200" role="list" aria-label="Pass rate per build" data-testid="build-bars">
+        {points.map((p) => {
+          const tip = `${p.name || p.label}: ${p.rate === null ? "no tests ran" : `${p.passed} of ${p.passed + p.failed} passed`}`;
+          return (
+            <Link
+              key={p.runId}
+              href={p.href}
+              role="listitem"
+              aria-label={tip}
+              title={`${tip} · open the run`}
+              data-testid="build-bar"
+              className="group flex h-full max-w-12 min-w-0 flex-1 items-end"
+            >
+              <span
+                className={cx("block w-full rounded-t-sm group-hover:opacity-80", p.rate === null ? "h-full" : p.failed ? "bg-st-failed" : "bg-st-passed")}
+                style={p.rate === null ? { background: HATCH } : { height: `${Math.max(4, Math.round(p.rate * 100))}%` }}
+              />
+            </Link>
+          );
+        })}
+      </div>
+      <div className="mt-1 flex gap-1 text-[10.5px] text-slate-500 tabular-nums">
+        {points.map((p, i) => (
+          <span key={p.runId} className={cx("max-w-12 min-w-0 flex-1 truncate text-center", i === points.length - 1 && "font-semibold text-slate-900")}>
+            {(points.length - 1 - i) % every === 0 ? p.label : ""}
+          </span>
+        ))}
+      </div>
+      <div className="mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1 text-xs text-slate-600">
+        <span className="inline-flex items-center gap-1.5">
+          <i className="inline-block size-2.5 rounded-xs bg-st-passed" /> All passed
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <i className="inline-block size-2.5 rounded-xs bg-st-failed" /> Some failed
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <i className="inline-block size-2.5 rounded-xs" style={{ background: HATCH }} /> No tests ran
+        </span>
+        <span>Times in your time zone</span>
+      </div>
+    </div>
+  );
+}
+
+const HATCH = "repeating-linear-gradient(45deg, var(--color-slate-300) 0 3px, transparent 3px 6px)";
 
 function weekBefore(key: string) {
   const d = new Date(`${key}T00:00:00Z`);

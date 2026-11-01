@@ -324,7 +324,7 @@ function Pull({ groupId, repos, runId, onClose }: { groupId: string; repos: { id
   return (
     <div className="space-y-4">
       <ol className="flex gap-3 text-xs text-slate-500" aria-label="Steps">
-        {["Pick a GitHub run", "Pick the test cycle", "Check and save"].map((s, i) => (
+        {["Pick a GitHub run", "Where they go", "Check and save"].map((s, i) => (
           <li key={s} className={cx(i === 0 && "font-semibold text-accent-700")} aria-current={i === 0 ? "step" : undefined}>
             {i + 1}. {s}
           </li>
@@ -398,7 +398,7 @@ function Pull({ groupId, repos, runId, onClose }: { groupId: string; repos: { id
       <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
         <Button onClick={onClose}>Cancel</Button>
         <Button variant="primary" disabled={!pick || pending || !list} onClick={next}>
-          {pending ? "Downloading results…" : "Next: pick the test cycle"}
+          {pending ? "Downloading results…" : "Next: where they go"}
         </Button>
       </div>
     </div>

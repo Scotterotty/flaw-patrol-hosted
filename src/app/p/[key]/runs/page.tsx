@@ -104,6 +104,11 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
                         🤖 Automated
                       </Badge>
                     )}
+                    {r.automated && !r.release.trim() && (
+                      <Badge tone="gray" className="ml-1" data-testid="no-release">
+                        No release
+                      </Badge>
+                    )}
                     {shownKind(r) && <RunKindTag kinds={kinds} kind={shownKind(r)} className="ml-2" />}
                     <KnownCountTag count={known.get(r.id)} />
                     <NewsCountTags count={newsCounts.get(r.id)} />
