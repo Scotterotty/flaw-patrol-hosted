@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signIn } from "./auth";
+import { openSpinners, signIn } from "./auth";
 import { standaloneProject } from "./projects";
 
 // ver_116: your spinner shows in the corner whenever something takes more than a third of a
@@ -90,7 +90,8 @@ test("a slow save shows the corner spinner until it's done", async ({ page }) =>
   test.setTimeout(120_000);
   await signIn(page, "admin@example.com", "Demo Admin");
   await page.goto("/account#appearance");
-  const picker = page.getByTestId("spinner-picker");
+  await openSpinners(page);
+  const picker = page.getByTestId("spinner-picker").getByRole("list");
   await expect(picker.getByRole("button", { name: /Plain ring/ })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("html")).toHaveAttribute("data-busy-corner", "on");
   await page.route(/\/account(\?.*)?(#.*)?$/, async (route) => {

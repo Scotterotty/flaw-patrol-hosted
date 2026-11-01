@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanSpinners, pickSpinner, SPINNERS } from "./spinners";
+import { cleanSpinners, pickSpinner, SPINNER_FOLD, SPINNERS, spinnerLine } from "./spinners";
 
 describe("loading spinners", () => {
   it("has 13 with unique ids", () => {
@@ -16,5 +16,14 @@ describe("loading spinners", () => {
     expect(pickSpinner(["radar", "dice"], 0.99)).toBe("dice");
     expect(pickSpinner(["radar", "dice"], 1)).toBe("dice");
     expect(pickSpinner(undefined, 0.5)).toBe("ring");
+  });
+  it("folds to one line that says what you ticked", () => {
+    expect(spinnerLine(["ring"])).toBe("Plain ring");
+    expect(spinnerLine([])).toBe("Plain ring");
+    expect(spinnerLine(["stopwatch", "radar", "bug"])).toBe("3 ticked: Patrol radar, Bug crawl, Stopwatch");
+    expect(spinnerLine(SPINNERS.map((s) => s.id))).toMatch(/^13 ticked: Plain ring, /);
+  });
+  it("saves its open state under an id the account accepts", () => {
+    expect(SPINNER_FOLD).toMatch(/^[a-z]+:[a-z-]+$/);
   });
 });

@@ -42,3 +42,13 @@ export function pickSpinner(ids: readonly string[] | null | undefined, roll: num
   const list = cleanSpinners(ids);
   return list[Math.min(list.length - 1, Math.floor(roll * list.length))];
 }
+
+/** The open-state id of the folding Loading spinners section (ver_123), also in Your account's Open all. */
+export const SPINNER_FOLD = "acct:spinners";
+
+/** The folded Loading spinners line (ver_123): one name, or "3 ticked: Patrol radar, Bug crawl, Stopwatch". */
+export function spinnerLine(ids: readonly string[] | null | undefined) {
+  const mine = cleanSpinners(ids);
+  const names = SPINNERS.filter((s) => mine.includes(s.id)).map((s) => s.label);
+  return names.length === 1 ? names[0] : `${names.length} ticked: ${names.join(", ")}`;
+}

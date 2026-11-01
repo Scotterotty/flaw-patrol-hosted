@@ -18,7 +18,7 @@ import { LanguageSettings } from "./language-settings";
 import { MenuOrderReset } from "./menu-order-reset";
 import { RadioSettings } from "./radio-settings";
 import { SpinnerPicker } from "./spinner-picker";
-import { cleanSpinners, pawnEmoji, SPINNERS } from "@/lib/spinners";
+import { cleanSpinners, pawnEmoji, SPINNER_FOLD, SPINNERS } from "@/lib/spinners";
 
 type Me = {
   id: string;
@@ -84,7 +84,7 @@ export async function ProfileSettings({ user }: { user: Me }) {
   return (
     <OpenCardsProvider initial={user.openCards ?? []}>
       <div className="mb-3 flex justify-end">
-        <OpenAllButton ids={CARDS.map((c) => `acct:${c}`)} />
+        <OpenAllButton ids={[...CARDS.map((c) => `acct:${c}`), SPINNER_FOLD]} />
       </div>
       <div className="space-y-3">
         <AccountCard

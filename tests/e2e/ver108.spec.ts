@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signIn } from "./auth";
+import { openSpinners, signIn } from "./auth";
 import { standaloneProject } from "./projects";
 
 // ver_108: after Start the box stays up ("Starting…", then "R1 … is ready. Opening it…") until
@@ -43,13 +43,15 @@ test("anyone can tick loading spinners in Account → Appearance", async ({ page
   test.setTimeout(120_000);
   await signIn(page, "admin@example.com", "Demo Admin");
   await page.goto("/account#appearance");
-  const picker = page.getByTestId("spinner-picker");
+  await openSpinners(page);
+  // The tiles; the fold line above them also names what's ticked.
+  const picker = page.getByTestId("spinner-picker").getByRole("list");
   await expect(picker.getByRole("button", { pressed: true })).toHaveCount(1);
   await expect(picker.getByRole("button", { name: /Plain ring/ })).toHaveAttribute("aria-pressed", "true");
   await expect(picker.getByRole("listitem")).toHaveCount(13);
   await picker.getByRole("button", { name: /Bug crawl/ }).click();
   await picker.getByRole("button", { name: /Patrol radar/ }).click();
-  await expect(picker).toContainText("3 ticked");
+  await expect(page.getByTestId("spinner-summary")).toHaveText("3 ticked: Plain ring, Patrol radar, Bug crawl");
   await expect(page.locator("html")).toHaveAttribute("data-spinners", "ring radar bug");
   // Saved on the account: still there after a reload.
   await expect.poll(async () => {
@@ -57,7 +59,8 @@ test("anyone can tick loading spinners in Account → Appearance", async ({ page
     return page.locator("html").getAttribute("data-spinners");
   }).toBe("ring radar bug");
   // Unticking all of them leaves the plain ring.
-  for (const name of [/Plain ring/, /Patrol radar/, /Bug crawl/]) await page.getByTestId("spinner-picker").getByRole("button", { name }).click();
+  await openSpinners(page);
+  for (const name of [/Plain ring/, /Patrol radar/, /Bug crawl/]) await picker.getByRole("button", { name }).click();
   await expect(page.locator("html")).toHaveAttribute("data-spinners", "ring");
-  await expect(page.getByTestId("spinner-picker").getByRole("button", { name: /Plain ring/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(picker.getByRole("button", { name: /Plain ring/ })).toHaveAttribute("aria-pressed", "true");
 });

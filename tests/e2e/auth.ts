@@ -76,3 +76,11 @@ export async function openAccount(page: Page, hash = "") {
     await page.waitForTimeout(200);
   }
 }
+
+/** Loading spinners folds to one line (ver_123): open it if it's closed. */
+export async function openSpinners(page: Page) {
+  const fold = page.getByTestId("spinner-picker").getByRole("button", { name: /^Loading spinners/ });
+  await expect(fold).toBeVisible();
+  if ((await fold.getAttribute("aria-expanded")) !== "true") await fold.click();
+  await expect(fold).toHaveAttribute("aria-expanded", "true");
+}

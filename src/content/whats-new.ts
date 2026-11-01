@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 123,
+    date: "2026-11-01",
+    items: [
+      {
+        kind: "better",
+        title: "Loading spinners folds to one line",
+        text: "On Your account, under Appearance, Loading spinners now starts closed and shows what you picked. Click the line to open it and tick spinners. It remembers if you leave it open.",
+        link: "/account#appearance",
+      },
+    ],
+  },
+  {
     version: 122,
     date: "2026-11-01",
     items: [
