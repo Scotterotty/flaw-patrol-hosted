@@ -146,6 +146,8 @@ connection string.
    The first person to sign in becomes the admin.
 
 Next time, just run `node start.mjs` again. Add `--demo` for a sample project.
+Add `--fast` to build the app once (a few minutes, and again only after the code
+changes) and run the finished build, so pages aren't built on your first visit.
 
 To see how long the Umbrellas page takes to load, add `FP_TIMING=1` to `.env`
 (or run `$env:FP_TIMING="1"` in PowerShell first) and start Flaw Patrol. Each
