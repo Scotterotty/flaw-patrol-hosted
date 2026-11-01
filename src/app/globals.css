@@ -1711,6 +1711,25 @@ main:focus {
   box-shadow: 0 6px 20px rgb(0 0 0 / 0.14);
   pointer-events: none;
 }
+/* ver_130: a save that takes more than 10 seconds says so at the top middle, under the line, out of the way. */
+.fp-busy-slow {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 70;
+  max-width: calc(100vw - 2rem);
+  padding: 0.2rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-amber-200, #fde68a);
+  background: var(--color-amber-50, #fffbeb);
+  color: var(--color-amber-800, #92400e);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
+  pointer-events: none;
+}
 @media (min-width: 768px) {
   .fp-busy-pill {
     bottom: calc(1rem + env(safe-area-inset-bottom, 0px));

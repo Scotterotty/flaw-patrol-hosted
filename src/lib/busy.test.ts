@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { busyLabel, opensHere, requestKind } from "./busy";
+import { actionRedirect, busyLabel, movesPage, opensHere, requestKind, samePath } from "./busy";
 
 describe("corner spinner helpers", () => {
   it("counts saves and page loads, not prefetches or polls", () => {
@@ -32,5 +32,19 @@ describe("corner spinner helpers", () => {
     expect(opensHere({ href: "/export.csv", download: true }, here, {})).toBe(false);
     expect(opensHere({ href: "https://github.com/x" }, here, {})).toBe(false);
     expect(opensHere({ href: "mailto:a@b.c" }, here, {})).toBe(false);
+  });
+  it("tells a page move from a filter on the same page (ver_130)", () => {
+    const here = { href: "http://fp.test/p/WEB/cases?x=1", origin: "http://fp.test" };
+    expect(movesPage({ href: "/p/WEB/suites" }, here, {})).toBe(true);
+    expect(movesPage({ href: "/p/WEB/cases?x=2" }, here, {})).toBe(false);
+    expect(movesPage({ href: "/p/WEB/cases/" }, here, {})).toBe(false);
+    expect(movesPage({ href: "/p/WEB/runs" }, here, { meta: true })).toBe(false);
+    expect(samePath("/p/WEB/cases?_rsc=abc", here.href)).toBe(true);
+    expect(samePath("http://fp.test/p/WEB/runs?_rsc=abc", here.href)).toBe(false);
+    expect(samePath("http://[bad", here.href)).toBeNull();
+    expect(actionRedirect("/p/WEB/runs/5;push")).toBe("/p/WEB/runs/5");
+    expect(actionRedirect("/settings")).toBe("/settings");
+    expect(actionRedirect(null)).toBeNull();
+    expect(actionRedirect("")).toBeNull();
   });
 });

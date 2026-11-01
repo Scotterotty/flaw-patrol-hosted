@@ -3,9 +3,14 @@
  * working for you" and what to call it. The component lives in components/busy-corner.tsx.
  */
 
-/** Waits shorter than this show nothing, so quick clicks don't flicker (Scott, ver_116). */
+/** Page moves shorter than this show nothing, so quick clicks don't flicker (Scott, ver_116). */
 export const SHOW_AFTER_MS = 333;
-/** After this, the corner adds "Still working, hang tight". */
+/**
+ * Things you do on a page (a result, Save, a tick, a filter) only get the thin top line, and
+ * sooner, so even quick saves give a hint (ver_130, Scott: keep loading signs out of the way).
+ */
+export const LINE_AFTER_MS = 150;
+/** After this, a page move adds "Still working, hang tight" and a save shows "Still saving, hang tight". */
 export const SLOW_AFTER_MS = 10_000;
 /** A request this soon after your click, press or key counts as yours. */
 export const GESTURE_MS = 1500;
@@ -84,4 +89,30 @@ export function opensHere(
   if (to.origin !== here.origin || !/^https?:$/.test(to.protocol)) return false;
   // Only the #part changes: the page just scrolls.
   return to.pathname !== now.pathname || to.search !== now.search;
+}
+
+/** Whether a link click moves to another page (the corner spinner), not just a filter or sort on this one (the line only). */
+export function movesPage(
+  link: { href: string; target?: string; download?: boolean },
+  here: { href: string; origin: string },
+  keys: { meta?: boolean; ctrl?: boolean; shift?: boolean; alt?: boolean; button?: number },
+): boolean {
+  if (!opensHere(link, here, keys)) return false;
+  return samePath(link.href, here.href) === false;
+}
+
+/** Whether an address (maybe relative) is the page you're on, ignoring ?filters and #parts. null if it can't be read. */
+export function samePath(to: string, here: string): boolean | null {
+  try {
+    const now = new URL(here);
+    return new URL(to, now.href).pathname.replace(/\/+$/, "") === now.pathname.replace(/\/+$/, "");
+  } catch {
+    return null;
+  }
+}
+
+/** Where a save sends you next, from Next.js's x-action-redirect answer ("/p/QA/runs/5;push"). */
+export function actionRedirect(value: string | null | undefined): string | null {
+  const to = (value ?? "").split(";")[0].trim();
+  return to ? to : null;
 }

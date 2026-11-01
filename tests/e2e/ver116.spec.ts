@@ -2,8 +2,9 @@ import { expect, test } from "@playwright/test";
 import { openSpinners, signIn } from "./auth";
 import { standaloneProject } from "./projects";
 
-// ver_116: your spinner shows in the corner whenever something takes more than a third of a
+// ver_116: your spinner shows in the corner whenever a page move takes more than a third of a
 // second, and the Start box shows it from the moment you press Start.
+// ver_130: things you do on a page (saves, ticks, filters) only show the thin top line.
 
 const run = Date.now().toString(36).slice(-4).toUpperCase();
 const csv = ["Title,Steps,Expected Result", `Open the shop ${run},Open the shop,Shop shows`].join("\n");
@@ -86,7 +87,7 @@ test("the Start box shows your spinner while it makes the run, and the corner st
   await expect(page.getByRole("dialog", { name: "Start a run" })).toHaveCount(0);
 });
 
-test("a slow save shows the corner spinner until it's done", async ({ page }) => {
+test("a slow save shows only the top line, never the corner spinner (ver_130)", async ({ page }) => {
   test.setTimeout(120_000);
   await signIn(page, "admin@example.com", "Demo Admin");
   await page.goto("/account#appearance");
@@ -94,15 +95,42 @@ test("a slow save shows the corner spinner until it's done", async ({ page }) =>
   const picker = page.getByTestId("spinner-picker").getByRole("list");
   await expect(picker.getByRole("button", { name: /Plain ring/ })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("html")).toHaveAttribute("data-busy-corner", "on");
+  await page.evaluate(() => {
+    const w = window as unknown as { cornerSeen: number };
+    w.cornerSeen = 0;
+    new MutationObserver(() => {
+      if (document.querySelector('[data-testid="busy-corner"]')) w.cornerSeen++;
+    }).observe(document.body, { childList: true, subtree: true });
+  });
   await page.route(/\/account(\?.*)?(#.*)?$/, async (route) => {
     if (route.request().method() === "POST" && route.request().headers()["next-action"]) await new Promise((r) => setTimeout(r, 1500));
     await route.continue();
   });
+  const line = page.getByTestId("busy-line");
   await picker.getByRole("button", { name: /Lucky roll/ }).click();
-  const corner = page.getByTestId("busy-corner");
-  await expect(corner).toContainText("Working…");
-  await expect(corner).toHaveCount(0, { timeout: 15_000 });
+  await expect(line).toBeVisible();
+  await expect(line).toHaveCount(0, { timeout: 15_000 });
   await picker.getByRole("button", { name: /Lucky roll/ }).click();
-  await expect(corner).toContainText("Working…");
-  await expect(corner).toHaveCount(0, { timeout: 15_000 });
+  await expect(line).toBeVisible();
+  await expect(line).toHaveCount(0, { timeout: 15_000 });
+  expect(await page.evaluate(() => (window as unknown as { cornerSeen: number }).cornerSeen)).toBe(0);
+});
+
+test("a save that takes over 10 seconds says so at the top middle (ver_130)", async ({ page }) => {
+  test.setTimeout(120_000);
+  await signIn(page, "admin@example.com", "Demo Admin");
+  await page.goto("/account#appearance");
+  await openSpinners(page);
+  const picker = page.getByTestId("spinner-picker").getByRole("list");
+  await expect(page.locator("html")).toHaveAttribute("data-busy-corner", "on");
+  await page.route(/\/account(\?.*)?(#.*)?$/, async (route) => {
+    if (route.request().method() === "POST" && route.request().headers()["next-action"]) await new Promise((r) => setTimeout(r, 11_000));
+    await route.continue();
+  });
+  await picker.getByRole("button", { name: /Lucky roll/ }).click();
+  await expect(page.getByTestId("busy-line")).toBeVisible();
+  const slow = page.getByTestId("busy-slow");
+  await expect(slow).toHaveText("Still saving, hang tight", { timeout: 15_000 });
+  await expect(page.getByTestId("busy-corner")).toHaveCount(0);
+  await expect(slow).toHaveCount(0, { timeout: 15_000 });
 });
