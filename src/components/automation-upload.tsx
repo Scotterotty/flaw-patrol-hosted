@@ -433,7 +433,7 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
                 <input type="checkbox" className="mt-1 accent-accent-600" checked={newCounts} onChange={(e) => setNewCounts(e.target.checked)} />
                 <span>
                   Count these toward a release
-                  <span className="block text-xs text-slate-500">{newCounts ? "Its runs count on RC status and By release." : "Leave off to just watch build health. No release is set."}</span>
+                  <span className="block text-xs text-slate-500">{newCounts ? "Its runs count on Release status and By release." : "Leave off to just watch build health. No release is set."}</span>
                 </span>
               </label>
               {newCounts && (
@@ -453,7 +453,7 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
                 <span>
                   Count these toward release <b>{cycle.rcName}</b>
                   <span className="block text-xs text-slate-500">
-                    {countRelease ? "On: the run counts on RC status and By release." : "Off: the run sits in this test cycle but doesn't count on RC status or By release."}
+                    {countRelease ? "On: the run counts on Release status and By release." : "Off: the run sits in this test cycle but doesn't count on Release status or By release."}
                   </span>
                 </span>
               </label>
