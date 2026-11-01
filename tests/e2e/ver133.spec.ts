@@ -105,7 +105,8 @@ test("automated results go in a new test cycle with no release, and show By buil
 
   // How testing is going: By build has one bar per automated run, the newest one failed.
   await page.goto(`/g/${groupId}`);
-  const trends = page.getByTestId("home-trends");
+  // Only the box you can see: it streams in, with a hidden copy for a moment (see ver131.spec).
+  const trends = page.getByTestId("home-trends").filter({ visible: true });
   await trends.getByRole("button", { name: "By build" }).click();
   await expect(trends.getByTestId("build-bar")).toHaveCount(2);
   await expect(trends.getByTestId("build-health")).toContainText("1 of 2 passed");

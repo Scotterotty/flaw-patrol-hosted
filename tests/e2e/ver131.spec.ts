@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { signIn } from "./auth";
 import { makeTrendsUmbrella } from "./trends-umbrella";
 
@@ -20,6 +20,10 @@ const resetLead = async () => {
   }
 };
 test.beforeEach(resetLead);
+
+// The box streams in after the page. For a moment React keeps a hidden copy of it in the page
+// before swapping it in, so look only in the one you can see.
+const visibleBox = (page: Page) => page.getByTestId("home-trends").filter({ visible: true });
 test.afterAll(resetLead);
 
 test("How testing is going shows manual and automated apart, picks how many, and hides", async ({ page }) => {
@@ -28,7 +32,7 @@ test("How testing is going shows manual and automated apart, picks how many, and
   await page.setViewportSize({ width: 1280, height: 1000 });
   await signIn(page, "lead@example.com", "Demo Lead");
   await page.goto(`/g/${id}`);
-  const box = page.getByTestId("home-trends");
+  const box = visibleBox(page);
   await expect(box.getByRole("heading", { name: "How testing is going" })).toBeVisible();
 
   // Tiles: the newest release, manual and automated on their own.
@@ -111,7 +115,7 @@ test("a new umbrella with no results says so", async ({ page }) => {
   }
   await signIn(page, "lead@example.com", "Demo Lead");
   await page.goto(`/g/${id}`);
-  const box = page.getByTestId("home-trends");
+  const box = visibleBox(page);
   await expect(box.getByText("No finished runs yet")).toBeVisible();
   await expect(box.getByTestId("trends-count")).toHaveCount(0);
 });
