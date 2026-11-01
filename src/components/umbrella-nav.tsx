@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import type { UmbrellaNav as NavData } from "@/lib/umbrella";
 import { MenuHead, SideMenu, type MenuGroup, type MenuItem } from "./side-menu";
+import { everything, reportsHome, type ToolId } from "@/lib/tools";
 
 /**
  * The umbrella's left menu: its Case library, runs across its test cycles (with the current RC ones), bugs and settings.
@@ -29,59 +30,70 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
   const cycleLinks: MenuItem[] = c
     ? [
         { href: cb, id: c.older ? undefined : cycleKey(c.key), label: c.older ? c.name : shortName(c), dot: c.color, sub: true, onBar: true },
-        ...(c.quests ? [{ href: `${cb}/quests`, label: "Quest map", inner: true, onBar: true }] : []),
+        ...(c.quests && u.tools.includes("quest") ? [{ href: `${cb}/quests`, label: "Quest map", inner: true, onBar: true }] : []),
         // Cases from before the test cycle joined the umbrella stay reachable until they're moved up.
         ...(c.ownCases ? [{ href: `${cb}/cases`, label: "Cases left here", count: c.ownCases, inner: true }] : []),
       ]
     : [];
-  const groups: MenuGroup[] = [
+  // Tools (ver_128): a tool the umbrella doesn't use leaves the menu, with + Add tools at the bottom for Admins.
+  const on = (t: ToolId) => u.tools.includes(t);
+  const runsOn = on("runs");
+  const all: MenuGroup[] = [
     { label: "", items: [{ href: g, label: "Overview", exact: true }] },
     {
       label: "Library",
       items: [
-        { href: `${hub}/cases`, id: "cases", label: "Case library", count: u.counts.cases, tip: `Whole test cases every ${u.name} test cycle runs` },
-        { href: `${hub}/charters`, id: "charters", label: "Charters", count: u.counts.charters, tip: "Missions to explore without steps, and the test personas you explore as" },
-        { href: `${hub}/stories`, id: "stories", label: "Requirements", tip: "Jira stories, Epics and other requirements, and which cases test them" },
-        { href: `${hub}/suites`, id: "suites", label: "Test suites", count: u.counts.suites },
-        { href: `${hub}/shared-steps`, id: "shared", label: "Shared steps", count: u.counts.shared, tip: "Extra steps you add to new or existing cases" },
-        { href: `${hub}/glossary`, id: "glossary", label: "Glossary", count: glossary?.count || undefined, note: glossary?.unseen, tip: "The team's words and what they mean" },
+        { href: `${hub}/cases`, id: "cases", tool: "cases", label: "Case library", count: u.counts.cases, tip: `Whole test cases every ${u.name} test cycle runs` },
+        { href: `${hub}/charters`, id: "charters", tool: "charters", label: "Charters", count: u.counts.charters, tip: "Missions to explore without steps, and the test personas you explore as" },
+        { href: `${hub}/stories`, id: "stories", tool: "stories", label: "Requirements", tip: "Jira stories, Epics and other requirements, and which cases test them" },
+        { href: `${hub}/suites`, id: "suites", tool: "cases", label: "Test suites", count: u.counts.suites },
+        { href: `${hub}/shared-steps`, id: "shared", tool: "cases", label: "Shared steps", count: u.counts.shared, tip: "Extra steps you add to new or existing cases" },
+        { href: `${hub}/glossary`, id: "glossary", tool: "glossary", label: "Glossary", count: glossary?.count || undefined, note: glossary?.unseen, tip: "The team's words and what they mean" },
       ],
     },
     {
       label: "Testing",
       items: [
-        { href: `${g}/runs`, id: "runs", label: "Test runs", count: u.counts.activeRuns ? `${u.counts.activeRuns} active` : undefined },
-        ...cycleHeading,
-        ...u.current.flatMap((p) => (c && p.key === c.key ? cycleLinks : [{ href: `/p/${p.key}`, id: cycleKey(p.key), label: shortName(p), dot: p.color, sub: true, tip: p.name }])),
-        ...(u.older ? [{ href: `${g}/projects`, label: "Older test cycles", count: u.older, sub: true }] : []),
-        // An older test cycle shows under Older test cycles while you're in it.
-        ...(c?.older ? cycleLinks : []),
-        { href: `${hub}/bashes`, id: "bashes", label: "Bug bashes", badge: u.live ? "Live" : undefined, tip: "Everyone explores for a set time and logs bugs" },
-        { href: `${hub}/risk`, id: "risk", label: "Risk board", tip: "Which requirements in a release are most likely to break, and how much it would hurt" },
+        ...(runsOn
+          ? [
+              { href: `${g}/runs`, id: "runs", label: "Test runs", count: u.counts.activeRuns ? `${u.counts.activeRuns} active` : undefined },
+              ...cycleHeading,
+              ...u.current.flatMap((p) => (c && p.key === c.key ? cycleLinks : [{ href: `/p/${p.key}`, id: cycleKey(p.key), label: shortName(p), dot: p.color, sub: true, tip: p.name }])),
+              ...(u.older ? [{ href: `${g}/projects`, label: "Older test cycles", count: u.older, sub: true }] : []),
+              // An older test cycle shows under Older test cycles while you're in it.
+              ...(c?.older ? cycleLinks : []),
+            ]
+          : []),
+        { href: `${hub}/bashes`, id: "bashes", tool: "bashes", label: "Bug bashes", badge: u.live ? "Live" : undefined, tip: "Everyone explores for a set time and logs bugs" },
+        { href: `${hub}/risk`, id: "risk", tool: "risk", label: "Risk board", tip: "Which requirements in a release are most likely to break, and how much it would hurt" },
       ],
     },
     {
       label: "Results",
       items: [
         { href: `${g}/bugs`, id: "bugs", label: "Bugs", count: u.counts.openBugs || undefined },
-        { href: `${g}/reports`, id: "reports", label: "Reports" },
+        { href: reportsHome({ g: u.id, tools: u.tools }), id: "reports", label: "Reports" },
         // Once a GitHub repo is connected (ver_85).
-        ...(u.counts.repos ? [{ href: `${g}/repos`, id: "repos", label: "Repositories", count: u.counts.repos, tip: "Test health of each connected GitHub repo" }] : []),
+        ...(u.counts.repos ? [{ href: `${g}/repos`, id: "repos", tool: "auto" as const, label: "Repositories", count: u.counts.repos, tip: "Test health of each connected GitHub repo" }] : []),
       ],
     },
     {
       label: "Settings",
       // One link (ver_117): the umbrella's Settings, where each test cycle has its own row under Test cycles.
-      items: [{ href: `${g}/settings`, id: "settings", label: "Settings", tip: `${u.name} and its test cycles` }],
+      items: [
+        { href: `${g}/settings`, id: "settings", label: "Settings", tip: runsOn ? `${u.name} and its test cycles` : `${u.name}'s settings` },
+        ...(u.canTools && !everything(u.tools) ? [{ href: `${g}/settings#tools`, label: "+ Add tools", sub: true, tip: "Turn on tools this umbrella doesn't use yet" }] : []),
+      ],
     },
   ];
+  const groups: MenuGroup[] = all.map((grp) => ({ ...grp, items: grp.items.filter((i) => !i.tool || on(i.tool as ToolId)) })).filter((grp) => grp.items.length);
   const under = (href: string) => path === href || path.startsWith(`${href}/`);
   // Inside a test cycle its own row stays lit on all of its pages, except the ones with a link of their own.
   const ownLinks = c ? [`${cb}/quests`, `${cb}/settings`, ...(c.ownCases ? [`${cb}/cases`, `${cb}/import`] : [])] : [];
   const active = (i: MenuItem) => {
     if (c && i.href === cb) return under(cb) && !ownLinks.some(under);
     if (c && i.href === `${cb}/cases`) return under(i.href) || under(`${cb}/import`);
-    return (i.exact ? path === i.href : under(i.href)) || (i.href === `${hub}/cases` && path.startsWith(`${hub}/import`)) || (i.href === `${g}/reports` && path.startsWith(`${g}/rc`));
+    return (i.exact ? path === i.href : under(i.href)) || (i.href === `${hub}/cases` && path.startsWith(`${hub}/import`)) || (i.id === "reports" && [`${g}/reports`, `${g}/rc`, `${g}/stories`].some(under));
   };
 
   return (

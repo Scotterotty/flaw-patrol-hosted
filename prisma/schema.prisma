@@ -305,6 +305,8 @@ model ProjectGroup {
   automationFiles Json           @default("{}")
   /// Run kinds (ver_95): built-in Smoke test / Release candidate / Bug bash plus custom ones, see src/lib/run-kinds.ts.
   runKinds        Json           @default("[]")
+  /// Tools (ver_128): { off: [...] } names the tools this umbrella doesn't use, see src/lib/tools.ts. {} = every tool.
+  tools           Json           @default("{}")
   slackChannels   SlackChannel[]
   githubRepos     GitHubRepo[]
   ciTokens        CiToken[]

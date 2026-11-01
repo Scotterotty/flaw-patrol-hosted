@@ -37,10 +37,17 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
   const releases = await storyReleases(project.id);
   const rcNames = await newestRcNames(cycles);
   const release = releases.find((r) => r === sp.release) ?? testedRelease(releases, rcNames);
-  const board = release ? await riskBoard({ homeId: project.id, release, columns: cycles.map((c) => ({ id: c.id, key: c.key, name: c.name })) }) : null;
-  const canPlan = can(who, "run:create");
+  // Tools (ver_128): without Test cases the guess leaves out "No tests yet"; without Test runs, Plan this release
+  // becomes Start a bug bash on these; without Bug bashes there's no bash button.
+  const tools = full?.tools;
+  const withCases = !tools || tools.includes("cases");
+  const withRuns = !tools || tools.includes("runs");
+  const withBashes = !tools || tools.includes("bashes");
+  const board = release ? await riskBoard({ homeId: project.id, release, columns: cycles.map((c) => ({ id: c.id, key: c.key, name: c.name })), withCases }) : null;
+  const canRun = can(who, "run:create");
+  const canPlan = canRun && withRuns;
   const team = canPlan ? await teamTemplates(project.id) : [];
-  const bashed = canPlan ? await bashedRequirements(project.id) : {};
+  const bashed = canRun && withBashes ? await bashedRequirements(project.id) : {};
   const runCycles = full?.current.length ? full.current.map((c) => ({ id: c.id, name: c.name })) : [{ id: project.id, name: project.name }];
   // Plan this release (ver_96): run kinds, test personas and open runs to add to.
   const kinds = parseRunKinds(full?.group.runKinds).filter((k) => !k.hidden && k.id !== "bash");
@@ -106,7 +113,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
       </div>
       {board.jiraError && <p className="mb-3 rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-900">Couldn&apos;t read the release from Jira: {board.jiraError}</p>}
       {board.cards.length ? (
-        <RiskBoard key={release} homeId={project.id} release={release!} cards={board.cards} canMove={can(who, "risk:move")} canPlan={canPlan} cycles={runCycles} templates={[...BUILT_IN, ...team]} bash={canPlan ? project.id : undefined} bashed={bashed} planData={planData} />
+        <RiskBoard key={release} homeId={project.id} release={release!} cards={board.cards} canMove={can(who, "risk:move")} canPlan={canPlan} cycles={runCycles} templates={[...BUILT_IN, ...team]} bash={canRun && withBashes ? project.id : undefined} bashed={bashed} planData={planData} withCases={withCases} />
       ) : (
         <EmptyState title="Nothing in this release">Jira has no requirements in {release}. Pick another release above.</EmptyState>
       )}

@@ -13,6 +13,7 @@ import { can, type Action } from "@/lib/permissions";
 import { requireProjectAction, requireUser } from "@/lib/session";
 import { type CarryOver, MAX_SHORTCUTS, OPEN_BUG, parsePlatforms, parseShortcuts, platformColor, SHORTCUT_ICONS, syncUmbrellaMembers, unionMembers } from "@/lib/umbrella";
 import { attempt, UserError } from "./result";
+import { TOOL_IDS, toolsOn, toolsValue, type ToolId } from "@/lib/tools";
 import { MAX_RUN_FIELDS, parseRunFields, type RunField } from "@/lib/run-fields";
 import { fieldsOrFail } from "./run-field-input";
 import { buildEntries } from "./snapshot";
@@ -81,6 +82,8 @@ export async function createUmbrella(input: {
   moveCases?: boolean;
   release?: string;
   newProjects?: z.input<typeof newProjectSchema>[];
+  /** What will you use? (ver_128): the tools that are on; left out means every tool. */
+  tools?: ToolId[];
 }) {
   return attempt(async () => {
     const user = await requireUser();
@@ -89,10 +92,13 @@ export async function createUmbrella(input: {
     const key = keySchema.parse(input.key);
     const description = z.string().trim().max(500).parse(input.description ?? "");
     const release = z.string().trim().max(30).parse(input.release ?? "");
+    const tools = input.tools ? toolsValue(z.array(z.enum(TOOL_IDS)).max(TOOL_IDS.length).parse(input.tools)) : {};
+    // Without Test runs there are no test cycles to make or move in.
+    const withCycles = toolsOn(tools).includes("runs");
     const rows = z
       .array(newProjectSchema)
       .max(12, "Up to 12 test cycles at once.")
-      .parse(input.newProjects ?? [])
+      .parse(withCycles ? (input.newProjects ?? []) : [])
       .filter((r) => r.platform || r.name)
       .map((r) => ({ platform: r.platform, name: r.name || projectNameFor(name, r.platform, release) }));
     const names = new Set<string>();
@@ -103,11 +109,11 @@ export async function createUmbrella(input: {
     }
     const clash = await db.projectGroup.findFirst({ where: { name: { equals: name, mode: "insensitive" } } });
     if (clash) throw new UserError(`There's already a group called ${clash.name}.`);
-    const picked = await groupableProjectIds(user, input.projectIds ?? []);
+    const picked = await groupableProjectIds(user, withCycles ? (input.projectIds ?? []) : []);
     // A project already under another umbrella stays there; move it from its own ⋯ menu instead.
     const ids = (await db.project.findMany({ where: { id: { in: picked }, hubOf: null, OR: [{ groupId: null }, { group: { hubProjectId: null } }] }, select: { id: true } })).map((p) => p.id);
     const group = await db.$transaction(async (tx) => {
-      const g = await tx.projectGroup.create({ data: { name, description } });
+      const g = await tx.projectGroup.create({ data: { name, description, tools } });
       if (ids.length) await tx.project.updateMany({ where: { id: { in: ids } }, data: { groupId: g.id } });
       const hub = await makeHub(tx, g.id, name, key, description, ids, user.id);
       for (const r of rows) {

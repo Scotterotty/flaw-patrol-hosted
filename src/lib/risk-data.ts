@@ -26,7 +26,7 @@ export type RiskCard = {
   level: RiskLevel;
 };
 
-export async function riskBoard(opts: { homeId: string; release: string; columns: CoverageColumn[] }) {
+export async function riskBoard(opts: { homeId: string; release: string; columns: CoverageColumn[]; withCases?: boolean }) {
   const cov = await storyCoverage({ projectId: opts.homeId, libraryIds: [opts.homeId], columns: opts.columns, release: opts.release });
   const allCases = [...new Set(cov.rows.flatMap((r) => r.cases.map((c) => c.id)))];
   const [links, moves] = await Promise.all([
@@ -43,7 +43,7 @@ export async function riskBoard(opts: { homeId: string; release: string; columns
     .map((r) => {
       const caseIds = r.cases.map((c) => c.id);
       const pastBugs = new Set(caseIds.flatMap((id) => [...(bugsOf.get(id) ?? [])])).size;
-      const g = guessRisk({ priority: r.story.priority ?? "", points: r.story.points ?? null, cases: caseIds.length, pastBugs, failing: r.state === "failing" });
+      const g = guessRisk({ priority: r.story.priority ?? "", points: r.story.points ?? null, cases: caseIds.length, pastBugs, failing: r.state === "failing", withCases: opts.withCases });
       const m = moveOf.get(r.story.key);
       const likelihood = (m ? Math.min(3, Math.max(1, m.likelihood)) : g.likelihood) as Level;
       const impact = (m ? Math.min(3, Math.max(1, m.impact)) : g.impact) as Level;

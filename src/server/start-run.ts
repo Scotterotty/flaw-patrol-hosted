@@ -5,6 +5,7 @@ import { NOT_BASH_CASE } from "@/lib/bash-cases";
 import { tagColorsFor } from "@/lib/tag-data";
 import { CSP_FIELD, parseRunFields } from "@/lib/run-fields";
 import { kindIdFor, parseRunKinds } from "@/lib/run-kinds";
+import { toolsOn } from "@/lib/tools";
 import { logActivity } from "@/lib/activity";
 import { revalidatePath } from "next/cache";
 import type { Role } from "@prisma/client";
@@ -81,7 +82,8 @@ export async function runBoxOptions(scope: RunBoxScope) {
     ]);
     const colorOf = (platform: string) => (umbrella ? platformColor(umbrella.platforms, platform) : "#94a3b8");
     // Run kinds (ver_95): what kind of run it is, asked first in an umbrella.
-    const kinds = umbrella ? parseRunKinds(umbrella.group.runKinds).filter((k) => !k.hidden) : [];
+    // Without Bug bashes (ver_128) the Bug bash kind isn't offered.
+    const kinds = umbrella ? parseRunKinds(umbrella.group.runKinds).filter((k) => !k.hidden && (k.id !== "bash" || toolsOn(umbrella.group.tools).includes("bashes"))) : [];
     return {
       umbrella: umbrella ? { id: umbrella.group.id, name: umbrella.group.name, hubKey: umbrella.hub.key } : null,
       // The test cycle the box was opened from, ticked for you (ver_85).

@@ -3,6 +3,7 @@ import { AddPartBar } from "@/components/add-part-bar";
 import { RcReport } from "@/components/rc-page";
 import { PageHeader } from "@/components/ui";
 import { ViewTabs } from "@/components/view-tabs";
+import { reportTabs } from "@/lib/tools";
 import { requireUser } from "@/lib/session";
 import { loadUmbrella } from "@/lib/umbrella";
 
@@ -18,13 +19,7 @@ export default async function UmbrellaRcPage({ params, searchParams }: { params:
       <PageHeader title="Reports" subtitle={`A quick look at how each ${u.group.name} release is going, one column per platform.`} />
       <ViewTabs
         label="Reports"
-        tabs={[
-          { label: "Run reports", href: `/g/${u.group.id}/reports`, current: false },
-          { label: "Release status", href: `/g/${u.group.id}/rc`, current: true },
-          { label: "Requirements", href: `/g/${u.group.id}/stories`, current: false },
-          { label: "Bug bashes", href: `/p/${u.hub.key}/bashes`, current: false },
-          { label: "Custom reports", href: `/g/${u.group.id}/reports/custom`, current: false },
-        ]}
+        tabs={reportTabs({ g: u.group.id, hub: u.hub.key, tools: u.tools }, "rc")}
       />
       <AddPartBar homeId={u.hub.id} user={user} who={u.who} base={`/g/${u.group.id}/reports/custom`} part="rc" title="Release status summary" />
       <RcReport

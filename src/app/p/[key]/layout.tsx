@@ -8,6 +8,8 @@ import { cycleSettingsHref, hubGroupId, loadUmbrella } from "@/lib/umbrella";
 import { ArchivedBanner, UmbrellaArchivedBanner } from "@/components/archive-project";
 import { can } from "@/lib/permissions";
 import { ViewerNoteFor } from "@/components/viewer-note-server";
+import { ToolGate } from "@/components/tools";
+import { gateInfo } from "@/lib/tools-data";
 
 export default async function ProjectLayout({ children, params }: { children: React.ReactNode; params: Promise<{ key: string }> }) {
   const { key } = await params;
@@ -39,7 +41,7 @@ export default async function ProjectLayout({ children, params }: { children: Re
           <main className="min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
             {umbrella.group.archivedAt && <UmbrellaArchivedBanner groupId={umbrella.group.id} name={umbrella.group.name} canRestore={can(umbrella.who, "umbrella:archive")} />}
             {viewer && <ViewerNoteFor project={project} userId={user.id} />}
-            {children}
+            <ToolGate info={await gateInfo(umbrella)}>{children}</ToolGate>
           </main>
         </div>
       </>
@@ -47,6 +49,8 @@ export default async function ProjectLayout({ children, params }: { children: Re
   }
   // Archived with its umbrella: the umbrella's banner says how to bring it back.
   const umbrellaArchived = !!group?.hubProjectId && !!group.archivedAt;
+  // A test cycle's pages follow its umbrella's tools (ver_128).
+  const parent = group?.hubProjectId ? await loadUmbrella(group.id, user) : null;
   return (
     <>
       <TopBar user={user} project={{ key: project.key, name: project.name, group: group && { id: group.id, name: group.name } }} />
@@ -59,7 +63,7 @@ export default async function ProjectLayout({ children, params }: { children: Re
             project.archivedAt && <ArchivedBanner settingsHref={await cycleSettingsHref(project, user, "archive")} canRestore={role === "ADMIN"} />
           )}
           {viewer && <ViewerNoteFor project={project} userId={user.id} />}
-          {children}
+          {parent ? <ToolGate info={await gateInfo(parent)}>{children}</ToolGate> : children}
         </main>
       </div>
     </>

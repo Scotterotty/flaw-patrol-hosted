@@ -7,6 +7,7 @@ import type { Spelling } from "./spelling";
 import type { Timing } from "./timing";
 import { loadUmbrella, parseShortcuts, type Umbrella } from "./umbrella";
 import { defaultShortcuts, freshShortcut, rcGlance, shortcutChoices } from "./umbrella-pages";
+import { toolOfPath, toolsLine } from "./tools";
 
 type Viewer = Parameters<typeof loadUmbrella>[1];
 type Row = { id: string; pins: { starred: boolean; position: number | null; hidden: boolean }[] };
@@ -35,17 +36,26 @@ function card(u: Umbrella, row: Row, choices: Awaited<ReturnType<typeof shortcut
     .filter((d): d is Date => !!d)
     .reduce<number | null>((m, d) => Math.max(m ?? 0, d.getTime()), null);
   const fresh = new Map(choices.flatMap((c) => c.items).map((i) => [i.href, i]));
-  const picked = parseShortcuts(u.group.shortcuts).map((s) => freshShortcut(u, s));
+  // Shortcuts to a tool the umbrella turned off (ver_128) stay saved but aren't shown or offered.
+  const at_ = { g: u.group.id, hub: u.hub.key, cycles: u.projects.map((p) => p.key) };
+  const usable = (href: string) => {
+    const t = toolOfPath(href.split(/[?#]/)[0], at_);
+    return !t || u.tools.includes(t);
+  };
+  const picked = parseShortcuts(u.group.shortcuts)
+    .map((s) => freshShortcut(u, s))
+    .filter((s) => usable(s.href));
   return {
     id: u.group.id,
     name: u.group.name,
     tagline: `Umbrella · ${at ? `Last activity ${relativeTime(new Date(at), spelling, now)}` : "No activity yet"}`,
     // Counts in a shortcut's subtitle are refreshed from the page it points at.
-    shortcuts: (picked.length ? picked : defaultShortcuts(u)).map((s) => ({
+    tools: toolsLine(u.tools),
+    shortcuts: (picked.length ? picked : defaultShortcuts(u).filter((s) => usable(s.href))).map((s) => ({
       ...s,
       sub: fresh.get(s.href)?.sub ?? s.sub,
     })),
-    choices: can(u.who, "umbrella:shortcuts") ? choices : null,
+    choices: can(u.who, "umbrella:shortcuts") ? choices.map((c) => ({ ...c, items: c.items.filter((i) => usable(i.href)) })).filter((c) => c.items.length) : null,
     archived: !!u.group.archivedAt,
     // A bug bash on now (ver_93): the card says so, with Join.
     live: u.live ? { href: `/p/${u.hub.key}/bashes/${u.live.id}?join=1`, endsAt: u.live.endsAt } : null,

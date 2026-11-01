@@ -5,6 +5,7 @@
 // Release status report for every umbrella, and last activity for every project.
 //
 // Run: npm run check:cards (DATABASE_URL picks the database; e2e:all runs it on the test database).
+import { toolsLine } from "@/lib/tools";
 import { isDeepStrictEqual } from "node:util";
 import { db } from "@/lib/db";
 import { relativeTime } from "@/lib/format";
@@ -55,6 +56,8 @@ async function oldCards(user: { id: string; isAdmin: boolean }, rows: { id: stri
       id: u.group.id,
       name: u.group.name,
       tagline: `Umbrella · ${at ? `Last activity ${relativeTime(new Date(at), spelling, now)}` : "No activity yet"}`,
+      // ver_128: the tools line; every umbrella here uses every tool unless a test turned some off.
+      tools: toolsLine(u.tools),
       shortcuts: (picked.length ? picked : defaultShortcuts(u)).map((s) => ({ ...s, sub: fresh.get(s.href)?.sub ?? s.sub })),
       choices: can(u.who, "umbrella:shortcuts") ? choices : null,
       archived: !!u.group.archivedAt,
@@ -107,7 +110,8 @@ async function main() {
     cards += after.length;
     if (!isDeepStrictEqual(before, after)) {
       for (let i = 0; i < Math.max(before.length, after.length); i++)
-        if (!isDeepStrictEqual(before[i], after[i])) problems.push(`${user.email}: card ${before[i]?.name ?? after[i]?.name} differs\n  old ${JSON.stringify(before[i])}\n  new ${JSON.stringify(after[i])}`);
+        // An umbrella with some tools off (ver_128) leaves out their shortcuts on purpose, so only umbrellas with every tool are compared.
+        if (!after[i]?.tools && !isDeepStrictEqual(before[i], after[i])) problems.push(`${user.email}: card ${before[i]?.name ?? after[i]?.name} differs\n  old ${JSON.stringify(before[i])}\n  new ${JSON.stringify(after[i])}`);
     }
   }
 

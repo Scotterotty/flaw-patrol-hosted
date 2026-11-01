@@ -13,6 +13,8 @@ export type RiskSignals = {
   /** Bugs ever found by this requirement's cases. */
   pastBugs: number;
   failing: boolean;
+  /** False when the umbrella doesn't use Test cases (ver_128): "No tests yet" is left out of the guess. */
+  withCases?: boolean;
 };
 
 const HIGH_PRIORITY = ["highest", "blocker", "critical", "high", "major", "urgent"];
@@ -45,7 +47,7 @@ export function guessRisk(s: RiskSignals): { likelihood: Level; impact: Level; r
     likely++;
     reasons.push("Its cases are failing");
   }
-  if (!s.cases) {
+  if (!s.cases && s.withCases !== false) {
     likely++;
     reasons.push("No tests yet");
   }

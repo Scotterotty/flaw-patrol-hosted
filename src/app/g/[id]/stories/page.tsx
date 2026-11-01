@@ -3,6 +3,7 @@ import { AddPartBar } from "@/components/add-part-bar";
 import { StoryReport } from "@/components/story-report";
 import { PageHeader } from "@/components/ui";
 import { ViewTabs } from "@/components/view-tabs";
+import { reportTabs } from "@/lib/tools";
 import { requireUser } from "@/lib/session";
 import { newestRcNames } from "@/lib/story-coverage";
 import { loadUmbrella } from "@/lib/umbrella";
@@ -20,13 +21,7 @@ export default async function UmbrellaStoriesReport({ params, searchParams }: { 
       <PageHeader title="Reports" subtitle={`Which Jira requirements have cases, and how they did in each ${u.group.name} test cycle.`} />
       <ViewTabs
         label="Reports"
-        tabs={[
-          { label: "Run reports", href: `${g}/reports`, current: false },
-          { label: "Release status", href: `${g}/rc`, current: false },
-          { label: "Requirements", href: `${g}/stories`, current: true },
-          { label: "Bug bashes", href: `/p/${u.hub.key}/bashes`, current: false },
-          { label: "Custom reports", href: `/g/${u.group.id}/reports/custom`, current: false },
-        ]}
+        tabs={reportTabs({ g: u.group.id, hub: u.hub.key, tools: u.tools }, "stories")}
       />
       <AddPartBar homeId={u.hub.id} user={user} who={u.who} base={`${g}/reports/custom`} part="requirements" title="Requirements coverage" />
       <StoryReport

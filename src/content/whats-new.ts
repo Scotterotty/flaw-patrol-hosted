@@ -22,6 +22,29 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 128,
+    date: "2026-11-01",
+    items: [
+      {
+        kind: "new",
+        title: "Each umbrella picks the tools it uses",
+        text: "New umbrella asks What will you use?: Everything, Bug bashes and risk, Test cases and runs, or Pick my own. Tools that are off leave the menu, Overview, Reports and search. Nothing is deleted.",
+      },
+      {
+        kind: "new",
+        title: "Change an umbrella's tools in Settings → Tools",
+        text: "Admins switch tools on and off. A tool that needs another turns it on too, and turning off one that has things in it asks first.",
+        who: "admin",
+        link: "/g/{umbrella}/settings#tools",
+      },
+      {
+        kind: "better",
+        title: "Old links to a tool that's off explain where it went",
+        text: "They say what's kept and offer Turn on to Admins, or Ask an admin to everyone else.",
+      },
+    ],
+  },
+  {
     version: 127,
     date: "2026-11-01",
     items: [

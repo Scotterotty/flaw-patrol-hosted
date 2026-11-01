@@ -7,6 +7,7 @@ import { caseKey } from "@/lib/format";
 import { requireUser } from "@/lib/session";
 import { attempt } from "./result";
 import { cleanQuery, ENOUGH_EXACT, matchKind } from "@/lib/fuzzy";
+import { toolById, toolsOn, type ToolId } from "@/lib/tools";
 
 const CLOSE_MAX = 5;
 /** Close matches among candidates the exact search didn't find. */
@@ -22,7 +23,7 @@ function closeOnes<T>(q: string, list: T[], name: (x: T) => string, skip: (x: T)
 // suites and shared steps, and pages. Find only: it never creates or changes anything.
 
 export type SearchKind = "cases" | "runs" | "bugs" | "cycles" | "suites" | "pages";
-export type SearchHit = { href: string; label: string; key?: string; sub: string; archived?: boolean; best?: boolean };
+export type SearchHit = { href: string; label: string; key?: string; sub: string; archived?: boolean; best?: boolean; off?: { groupId: string; tool: ToolId; canTurnOn: boolean } };
 /** `close`: spelled a bit differently (ver_96), shown under their own label after the exact hits. */
 export type SearchGroup = { kind: SearchKind; total: number; hits: SearchHit[]; close: SearchHit[]; seeAll?: string };
 export type RecentItem = { href: string; label: string; kind: SearchKind; sub: string };
@@ -31,16 +32,31 @@ const PER_GROUP = 4;
 
 /** The projects the viewer can open, inside the umbrella when one is given. */
 async function scopeOf(user: { id: string; isAdmin: boolean }, groupId: string | null, archived: boolean) {
-  const group = groupId ? await db.projectGroup.findFirst({ where: { id: groupId, hubProjectId: { not: null } }, select: { id: true, name: true, hubProjectId: true } }) : null;
+  const group = groupId ? await db.projectGroup.findFirst({ where: { id: groupId, hubProjectId: { not: null } }, select: { id: true, name: true, hubProjectId: true, tools: true } }) : null;
   const projects = await db.project.findMany({
     where: {
       ...(user.isAdmin ? {} : { members: { some: { userId: user.id } } }),
       ...(archived ? {} : { archivedAt: null }),
       ...(group ? { OR: [{ id: group.hubProjectId! }, { groupId: group.id }] } : {}),
     },
-    select: { id: true, key: true, name: true, archivedAt: true, groupId: true, rcName: true, platform: true, hubOf: { select: { id: true, name: true } }, group: { select: { id: true, name: true, hubProjectId: true, archivedAt: true } } },
+    select: { id: true, key: true, name: true, archivedAt: true, groupId: true, rcName: true, platform: true, hubOf: { select: { id: true, name: true, tools: true } }, group: { select: { id: true, name: true, hubProjectId: true, archivedAt: true, tools: true } } },
   });
-  return { group, projects };
+  // Tools (ver_128): what each project's umbrella has turned off, so its cases, runs and pages stay out of the results.
+  const offIn = new Map<string, Set<ToolId>>();
+  for (const p of projects) {
+    const tools = p.hubOf?.tools ?? (p.group?.hubProjectId ? p.group.tools : null);
+    if (tools === null || tools === undefined) continue;
+    const on = toolsOn(tools);
+    offIn.set(p.id, new Set((Object.keys(toolById) as ToolId[]).filter((t) => !on.includes(t))));
+  }
+  /** The projects whose umbrella uses this tool. */
+  const usingTool = (t: ToolId) => projects.filter((p) => !offIn.get(p.id)?.has(t)).map((p) => p.id);
+  // Admins of an umbrella see Turn on next to a page that's off.
+  const hubIds = projects.filter((p) => p.hubOf).map((p) => p.id);
+  const adminOf = new Set(
+    user.isAdmin ? hubIds : (await db.projectMember.findMany({ where: { userId: user.id, role: "ADMIN", projectId: { in: hubIds } }, select: { projectId: true } })).map((m) => m.projectId),
+  );
+  return { group, projects, usingTool, adminOf };
 }
 
 const like = (q: string) => `%${q.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
@@ -56,39 +72,56 @@ const ACCOUNT_PAGES: { label: string; anchor: string; words: string }[] = [
   { label: "Radio", anchor: "radio", words: "radio music spotify" },
   { label: "Password", anchor: "password", words: "password change password" },
 ];
-const UMBRELLA_PAGES: { label: string; path: (g: string, hub: string) => string; words: string }[] = [
+const UMBRELLA_PAGES: { label: string; path: (g: string, hub: string) => string; words: string; tool?: ToolId }[] = [
   { label: "Overview", path: (g) => `/g/${g}`, words: "overview home" },
-  { label: "Case library", path: (_, h) => `/p/${h}/cases`, words: "case library cases tests" },
-  { label: "Test suites", path: (_, h) => `/p/${h}/suites`, words: "test suites suite plans" },
-  { label: "Shared steps", path: (_, h) => `/p/${h}/shared-steps`, words: "shared steps reusable" },
-  { label: "Personas", path: (_, h) => `/p/${h}/charters?tab=personas`, words: "personas test persona charters exploratory" },
-  { label: "Charters", path: (_, h) => `/p/${h}/charters`, words: "charters exploratory sessions tours checklists" },
-  { label: "Test runs", path: (g) => `/g/${g}/runs`, words: "test runs runs automated" },
-  { label: "Bug bashes", path: (_, h) => `/p/${h}/bashes`, words: "bug bashes bash blitz hunt" },
-  { label: "Start a bug bash", path: (_, h) => `/p/${h}/bashes?bash=start`, words: "start new bug bash blitz" },
-  { label: "Risk board", path: (_, h) => `/p/${h}/risk`, words: "risk board rc plan likelihood impact" },
+  { label: "Case library", path: (_, h) => `/p/${h}/cases`, words: "case library cases tests", tool: "cases" },
+  { label: "Test suites", path: (_, h) => `/p/${h}/suites`, words: "test suites suite plans", tool: "cases" },
+  { label: "Shared steps", path: (_, h) => `/p/${h}/shared-steps`, words: "shared steps reusable", tool: "cases" },
+  { label: "Personas", path: (_, h) => `/p/${h}/charters?tab=personas`, words: "personas test persona charters exploratory", tool: "charters" },
+  { label: "Charters", path: (_, h) => `/p/${h}/charters`, words: "charters exploratory sessions tours checklists", tool: "charters" },
+  { label: "Test runs", path: (g) => `/g/${g}/runs`, words: "test runs runs automated", tool: "runs" },
+  { label: "Bug bashes", path: (_, h) => `/p/${h}/bashes`, words: "bug bashes bash blitz hunt", tool: "bashes" },
+  { label: "Start a bug bash", path: (_, h) => `/p/${h}/bashes?bash=start`, words: "start new bug bash blitz", tool: "bashes" },
+  { label: "Risk board", path: (_, h) => `/p/${h}/risk`, words: "risk board rc plan likelihood impact", tool: "risk" },
   { label: "Bugs", path: (g) => `/g/${g}/bugs`, words: "bugs defects jira issues" },
   { label: "Reports", path: (g) => `/g/${g}/reports`, words: "reports charts trends" },
-  { label: "Release status", path: (g) => `/g/${g}/rc`, words: "rc status release end of day eod confluence" },
+  { label: "Release status", path: (g) => `/g/${g}/rc`, words: "rc status release end of day eod confluence", tool: "runs" },
   { label: "Settings", path: (g) => `/g/${g}/settings`, words: "settings platforms" },
   { label: "Jira connection", path: (g) => `/g/${g}/settings#jira`, words: "jira connection token login" },
   { label: "Bug template", path: (g) => `/g/${g}/settings#template`, words: "jira bug template layout fields" },
-  { label: "Requirements settings", path: (g) => `/g/${g}/settings#stories`, words: "jira requirements requirement stories story epics links coverage" },
+  { label: "Requirements settings", path: (g) => `/g/${g}/settings#stories`, words: "jira requirements requirement stories story epics links coverage", tool: "stories" },
   { label: "Members", path: (g) => `/g/${g}/settings#members`, words: "members team people invite" },
   { label: "Roles", path: (g) => `/g/${g}/settings#roles`, words: "roles permissions tester lead admin" },
   { label: "Slack alerts", path: (g) => `/g/${g}/settings#slack`, words: "slack alerts notifications channel" },
-  { label: "GitHub settings", path: (g) => `/g/${g}/settings#github`, words: "github connect pull repo token workflow actions ci" },
-  { label: "Repositories", path: (g) => `/g/${g}/repos`, words: "repositories repos github health pass rate ci" },
+  { label: "GitHub settings", path: (g) => `/g/${g}/settings#github`, words: "github connect pull repo token workflow actions ci", tool: "auto" },
+  { label: "Repositories", path: (g) => `/g/${g}/repos`, words: "repositories repos github health pass rate ci", tool: "auto" },
 ];
 
 /** `umbrella`: the one you're in. `everywhere`: on the Umbrellas page, every umbrella you can see (ver_89). */
-function pageHits(q: string, umbrella: { id: string; name: string; hubKey: string } | null, everywhere: { id: string; name: string; hubKey: string }[] = [], close = false): SearchHit[] {
+type PageScope = { id: string; name: string; hubKey: string; off: Set<ToolId>; admin: boolean };
+/** A page whose tool is off (ver_128) still comes up, saying so, with Turn on for Admins. */
+function pageHit(p: (typeof UMBRELLA_PAGES)[number], u: PageScope, label: string): SearchHit {
+  const href = p.path(u.id, u.hubKey);
+  if (p.tool && u.off.has(p.tool)) {
+    const t = toolById[p.tool];
+    const part = p.label === t.name ? "" : `Part of ${t.name}. `;
+    return {
+      href,
+      label: label === p.label ? `${label} is off in ${u.name}` : `${label} (off)`,
+      sub: `${part}${u.admin ? "Turn it on here, or in Settings → Tools" : "An Admin can turn it on in Settings → Tools"}`,
+      off: { groupId: u.id, tool: p.tool, canTurnOn: u.admin },
+    };
+  }
+  return { href, label, sub: u.name };
+}
+
+function pageHits(q: string, umbrella: PageScope | null, everywhere: PageScope[] = [], close = false): SearchHit[] {
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
   const matches = close ? (text: string) => matchKind(q, text) === "close" : (text: string) => words.every((w) => text.toLowerCase().includes(w));
   const hits: SearchHit[] = [];
-  if (umbrella) for (const p of UMBRELLA_PAGES) if (matches(`${p.label} ${p.words}`)) hits.push({ href: p.path(umbrella.id, umbrella.hubKey), label: p.label, sub: umbrella.name });
+  if (umbrella) for (const p of UMBRELLA_PAGES) if (matches(`${p.label} ${p.words}`)) hits.push(pageHit(p, umbrella, p.label));
   for (const u of everywhere)
-    for (const p of UMBRELLA_PAGES) if (matches(`${p.label} ${p.words} ${u.name}`)) hits.push({ href: p.path(u.id, u.hubKey), label: `${u.name} · ${p.path(u.id, u.hubKey).includes("/settings#") ? `Settings → ${p.label}` : p.label}`, sub: u.name });
+    for (const p of UMBRELLA_PAGES) if (matches(`${p.label} ${p.words} ${u.name}`)) hits.push(pageHit(p, u, `${u.name} · ${p.path(u.id, u.hubKey).includes("/settings#") ? `Settings → ${p.label}` : p.label}`));
   for (const p of ACCOUNT_PAGES) if (matches(`${p.label} ${p.words} account`)) hits.push({ href: `/account#${p.anchor}`, label: p.label, sub: "Your account" });
   if (matches("umbrellas home all projects")) hits.push({ href: "/", label: "Umbrellas", sub: "Every umbrella and test cycle" });
   if (matches("rc status release end of day")) hits.push({ href: "/rc", label: "Release status", sub: "Across every umbrella" });
@@ -126,12 +159,16 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
     const { q: raw, groupId, archived } = searchSchema.parse(input);
     // [WEB] looks for the tag WEB (ver_96).
     const q = raw.replace(/[[\]]/g, " ").replace(/\s+/g, " ").trim();
-    const { group, projects } = await scopeOf(user, groupId, archived);
+    const { group, projects, usingTool, adminOf } = await scopeOf(user, groupId, archived);
     const hub = group ? projects.find((p) => p.id === group.hubProjectId) : null;
     const umbrella = group && hub ? { id: group.id, name: group.name, hubKey: hub.key } : null;
     const groups: SearchGroup[] = [];
     if (!q) return { groups, umbrella };
-    const ids = projects.map((p) => p.id);
+    const offOf = (tools: unknown) => new Set((Object.keys(toolById) as ToolId[]).filter((t) => !toolsOn(tools).includes(t)));
+    const pageScope = umbrella && group && hub ? { ...umbrella, off: offOf(group.tools), admin: adminOf.has(hub.id) } : null;
+    // Each kind only looks in umbrellas that use its tool (ver_128).
+    const ids = usingTool("cases");
+    const runIds_ = usingTool("runs");
     const byId = new Map(projects.map((p) => [p.id, p]));
     const placeOf = (projectId: string) => {
       const p = byId.get(projectId);
@@ -209,14 +246,14 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
     // "R1" finds every test cycle's R1, each named with its test cycle (ver_89).
     const runNumber = /^R(\d+)$/i.exec(q);
     const runWhere: Prisma.TestRunWhereInput = {
-      projectId: { in: ids },
+      projectId: { in: runIds_ },
       OR: [{ name: { contains: q, mode: "insensitive" } }, { release: { contains: q, mode: "insensitive" } }, { build: { contains: q, mode: "insensitive" } }, ...(runNumber ? [{ number: Number(runNumber[1]) }] : [])],
     };
     const [runTotal, runs] = await Promise.all([
       db.testRun.count({ where: runWhere }),
       db.testRun.findMany({ where: runWhere, orderBy: { createdAt: "desc" }, take: PER_GROUP, include: { project: { select: { key: true } }, entries: { select: { status: true } } } }),
     ]);
-    const runCands = runTotal < ENOUGH_EXACT && cleanQuery(q).length > 1 ? await db.testRun.findMany({ where: { projectId: { in: ids } }, orderBy: { createdAt: "desc" }, take: 2000, select: { id: true, number: true, name: true, release: true, build: true, projectId: true, state: true, project: { select: { key: true } } } }) : [];
+    const runCands = runTotal < ENOUGH_EXACT && cleanQuery(q).length > 1 ? await db.testRun.findMany({ where: { projectId: { in: runIds_ } }, orderBy: { createdAt: "desc" }, take: 2000, select: { id: true, number: true, name: true, release: true, build: true, projectId: true, state: true, project: { select: { key: true } } } }) : [];
     const runIds = new Set(runs.map((r) => r.id));
     const runClose = closeOnes(q, runCands, (r) => `${r.name} ${r.release} ${r.build}`, (r) => runIds.has(r.id), runTotal).map((r) => ({
       href: `/p/${r.project.key}/runs/${r.number}`,
@@ -243,12 +280,13 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
       });
 
     // Bugs: Jira key, title.
-    const bugWhere: Prisma.DefectWhereInput = { projectId: { in: ids }, OR: [{ title: { contains: q, mode: "insensitive" } }, { externalKey: { contains: q, mode: "insensitive" } }] };
+    const allIds = projects.map((p) => p.id);
+    const bugWhere: Prisma.DefectWhereInput = { projectId: { in: allIds }, OR: [{ title: { contains: q, mode: "insensitive" } }, { externalKey: { contains: q, mode: "insensitive" } }] };
     const [bugTotal, bugs] = await Promise.all([
       db.defect.count({ where: bugWhere }),
       db.defect.findMany({ where: bugWhere, orderBy: { createdAt: "desc" }, take: 20, include: { project: { select: { key: true, groupId: true } } } }),
     ]);
-    const bugCands = bugTotal < ENOUGH_EXACT && cleanQuery(q).length > 1 ? await db.defect.findMany({ where: { projectId: { in: ids } }, orderBy: { createdAt: "desc" }, take: 3000, include: { project: { select: { key: true, groupId: true } } } }) : [];
+    const bugCands = bugTotal < ENOUGH_EXACT && cleanQuery(q).length > 1 ? await db.defect.findMany({ where: { projectId: { in: allIds } }, orderBy: { createdAt: "desc" }, take: 3000, include: { project: { select: { key: true, groupId: true } } } }) : [];
     const bugIds = new Set(bugs.map((b) => b.id));
     const bugCloseRaw = closeOnes(q, bugCands, (d) => `${d.title} ${d.externalKey ?? ""}`, (d) => bugIds.has(d.id), bugTotal);
     if (bugTotal || bugCloseRaw.length) {
@@ -292,15 +330,16 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
           sub: "Umbrella",
           archived: false,
         }));
+    const withRuns = new Set(runIds_);
     const cycles = projects
-      .filter((p) => !p.hubOf && [p.name, p.rcName, p.platform, p.key].some((t) => t.toLowerCase().includes(needle)))
+      .filter((p) => !p.hubOf && withRuns.has(p.id) && [p.name, p.rcName, p.platform, p.key].some((t) => t.toLowerCase().includes(needle)))
       .map((p) => ({ href: `/p/${p.key}`, label: p.name, sub: ["Test cycle", p.group?.hubProjectId && !group ? p.group.name : null].filter(Boolean).join(" · "), archived: !!p.archivedAt }));
     const cycleHits = [...umbrellas, ...cycles];
     const cycleClose = closeOnes(
       q,
       [
         ...(group ? [] : [...new Map(projects.filter((p) => p.hubOf).map((p) => [p.hubOf!.id, p])).values()].map((p) => ({ href: `/g/${p.hubOf!.id}`, label: p.hubOf!.name, sub: "Umbrella", archived: false, text: p.hubOf!.name }))),
-        ...projects.filter((p) => !p.hubOf).map((p) => ({ href: `/p/${p.key}`, label: p.name, sub: ["Test cycle", p.group?.hubProjectId && !group ? p.group.name : null].filter(Boolean).join(" · "), archived: !!p.archivedAt, text: `${p.name} ${p.rcName} ${p.platform}` })),
+        ...projects.filter((p) => !p.hubOf && withRuns.has(p.id)).map((p) => ({ href: `/p/${p.key}`, label: p.name, sub: ["Test cycle", p.group?.hubProjectId && !group ? p.group.name : null].filter(Boolean).join(" · "), archived: !!p.archivedAt, text: `${p.name} ${p.rcName} ${p.platform}` })),
       ],
       (x) => x.text,
       (x) => cycleHits.some((h) => h.href === x.href),
@@ -333,9 +372,9 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
     ).map((x) => ({ href: x.href, label: x.name, sub: [x.what, placeOf(x.projectId)].join(" · "), archived: x.archived }));
     if (libHits.length || libClose.length) groups.push({ kind: "suites", total: libHits.length, hits: libHits.slice(0, PER_GROUP), close: libClose });
 
-    const everywhere = group ? [] : [...new Map(projects.filter((p) => p.hubOf).map((p) => [p.hubOf!.id, { id: p.hubOf!.id, name: p.hubOf!.name, hubKey: p.key }])).values()];
-    const pages = pageHits(q, umbrella, everywhere);
-    const pageClose = pages.length < ENOUGH_EXACT && cleanQuery(q).length > 1 ? pageHits(q, umbrella, everywhere, true).filter((h) => !pages.some((x) => x.href === h.href)).slice(0, CLOSE_MAX) : [];
+    const everywhere = group ? [] : [...new Map(projects.filter((p) => p.hubOf).map((p) => [p.hubOf!.id, { id: p.hubOf!.id, name: p.hubOf!.name, hubKey: p.key, off: offOf(p.hubOf!.tools), admin: adminOf.has(p.id) }])).values()];
+    const pages = pageHits(q, pageScope, everywhere);
+    const pageClose = pages.length < ENOUGH_EXACT && cleanQuery(q).length > 1 ? pageHits(q, pageScope, everywhere, true).filter((h) => !pages.some((x) => x.href === h.href)).slice(0, CLOSE_MAX) : [];
     if (pages.length || pageClose.length) groups.push({ kind: "pages", total: pages.length, hits: pages.slice(0, PER_GROUP), close: pageClose });
 
     // The exact key, wherever it was found, leads.
@@ -351,7 +390,8 @@ export async function searchStart(groupId: string | null) {
     const recent = (Array.isArray(user.searchRecent) ? (user.searchRecent as RecentItem[]) : []).slice(0, 5);
     const { group, projects } = groupId ? await scopeOf(user, groupId, false) : { group: null, projects: [] };
     const hub = group ? projects.find((p) => p.id === group.hubProjectId) : null;
-    const goTo: SearchHit[] = group && hub ? UMBRELLA_PAGES.slice(0, 7).map((p) => ({ href: p.path(group.id, hub.key), label: p.label, sub: group.name })) : [];
+    const on = group ? toolsOn(group.tools) : [];
+    const goTo: SearchHit[] = group && hub ? UMBRELLA_PAGES.filter((p) => !p.tool || on.includes(p.tool)).slice(0, 7).map((p) => ({ href: p.path(group.id, hub.key), label: p.label, sub: group.name })) : [];
     return { recent, goTo, umbrella: group && hub ? { id: group.id, name: group.name } : null };
   });
 }

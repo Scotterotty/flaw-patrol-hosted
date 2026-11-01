@@ -5,6 +5,7 @@ import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } fr
 import { CloseMatchesLabel } from "./close-matches";
 import { rememberOpened, searchEverything, searchStart, type RecentItem, type SearchGroup, type SearchHit, type SearchKind } from "@/server/search";
 import { cx } from "./ui";
+import { turnOnTool } from "@/server/tools";
 
 const KIND_LABEL: Record<SearchKind, string> = { cases: "Test cases", runs: "Test runs", bugs: "Bugs", cycles: "Umbrellas and test cycles", suites: "Suites and shared steps", pages: "Pages" };
 const FILTERS: [SearchKind | "all", string][] = [
@@ -185,6 +186,20 @@ function SearchDialog({ scope: start, onClose }: { scope: { id: string; name: st
           </span>
           {row.hit.sub && <span className="block truncate text-xs text-slate-500">{row.hit.sub}</span>}
         </span>
+      )}
+      {/* A page whose tool is off (ver_128): Admins turn it on right here, then it opens. */}
+      {row.hit.off?.canTurnOn && (
+        <button
+          type="button"
+          className="flex-none rounded-md bg-accent-600 px-2 py-1 text-xs font-medium text-white hover:bg-accent-700"
+          onClick={async (e) => {
+            e.stopPropagation();
+            const r = await turnOnTool(row.hit.off!.groupId, row.hit.off!.tool);
+            if (r.ok) openRow({ ...row, hit: { ...row.hit, off: undefined } }, false);
+          }}
+        >
+          Turn on
+        </button>
       )}
     </li>
   );

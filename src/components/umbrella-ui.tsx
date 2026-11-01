@@ -28,6 +28,8 @@ import {
   startNextRc,
 } from "@/server/umbrella";
 import { setProjectGroup } from "@/server/groups";
+import { ToolPicker } from "./tools";
+import { TOOL_IDS, type ToolId } from "@/lib/tools";
 import type { GroupChoice } from "./group-dialogs";
 import { Modal } from "./modal";
 import { Button, cx, ErrorText, Field, Input, Textarea } from "./ui";
@@ -160,15 +162,19 @@ export function NewUmbrellaButton({ choices, label = "New umbrella", variant = "
   const [rows, setRows] = useState<NewRow[]>([{ id: 1, platform: "", name: null }]);
   const [ticked, setTicked] = useState<Set<string>>(new Set());
   const [bring, setBring] = useState(true);
+  // What will you use? (ver_128): Everything unless picked otherwise. Test cycles only come up with Test runs.
+  const [tools, setTools] = useState<ToolId[]>([...TOOL_IDS]);
+  const cyclesToo = tools.includes("runs");
   // Only projects outside any umbrella can move in; projects in an old-style group can too.
   const list = choices.filter((c) => c.canMove && !c.archived && !c.inUmbrella);
   const shownKey = key ?? keyFromName(name);
   const anyCases = list.some((c) => ticked.has(c.id) && (c.cases ?? 0) + (c.suites ?? 0) > 0);
   const umbrella = name.trim() || "the umbrella";
   const rowName = (r: NewRow) => r.name ?? (r.platform.trim() ? autoName(name, r.platform, rc) : "");
-  const making = rows.filter((r) => rowName(r).trim());
+  const making = cyclesToo ? rows.filter((r) => rowName(r).trim()) : [];
   const setRow = (id: number, patch: Partial<NewRow>) => setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-  const summary = [making.length && plural(making.length, "new test cycle"), ticked.size && `${ticked.size} moved in`].filter(Boolean).join(" and ");
+  const moving = cyclesToo ? ticked : new Set<string>();
+  const summary = [making.length && plural(making.length, "new test cycle"), moving.size && `${moving.size} moved in`].filter(Boolean).join(" and ");
   return (
     <>
       {/* A small link (ver_115) on the home page of someone waiting to join a team. */}
@@ -184,8 +190,7 @@ export function NewUmbrellaButton({ choices, label = "New umbrella", variant = "
       )}
       <Modal open={open} onClose={() => setOpen(false)} title="New umbrella" wide>
         <p className="text-sm text-slate-500">
-          An umbrella holds one product&apos;s test cases, Jira settings and team. Every test cycle under it uses them. Test cycles are where you run tests, one for each
-          round of testing, such as one release on one platform.
+          An umbrella holds one product&apos;s testing, Jira settings and team in one place. You pick the tools it uses, like test cases and runs, or just bug bashes and a risk board.
         </p>
         <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
         <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_9rem]">
@@ -196,12 +201,14 @@ export function NewUmbrellaButton({ choices, label = "New umbrella", variant = "
             <Input id="u-key" value={shownKey} onChange={(e) => setKey(e.target.value.toUpperCase())} maxLength={10} />
           </Field>
         </div>
+        <ToolPicker on={tools} onChange={setTools} />
         <div className="mt-3">
           <Field label="Description (optional)" htmlFor="u-desc">
             <Textarea id="u-desc" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
           </Field>
         </div>
 
+        {cyclesToo && (
         <fieldset className="mt-4 space-y-2 rounded-md border border-slate-200 p-3">
           <legend className="px-1 text-sm font-medium text-slate-700">Make its first test cycles</legend>
           <p className="text-xs text-slate-500">Optional. One test cycle per platform is typical. You can add more from {umbrella} any time.</p>
@@ -241,9 +248,11 @@ export function NewUmbrellaButton({ choices, label = "New umbrella", variant = "
             ＋ Add a platform
           </Button>
           <p className="text-xs text-slate-500">No platforms? Leave Platform blank and just type a test cycle name, like &ldquo;Accessibility check&rdquo;.</p>
+          <p className="text-xs text-slate-500">Test cycles are where you run tests, one for each round of testing, such as one release on one platform.</p>
         </fieldset>
+        )}
 
-        {list.length > 0 && (
+        {cyclesToo && list.length > 0 && (
           <fieldset className="mt-3 rounded-md border border-slate-200 p-3">
             <legend className="px-1 text-sm font-medium text-slate-700">Move in test cycles you already have</legend>
             <p className="mb-2 text-xs text-slate-500">Optional. Only test cycles that aren&apos;t in an umbrella yet.</p>
@@ -295,8 +304,9 @@ export function NewUmbrellaButton({ choices, label = "New umbrella", variant = "
                     name,
                     key: shownKey,
                     description,
-                    projectIds: [...ticked],
-                    moveCases: bring && anyCases,
+                    projectIds: [...moving],
+                    moveCases: bring && anyCases && cyclesToo,
+                    tools,
                     release: rc,
                     newProjects: making.map((r) => ({ platform: r.platform, name: rowName(r) })),
                   }),
@@ -1923,6 +1933,8 @@ export type UmbrellaCardData = {
   id: string;
   name: string;
   tagline: string;
+  /** The tools it uses, when not every one (ver_128), like "Bug bashes · Risk board". */
+  tools?: string;
   shortcuts: Shortcut[];
   /** Pages the editor offers; only for those who may edit the shortcuts. */
   choices: ShortcutChoice[] | null;
@@ -1961,6 +1973,11 @@ export function UmbrellaCard({ u, lead, tail, grip, className, ...drop }: { u: U
               )}
             </h2>
             <p className="text-sm text-slate-500">{u.tagline}</p>
+            {u.tools && (
+              <p className="mt-0.5 text-xs font-medium text-accent-700" data-testid="umbrella-tools">
+                {u.tools}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">

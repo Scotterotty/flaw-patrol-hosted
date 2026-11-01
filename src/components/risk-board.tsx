@@ -32,6 +32,7 @@ export function RiskBoard({
   canPlan,
   bash,
   bashed = {},
+  withCases = true,
   planData,
 }: {
   /** Plan this release's names, kinds, personas and open runs (ver_96). */
@@ -48,6 +49,8 @@ export function RiskBoard({
   bash?: string;
   /** When each requirement was last bashed, and what its area found. */
   bashed?: Record<string, { at: string; bugs: number }>;
+  /** False when the umbrella doesn't use Test cases (ver_128): no "No tests" counts or tags. */
+  withCases?: boolean;
 }) {
   const router = useRouter();
   const spelling = useSpelling();
@@ -84,7 +87,7 @@ export function RiskBoard({
   };
   const copy = async () => {
     const sorted = [...cards].sort((a, b) => riskScore(b.likelihood, b.impact) - riskScore(a.likelihood, a.impact));
-    const { html, text } = tableClip(`Risk board · ${release}`, [`${cards.length} requirements · ${noTests} with no tests`], [
+    const { html, text } = tableClip(`Risk board · ${release}`, [withCases ? `${cards.length} requirements · ${noTests} with no tests` : `${cards.length} requirements`], [
       ["Requirement", "Title", "Risk", "Likely to break", "Would hurt", "Cases", "Why"],
       ...sorted.map((c) => [c.key, c.title, c.level, LEVEL_WORD[c.likelihood], LEVEL_WORD[c.impact], c.cases, c.moved ? `Moved by ${c.moved.by}` : c.reasons.join("; ")]),
     ]);
@@ -101,7 +104,8 @@ export function RiskBoard({
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-600">
-          {cards.length} {cards.length === 1 ? "requirement" : "requirements"} · {noTests} with no tests
+          {cards.length} {cards.length === 1 ? "requirement" : "requirements"}
+          {withCases && ` · ${noTests} with no tests`}
           {canMove && <span className="text-slate-500"> · Drag a card, or click it, to move it</span>}
         </p>
         <div className="flex items-center gap-2">
@@ -123,10 +127,14 @@ export function RiskBoard({
               projectId={bash}
               size="sm"
               variant="primary"
-              label="Start a bug bash"
+              label={canPlan ? "Start a bug bash" : "Start a bug bash on these"}
               preset={{
                 name: `${release} risk bash`,
-                picks: [...cards].sort((a, b) => riskScore(b.likelihood, b.impact) - riskScore(a.likelihood, a.impact)).map((c) => ({ key: c.key, title: c.title, url: c.url ?? "", level: c.level, cases: c.cases })),
+                // Without Test runs (ver_128) this stands in for Plan this release, with the high-risk cards as its areas.
+                picks: [...cards]
+                  .filter((c) => canPlan || c.level === "High" || !cards.some((x) => x.level === "High"))
+                  .sort((a, b) => riskScore(b.likelihood, b.impact) - riskScore(a.likelihood, a.impact))
+                  .map((c) => ({ key: c.key, title: c.title, url: c.url ?? "", level: c.level, cases: c.cases })),
               }}
             />
           )}
@@ -168,7 +176,7 @@ export function RiskBoard({
                           data-testid="risk-card"
                         >
                           <span className="font-mono text-[11px] text-slate-500">{c.key}</span>
-                          {!c.cases && <span className="ml-1 rounded bg-slate-800 px-1 text-[10px] font-medium text-white">No tests</span>}
+                          {!c.cases && withCases && <span className="ml-1 rounded bg-slate-800 px-1 text-[10px] font-medium text-white">No tests</span>}
                           {c.moved && <span className="ml-1 text-[10px] text-slate-400" title={`Moved by ${c.moved.by}`}>✋</span>}
                           <span className="block truncate text-slate-800">{c.title || c.key}</span>
                           {bashed[c.key] && (
@@ -194,7 +202,7 @@ export function RiskBoard({
       </div>
 
       <Modal open={!!openCard} onClose={() => setOpen(null)} title={openCard ? `${openCard.key} · ${openCard.title}` : ""}>
-        {openCard && <CardDetail c={openCard} canMove={canMove} onMove={(l, i) => move(openCard.key, l, i)} onReset={() => reset(openCard.key)} />}
+        {openCard && <CardDetail c={openCard} withCases={withCases} canMove={canMove} onMove={(l, i) => move(openCard.key, l, i)} onReset={() => reset(openCard.key)} />}
       </Modal>
       <Modal open={plan && !!planData} onClose={() => setPlan(false)} title={`Plan a test run for ${release}`} wide>
         {plan && planData && <PlanRc homeId={homeId} release={release} cards={cards} cycles={cycles} templates={templates} data={planData} onClose={() => setPlan(false)} />}
@@ -203,13 +211,14 @@ export function RiskBoard({
   );
 }
 
-function CardDetail({ c, canMove, onMove, onReset }: { c: RiskCard; canMove: boolean; onMove: (l: Level, i: Level) => void; onReset: () => void }) {
+function CardDetail({ c, withCases, canMove, onMove, onReset }: { c: RiskCard; withCases: boolean; canMove: boolean; onMove: (l: Level, i: Level) => void; onReset: () => void }) {
   return (
     <div className="space-y-3 text-sm" data-glossary-source={`Risk board · ${c.key}`}>
       <p className="flex flex-wrap items-center gap-2">
         <RiskChip level={c.level} />
         <span className="text-slate-600">
-          {c.type || "Requirement"} · {c.status || "No status"} · {c.cases ? `${c.cases} ${c.cases === 1 ? "case" : "cases"}` : "no tests"}
+          {c.type || "Requirement"} · {c.status || "No status"}
+          {withCases && ` · ${c.cases ? `${c.cases} ${c.cases === 1 ? "case" : "cases"}` : "no tests"}`}
           {c.pastBugs ? ` · ${c.pastBugs} past ${c.pastBugs === 1 ? "bug" : "bugs"}` : ""}
         </span>
         {c.url && (

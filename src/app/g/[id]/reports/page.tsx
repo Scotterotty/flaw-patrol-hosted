@@ -7,11 +7,12 @@ import { dateRange } from "@/lib/spelling";
 import { severityScaleFor } from "@/lib/severity-server";
 import { mySpelling } from "@/lib/session";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { AutoFilterForm } from "@/components/auto-filter-form";
 import { CasesView, DefectsView, FailingView, RunKindFilter, StatusView, StepsView, TestersView, TrendsView } from "@/components/report-views";
 import { cx, EmptyState, Input, PageHeader, Select } from "@/components/ui";
 import { ViewTabs } from "@/components/view-tabs";
+import { reportsHome, reportTabs } from "@/lib/tools";
 import { caseHealth, defectReport, parseFilters, releaseOptions, runReport, stepHistory, suiteReport, testerReport, trends, type RunRow } from "@/lib/reports";
 import { requireUser } from "@/lib/session";
 import { countStatuses, STATUSES, type StatusCounts } from "@/lib/status";
@@ -56,6 +57,8 @@ export default async function UmbrellaReportsPage({ params, searchParams }: { pa
   const sp = await searchParams;
   const u = await loadUmbrella(id, user);
   if (!u) notFound();
+  // Without Test runs (ver_128) there are no run reports: Reports opens on its first tab that's left.
+  if (!u.tools.includes("runs")) redirect(reportsHome({ g: u.group.id, tools: u.tools }));
   const view: View = (VIEWS.find((v) => v.id === sp.view)?.id ?? "status") as View;
   // Run numbers repeat between test cycles, so there is no run filter here.
   const f = parseFilters({ ...sp, run: undefined });
@@ -101,13 +104,7 @@ export default async function UmbrellaReportsPage({ params, searchParams }: { pa
       />
       <ViewTabs
         label="Reports"
-        tabs={[
-          { label: "Run reports", href: `/g/${u.group.id}/reports`, current: true },
-          { label: "Release status", href: `/g/${u.group.id}/rc${f.release ? `?release=${encodeURIComponent(f.release)}` : ""}`, current: false },
-          { label: "Requirements", href: `/g/${u.group.id}/stories`, current: false },
-          { label: "Bug bashes", href: `/p/${u.hub.key}/bashes`, current: false },
-          { label: "Custom reports", href: `/g/${u.group.id}/reports/custom`, current: false },
-        ]}
+        tabs={reportTabs({ g: u.group.id, hub: u.hub.key, tools: u.tools }, "runs", f.release)}
       />
 
       {/* Copy link and Save this view… (ver_91), kept with the umbrella's hub. */}

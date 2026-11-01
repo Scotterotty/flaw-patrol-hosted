@@ -30,6 +30,8 @@ export type MenuItem = {
   tip?: string;
   onBar?: boolean;
   heading?: boolean;
+  /** The umbrella tool it belongs to (ver_128); the item leaves the menu while that tool is off. */
+  tool?: string;
 };
 export type MenuGroup = { label: string; items: MenuItem[] };
 

@@ -1,0 +1,1 @@
+ALTER TABLE "ProjectGroup" ADD COLUMN "tools" JSONB NOT NULL DEFAULT '{}';

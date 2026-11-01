@@ -6,6 +6,7 @@ import { cache } from "react";
 import type { Prisma, Role } from "@prisma/client";
 import { db } from "./db";
 import { parseRoleRules, type Who } from "./permissions";
+import { toolsOn, type ToolId } from "./tools";
 
 // Umbrella projects (ver_68). An umbrella is a project group with a hub project:
 // the hub holds the shared library (cases, suites, shared steps, personas), the
@@ -212,7 +213,7 @@ const loadUmbrellaOnce = cache(async (groupId: string, userId: string, isAdmin: 
     db.gitHubRepo.count({ where: { groupId } }),
     liveBashOf(hub.id),
   ]);
-  return { group, hub, role, who, platforms, projects, current, older, live: liveBash, counts: { cases, charters, suites, shared, personas, activeRuns, openBugs, repos } };
+  return { group, hub, role, who, platforms, projects, current, older, live: liveBash, tools: toolsOn(group.tools), counts: { cases, charters, suites, shared, personas, activeRuns, openBugs, repos } };
 });
 export type Umbrella = NonNullable<Awaited<ReturnType<typeof loadUmbrella>>>;
 
@@ -241,6 +242,10 @@ export type UmbrellaNav = {
   current: { key: string; name: string; color: string; platform: string; rc: string }[];
   older: number;
   archived: boolean;
+  /** Tools that are on (ver_128); off ones leave the menu. */
+  tools: ToolId[];
+  /** Admins see + Add tools when some are off. */
+  canTools: boolean;
   /** The test cycle you're in, when the menu is shown on one of its pages. */
   cycle?: { key: string; name: string; color: string; older: boolean; ownCases: number; quests: boolean };
 };
@@ -261,6 +266,8 @@ export function navOf(u: Umbrella): UmbrellaNav {
     })),
     older: u.older.length,
     archived: !!u.group.archivedAt,
+    tools: u.tools,
+    canTools: u.role === "ADMIN" && !u.group.archivedAt,
   };
 }
 

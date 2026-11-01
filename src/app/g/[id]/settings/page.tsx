@@ -47,6 +47,9 @@ import { OtherSettings } from "@/components/other-settings";
 import { cycleHash } from "@/lib/cycle-hash";
 import { BugTemplatesSettings } from "@/components/bug-templates";
 import { loadBugTemplates } from "@/lib/bug-templates-data";
+import { ToolsPanel } from "@/components/tools";
+import { toolHoldings } from "@/lib/tools-data";
+import { everything, toolsLine, TOOL_IDS, type ToolId } from "@/lib/tools";
 
 export const metadata = { title: "Settings" };
 
@@ -95,6 +98,9 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
     db.projectMember.findMany({ where: { userId: user.id, projectId: { in: ids } }, select: { projectId: true, role: true } }),
     db.projectMember.findMany({ where: { projectId: { in: ids } }, include: { user: true }, orderBy: [{ role: "asc" }, { user: { email: "asc" } }] }),
   ]);
+  // Tools (ver_128): off tools' rows leave Settings, like they leave the menu.
+  const on = (t: ToolId) => u.tools.includes(t);
+  const holdings = await toolHoldings(u, TOOL_IDS);
   const [invites, cycleInvites] = await Promise.all([memberInviteInfo(members.map((m) => m.userId)), memberInviteInfo([...new Set(cycleMembers.map((m) => m.userId))])]);
   const leads = members.filter((m) => m.role === "LEAD" || m.role === "ADMIN").length;
   const manage = can(u.who, "jira:manage");
@@ -266,22 +272,33 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
     <div className="mx-auto max-w-4xl">
       <PageHeader
         title="Settings"
-        subtitle={`${name} and its test cycles`}
+        subtitle={on("runs") ? `${name} and its test cycles` : `Everything ${name} uses`}
         actions={
           groupManager ? <EditGroupButton group={u.group} choices={choices} label="Name and test cycles" umbrella /> : undefined
         }
       />
+      {on("runs") && (
       <p className="mb-5 flex items-start gap-2 rounded-lg bg-accent-50 px-4 py-2.5 text-sm text-accent-700" data-testid="settings-scope">
         <UmbrellaIcon className="mt-0.5 size-4 flex-none" />
         <span>
           Changes here apply to <b>every test cycle in {name}</b>. The <b>Test cycles</b> table below shows any that are set differently.
         </span>
       </p>
+      )}
       <div>
         <Card>
           <h2 className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-900">Set once for {name}</h2>
           <ul className="divide-y divide-slate-100">
             <SettingsRows>
+            <ExpandRow
+              id="tools"
+              hashes={["tools"]}
+              title="Tools"
+              text={everything(u.tools) ? "Every tool: test cases, runs, bug bashes, risk board and the rest" : toolsLine(u.tools)}
+              label={u.role === "ADMIN" && !u.group.archivedAt ? "Change" : "View"}
+            >
+              <ToolsPanel groupId={u.group.id} umbrella={name} tools={u.tools} canEdit={u.role === "ADMIN" && !u.group.archivedAt} counts={holdings} jira={jira?.jiraProjectKey ?? null} />
+            </ExpandRow>
             {manage ? (
               <ExpandRow
                 id="jira"
@@ -357,13 +374,14 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                 }
               />
             )}
-            {manage && jira ? (
+            {!on("stories") ? null : manage && jira ? (
               <ExpandRow id="stories" hashes={["stories"]} title="Requirements" text={storiesText} label="Change">
                 <StoriesPanel projectId={u.hub.id} stories={parseStoriesConfig(jira.stories)} bugProject={jira.jiraProjectKey} />
               </ExpandRow>
             ) : (
               <Row title="Requirements" text={storiesText} />
             )}
+            {on("runs") && (
             <ExpandRow
               id="run-fields"
               hashes={["run-fields"]}
@@ -373,6 +391,8 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             >
               <RunFieldsPanel groupId={u.group.id} umbrella={name} fields={runFields} canEdit={can(u.who, "umbrella:fields") && !u.group.archivedAt} />
             </ExpandRow>
+            )}
+            {on("runs") && (
             <ExpandRow
               id="run-kinds"
               hashes={["run-kinds"]}
@@ -382,6 +402,8 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             >
               <RunKindsPanel groupId={u.group.id} umbrella={name} kinds={runKinds} suites={kindSuites} canEdit={can(u.who, "umbrella:fields") && !u.group.archivedAt} newSuiteHref={can(u.who, "suite:manage") ? `/p/${u.hub.key}/suites/new` : undefined} />
             </ExpandRow>
+            )}
+            {on("quest") && (
             <ExpandRow
               id="crowns"
               hashes={["crowns"]}
@@ -391,6 +413,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             >
               <CrownNamesPanel groupId={u.group.id} platforms={u.platforms} canEdit={can(u.who, "umbrella:manage") && !u.group.archivedAt} />
             </ExpandRow>
+            )}
             <ExpandRow
               id="slack"
               hashes={["slack"]}
@@ -415,7 +438,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                 saved={sentry && { baseUrl: sentry.baseUrl, org: sentry.org, connectedAs: sentry.connectedAs, projects: projectsOfSentry(sentry.projects), environment: sentry.environment, buildField: sentry.buildField, onlyTester: sentry.onlyTester, tokenReadable: canOpen(sentry.tokenEncrypted) }}
               />
             </ExpandRow>
-            {manage ? (
+            {!on("auto") ? null : manage ? (
               <ExpandRow
                 id="github"
                 hashes={["github"]}
@@ -430,7 +453,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             ) : (
               <Row title="GitHub" text={githubText} action={githubStatus} />
             )}
-            {manage ? (
+            {!on("auto") ? null : manage ? (
               <ExpandRow id="ci-uploads" hashes={["ci-uploads"]} title="CI uploads" text={ciText} label={ciTokens.length ? "Manage" : "Set up"}>
                 <CiUploadsPanel
                   groupId={u.group.id}
@@ -449,6 +472,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             ) : (
               <Row title="CI uploads" text={ciText} />
             )}
+            {on("auto") && (
             <ExpandRow
               id="automation-files"
               hashes={["automation-files"]}
@@ -458,6 +482,8 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             >
               <AutomationFilesPanel groupId={u.group.id} settings={fileSettings} usage={usage} canEdit={can(u.who, "run:manage") && !u.group.archivedAt} />
             </ExpandRow>
+            )}
+            {on("runs") && (
             <ExpandRow
               id="regression"
               hashes={["regression"]}
@@ -467,6 +493,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             >
               <RegressionPanel groupId={u.group.id} settings={reg} canEdit={can(u.who, "run:manage") && !u.group.archivedAt} />
             </ExpandRow>
+            )}
             <ExpandRow
               id="members"
               hashes={["members"]}
@@ -489,6 +516,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
           </ul>
         </Card>
       </div>
+      {on("runs") && (
       <div className="mt-5">
         <CycleSettingsTable
           rows={rows}
@@ -497,6 +525,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
           addButton={can(u.who, "cycle:create") && !u.group.archivedAt ? <AddUmbrellaProject groupId={u.group.id} umbrella={name} platforms={u.platforms.map((p) => p.name)} colors={u.platforms.map((p) => platformColor(u.platforms, p.name))} loose={await looseProjects(user)} label="Add test cycle" /> : undefined}
         />
       </div>
+      )}
       {can(u.who, "members:manage") && (
         <div className="mt-5">
           <RolesCard target={{ groupId: u.group.id }} rules={u.who.rules ?? null} appliesTo={`${name}, its Case library and all its test cycles`} />

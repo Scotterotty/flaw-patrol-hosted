@@ -7,6 +7,8 @@ import { can } from "@/lib/permissions";
 import { UmbrellaArchivedBanner } from "@/components/archive-project";
 import { glossaryMenu } from "@/lib/glossary-data";
 import { ViewerNoteFor } from "@/components/viewer-note-server";
+import { ToolGate } from "@/components/tools";
+import { gateInfo } from "@/lib/tools-data";
 
 /** Umbrellas get their own left menu on every page; plain project groups draw their own page. */
 export default async function GroupLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
@@ -28,7 +30,7 @@ export default async function GroupLayout({ children, params }: { children: Reac
         <main className="min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
           {u.group.archivedAt && <UmbrellaArchivedBanner groupId={u.group.id} name={u.group.name} canRestore={can(u.who, "umbrella:archive")} />}
           {u.who.role === "VIEWER" && !user.isAdmin && <ViewerNoteFor project={{ id: u.hub.id, key: u.hub.key, name: u.group.name, groupId: null, keepMembersSeparate: false }} userId={user.id} />}
-          {children}
+          <ToolGate info={await gateInfo(u)}>{children}</ToolGate>
         </main>
       </div>
     </>
