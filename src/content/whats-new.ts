@@ -22,6 +22,32 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 136,
+    date: "2026-11-01",
+    items: [
+      {
+        kind: "better",
+        title: "One bar when you come back to a session",
+        text: "A half-done exploring session says where you left off and when the timer paused in the same bar as Stop testing, with Keep exploring next to it. The charter's reminders show once, in the Timer panel.",
+      },
+      {
+        kind: "better",
+        title: "Easier to use on a phone",
+        text: "During a session, a small timer bar stays at the top as you scroll. On a run, each case is a card with its Test, Continue or Retest button on screen. Tabs that run off the edge fade to show there are more.",
+      },
+      {
+        kind: "better",
+        title: "Reminders and Prompts have their own boxes",
+        text: "On the charter form, Reminders and Prompts sit in boxes like Mission, so they're easy to spot.",
+      },
+      {
+        kind: "fix",
+        title: "Small wording and layout fixes",
+        text: "Counts say 1 result, 1 run and 1 case. Sessions shorter than a minute say Under 1 min, not 0 min. Import a run has one breadcrumb and the same width as Test runs, and Overview no longer shows the word Overview under the name.",
+      },
+    ],
+  },
+  {
     version: 135,
     date: "2026-11-01",
     items: [
