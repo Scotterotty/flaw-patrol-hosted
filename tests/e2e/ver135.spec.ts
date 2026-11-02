@@ -33,7 +33,7 @@ test("moves the lines under a step's name to Expected, and keeps a line where as
   await expect(page.getByTestId("moved-lines").nth(1)).toHaveText("Panels don't freeze.");
 
   await page.getByLabel(/Yes, we've run them before/).check();
-  await page.getByRole("button", { name: /^Import 1 cases/ }).click();
+  await page.getByRole("button", { name: /^Import 1 case\b/ }).click();
   await expect(page.getByText(/Imported 1 test case/)).toBeVisible();
 
   await page.goto(`/p/${key}/cases/1`);
