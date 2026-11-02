@@ -740,6 +740,9 @@ model TestRun {
   sheetError     String        @default("")
   // Automation results: uploaded from a JUnit/NUnit file, never tested by hand.
   automated      Boolean       @default(false)
+  /// Automated-only cases are in this run on purpose (ticked "Also include the automated cases",
+  /// picked one by one, or "Keep them"), so the run page doesn't offer to take them out.
+  withAutomated  Boolean       @default(false)
   sourceFile     String        @default("")
   // sha256 of the uploaded files, to catch the same file uploaded twice.
   sourceHash     String?

@@ -48,6 +48,24 @@ export function FlakyBadge({ flips, compact = false }: { flips: number; compact?
   );
 }
 
+/**
+ * Sky-blue 🤖 Automated mark on an automated-only case inside a run, so nobody mistakes
+ * it for one of their own. `compact` is just the 🤖 for narrow lists.
+ */
+export function AutomatedBadge({ compact = false, tip = "Automation also runs this case. It's in this run, so test it by hand too." }: { compact?: boolean; tip?: string }) {
+  if (compact)
+    return (
+      <span title={tip} aria-label={`Automated. ${tip}`} data-testid="auto-tag" className="flex-none cursor-help text-xs">
+        🤖
+      </span>
+    );
+  return (
+    <span title={tip} data-testid="auto-tag" className="inline-flex flex-none cursor-help items-center gap-0.5 rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-sky-800 ring-1 ring-sky-200">
+      <span aria-hidden>🤖</span> Automated
+    </span>
+  );
+}
+
 /** Pink Regression mark: passed last release on this platform, fails now. `tip` says where it passed. */
 export function RegressionBadge({ tip, compact = false }: { tip: string; compact?: boolean }) {
   if (compact)

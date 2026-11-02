@@ -9,7 +9,7 @@ import { releaseKey } from "@/lib/rc-status";
 import { prefetchOn, useLazy } from "@/lib/use-lazy";
 import { BoxWait } from "./box-wait";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { renamePlatform, setPlatforms, rcPlan, startNextRc } from "@/server/umbrella";
 import { Modal } from "./modal";
 import { Button, cx, ErrorText, Field, Input } from "./ui";
@@ -29,6 +29,8 @@ export type RcPlan = {
   allSuites: { id: string; name: string; cases: number; caseIds: string[] }[];
   /** The Case library as folders and cases, for Choose from folders…. */
   library: { folders: { id: string; parentId: string | null; name: string }[]; cases: PickerCase[] };
+  /** Automated-only cases in the library: suites' runs leave them out unless included. */
+  autoCaseIds: string[];
   platforms: {
     name: string;
     suiteIds: string[];
@@ -155,6 +157,9 @@ function RcBox({
   const [carry, setCarry] = useState(false);
   const [recheck, setRecheck] = useState(false);
   const [closeOld, setCloseOld] = useState(false);
+  // "Also include the automated cases": off, suites' automated-only cases stay out.
+  const [withAuto, setWithAuto] = useState(false);
+  const autoIds = useMemo(() => new Set(plan.autoCaseIds), [plan.autoCaseIds]);
   // Platforms added here (ver_118: each picks its test cases like the others, keyed new:<id> in choices).
   const [added, setAdded] = useState<{ id: number; name: string }[]>(() => (plan.platforms.length || !canManage ? [] : [{ id: 1, name: "" }]));
   const addPlatform = () => setAdded((l) => [...l, { id: Math.max(0, ...l.map((a) => a.id)) + 1, name: "" }]);
@@ -183,13 +188,13 @@ function RcBox({
   }, [pending]);
   const current = () => plan.platforms.map((p) => ({ name: p.name, suiteIds: p.suiteIds }));
   const suiteOf = (id: string) => plan.allSuites.find((s) => s.id === id);
-  const caseCount = (p: Plat, ids: string[]) => (sameIds(ids, p.suiteIds) ? p.cases : new Set(ids.flatMap((id) => suiteOf(id)?.caseIds ?? [])).size);
+  const caseCount = (_p: Plat, ids: string[]) => [...new Set(ids.flatMap((id) => suiteOf(id)?.caseIds ?? []))].filter((id) => withAuto || !autoIds.has(id)).length;
   // The cases a platform will run with its current choice, for the carry-over counts.
   const casesOf = (p: RcPlan["platforms"][number]): string[] => {
     const c = choices[p.name];
     if (!c) return [];
     if (c.kind === "cases") return c.ids;
-    if (c.kind === "suites") return [...new Set(c.ids.flatMap((id) => suiteOf(id)?.caseIds ?? []))];
+    if (c.kind === "suites") return [...new Set(c.ids.flatMap((id) => suiteOf(id)?.caseIds ?? []))].filter((id) => withAuto || !autoIds.has(id));
     // No runs yet: its first run gets last release's testers and bug re-checks.
     return [];
   };
@@ -283,7 +288,7 @@ function RcBox({
     }
     const sent = Object.fromEntries([...chosen.map((p) => [p.name, choices[p.name]]), ...newOnes.map((a) => [a.name.trim(), choiceOf(newKey(a))])]);
     const fields = Object.fromEntries(plan.runFields.map((f) => [f.id, fieldValue(f)]));
-    return startNextRc(groupId, { rc, platforms: starting, carryAssignments: carry, recheckBugs: recheck, closeOld: closeOld && openRuns > 0, choices: sent, fields });
+    return startNextRc(groupId, { rc, platforms: starting, carryAssignments: carry, recheckBugs: recheck, closeOld: closeOld && openRuns > 0, choices: sent, fields, withAutomated: withAuto });
   };
   // Removed platforms stay in the list, crossed out, until the box closes, so Undo is right there.
   const rows: ({ kind: "live"; p: RcPlan["platforms"][number] } | { kind: "gone"; r: (typeof removed)[number] })[] = plan.platforms.map((p) => ({ kind: "live" as const, p }));
@@ -819,6 +824,23 @@ function RcBox({
                 )}
               </>
             )}
+            {(() => {
+              // Automated cases in the suites picked, which the tick box brings in.
+              const ids = new Set(
+                [...chosen.map((p) => choices[p.name]), ...newOnes.map((a) => choiceOf(newKey(a)))].flatMap((c) => (c?.kind === "suites" ? c.ids.flatMap((id) => suiteOf(id)?.caseIds ?? []) : [])),
+              );
+              const n = [...ids].filter((id) => autoIds.has(id)).length;
+              return n > 0 ? (
+                <div className="mt-3" data-testid="with-auto">
+                  <Tick
+                    on={withAuto}
+                    toggle={() => setWithAuto(!withAuto)}
+                    title={`Also include the ${n === 1 ? "automated case" : `${n} automated cases`} in these suites`}
+                    sub={`🤖 Your automation already runs ${n === 1 ? "it" : "these"} and sends the results in. Tick this only if someone will check ${n === 1 ? "it" : "them"} by hand too.`}
+                  />
+                </div>
+              ) : null;
+            })()}
             {rc.trim() && starting.length > 0 && (
               <div className="mt-4 rounded-lg bg-slate-50 p-3">
                 <p className="mb-1.5 text-sm font-medium text-slate-700">Pressing Start creates</p>

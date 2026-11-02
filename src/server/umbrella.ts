@@ -373,7 +373,7 @@ export async function rcPlan(groupId: string) {
   // The library as a folder tree, for Choose from folders….
   const [folders, cases, hubMembers] = await Promise.all([
     db.folder.findMany({ where: { projectId: hub.id }, select: { id: true, parentId: true, name: true } }),
-    db.testCase.findMany({ where: { projectId: hub.id, archived: false }, orderBy: { number: "asc" }, select: { id: true, number: true, title: true, folderId: true } }),
+    db.testCase.findMany({ where: { projectId: hub.id, archived: false }, orderBy: { number: "asc" }, select: { id: true, number: true, title: true, folderId: true, type: true } }),
     db.projectMember.findMany({ where: { projectId: hub.id }, select: { userId: true } }),
   ]);
   const inLibrary = new Set(cases.map((c) => c.id));
@@ -434,6 +434,8 @@ export async function rcPlan(groupId: string) {
     // Every shared suite, so the RC box can add a platform or pick its suite on the spot.
     allSuites: suites.map((s) => ({ id: s.id, name: s.name, cases: s.cases.length, caseIds: s.cases.map((c) => c.caseId) })),
     library: { folders, cases: cases.map((c) => ({ id: c.id, key: `${hub.key}-${c.number}`, title: c.title, folderId: c.folderId })) },
+    // Automated-only cases: suites' runs leave them out unless "Also include" is ticked.
+    autoCaseIds: cases.filter((c) => c.type === "AUTOMATED").map((c) => c.id),
     lastRc,
     // Releases that already have test cycles: typing one shows "Start a run instead".
     releases: projects.filter((p) => p.rcName.trim()).map((p) => ({ rc: p.rcName.trim(), platform: p.platform.trim() })),
@@ -462,6 +464,8 @@ const rcSchema = z.object({
   fields: z.record(z.string(), z.string().max(200)).default({}),
   /** Close the last release's open runs on these platforms. */
   closeOld: z.boolean().default(false),
+  /** "Also include the automated cases": off, suites' automated-only cases stay out of the runs. */
+  withAutomated: z.boolean().default(false),
   /**
    * What each platform runs this release: suites from the library, nothing yet (a test cycle with no
    * runs), or a new empty suite made now. A platform left out runs the suites it's set to.
@@ -556,7 +560,8 @@ export async function startNextRc(groupId: string, input: z.input<typeof rcSchem
       if (prev && data.closeOld) await db.testRun.updateMany({ where: { projectId: prev.id, state: "ACTIVE" }, data: { state: "COMPLETED", completedAt: new Date() } });
       const suites = await db.testSuite.findMany({
         where: { id: { in: p.suiteIds }, projectId: hub.id, archived: false },
-        include: { cases: { orderBy: { position: "asc" } } },
+        // Automation already runs automated-only cases: left out unless asked for.
+        include: { cases: { where: data.withAutomated ? {} : { testCase: { type: { not: "AUTOMATED" } } }, orderBy: { position: "asc" } } },
       });
       const order = new Map(p.suiteIds.map((id, i) => [id, i]));
       suites.sort((a, b) => order.get(a.id)! - order.get(b.id)!);
@@ -593,6 +598,7 @@ export async function startNextRc(groupId: string, input: z.input<typeof rcSchem
                 name: s.name,
                 release: data.rc,
                 kind: "rc",
+                withAutomated: entries.some((e) => e.kind === "AUTOMATED"),
                 cspVersion: typed.cspVersion ?? "",
                 fields: typed.fields,
                 description: recheck.size ? "Cases with bugs still open from the last run are first, so they get re-checked early." : "",

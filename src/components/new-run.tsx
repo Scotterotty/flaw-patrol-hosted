@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { createRun } from "@/server/runs";
 import { Modal } from "./modal";
+import { AutomatedBadge } from "./badges";
 import { readRunFields, RunFieldInputs } from "./run-field-inputs";
 import type { RunField } from "@/lib/run-fields";
 import { Button, ErrorText, Field, Input, Select, Textarea } from "./ui";
@@ -33,6 +34,7 @@ export function NewRunButton({
   openRunner = false,
   meId,
   fields = [],
+  autoCases = 0,
 }: {
   /** The signed-in person, so cases go to them unless they pick someone else. */
   meId?: string;
@@ -54,6 +56,8 @@ export function NewRunButton({
   initialOpen?: boolean;
   /** Go straight to testing once it starts, e.g. "Start session now" on a charter. */
   openRunner?: boolean;
+  /** Automated-only cases in the suite: left out unless "Also include" is ticked. */
+  autoCases?: number;
 }) {
   const [open, setOpen] = useState(initialOpen && !disabled);
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +106,7 @@ export function NewRunButton({
                 release: String(fd.get("release") ?? ""),
                 assigneeId: assignee || null,
                 fields: readRunFields(fd),
+                withAutomated: fd.get("with-auto") === "on",
               });
               if (!res.ok) return setError(res.error);
               setOpen(false);
@@ -142,6 +147,17 @@ export function NewRunButton({
             <RunFieldInputs fields={fields} prefix="run" />
           </div>
           {suiteVersion && <p className="text-xs text-slate-500">Runs version {suiteVersion} of the suite.</p>}
+          {autoCases > 0 && (
+            <label className="flex cursor-pointer items-start gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm" data-testid="with-auto">
+              <input type="checkbox" name="with-auto" className="mt-1" />
+              <span className="min-w-0">
+                Also include the {autoCases === 1 ? "automated case" : `${autoCases} automated cases`} <AutomatedBadge tip="Made from automation results. Automation already runs these." />
+                <span className="block text-xs text-slate-500">
+                  Your automation already runs {autoCases === 1 ? "it" : "these"} and sends the results in. Tick this only if someone will check {autoCases === 1 ? "it" : "them"} by hand too.
+                </span>
+              </span>
+            </label>
+          )}
           <Field label="Assign every case to" htmlFor="run-assignee" hint="Or leave it and share cases out on the run page: tick cases, then Assign selected to…">
             <Select
               id="run-assignee"
