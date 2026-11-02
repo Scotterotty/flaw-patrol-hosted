@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity";
-import { refreshCrowns } from "@/lib/crowns";
+import { refreshWordsCrown } from "@/lib/crowns";
 import { db } from "@/lib/db";
 import { MEANING_MAX, TERM_MAX, findTerm, parseAliases, slugOf, termKey, type GlossaryLite } from "@/lib/glossary";
 import { glossaryLite, glossaryRights, termUses } from "@/lib/glossary-data";
@@ -64,15 +64,10 @@ async function validGroup(groupId: string | null) {
   return g?.id ?? null;
 }
 
-/** Glossary work counts toward Keeper of Words in every umbrella. Never breaks the save. */
+/** Glossary work counts toward the team's Keeper of Words (ver_140: one crown, not one per umbrella). */
 async function afterChange() {
   revalidatePath("/", "layout");
-  try {
-    const groups = await db.projectGroup.findMany({ where: { hubProjectId: { not: null }, archivedAt: null }, select: { id: true } });
-    await refreshCrowns(groups.map((g) => g.id));
-  } catch (e) {
-    console.error("Crowns: counting failed", e);
-  }
+  await refreshWordsCrown();
 }
 
 const already = (name: string, hit: { term: string }) =>

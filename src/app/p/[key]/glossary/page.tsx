@@ -1,11 +1,10 @@
 import { redirect } from "next/navigation";
 import { GlossaryPage } from "@/components/glossary-page";
 import { charterHome } from "@/lib/charter-data";
-import { CROWN_DAYS, toTake, WORDS_NEED } from "@/lib/crowns";
+import { CROWN_DAYS, TEAM_GROUP, toTake, WORDS_NEED } from "@/lib/crowns";
 import { db } from "@/lib/db";
 import { glossaryPage, glossaryRights } from "@/lib/glossary-data";
 import { projectAccess } from "@/lib/session";
-import { umbrellaOf } from "@/lib/umbrella";
 
 export const metadata = { title: "Glossary" };
 
@@ -21,11 +20,10 @@ export default async function GlossaryRoute({ params, searchParams }: { params: 
     redirect(`/p/${home.key}/glossary${qs ? `?${qs}` : ""}`);
   }
   const [data, rights] = await Promise.all([glossaryPage(user), glossaryRights(user)]);
-  // Keeper of Words (mini game players only): who holds it in this umbrella and how far you are.
+  // Keeper of Words (mini game players only): who holds it for the whole team and how far you are.
   let crown: { holder: string | null; holderCount: number; mine: number; toTake: number; youHold: boolean } | null = null;
   if (user.gameEnabled) {
-    const u = await umbrellaOf(project);
-    const row = u ? await db.crown.findUnique({ where: { groupId_key: { groupId: u.group.id, key: "words" } } }) : null;
+    const row = await db.crown.findUnique({ where: { groupId_key: { groupId: TEAM_GROUP, key: "words" } } });
     if (row) {
       const counts = (row.counts ?? {}) as Record<string, number>;
       const holder = row.userId ? await db.user.findUnique({ where: { id: row.userId }, select: { name: true, email: true } }) : null;

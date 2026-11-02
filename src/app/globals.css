@@ -1742,3 +1742,16 @@ main:focus {
     opacity: 0.5;
   }
 }
+/* Crown notes (ver_140): the gold line runs down while the note counts to closing. */
+@keyframes crown-note-drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+.crown-note-timer {
+  animation-name: crown-note-drain;
+  animation-timing-function: linear;
+}

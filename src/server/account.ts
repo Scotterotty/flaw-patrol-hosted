@@ -11,6 +11,7 @@ import { FRAMES, isUnlocked, levelFor, titleLabel, TITLES, totalXp } from "@/lib
 import { isRadioStation } from "@/lib/radio";
 import { isSpotifyStation, KIND_LABEL, MAX_SPOTIFY_LINKS, parseSpotifyLinks, parseSpotifyUrl, SPOTIFY_PREFIX, spotifyKind, spotifyPage } from "@/lib/spotify";
 import { gameStats } from "@/lib/xp";
+import { markCrownsSeen } from "@/lib/crowns";
 import { fitsOf, isSlot, PAWN_COLORS, PAWNS, parseGear, pawnUnlocked } from "@/lib/quest-gear";
 import { questRecordFor } from "@/lib/quest-data";
 import { navOrderSchema } from "@/lib/nav-order";
@@ -188,11 +189,15 @@ export async function wearCrown(titleId: string) {
   });
 }
 
-/** The crown toasts showed (ver_96): remember what you hold now, so they don't show again. */
-export async function ackCrowns(held: string[]) {
+/**
+ * Crown notes showed (ver_96). ver_140: only the notes that showed are marked seen; the
+ * rest wait until you open their umbrella.
+ */
+export async function ackCrowns(shown: { took: string[]; lost: string[] }) {
   return attempt(async () => {
+    const ids = z.object({ took: z.array(z.string().max(64)).max(200), lost: z.array(z.string().max(64)).max(200) }).parse(shown);
     const user = await requireUser();
-    await db.user.update({ where: { id: user.id }, data: { crownsSeen: held.slice(0, 200) } });
+    await db.user.update({ where: { id: user.id }, data: { crownsSeen: await markCrownsSeen(user, ids.took, ids.lost) } });
     return {};
   });
 }

@@ -1,5 +1,5 @@
 import { FRAMES, levelFor, TITLES, totalXp, unlockDetail, XP_RULES, type GameStats, type XpRule } from "@/lib/game";
-import { crownsFor, toTake } from "@/lib/crowns";
+import { crownsFor, TEAM_GROUP, toTake } from "@/lib/crowns";
 import { gameStats } from "@/lib/xp";
 import { db } from "@/lib/db";
 import { GamePanel, type GameOption } from "./game-panel";
@@ -72,6 +72,7 @@ export async function GameCard({ user, stats: given }: { user: Player; stats?: G
           id: c.titleId,
           label: c.label,
           umbrella: c.umbrella,
+          team: c.groupId === TEAM_GROUP,
           mine: c.holderId === user.id,
           holder: c.holderName,
           since: c.since.toISOString(),

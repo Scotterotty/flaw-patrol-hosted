@@ -37,6 +37,8 @@ export type CrownOption = {
   id: string;
   label: string;
   umbrella: string;
+  /** Keeper of Words (ver_140): one crown for the whole team, not one per umbrella. */
+  team?: boolean;
   mine: boolean;
   holder: string | null;
   since: string;
@@ -533,6 +535,7 @@ function Crowns({ crowns, worn: wearing, onWear }: { crowns: CrownOption[]; worn
     .sort((a, b) => a.toTake - b.toTake || a.label.localeCompare(b.label))
     .slice(0, 3);
   const umbrellas = [...new Set(crowns.map((c) => c.umbrella))];
+  const ownUmbrellas = [...new Set(crowns.filter((c) => !c.team).map((c) => c.umbrella))];
   const zone = useZone();
   const day = (iso: string) => {
     const d = new Date(iso);
@@ -612,7 +615,7 @@ function Crowns({ crowns, worn: wearing, onWear }: { crowns: CrownOption[]; worn
         </div>
       )}
       <button type="button" aria-expanded={all} className="text-xs text-accent-700 hover:underline" onClick={() => setAll((a) => !a)}>
-        {all ? "Hide the crown list" : `See every crown in ${umbrellas.length === 1 ? umbrellas[0] : "your umbrellas"}`}
+        {all ? "Hide the crown list" : `See every crown in ${ownUmbrellas.length === 1 ? ownUmbrellas[0] : "your umbrellas"}`}
       </button>
       {all && (
         <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 text-xs" data-testid="crown-list">

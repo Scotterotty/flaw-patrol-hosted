@@ -16,6 +16,12 @@ const DAY = 24 * 60 * 60 * 1000;
 const FOLDER_MIN_CASES = 5;
 /** Keeper of Words: Glossary terms needed before anyone can hold it. */
 export const WORDS_NEED = 3;
+/**
+ * ver_140: the Glossary is one list for everyone, so Keeper of Words is one crown for the
+ * whole team, kept under this stand-in umbrella id instead of once in every umbrella.
+ */
+export const TEAM_GROUP = "team";
+export const TEAM_NAME = "Whole team";
 
 export type CrownDef = {
   key: string;
@@ -54,14 +60,13 @@ async function countCrownsMany(groupIds: string[]): Promise<Map<string, Counted>
   const projectIds = [...groupOf.keys()];
   const hubIds = groups.map((g) => g.hubProjectId);
 
-  const [members, folders, cases, bashBugs, sessions, bugs, words] = await Promise.all([
+  const [members, folders, cases, bashBugs, sessions, bugs] = await Promise.all([
     db.projectMember.findMany({ where: { projectId: { in: projectIds }, user: { gameEnabled: true } }, select: { projectId: true, userId: true } }),
     db.folder.findMany({ where: { projectId: { in: hubIds } }, select: { id: true, parentId: true, name: true, projectId: true } }),
     db.testCase.findMany({ where: { projectId: { in: hubIds }, archived: false }, select: { id: true, folderId: true, projectId: true } }),
     db.bashItem.findMany({ where: { kind: "bug", createdAt: { gte: since }, bash: { projectId: { in: projectIds } }, review: "file", mergedIntoId: null }, select: { byId: true, createdAt: true, bash: { select: { projectId: true } } } }),
     db.testResult.findMany({ where: { run: { projectId: { in: projectIds } }, createdAt: { gte: since }, imported: false, sessionLog: { not: Prisma.AnyNull } }, select: { testerId: true, createdAt: true, run: { select: { projectId: true } } } }),
     db.defect.findMany({ where: { projectId: { in: projectIds }, createdAt: { gte: since }, filed: true, status: { not: "WONT_FIX" }, links: { some: {} } }, select: { createdById: true, createdAt: true, projectId: true } }),
-    glossaryWork({ OR: [{ createdAt: { gte: since } }, { answeredAt: { gte: since } }] }),
   ]);
   const players = new Map<string, Set<string>>(groups.map((g) => [g.id, new Set<string>()]));
   for (const m of members) players.get(groupOf.get(m.projectId)!)?.add(m.userId);
@@ -92,14 +97,6 @@ async function countCrownsMany(groupIds: string[]): Promise<Map<string, Counted>
     const list = onceByGroup.get(g) ?? [];
     list.push(r);
     onceByGroup.set(g, list);
-  }
-
-  const wordsDone: { userId: string; at: Date }[] = [];
-  for (const t of words) {
-    if (!countsForXp(t.meaning)) continue;
-    const at = t.answeredById ? (t.answeredAt ?? t.createdAt) : t.createdAt;
-    const userId = t.answeredById ?? t.createdById;
-    if (at >= since && userId) wordsDone.push({ userId, at });
   }
 
   for (const group of groups) {
@@ -151,13 +148,52 @@ async function countCrownsMany(groupIds: string[]): Promise<Map<string, Counted>
     for (const s of mine(sessions, (s) => s.run.projectId)) add("trail", s.testerId, s.createdAt);
     for (const d of mine(bugs, (d) => d.projectId)) add("sharp", d.createdById, d.createdAt);
 
-    // Keeper of Words (ver_113): Glossary terms added or answered. The Glossary is one list for
-    // everyone, so this counts the whole team's terms; it's listed in every umbrella.
-    defs.push({ key: "words", label: "Keeper of Words", unit: ["term added or answered", "terms added or answered"], verb: "Glossary terms added or answered", need: WORDS_NEED });
-    for (const w of wordsDone) add("words", w.userId, w.at);
     out.set(group.id, { defs, counts });
   }
   return out;
+}
+
+/**
+ * Keeper of Words (ver_113; one crown for the whole team since ver_140): Glossary terms
+ * added or answered by any mini game player over the last 30 days.
+ */
+async function countWords(): Promise<Counted> {
+  const since = new Date(Date.now() - CROWN_DAYS * DAY);
+  const [words, players] = await Promise.all([
+    glossaryWork({ OR: [{ createdAt: { gte: since } }, { answeredAt: { gte: since } }] }),
+    db.user.findMany({ where: { gameEnabled: true }, select: { id: true } }),
+  ]);
+  const playing = new Set(players.map((p) => p.id));
+  const m = new Map<string, Count>();
+  for (const t of words) {
+    if (!countsForXp(t.meaning)) continue;
+    const at = t.answeredById ? (t.answeredAt ?? t.createdAt) : t.createdAt;
+    const userId = t.answeredById ?? t.createdById;
+    if (at < since || !userId || !playing.has(userId)) continue;
+    const c = m.get(userId) ?? { n: 0, first: at.getTime() };
+    c.n++;
+    c.first = Math.min(c.first, at.getTime());
+    m.set(userId, c);
+  }
+  return {
+    defs: [{ key: "words", label: "Keeper of Words", unit: ["term added or answered", "terms added or answered"], verb: "Glossary terms added or answered", need: WORDS_NEED }],
+    counts: new Map([["words", m]]),
+  };
+}
+
+/** Settle the team's Keeper of Words crown. Hands back its row. */
+async function settleWords(): Promise<CrownRow[]> {
+  const [counted, existing] = await Promise.all([countWords(), db.crown.findMany({ where: { groupId: TEAM_GROUP } })]);
+  return settleCrowns(TEAM_GROUP, counted, existing);
+}
+
+/** After Glossary changes: settle Keeper of Words quietly; a failed count never breaks the save. */
+export async function refreshWordsCrown() {
+  try {
+    await settleWords();
+  } catch (e) {
+    console.error("Crowns: counting failed", e);
+  }
 }
 
 type CrownRow = Awaited<ReturnType<typeof db.crown.findMany>>[number];
@@ -263,15 +299,22 @@ export async function crownsFor(userId: string): Promise<CrownView[]> {
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
-  if (!groups.length) return [];
   const ids = groups.map((g) => g.id);
-  const [countedAll, existingAll] = await Promise.all([countCrownsMany(ids), db.crown.findMany({ where: { groupId: { in: ids } } })]);
+  const [countedAll, existingAll, wordsCounted, wordsExisting] = await Promise.all([
+    countCrownsMany(ids),
+    ids.length ? db.crown.findMany({ where: { groupId: { in: ids } } }) : Promise.resolve([] as CrownRow[]),
+    countWords(),
+    db.crown.findMany({ where: { groupId: TEAM_GROUP } }),
+  ]);
+  // Keeper of Words is the team's, listed first, then each umbrella's crowns.
+  countedAll.set(TEAM_GROUP, wordsCounted);
+  const all = [{ id: TEAM_GROUP, name: TEAM_NAME }, ...groups];
   const rowsOf = new Map<string, CrownRow[]>();
   await Promise.all(
-    groups.map(async (g) => {
+    all.map(async (g) => {
       const counted = countedAll.get(g.id);
       if (!counted) return;
-      const existing = existingAll.filter((r) => r.groupId === g.id);
+      const existing = g.id === TEAM_GROUP ? wordsExisting : existingAll.filter((r) => r.groupId === g.id);
       rowsOf.set(
         g.id,
         await settleCrowns(g.id, counted, existing).catch(async (e) => {
@@ -284,7 +327,7 @@ export async function crownsFor(userId: string): Promise<CrownView[]> {
   const holderIds = [...new Set([...rowsOf.values()].flat().map((r) => r.userId).filter((x): x is string => !!x))];
   const holders = new Map((holderIds.length ? await db.user.findMany({ where: { id: { in: holderIds } }, select: { id: true, name: true, email: true } }) : []).map((u) => [u.id, u.name || u.email]));
   const out: CrownView[] = [];
-  for (const g of groups) {
+  for (const g of all) {
     const counted = countedAll.get(g.id);
     const rows = rowsOf.get(g.id);
     if (!counted || !rows) continue;
@@ -320,37 +363,67 @@ export const toTake = (c: Pick<CrownView, "mine" | "top" | "need" | "holderId">)
 
 /**
  * What changed since this person was last told (ver_96): crowns they took and crowns
- * someone took from them. `held` is what they hold now, for ackCrowns.
+ * someone took from them. ver_140: each change says where it may show (`paths`, the pages
+ * of its umbrella; null for the team's Keeper of Words, which shows in any umbrella), and
+ * only the ones that showed are marked seen, so the rest wait for their umbrella.
  */
 export async function crownChanges(user: { id: string; crownsSeen: string[] }) {
   const rows = await db.crown.findMany({ where: { OR: [{ userId: user.id }, { id: { in: user.crownsSeen } }] } });
   const held = rows.filter((r) => r.userId === user.id);
-  const heldIds = held.map((r) => r.id);
   const seen = new Set(user.crownsSeen);
   const took = held.filter((r) => !seen.has(r.id));
   const lost = rows.filter((r) => seen.has(r.id) && r.userId !== user.id);
-  if (!took.length && !lost.length) return { held: heldIds, changes: [] };
-  const groups = new Map((await db.projectGroup.findMany({ where: { id: { in: rows.map((r) => r.groupId) } }, select: { id: true, name: true } })).map((g) => [g.id, g.name]));
+  if (!took.length && !lost.length) return { changes: [] };
+  const groupIds = [...new Set(rows.map((r) => r.groupId).filter((g) => g !== TEAM_GROUP))];
+  const groupRows = groupIds.length
+    ? await db.projectGroup.findMany({ where: { id: { in: groupIds } }, select: { id: true, name: true, projects: { select: { key: true } } } })
+    : [];
+  const groups = new Map(groupRows.map((g) => [g.id, g]));
   const people = new Map((await db.user.findMany({ where: { id: { in: rows.map((r) => r.userId).filter((x): x is string => !!x) } }, select: { id: true, name: true, email: true } })).map((u) => [u.id, u.name || u.email]));
   const countOf = (r: (typeof rows)[number], id: string | null) => (id ? Number((r.counts as Record<string, number>)?.[id] ?? 0) : 0);
+  const team = (r: (typeof rows)[number]) => r.groupId === TEAM_GROUP;
+  const nameOf = (r: (typeof rows)[number]) => (team(r) ? TEAM_NAME : (groups.get(r.groupId)?.name ?? ""));
+  const pathsOf = (r: (typeof rows)[number]) => (team(r) ? null : [`/g/${r.groupId}`, ...(groups.get(r.groupId)?.projects ?? []).map((p) => `/p/${p.key}`)]);
+  const inWhere = (r: (typeof rows)[number]) => (team(r) ? "for the whole team" : `in ${nameOf(r)}`);
   const changes = [
-    ...took.map((r) => {
-      const umbrella = groups.get(r.groupId) ?? "";
-      return { id: r.id, kind: "took" as const, label: r.label, umbrella, titleId: crownTitleId(r.groupId, r.key, r.label, umbrella), line: `You're now ${r.label} in ${umbrella}.`, sub: `With ${countOf(r, user.id)} in the last ${CROWN_DAYS} days.` };
-    }),
+    ...took.map((r) => ({
+      id: r.id,
+      kind: "took" as const,
+      label: r.label,
+      groupId: r.groupId,
+      umbrella: nameOf(r),
+      paths: pathsOf(r),
+      titleId: crownTitleId(r.groupId, r.key, r.label, nameOf(r)),
+      line: `You're now ${r.label} ${inWhere(r)}.`,
+      sub: `With ${countOf(r, user.id)} in the last ${CROWN_DAYS} days.`,
+    })),
     ...lost.map((r) => {
-      const umbrella = groups.get(r.groupId) ?? "";
       const who = r.userId ? (people.get(r.userId) ?? "Someone") : null;
       const more = r.userId ? countOf(r, r.userId) + 1 - countOf(r, user.id) : 0;
+      const where = team(r) ? "" : ` in ${nameOf(r)}`;
       return {
         id: r.id,
         kind: "lost" as const,
         label: r.label,
-        umbrella,
-        line: who ? `${who} took ${r.label} in ${umbrella}.` : `${r.label} in ${umbrella} is free again.`,
+        groupId: r.groupId,
+        umbrella: nameOf(r),
+        paths: pathsOf(r),
+        line: who ? `${who} took ${r.label}${where}.` : `${r.label}${where} is free again.`,
         sub: who ? `Do ${Math.max(1, more)} more in the last ${CROWN_DAYS} days to take it back.` : `Nobody has done enough in the last ${CROWN_DAYS} days to hold it.`,
       };
     }),
   ];
-  return { held: heldIds, changes };
+  return { changes };
+}
+
+/** The crowns this person has been told about, after notes for `took` and `lost` showed. */
+export async function markCrownsSeen(user: { id: string; crownsSeen: string[] }, took: string[], lost: string[]) {
+  const next = new Set(user.crownsSeen);
+  for (const id of lost) next.delete(id);
+  // Only crowns they really hold now count as told.
+  const holds = took.length ? await db.crown.findMany({ where: { id: { in: took }, userId: user.id }, select: { id: true } }) : [];
+  for (const h of holds) next.add(h.id);
+  // Drop crowns that no longer exist (a folder or platform went away).
+  const live = next.size ? new Set((await db.crown.findMany({ where: { id: { in: [...next] } }, select: { id: true } })).map((r) => r.id)) : new Set<string>();
+  return [...next].filter((id) => live.has(id)).slice(0, 200);
 }

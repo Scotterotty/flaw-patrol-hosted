@@ -156,7 +156,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             return user ? <GlossaryProvider underline={user.glossaryUnderline}>{page}</GlossaryProvider> : page;
           })()}
           {user?.gameEnabled && user.questMap && <QuestToaster />}
-          {crowns && crowns.changes.length > 0 && <CrownToaster changes={crowns.changes} held={crowns.held} />}
+          {crowns && crowns.changes.length > 0 && <CrownToaster changes={crowns.changes} />}
           {/* Your spinner whenever something takes more than a third of a second (ver_116). */}
           <BusyCorner />
           {whatsNew.length > 0 && <WhatsNewWindow entries={whatsNew} />}
