@@ -16,6 +16,9 @@ import {
   MAX_IMPORT,
   numberedSteps,
   rowsToCases,
+  packedSteps,
+  stepLines,
+  stepPerRow,
   type ColumnMapping,
   type ImportWarning,
   type ImportField,
@@ -70,13 +73,30 @@ export function CsvImporter({
   const [folderId, setFolderId] = useState(startFolder ?? "");
   const [error, setError] = useState<string | null>(null);
   const [restoreBreaks, setRestoreBreaks] = useState(false);
+  // Lines under a step's name go to Expected (ver_135). Picked by default; the card only shows when a file has such steps.
+  const [moveExpected, setMoveExpected] = useState(true);
+  // "Keep one more line in the step" in the preview: lines each step keeps, by "caseRow:stepIndex".
+  const [keepLines, setKeepLines] = useState<Record<string, number>>({});
   const [openRow, setOpenRow] = useState<number | null>(null);
   const [done, setDone] = useState<{ cases: number; shared: number; folderId: string | null; place: ImportPlace } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [pending, start] = useTransition();
 
   const header = rows?.[0] ?? [];
-  const result = useMemo(() => (rows ? rowsToCases(rows, mapping, source, { restoreBreaks, keepWhole }) : null), [rows, mapping, source, restoreBreaks, keepWhole]);
+  const result = useMemo(
+    () => (rows ? rowsToCases(rows, mapping, source, { restoreBreaks, keepWhole, moveExpected, keepLines }) : null),
+    [rows, mapping, source, restoreBreaks, keepWhole, moveExpected, keepLines],
+  );
+  // Steps with more lines under their name, counted as the file has them (before any are moved),
+  // and how many lines each step had, for the preview's keep-a-line buttons.
+  const packed = useMemo(() => {
+    if (!rows || !stepPerRow(source)) return { steps: 0, cases: 0, lines: new Map<string, number>() };
+    const cases = rowsToCases(rows, mapping, source, { restoreBreaks, keepWhole }).cases;
+    const lines = new Map<string, number>();
+    for (const c of cases) c.steps.forEach((s, k) => lines.set(`${c.row}:${k}`, stepLines(s.action).length));
+    return { ...packedSteps(cases), lines };
+  }, [rows, mapping, source, restoreBreaks, keepWhole]);
+  const keepMore = (key: string, by: number) => setKeepLines((m) => ({ ...m, [key]: Math.max(1, (m[key] ?? 1) + by) }));
   const slashNames = useMemo(() => (rows ? spacedSlashNames(rows, mapping) : []), [rows, mapping]);
   const hasFolders = mapping.folder !== undefined && !!result?.cases.some((c) => c.folderPath.length);
   const mode: "file" | "one" | "none" = folderMode === "none" ? "none" : hasFolders && folderMode !== "one" ? "file" : "one";
@@ -159,6 +179,7 @@ export function CsvImporter({
     data[0][0] = (data[0][0] ?? "").replace(/^﻿/, "");
     setFileName(name);
     setRows(data);
+    setKeepLines({});
     setKeepWhole([]);
     // A test cycle of its own gets a folder named after the file. The Case library is
     // used by every release, so its folder is named after what the cases test instead.
@@ -293,6 +314,30 @@ export function CsvImporter({
               </div>
             )}
           </Card>
+
+          {packed.steps > 0 && mapping.steps !== undefined && (
+            <Card className="p-5" data-testid="packed-steps">
+              <h2 className="mb-1 text-sm font-semibold text-slate-800">Some steps have their expected results inside them</h2>
+              <p className="mb-3 text-xs text-slate-500">
+                {packed.steps} {packed.steps === 1 ? "step" : "steps"} in {packed.cases} {packed.cases === 1 ? "case" : "cases"} {packed.steps === 1 ? "has" : "have"} more lines under the step name, like
+                &ldquo;A user is able to&hellip;&rdquo;. Those lines are usually what should happen, so they belong in Expected.
+              </p>
+              <div className="space-y-2" role="radiogroup" aria-label="What to do with the lines under the step name">
+                <Choice checked={moveExpected} onSelect={() => setMoveExpected(true)} name="move-expected">
+                  <span className="font-medium text-slate-900">Move the lines under the step name to Expected</span>
+                  <span className="ml-2 rounded-full bg-accent-100 px-2 py-0.5 text-[11px] font-medium text-accent-700">Recommended</span>
+                  <span className="mt-0.5 block text-xs text-slate-500">
+                    The first line stays as the step. If Expected already has text, like &ldquo;Not Supported by: UNITY&rdquo;, it stays on top. To keep more of a step, open
+                    its case in the preview below.
+                  </span>
+                </Choice>
+                <Choice checked={!moveExpected} onSelect={() => setMoveExpected(false)} name="move-expected">
+                  <span className="font-medium text-slate-900">Keep the steps as they are</span>
+                  <span className="mt-0.5 block text-xs text-slate-500">Everything in the step cell stays in the step.</span>
+                </Choice>
+              </div>
+            </Card>
+          )}
 
           {places.length > 1 && (
             <Card className="p-5">
@@ -637,6 +682,12 @@ export function CsvImporter({
                           <td />
                           <td colSpan={storyCount > 0 ? 6 : 5} className="px-3 pb-3">
                             {c.preconditions && <p className="mb-2 text-xs whitespace-pre-wrap wrap-anywhere text-slate-600">{c.preconditions}</p>}
+                            {moveExpected && c.steps.some((_, k) => (packed.lines.get(`${c.row}:${k}`) ?? 0) > 1) && (
+                              <p className="mb-2 text-xs text-slate-500">
+                                <span className="rounded bg-green-50 px-1 text-green-800">Green lines</span> move from the step to Expected. If a step needs one of them, click
+                                Keep one more line in the step.
+                              </p>
+                            )}
                             <ol className="divide-y divide-slate-100 rounded-md border border-slate-200 text-xs">
                               {numberedSteps(c, result.shared).map((s, k) => {
                                 const chip = flaggedSteps.get(c.row)?.get(k);
@@ -652,7 +703,14 @@ export function CsvImporter({
                                     {s.action}
                                     {chip && <span className="ml-1.5 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-amber-900">{chip}</span>}
                                   </span>
-                                  <span className="whitespace-pre-wrap wrap-anywhere text-slate-600">{s.expected}</span>
+                                  <span className="whitespace-pre-wrap wrap-anywhere text-slate-600">
+                                    <MovedExpected
+                                      expected={s.expected}
+                                      had={moveExpected ? (packed.lines.get(`${c.row}:${k}`) ?? 0) : 0}
+                                      kept={keepLines[`${c.row}:${k}`] ?? 1}
+                                      onKeep={(by) => keepMore(`${c.row}:${k}`, by)}
+                                    />
+                                  </span>
                                 </li>
                                 );
                               })}
@@ -670,6 +728,37 @@ export function CsvImporter({
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * A preview step's Expected text. Lines that moved there from the step are the last ones and
+ * show in green, with buttons to keep one more line in the step or undo that (ver_135).
+ */
+function MovedExpected({ expected, had, kept, onKeep }: { expected: string; had: number; kept: number; onKeep: (by: number) => void }) {
+  if (had < 2) return <>{expected}</>;
+  const lines = expected.split("\n");
+  const cut = Math.max(0, lines.length - (had - kept));
+  const button = "rounded border border-slate-300 bg-surface px-2 py-0.5 text-[11px] font-medium text-slate-700 hover:border-slate-400";
+  return (
+    <>
+      {cut > 0 && `${lines.slice(0, cut).join("\n")}\n`}
+      <span className="rounded bg-green-50 text-green-800" data-testid="moved-lines">
+        {lines.slice(cut).join("\n")}
+      </span>
+      <span className="mt-1 flex flex-wrap gap-1.5">
+        {kept < had - 1 && (
+          <button type="button" className={button} onClick={() => onKeep(1)}>
+            Keep one more line in the step
+          </button>
+        )}
+        {kept > 1 && (
+          <button type="button" className={button} onClick={() => onKeep(-1)}>
+            Undo
+          </button>
+        )}
+      </span>
+    </>
   );
 }
 

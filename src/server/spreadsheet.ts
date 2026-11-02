@@ -2,6 +2,7 @@
 
 import ExcelJS from "exceljs";
 import { requireProjectAction } from "@/lib/session";
+import { cellText } from "@/lib/cell-text";
 import { attempt, UserError } from "./result";
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -25,7 +26,7 @@ export async function readSpreadsheet(projectId: string, form: FormData) {
     const rows: string[][] = [];
     sheet.eachRow({ includeEmpty: false }, (row) => {
       const cells: string[] = [];
-      for (let c = 1; c <= width; c++) cells.push(row.getCell(c).text ?? "");
+      for (let c = 1; c <= width; c++) cells.push(cellText(row.getCell(c)));
       rows.push(cells);
     });
     return { rows, sheetName: sheet.name };

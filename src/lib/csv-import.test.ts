@@ -8,6 +8,8 @@ import {
   parsePriority,
   restoreLineBreaks,
   rowsToCases,
+  packedSteps,
+  splitPackedStep,
   splitStepCell,
 } from "./csv-import";
 
@@ -305,5 +307,48 @@ describe("TestRail Type values (ver_91)", () => {
     const { cases } = rowsToCases(rows, guessMapping(rows[0]));
     expect(cases.map((c) => c.tags)).toEqual([["smoke", "type: Functional"], ["type: Negative"], [], []]);
     expect(cases.map((c) => c.type)).toEqual(["MANUAL", "MANUAL", "AUTOMATED", "MANUAL"]);
+  });
+});
+
+describe("steps with their expected results inside them (ver_135)", () => {
+  const header = ["Key", "Name", "Step Order", "Step Description", "Expected Result"];
+  const rows = [
+    header,
+    ["PQ-1", "Assets Panel", "1.1", "Toggle Multi-SelectA user is able to toggle multi-select on.A user is able to toggle multi-select off.", "Not Supported by: UNREAL / UNITY"],
+    ["", "", "1.2", "Upload Asset", "A file uploads."],
+    ["", "", "1.3", "Open the asset panel.Asset Panels.Panels don't freeze.", ""],
+  ];
+  const mapping = () => guessMapping(header, "qtest");
+
+  it("keeps the first line as the step and moves the rest under the Expected text", () => {
+    expect(splitPackedStep({ action: "Toggle Multi-Select\nA user can turn it on.\nA user can turn it off.", expected: "Not Supported by: UNITY" })).toEqual({
+      action: "Toggle Multi-Select",
+      expected: "Not Supported by: UNITY\nA user can turn it on.\nA user can turn it off.",
+    });
+    expect(splitPackedStep({ action: "Upload Asset", expected: "A file uploads." })).toEqual({ action: "Upload Asset", expected: "A file uploads." });
+    expect(splitPackedStep({ action: "One.\nTwo.\nThree.", expected: "" }, 2)).toEqual({ action: "One.\nTwo.", expected: "Three." });
+    expect(splitPackedStep({ action: "Log in\nYou see the hub.\nTest data: bob", expected: "" })).toEqual({ action: "Log in\nTest data: bob", expected: "You see the hub." });
+  });
+
+  it("moves lines only when asked, and keeps more lines where the preview asked", () => {
+    const off = rowsToCases(rows, mapping(), "qtest", { restoreBreaks: true });
+    expect(packedSteps(off.cases)).toEqual({ steps: 2, cases: 1 });
+    expect(off.cases[0].steps[0].action).toContain("A user is able to toggle multi-select on.");
+
+    const on = rowsToCases(rows, mapping(), "qtest", { restoreBreaks: true, moveExpected: true, keepLines: { "2:2": 2 } });
+    expect(on.cases[0].steps).toEqual([
+      { action: "Toggle Multi-Select", expected: "Not Supported by: UNREAL / UNITY\nA user is able to toggle multi-select on.\nA user is able to toggle multi-select off." },
+      { action: "Upload Asset", expected: "A file uploads." },
+      { action: "Open the asset panel.\nAsset Panels.", expected: "Panels don't freeze." },
+    ]);
+  });
+
+  it("leaves files with one step per line alone", () => {
+    const plain = [["Title", "Steps", "Expected"], ["Login", "Open login\nSubmit", "Form shows\nSigned in"]];
+    const { cases } = rowsToCases(plain, guessMapping(plain[0]), "other", { moveExpected: true });
+    expect(cases[0].steps).toEqual([
+      { action: "Open login", expected: "Form shows" },
+      { action: "Submit", expected: "Signed in" },
+    ]);
   });
 });

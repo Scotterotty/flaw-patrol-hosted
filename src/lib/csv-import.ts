@@ -218,6 +218,10 @@ export type ImportWarning = { row: number; text: string; lead?: string; caseRow?
 export type ImportResult = { cases: ImportedCase[]; shared: ImportedShared[]; warnings: ImportWarning[] };
 export type ImportOptions = {
   restoreBreaks?: boolean;
+  /** Lines under a step's name move to Expected (see splitPackedStep). Only for one-step-per-row exports. */
+  moveExpected?: boolean;
+  /** Lines a step keeps when someone picked "Keep one more line in the step", by "caseRow:stepIndex". */
+  keepLines?: Record<string, number>;
   /** Folder names with a " / " inside them that stay one folder (see spacedSlashNames). */
   keepWhole?: string[];
 };
@@ -239,6 +243,41 @@ export function splitStepCell(cell: string): string[] {
     return out;
   }
   return nonEmpty.map((l) => l.trim());
+}
+
+/**
+ * qTest steps often hold the step's name and its expected results in one cell ("Toggle
+ * Multi-Select", then "A user is able to…" lines). The step keeps its first `keep` lines (1 unless
+ * someone kept more in the preview) and the rest go to Expected, under any Expected text the
+ * file already had. A one-line step stays as it is. (ver_135. Guessing from words like "A user"
+ * got most of Scott's R22 file wrong, so the preview lets people keep more lines instead.)
+ */
+export function splitPackedStep(step: PlainStep, keep = 1): PlainStep {
+  const lines = stepLines(step.action);
+  if (lines.length < 2 || keep >= lines.length) return step;
+  // The "Test data:" line added from a Test Data column stays with the step.
+  const data = step.action.split("\n").filter((l) => TEST_DATA.test(l));
+  const moved = lines.slice(keep).join("\n").trim();
+  return { action: [...lines.slice(0, keep), ...data].join("\n").trim(), expected: [step.expected.trim(), moved].filter(Boolean).join("\n") };
+}
+
+const TEST_DATA = /^Test data: /;
+/** A step's own lines: not blank, and not the "Test data:" line. */
+export const stepLines = (action: string) => action.split("\n").filter((l) => l.trim() && !TEST_DATA.test(l));
+
+/** These tools always export one row per step, so a multi-line step cell is one step. */
+export const stepPerRow = (source: ImportSource) => source === "qtest" || source === "zephyr" || source === "xray";
+
+/** How many steps hold more lines under their name, and in how many cases (for the import choice). */
+export function packedSteps(cases: ImportedCase[]): { steps: number; cases: number } {
+  let steps = 0;
+  let inCases = 0;
+  for (const c of cases) {
+    const n = c.steps.filter((s) => stepLines(s.action).length > 1).length;
+    steps += n;
+    if (n) inCases++;
+  }
+  return { steps, cases: inCases };
 }
 
 /** Pair step and expected texts; extra expected lines go on the last step. */
@@ -299,8 +338,7 @@ export function rowsToCases(rows: string[][], mapping: ColumnMapping, source: Im
     const text = htmlToText((row[idx] ?? "").trim());
     return options.restoreBreaks && RICH_FIELDS.has(field) ? restoreLineBreaks(text) : text;
   };
-  // These tools always export one row per step, so a multi-line cell is one step.
-  const oneStepPerRow = source === "qtest" || source === "zephyr" || source === "xray";
+  const oneStepPerRow = stepPerRow(source);
   const split = (text: string) => (oneStepPerRow ? (text ? [text] : []) : splitStepCell(text));
   const withData = (steps: PlainStep[], data: string[]) =>
     steps.map((st, i) => (data[i] ? { ...st, action: [st.action, `Test data: ${data[i]}`].filter(Boolean).join("\n") } : st));
@@ -395,6 +433,9 @@ export function rowsToCases(rows: string[][], mapping: ColumnMapping, source: Im
     });
     orders.push(steps.map(() => order));
   }
+  // Before steps are grouped, so a shared block is compared as it will be saved.
+  if (options.moveExpected && oneStepPerRow)
+    for (const c of cases) c.steps = c.steps.map((st, k) => splitPackedStep(st, options.keepLines?.[`${c.row}:${k}`] ?? 1));
   return { cases, shared: groupSteps(cases, orders), warnings };
 }
 

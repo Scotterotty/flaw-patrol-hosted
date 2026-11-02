@@ -107,6 +107,8 @@ test("imports go to the umbrella's Case library, in one folder or the file's fol
   const move = page.getByRole("dialog", { name: 'Move "Store"' });
   await move.getByLabel("Move it into").selectOption({ label: "2026 Cases" });
   await move.getByRole("button", { name: "Move folder" }).click();
+  // The box closes once the move is saved; opening another page first can beat the save.
+  await expect(move).toHaveCount(0);
   await page.goto(`/p/${HUB}/cases?q=Store+search`);
   await expect(page.getByRole("row", { name: /Store search/ })).toContainText("2026 Cases / Store");
 });
