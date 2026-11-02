@@ -47,7 +47,25 @@ export type BuildPoint = {
   other: number;
   /** Passed out of passed and failed; null when no test passed or failed. */
   rate: number | null;
+  /** A run tested by hand (By run): its size, how many are finished and how many are started. */
+  manual?: { total: number; finished: number; inProgress: number; release: string };
 };
+
+/** One run tested by hand, with how many of its cases have each status now. */
+export type ManualRunRow = {
+  runId: string;
+  href: string;
+  number: number;
+  name: string;
+  release: string;
+  at: Date;
+  platform: string;
+  open: boolean;
+  counts: Partial<Record<ResultStatus, number>>;
+};
+
+/** Hand testing in the runs still open: finished and started cases, for the summary line. */
+export type OpenManual = { total: number; finished: number; inProgress: number };
 
 export type Rates = { man: number | null; auto: number | null };
 
@@ -87,6 +105,10 @@ export type HomeTrendsData = {
   week: TrendPoint[];
   /** Automated runs, oldest first, newest last. */
   build: BuildPoint[];
+  /** Runs tested by hand for By run, oldest first, newest last. Bug bashes left out. */
+  manualRuns: BuildPoint[];
+  /** Open runs tested by hand, or null when there are none. */
+  openManual: OpenManual | null;
   hasManual: boolean;
   hasAuto: boolean;
   flaky: TrendCase[];
@@ -144,7 +166,7 @@ function point(key: string, label: string, kept: TrendRow[], bugRows: TrendRow[]
  * once per run (its latest result); manual and automated never mix. `entries` is how many
  * cases each run has, for "of N planned".
  */
-export function homeTrends(rows: TrendRow[], entries: Map<string, number>, now = new Date()): HomeTrendsData {
+export function homeTrends(rows: TrendRow[], entries: Map<string, number>, now = new Date(), manualRows: ManualRunRow[] = []): HomeTrendsData {
   const sorted = [...rows].sort((a, b) => a.at.getTime() - b.at.getTime());
   const latest = new Map<string, TrendRow>();
   for (const r of sorted) latest.set(r.entryId, r);
@@ -260,6 +282,7 @@ export function homeTrends(rows: TrendRow[], entries: Map<string, number>, now =
     release,
     week,
     build,
+    ...manualRunPoints(manualRows),
     hasManual: kept.some((r) => !r.automated),
     hasAuto: kept.some((r) => r.automated),
     flaky: flaky.slice(0, LIST_ROWS),
@@ -268,6 +291,57 @@ export function homeTrends(rows: TrendRow[], entries: Map<string, number>, now =
     failingTotal: failing.length,
     thisWeek,
   };
+}
+
+/** Not run yet: untested, started, or sent back. Everything else is finished. */
+const OPEN_STATUSES: ResultStatus[] = ["UNTESTED", "IN_PROGRESS", "RETEST"];
+
+/**
+ * By run's bars for runs tested by hand, and the open ones' totals for the summary line.
+ * A bar's height is the pass rate of the cases finished so far.
+ */
+export function manualRunPoints(runs: ManualRunRow[]): { manualRuns: BuildPoint[]; openManual: OpenManual | null } {
+  const n = (r: ManualRunRow, s: ResultStatus) => r.counts[s] ?? 0;
+  const sizes = (r: ManualRunRow) => {
+    const total = Object.values(r.counts).reduce((a, b) => a + (b ?? 0), 0);
+    return { total, finished: total - OPEN_STATUSES.reduce((a, s) => a + n(r, s), 0), inProgress: n(r, "IN_PROGRESS") };
+  };
+  const manualRuns = [...runs]
+    .sort((a, b) => a.at.getTime() - b.at.getTime())
+    .slice(-MAX_BUILDS)
+    .map((r) => {
+      const { total, finished, inProgress } = sizes(r);
+      const passed = n(r, "PASSED");
+      const failed = n(r, "FAILED");
+      return {
+        runId: r.runId,
+        href: r.href,
+        label: `R${r.number}`,
+        name: r.name,
+        at: r.at.toISOString(),
+        platform: r.platform,
+        passed,
+        failed,
+        other: finished - passed - failed,
+        rate: passed + failed ? passed / (passed + failed) : null,
+        manual: { total, finished, inProgress, release: r.release },
+      };
+    });
+  // Open runs with work left; a finished run nobody closed isn't hand testing going on.
+  const open = runs.filter((r) => r.open).map(sizes).filter((x) => x.finished < x.total);
+  const openManual = open.length ? open.reduce((a, b) => ({ total: a.total + b.total, finished: a.finished + b.finished, inProgress: a.inProgress + b.inProgress })) : null;
+  return { manualRuns, openManual };
+}
+
+/** By run: which runs get bars. Saved for each person. */
+export type RunsShown = "both" | "man" | "auto";
+
+/** The newest bars of each kind (so an hourly CI job never pushes hand runs off), oldest first. */
+export function runBars(data: Pick<HomeTrendsData, "build" | "manualRuns">, shown: RunsShown, perKind: number | null): BuildPoint[] {
+  const take = (list: BuildPoint[]) => (perKind ? list.slice(-perKind) : list);
+  const auto = shown === "man" ? [] : take(data.build);
+  const man = shown === "auto" ? [] : take(data.manualRuns);
+  return [...auto, ...man].sort((a, b) => a.at.localeCompare(b.at));
 }
 
 /** By build shows twice as many bars as releases or weeks: 12 builds unless the person picked more. */
@@ -288,15 +362,20 @@ export type TrendCount = (typeof TREND_COUNTS)[number];
 /** Saved on the account in openCards as trends:* words, so it's the same on every computer. */
 const COUNT_WORD: Record<number, string> = { 10: "trends:ten", 20: "trends:twenty", 0: "trends:all" };
 export const HIDDEN_WORD = "trends:hidden";
+const RUNS_WORD: Record<Exclude<RunsShown, "both">, string> = { man: "trends:runs-man", auto: "trends:runs-auto" };
 
-export function trendPrefs(openCards: string[]): { hidden: boolean; count: TrendCount } {
+export type TrendPrefs = { hidden: boolean; count: TrendCount; runs: RunsShown };
+
+export function trendPrefs(openCards: string[]): TrendPrefs {
   const count = (Object.entries(COUNT_WORD).find(([, w]) => openCards.includes(w))?.[0] ?? "6") as `${TrendCount}`;
-  return { hidden: openCards.includes(HIDDEN_WORD), count: Number(count) as TrendCount };
+  const runs = (Object.entries(RUNS_WORD).find(([, w]) => openCards.includes(w))?.[0] ?? "both") as RunsShown;
+  return { hidden: openCards.includes(HIDDEN_WORD), count: Number(count) as TrendCount, runs };
 }
 
-export function withTrendPrefs(openCards: string[], prefs: { hidden: boolean; count: number }): string[] {
+export function withTrendPrefs(openCards: string[], prefs: { hidden: boolean; count: number; runs?: RunsShown }): string[] {
   const keep = openCards.filter((w) => !w.startsWith("trends:"));
   if (prefs.hidden) keep.push(HIDDEN_WORD);
   if (COUNT_WORD[prefs.count]) keep.push(COUNT_WORD[prefs.count]);
+  if (prefs.runs && prefs.runs !== "both") keep.push(RUNS_WORD[prefs.runs]);
   return keep;
 }

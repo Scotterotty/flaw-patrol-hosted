@@ -107,7 +107,7 @@ test("automated results go in a new test cycle with no release, and show By buil
   await page.goto(`/g/${groupId}`);
   // Only the box you can see: it streams in, with a hidden copy for a moment (see ver131.spec).
   const trends = page.getByTestId("home-trends").filter({ visible: true });
-  await trends.getByRole("button", { name: "By build" }).click();
+  await trends.getByRole("button", { name: "By run" }).click();
   await expect(trends.getByTestId("build-bar")).toHaveCount(2);
   await expect(trends.getByTestId("build-health")).toContainText("1 of 2 passed");
   await expect(trends.getByTestId("build-health")).toContainText("Last 2 builds: 1 all passed, 1 had failures");

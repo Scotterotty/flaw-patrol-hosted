@@ -12,6 +12,9 @@ export type SplitRun = {
   defects: number;
   /** Each case's status in the run. */
   caseStatuses: [string, ResultStatus][];
+  /** Cases started but not finished (manual runs). */
+  inProgress?: number;
+  oldestDraftAt?: Date | null;
 };
 
 const add = (list: StatusCounts[]) => {
@@ -20,8 +23,10 @@ const add = (list: StatusCounts[]) => {
   return out;
 };
 
-export type Side = { runs: number; counts: StatusCounts; steps: StatusCounts; bugs: number };
+export type Side = { runs: number; counts: StatusCounts; steps: StatusCounts; bugs: number; inProgress: number; oldestDraftAt: Date | null };
 export type AutoSide = Side & { cases: number; latest: StatusCounts };
+
+const oldest = (dates: (Date | null)[]) => dates.reduce<Date | null>((min, d) => (d && (!min || d < min) ? d : min), null);
 
 /** `runs` newest first, as the reports list them. */
 export function splitProgress(runs: SplitRun[]): { manual: Side; auto: AutoSide } {
@@ -30,12 +35,21 @@ export function splitProgress(runs: SplitRun[]): { manual: Side; auto: AutoSide 
   const latest = new Map<string, ResultStatus>();
   for (const r of auto) for (const [caseId, status] of r.caseStatuses) if (!latest.has(caseId)) latest.set(caseId, status);
   return {
-    manual: { runs: manual.length, counts: add(manual.map((r) => r.counts)), steps: add(manual.map((r) => r.steps)), bugs: manual.reduce((n, r) => n + r.defects, 0) },
+    manual: {
+      runs: manual.length,
+      counts: add(manual.map((r) => r.counts)),
+      steps: add(manual.map((r) => r.steps)),
+      bugs: manual.reduce((n, r) => n + r.defects, 0),
+      inProgress: manual.reduce((n, r) => n + (r.inProgress ?? 0), 0),
+      oldestDraftAt: oldest(manual.map((r) => r.oldestDraftAt ?? null)),
+    },
     auto: {
       runs: auto.length,
       counts: add(auto.map((r) => r.counts)),
       steps: add(auto.map((r) => r.steps)),
       bugs: auto.reduce((n, r) => n + r.defects, 0),
+      inProgress: 0,
+      oldestDraftAt: null,
       cases: latest.size,
       latest: countStatuses([...latest.values()]),
     },

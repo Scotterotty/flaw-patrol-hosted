@@ -188,6 +188,18 @@ export function NoManualBanner({ total }: { total: number }) {
   );
 }
 
+/** Blue notice once hand testing has started: started cases show, but pass rates wait for a saved result. */
+export function StartedBanner({ tested, total, inProgress }: { tested: number; total: number; inProgress: number }) {
+  return (
+    <div role="note" className="flex items-start gap-2 rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-sm text-sky-900" data-testid="started-banner">
+      <span aria-hidden>✋</span>
+      <p>
+        <b>Hand testing has started.</b> {tested} of {total} finished, {inProgress} started but not finished. Pass rates count finished cases only.
+      </p>
+    </div>
+  );
+}
+
 /** Two bars, one per side, so hand testing and automation are never added together. */
 function SplitBars({ manual, auto, autoAll, autoRuns }: { manual: StatusCounts | null; auto: StatusCounts | null; autoAll: StatusCounts; autoRuns: number }) {
   const all = totals(autoAll);
@@ -231,14 +243,29 @@ export function StatusView({ suiteKey, runs, suites, kind, only }: { suiteKey: s
   const mixed = manual.runs > 0 && auto.runs > 0;
   return (
     <div className="space-y-5">
-      {show("status.tiles") && auto.runs > 0 && hand.tested === 0 && kind !== "automated" && <NoManualBanner total={hand.total} />}
+      {show("status.tiles") && kind !== "automated" && manual.inProgress > 0 && <StartedBanner tested={hand.tested} total={hand.total} inProgress={manual.inProgress} />}
+      {show("status.tiles") && auto.runs > 0 && hand.tested === 0 && manual.inProgress === 0 && kind !== "automated" && <NoManualBanner total={hand.total} />}
       {show("status.tiles") && <div>
       <PartTitle part="status.tiles" quiet>Summary numbers</PartTitle>
       <div className="grid gap-3 sm:grid-cols-4">
         <Tile label="Runs" value={String(runs.length)} sub={mixed ? undefined : `${runs.filter((r) => r.state === "ACTIVE").length} still open`}>
           {mixed && <KindSplit manual={`${manual.runs} manual`} auto={`${auto.runs} automated`} />}
         </Tile>
-        {manual.runs > 0 && <Tile label="✋ Manual testing" value={`${hand.tested} of ${hand.total}`} sub={`tested by hand · ${hand.done}% done`} warn={hand.tested === 0} />}
+        {manual.runs > 0 && (
+          <Tile
+            label="✋ Manual testing"
+            value={`${hand.tested} of ${hand.total}`}
+            sub={manual.inProgress ? `finished · ${manual.inProgress} in progress` : `tested by hand · ${hand.done}% done`}
+            warn={hand.tested === 0 && manual.inProgress === 0}
+          >
+            {/* How long the longest-waiting started case has sat, never who started it. */}
+            {manual.oldestDraftAt && (
+              <p className="text-[11px] text-slate-500" data-testid="oldest-started" title="Started, not finished. The case touched longest ago.">
+                Oldest touched {relativeTime(manual.oldestDraftAt)}
+              </p>
+            )}
+          </Tile>
+        )}
         {auto.runs > 0 && <Tile label="🤖 Automated tests" value={`${auto.latest.PASSED} of ${auto.cases}`} sub={autoT.tested ? "passed on their latest run" : "no results yet"} />}
         <Tile label="Bugs found" value={String(defects)}>
           {mixed && <KindSplit manual={String(manual.bugs)} auto={String(auto.bugs)} />}
@@ -346,6 +373,7 @@ export async function RunsTable({ runs }: { runs: Awaited<ReturnType<typeof runR
               <td className="px-4 py-2 text-xs">{r.release || "–"}</td>
               <td className="px-4 py-2">
                 <StatusBar counts={r.counts} />
+                {r.inProgress > 0 && <p className="mt-0.5 text-xs text-slate-500">{r.inProgress} in progress</p>}
               </td>
               <td className="px-4 py-2 text-right tabular-nums">{pct(totals(r.counts).passRate)}</td>
               <td className="px-4 py-2 text-right tabular-nums">{r.counts.FAILED}</td>

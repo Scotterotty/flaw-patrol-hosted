@@ -134,7 +134,7 @@ export async function partBlocks(cs: CustomScope, load: Loader, it: ReportPart, 
           k: "tiles",
           list: [
             { label: manual.runs && auto.runs ? `Runs (${manual.runs} manual, ${auto.runs} automated)` : "Runs", value: String(runs.length) },
-            ...(manual.runs ? [{ label: "Manual: tested by hand", value: `${hand.tested} of ${hand.total}` }] : []),
+            ...(manual.runs ? [{ label: manual.inProgress ? `Manual: finished (${manual.inProgress} in progress)` : "Manual: tested by hand", value: `${hand.tested} of ${hand.total}` }] : []),
             ...(auto.runs ? [{ label: "Automated: passed on latest run", value: `${auto.latest.PASSED} of ${auto.cases}` }] : []),
             { label: "Bugs found", value: String(manual.bugs + auto.bugs) },
           ],
