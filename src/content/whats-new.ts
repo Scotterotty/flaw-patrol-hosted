@@ -22,6 +22,25 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 145,
+    date: "2026-11-02",
+    items: [
+      {
+        kind: "new",
+        title: "Feedback button at the top of every page",
+        text: "Tell us what's broken, confusing or great about Flaw Patrol. Take a screenshot of the page, circle or box what you mean, add arrows and words, and hide anything private. Your note says where you were by itself. Replies show up on the Feedback page.",
+        link: "/feedback",
+      },
+      {
+        kind: "new",
+        title: "Feedback page for workspace admins",
+        text: "See everyone's feedback, filter by status, kind and where it was sent from, reply, set a status, or turn it into a bug on a test cycle's Bugs page.",
+        who: "workspace",
+        link: "/feedback",
+      },
+    ],
+  },
+  {
     version: 144,
     date: "2026-11-02",
     items: [

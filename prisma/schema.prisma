@@ -1347,3 +1347,58 @@ model EmailGroup {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+/// Feedback about Flaw Patrol itself, sent from the Feedback button in the top bar (ver_145).
+/// The sender sees their own on the Feedback page; workspace admins see everyone's.
+/// Sent without a name: userId and userName stay empty, so nobody (not even the sender) can tie it to them.
+model Feedback {
+  id         String          @id @default(cuid())
+  /// broken | confusing | idea | like (src/lib/feedback.ts)
+  kind       String
+  message    String          @default("")
+  /// Where it was sent from: the page's breadcrumbs, and its address.
+  place      String          @default("")
+  path       String          @default("")
+  appVersion String          @default("")
+  browser    String          @default("")
+  userId     String?
+  userName   String          @default("")
+  /// new | looking | planned | done | wontdo
+  status     String          @default("new")
+  /// A reply the sender hasn't opened yet: a dot on Feedback in their menu.
+  unseen     Boolean         @default(false)
+  /// The bug it was turned into: "/p/KEY/bugs/12".
+  bugHref    String          @default("")
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  shots      FeedbackShot[]
+  replies    FeedbackReply[]
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+/// A marked-up screenshot (or the sender's own picture) on a piece of feedback.
+model FeedbackShot {
+  id          String   @id @default(cuid())
+  feedback    Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  feedbackId  String
+  contentType String
+  size        Int
+  data        Bytes
+  createdAt   DateTime @default(now())
+
+  @@index([feedbackId])
+}
+
+model FeedbackReply {
+  id         String   @id @default(cuid())
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  feedbackId String
+  authorId   String?
+  authorName String   @default("")
+  text       String
+  createdAt  DateTime @default(now())
+
+  @@index([feedbackId])
+}

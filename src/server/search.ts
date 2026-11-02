@@ -125,6 +125,7 @@ function pageHits(q: string, umbrella: PageScope | null, everywhere: PageScope[]
   for (const p of ACCOUNT_PAGES) if (matches(`${p.label} ${p.words} account`)) hits.push({ href: `/account#${p.anchor}`, label: p.label, sub: "Your account" });
   if (matches("umbrellas home all projects")) hits.push({ href: "/", label: "Umbrellas", sub: "Every umbrella and test cycle" });
   if (matches("rc status release end of day")) hits.push({ href: "/rc", label: "Release status", sub: "Across every umbrella" });
+  if (matches("feedback suggestion idea complaint screenshot tell us")) hits.push({ href: "/feedback", label: "Feedback", sub: "What you've told us about Flaw Patrol, and replies" });
   return hits;
 }
 

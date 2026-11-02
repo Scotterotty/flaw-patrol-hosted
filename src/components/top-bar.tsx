@@ -5,6 +5,7 @@ import { badgeOf } from "@/lib/game";
 import { PROVIDER_NAME, type CompanyProvider } from "@/lib/sign-in-config";
 import { currentUser } from "@/lib/session";
 import { AccountMenu } from "./account-menu";
+import { FeedbackButton } from "./feedback-button";
 import { Avatar } from "./avatar";
 import { Breadcrumbs } from "./breadcrumbs";
 import { GlobalSearch } from "./global-search";
@@ -19,11 +20,12 @@ export async function TopBar({ user, project }: { user: { id: string; name: stri
   const badge = badgeOf(user);
   // Ask to join: a dot on admins' avatars while someone is waiting.
   // The join dot, the sign-in secret reminder and the live bug bash pill are asked for together.
-  const [joins, secret, live, me] = await Promise.all([
+  const [joins, secret, live, me, feedback] = await Promise.all([
     joinRequestsFor({ id: user.id, isAdmin: !!user.isAdmin }).catch(() => ({ count: 0, href: null })),
     secretSoon(!!user.isAdmin),
     project ? liveBashFor(project.key) : null,
     currentUser(),
+    feedbackCounts(user.id, !!user.isAdmin),
   ]);
   return (
     <header className="fp-bar sticky top-0 z-40 border-b border-slate-200 bg-surface/95 backdrop-blur">
@@ -44,6 +46,8 @@ export async function TopBar({ user, project }: { user: { id: string; name: stri
         {/* The radio sits next to your name, for people who turned it on. What plays, and its Spotify panel, live in the root layout so they survive page changes. */}
         {me?.radioEnabled && <RadioPlayer />}
         {secret && <SecretBanner soon={secret} />}
+        {/* Feedback sits in the bar, never floating over the page (Scott, ver_145). */}
+        <FeedbackButton unseen={feedback.unseen} waiting={feedback.waiting} />
         <AccountMenu
           label={`${user.email} · your account`}
           admin={!!user.isAdmin}
@@ -69,6 +73,15 @@ export async function TopBar({ user, project }: { user: { id: string; name: stri
       </div>
     </header>
   );
+}
+
+// Replies to your feedback you haven't opened, and for workspace admins, feedback nobody has looked at yet.
+async function feedbackCounts(userId: string, admin: boolean) {
+  const [unseen, waiting] = await Promise.all([
+    db.feedback.count({ where: { userId, unseen: true } }).catch(() => 0),
+    admin ? db.feedback.count({ where: { status: "new" } }).catch(() => 0) : 0,
+  ]);
+  return { unseen, waiting };
 }
 
 // Workspace admins get a reminder 14 days before a company sign-in's secret expires.
