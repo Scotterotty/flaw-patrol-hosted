@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ByCycle } from "@/components/by-cycle";
 import { RegressionView } from "@/components/regression-report";
-import { CasesView, DefectsView, FailingView, StatusView, StepsView, TestersView, TrendsView } from "@/components/report-views";
+import { CasesView, DefectsView, FailingView, StatusView, StepsView, TrendsView } from "@/components/report-views";
 import { PartFrame, PartTitle } from "@/components/report-part-title";
 import { WrapUpsSection } from "@/components/wrap-ups";
 import { Card } from "@/components/ui";
@@ -114,7 +114,6 @@ async function body(cs: CustomScope, load: Loader, it: ReportPart, q: Record<str
   }
   if (tab === "defects") return <DefectsView rows={await load.defects(f)} scale={await load.scale()} only={part} critical={it.own?.critical} />;
   if (tab === "cases") return <CasesView rows={await load.cases(f)} only={part} />;
-  if (tab === "testers") return <TestersView rows={await load.testers(f)} />;
   if (tab === "failing") return <FailingView rows={await load.steps(f)} allTimeHref={null} only={part} />;
   // Execution status and Step results come from the runs.
   const runs = await load.runs(f);

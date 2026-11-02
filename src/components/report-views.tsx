@@ -10,7 +10,7 @@ import { Badge, Card, cx, EmptyState } from "@/components/ui";
 import { NOTE_KINDS, NOTE_LABEL, type NoteKind } from "@/lib/charter";
 import type { sessionFindings, FindingTotals } from "@/lib/findings";
 import { count, relativeTime } from "@/lib/format";
-import type { caseHealth, defectReport, RunKind, RunRow, runReport, StepHistory, suiteReport, testerReport, Trends } from "@/lib/reports";
+import type { caseHealth, defectReport, RunKind, RunRow, runReport, StepHistory, suiteReport, Trends } from "@/lib/reports";
 import { manualLine, splitProgress } from "@/lib/progress-split";
 import { mySpelling } from "@/lib/session";
 import { AE_SCALE, type SeverityScale } from "@/lib/severity";
@@ -589,44 +589,6 @@ export async function CasesView({ rows, only }: { rows: Awaited<ReturnType<typeo
         </table>
       </Card>}
     </div>
-  );
-}
-
-// No time logged here (ver_101): testing isn't a race, so nobody's time is shown.
-export function TestersView({ rows }: { rows: Awaited<ReturnType<typeof testerReport>> }) {
-  return (
-    <Card data-export-skip="">
-      <PartTitle part="testers" className="border-b border-slate-200 px-4 py-3">People</PartTitle>
-      {/* Only the table scrolls sideways, so the Add to report menu above it isn't cut off (ver_124). */}
-      <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
-          <tr>
-            <th className="px-4 py-2 font-medium">
-              Tester <span className="font-normal text-slate-400">(A to Z, not ranked)</span>
-            </th>
-            <th className="px-4 py-2 text-right font-medium">Results</th>
-            <th className="w-1/2 px-4 py-2 font-medium">Outcomes</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {rows.map((r) => (
-            <tr key={r.name}>
-              <td className="px-4 py-2 font-medium text-slate-800">{r.name}</td>
-              <td className="px-4 py-2 text-right tabular-nums">{r.results}</td>
-              <td className="px-4 py-2">
-                <StatusBar counts={r.counts} />
-                <p className="mt-0.5 text-xs text-slate-500">
-                  {/* Every outcome, so the counts add up to the results (ver_91). */}
-                  {STATUSES.filter((s) => r.counts[s]).map((s) => `${r.counts[s]} ${STATUS_LABEL[s].toLowerCase()}`).join(", ") || "No results"}
-                </p>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      </div>
-    </Card>
   );
 }
 

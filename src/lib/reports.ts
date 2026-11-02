@@ -15,11 +15,11 @@ export type ReportFilters = {
   suiteId?: string;
   release?: string;
   runNumber?: number;
-  // Trends only: narrow to cases of one priority, tag or folder, or one tester's results.
+  // Narrow every tab to cases of one priority, tag or folder (ver_139). No filter by person:
+  // reports show how the product is doing, never who did the most.
   priority?: Priority;
   tag?: string;
   folder?: string;
-  tester?: string;
   /** Only runs tested by hand, or only uploaded and GitHub-pulled ones. */
   kind?: RunKind;
   /** One kind of run (ver_95), or "none" for plain runs. See src/lib/run-kinds.ts. */
@@ -44,7 +44,6 @@ export function parseFilters(sp: Record<string, string | undefined>): ReportFilt
     priority: PRIORITIES.find((p) => p === sp.priority),
     tag: sp.tag || undefined,
     folder: sp.folder || undefined,
-    tester: sp.tester || undefined,
     kind: sp.runs === "manual" || sp.runs === "automated" || sp.runs === "bash" ? sp.runs : undefined,
     runKind: sp.kind?.slice(0, 40) || undefined,
   };
@@ -71,6 +70,16 @@ export function runWhere(scope: ReportScope, f: ReportFilters): Prisma.TestRunWh
   }
   return w;
 }
+
+/** The cases a report counts: the priority, folder and tag picked (ver_139). Empty = every case. */
+export function entryWhere(f: ReportFilters): Prisma.RunEntryWhereInput {
+  const entry: Prisma.RunEntryWhereInput = {};
+  if (f.priority) entry.priority = f.priority;
+  if (f.folder) entry.folderPath = { startsWith: f.folder };
+  if (f.tag) entry.testCase = { tags: { has: f.tag } };
+  return entry;
+}
+export const hasCaseFilter = (f: ReportFilters) => !!(f.priority || f.folder || f.tag);
 
 export type RunRow = {
   id: string;
@@ -105,15 +114,18 @@ export type RunRow = {
 
 /** Run-by-run execution status, with step outcomes from each case's latest result. */
 export async function runReport(scope: ReportScope, f: ReportFilters): Promise<RunRow[]> {
+  const entry = entryWhere(f);
+  const narrowed = hasCaseFilter(f);
   const runs = await db.testRun.findMany({
-    where: runWhere(scope, f),
+    // Runs with none of the picked cases are left out.
+    where: { ...runWhere(scope, f), ...(narrowed ? { entries: { some: entry } } : {}) },
     orderBy: Array.isArray(scope) ? { createdAt: "desc" } : { number: "desc" },
     take: 500,
     include: {
       project: { select: { key: true, name: true, platform: true } },
       suite: { select: { name: true } },
-      entries: { select: { caseId: true, status: true, steps: true, results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true } } } },
-      results: { select: { defects: { select: { defectId: true } } } },
+      entries: { where: entry, select: { caseId: true, status: true, steps: true, results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true } } } },
+      results: { where: narrowed ? { entry } : undefined, select: { defects: { select: { defectId: true } } } },
       bugBash: { select: { id: true } },
     },
   });
@@ -196,7 +208,7 @@ const FAILING = new Set<ResultStatus>(["FAILED"]);
  */
 export async function stepHistory(scope: ReportScope, f: ReportFilters): Promise<StepHistory[]> {
   const results = await db.testResult.findMany({
-    where: { run: runWhere(scope, f) },
+    where: { run: runWhere(scope, f), entry: entryWhere(f) },
     orderBy: { createdAt: "asc" },
     select: {
       entryId: true,
@@ -279,11 +291,11 @@ export type DefectRow = {
 /** Defects linked to results in the period. */
 export async function defectReport(scope: ReportScope, f: ReportFilters): Promise<DefectRow[]> {
   const defects = await db.defect.findMany({
-    where: { projectId: inScope(scope), links: { some: { result: { run: runWhere(scope, f) } } } },
+    where: { projectId: inScope(scope), links: { some: { result: { run: runWhere(scope, f), entry: entryWhere(f) } } } },
     orderBy: { createdAt: "desc" },
     include: {
       links: {
-        where: { result: { run: runWhere(scope, f) } },
+        where: { result: { run: runWhere(scope, f), entry: entryWhere(f) } },
         include: { result: { select: { run: { select: { number: true, release: true } }, entry: { select: { testCase: { select: { number: true, project: { select: { key: true } } } } } } } } },
       },
     },
@@ -310,7 +322,7 @@ export type CaseHealthRow = { caseKey: string; caseProjectKey: string; number: n
 /** Per-case execution health in the period: most failing, flaky, long-failing. */
 export async function caseHealth(scope: ReportScope, f: ReportFilters): Promise<CaseHealthRow[]> {
   const results = await db.testResult.findMany({
-    where: { run: runWhere(scope, f) },
+    where: { run: runWhere(scope, f), entry: entryWhere(f) },
     orderBy: { createdAt: "asc" },
     select: { caseId: true, status: true, createdAt: true, entry: { select: { title: true, testCase: { select: { number: true, tags: true, project: { select: { key: true } } } } } } },
     take: 50000,
@@ -338,26 +350,6 @@ export async function caseHealth(scope: ReportScope, f: ReportFilters): Promise<
   });
 }
 
-export type TesterRow = { name: string; results: number; counts: StatusCounts; minutes: number };
-
-export async function testerReport(scope: ReportScope, f: ReportFilters): Promise<TesterRow[]> {
-  const results = await db.testResult.findMany({
-    where: { run: runWhere(scope, f) },
-    select: { testerName: true, status: true, elapsedSec: true },
-  });
-  const by = new Map<string, { statuses: ResultStatus[]; sec: number }>();
-  for (const r of results) {
-    const cur = by.get(r.testerName) ?? { statuses: [], sec: 0 };
-    cur.statuses.push(r.status);
-    cur.sec += r.elapsedSec ?? 0;
-    by.set(r.testerName, cur);
-  }
-  return [...by.entries()]
-    .map(([name, v]) => ({ name, results: v.statuses.length, counts: countStatuses(v.statuses), minutes: Math.round(v.sec / 60) }))
-    // A to Z, never by most results: this isn't a leaderboard (ver_91).
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
 export async function releaseOptions(scope: ReportScope) {
   const rows = await db.testRun.findMany({ where: { projectId: inScope(scope), release: { not: "" } }, distinct: ["release"], select: { release: true }, orderBy: { createdAt: "desc" } });
   return rows.map((r) => r.release);
@@ -382,12 +374,8 @@ export type Trends = { unit: BucketUnit; buckets: TrendBucket[]; releases: Relea
  * were recorded in Flaw Patrol.
  */
 export async function trends(scope: ReportScope, f: ReportFilters): Promise<Trends> {
-  const entry: Prisma.RunEntryWhereInput = {};
-  if (f.priority) entry.priority = f.priority;
-  if (f.folder) entry.folderPath = { startsWith: f.folder };
-  if (f.tag) entry.testCase = { tags: { has: f.tag } };
   const results = await db.testResult.findMany({
-    where: { run: runWhere(scope, f), entry, ...(f.tester ? { testerName: f.tester } : {}) },
+    where: { run: runWhere(scope, f), entry: entryWhere(f) },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
@@ -455,17 +443,15 @@ export async function trends(scope: ReportScope, f: ReportFilters): Promise<Tren
   return { unit, buckets, releases, results: kept.length, manual: kept.filter((r) => !r.run.automated).length, automated: kept.filter((r) => r.run.automated).length };
 }
 
-/** Choices for the trend filters. */
-export async function trendOptions(scope: ReportScope) {
+/** Choices for the Priority, Folder and Tag filters, on every tab (ver_139). */
+export async function caseFilterOptions(scope: ReportScope) {
   const run = { projectId: inScope(scope) };
-  const [testers, cases, folders] = await Promise.all([
-    db.testResult.findMany({ where: { run, testerName: { not: "" } }, distinct: ["testerName"], select: { testerName: true }, orderBy: { testerName: "asc" } }),
+  const [cases, folders] = await Promise.all([
     // Tags of the cases these runs ran, wherever the cases live (an umbrella's Case library, say).
     db.testCase.findMany({ where: { archived: false, runEntries: { some: { run } } }, select: { tags: true } }),
     db.runEntry.findMany({ where: { run, folderPath: { not: "" } }, distinct: ["folderPath"], select: { folderPath: true }, orderBy: { folderPath: "asc" } }),
   ]);
   return {
-    testers: testers.map((t) => t.testerName),
     tags: [...new Set(cases.flatMap((c) => c.tags))].sort((a, b) => a.localeCompare(b)),
     folders: folders.map((x) => x.folderPath),
   };

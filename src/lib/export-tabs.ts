@@ -9,7 +9,6 @@ export function exportTabs(cycle: boolean) {
     { id: "regression", label: "Regression", on: true },
     { id: "defects", label: "Bugs found", on: true },
     { id: "cases", label: "Case history", note: "long: every case" },
-    { id: "testers", label: "People" },
     { id: "requirements", label: "Requirements coverage" },
     ...(cycle ? [{ id: "findings", label: "Session findings" }] : []),
   ];

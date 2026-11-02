@@ -9,7 +9,7 @@ import { clock, NOTE_LABEL } from "./charter";
 import { parseFindingFilters, sessionFindings } from "./findings";
 import { caseKey } from "./format";
 import { bugLine, percent, pickRelease, resultLine, stateOf } from "./rc-status";
-import { caseHealth, defectReport, runReport, stepHistory, testerReport, trends, type ReportFilters, type ReportScope, type RunRow } from "./reports";
+import { caseHealth, defectReport, runReport, stepHistory, trends, type ReportFilters, type ReportScope, type RunRow } from "./reports";
 import { runValues } from "./run-fields";
 import { runFieldsFor } from "./run-fields-server";
 import { severityScaleFor } from "./severity-server";
@@ -36,7 +36,6 @@ export const EXPORT_TABS = [
   { id: "regression", label: "Regression" },
   { id: "defects", label: "Bugs found" },
   { id: "cases", label: "Case history" },
-  { id: "testers", label: "People" },
   { id: "requirements", label: "Requirements coverage" },
   { id: "findings", label: "Session findings" },
 ] as const;
@@ -154,15 +153,6 @@ export async function reportTable(ctx: ExportCtx, view: ExportTab, f: ReportFilt
         ["Case", "Title", "Tags", "Executions", "Pass rate", "Latest result", "Latest at", "Failed in a row", "Pass/fail flips"],
         ...c.map((x) => [x.caseKey, x.title, x.tags.join(", "), x.runs, pct(x.passRate), STATUS_LABEL[x.last], x.lastAt.toISOString(), x.failStreak, x.flips]),
       ],
-    };
-  }
-  if (view === "testers") {
-    const t = await testerReport(scope, f);
-    return {
-      label,
-      note: "A to Z, not ranked.",
-      // No time spent column (ver_101): testing isn't a race.
-      rows: [["Tester", "Results", "Passed", "Failed", "Blocked", "Retest", "Skipped"], ...t.map((x) => [x.name, x.results, x.counts.PASSED, x.counts.FAILED, x.counts.BLOCKED, x.counts.RETEST, x.counts.SKIPPED])],
     };
   }
   if (view === "findings") {

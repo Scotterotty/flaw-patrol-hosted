@@ -1,5 +1,5 @@
 import "server-only";
-import { caseHealth, defectReport, parseFilters, runReport, stepHistory, suiteReport, testerReport, trends, type ReportFilters, type ReportScope, type RunRow } from "./reports";
+import { caseHealth, defectReport, parseFilters, runReport, stepHistory, suiteReport, trends, type ReportFilters, type ReportScope, type RunRow } from "./reports";
 import { regressionReport } from "./regression-data";
 import { severityScaleFor } from "./severity-server";
 import { listWrapUps, releaseStart } from "./wrap-ups";
@@ -66,7 +66,6 @@ export function loader(cs: CustomScope) {
     steps: (f: ReportFilters) => once("steps", f, () => stepHistory(cs.scope, f)),
     defects: (f: ReportFilters) => once("defects", f, () => defectReport(cs.scope, f)),
     cases: (f: ReportFilters) => once("cases", f, () => caseHealth(cs.scope, f)),
-    testers: (f: ReportFilters) => once("testers", f, () => testerReport(cs.scope, f)),
     scale: () => once("scale", {} as ReportFilters, () => severityScaleFor(cs.homeId)),
     regression: () => once("regression", {} as ReportFilters, () => regressionReport(cs.regressionIds, { platform: cs.regressionPlatform })),
     wrapUps: (f: ReportFilters) =>

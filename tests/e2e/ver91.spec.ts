@@ -163,13 +163,13 @@ test("Export menu on umbrella Reports: PDF and Excel", async ({ page }) => {
   expect(pdf.status()).toBe(200);
   expect(pdf.headers()["content-type"]).toContain("application/pdf");
   expect((await pdf.body()).subarray(0, 4).toString()).toBe("%PDF");
-  const xlsx = await page.request.get(`/g/${groupId}/reports/export?format=xlsx&tabs=status,testers`, { timeout: 120_000 });
+  const xlsx = await page.request.get(`/g/${groupId}/reports/export?format=xlsx&tabs=status,cases`, { timeout: 120_000 });
   expect(xlsx.status()).toBe(200);
   expect((await xlsx.body()).subarray(0, 2).toString()).toBe("PK");
-  // Testers are A to Z, not a ranking.
+  // No People tab since ver_139: reports never compare people.
   await page.keyboard.press("Escape");
-  await page.goto(`/g/${groupId}/reports?view=testers`);
-  await expect(page.getByText("A to Z, not ranked")).toBeVisible();
+  await page.goto(`/g/${groupId}/reports`);
+  await expect(page.getByRole("navigation", { name: "Report views" }).getByRole("link", { name: "People", exact: true })).toHaveCount(0);
 });
 
 test("Send to Jira for a bug saved before Jira, with Jira's severity names", async ({ page }) => {

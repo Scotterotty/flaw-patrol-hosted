@@ -3,7 +3,7 @@ import { z } from "zod";
 // Custom reports (ver_101): the parts people can pick from the Reports tabs, and what a
 // report keeps for each one. Shared by the pages, the editor and the export.
 
-export type PartTab = "status" | "trends" | "steps" | "failing" | "regression" | "defects" | "cases" | "testers" | "other";
+export type PartTab = "status" | "trends" | "steps" | "failing" | "regression" | "defects" | "cases" | "other";
 
 export const PART_TABS: { id: PartTab; label: string }[] = [
   { id: "status", label: "Execution status" },
@@ -13,7 +13,6 @@ export const PART_TABS: { id: PartTab; label: string }[] = [
   { id: "regression", label: "Regression" },
   { id: "defects", label: "Bugs found" },
   { id: "cases", label: "Case history" },
-  { id: "testers", label: "People" },
   { id: "other", label: "Other tabs" },
 ];
 
@@ -41,7 +40,6 @@ export const PARTS = [
   { id: "cases.failing", tab: "cases", title: "Failing now" },
   { id: "cases.flaky", tab: "cases", title: "Flaky" },
   { id: "cases.all", tab: "cases", title: "Every case executed" },
-  { id: "testers", tab: "testers", title: "People" },
   { id: "rc", tab: "other", title: "Release status summary" },
   { id: "requirements", tab: "other", title: "Requirements coverage" },
   { id: "wrapups", tab: "other", title: "Bug bash and exploring wrap-ups" },
@@ -85,6 +83,9 @@ export function parseItems(v: unknown): ReportItem[] {
     return r.success ? [r.data as ReportItem] : [];
   });
 }
+
+/** The People part was taken out (ver_139): reports never compare people. True if a stored report still lists it. */
+export const hadPeoplePart = (v: unknown) => Array.isArray(v) && v.some((x) => x && typeof x === "object" && (x as { part?: unknown }).part === "testers");
 
 export const newItemId = () => Math.random().toString(36).slice(2, 10);
 

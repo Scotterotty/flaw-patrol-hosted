@@ -30,7 +30,8 @@ export async function sessionFindings(projectId: string, f: ReportFilters, ff: F
   const results = await db.testResult.findMany({
     where: {
       run: runWhere(projectId, f),
-      entry: { kind: "EXPLORATORY", ...(ff.personaId ? { testCase: { personaId: ff.personaId } } : {}) },
+      // Tag is the one case filter charters get (ver_139).
+      entry: { kind: "EXPLORATORY", testCase: { ...(ff.personaId ? { personaId: ff.personaId } : {}), ...(f.tag ? { tags: { has: f.tag } } : {}) } },
       ...(ff.caseId ? { caseId: ff.caseId } : {}),
       sessionLog: { not: Prisma.DbNull },
     },
@@ -89,9 +90,9 @@ export async function sessionFindings(projectId: string, f: ReportFilters, ff: F
 /** Charters and personas that have sessions, for the filter menus. */
 export async function findingOptions(projectId: string) {
   const [charters, personas] = await Promise.all([
-    db.testCase.findMany({ where: { projectId, type: "EXPLORATORY" }, select: { id: true, number: true, title: true }, orderBy: { number: "asc" } }),
+    db.testCase.findMany({ where: { projectId, type: "EXPLORATORY" }, select: { id: true, number: true, title: true, tags: true }, orderBy: { number: "asc" } }),
     db.persona.findMany({ where: { projectId }, select: { id: true, name: true, emoji: true }, orderBy: { name: "asc" } }),
   ]);
-  return { charters, personas };
+  return { charters: charters.map((c) => ({ id: c.id, number: c.number, title: c.title })), personas, tags: [...new Set(charters.flatMap((c) => c.tags))].sort((a, b) => a.localeCompare(b)) };
 }
 

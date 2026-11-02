@@ -48,18 +48,17 @@ test("Add to report from a tab, then edit it: tick parts, a note, rename, own fi
   await expect(page.getByTestId("add-to-report-note")).toContainText(`Added to Weekly ${TAG}`);
 
   // The next box can go into the report just made.
-  await page.getByRole("link", { name: "People", exact: true }).click();
-  // No time logged on Testers (ver_101).
-  await expect(page.getByRole("columnheader", { name: "Outcomes" })).toBeVisible();
-  await expect(page.getByText("Time logged")).toHaveCount(0);
-  await page.getByTestId("add-testers").click();
+  // No People tab since ver_139: reports never compare people.
+  await expect(page.getByRole("link", { name: "People", exact: true })).toHaveCount(0);
+  await page.getByRole("link", { name: "Case history", exact: true }).click();
+  await page.getByTestId("add-cases.all").click();
   await page.getByRole("menuitem", { name: new RegExp(`Weekly ${TAG}`) }).click();
   await page.getByTestId("add-to-report-note").getByRole("link", { name: "Open it" }).click();
   await expect(page.getByTestId("report-name")).toHaveText(`Weekly ${TAG}`);
   const body = page.locator("#custom-report-body");
   await expect(body.locator("section[data-part]")).toHaveCount(2);
   await expect(body.getByRole("heading", { name: "Pass rate by run" })).toBeVisible();
-  await expect(body.getByRole("heading", { name: "People" })).toBeVisible();
+  await expect(body.getByRole("heading", { name: "Every case executed" })).toBeVisible();
 
   // Edit: tick Bug list, add a note, rename a part, give it its own filters.
   await page.getByTestId("edit-report").click();

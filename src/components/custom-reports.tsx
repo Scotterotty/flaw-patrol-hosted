@@ -181,6 +181,11 @@ export async function CustomReportView({
         scopeLine={cs.title}
       />
       {filters}
+      {report.removedPeople && (
+        <p className="text-xs text-slate-500" data-testid="people-part-removed" data-export-skip="">
+          The People part was removed from Flaw Patrol, so this report no longer shows it.
+        </p>
+      )}
       {items.length === 0 ? (
         <EmptyState title="This report is empty">{report.canEdit ? "Click Edit report to add parts." : "Whoever made it hasn't added any parts yet."}</EmptyState>
       ) : (

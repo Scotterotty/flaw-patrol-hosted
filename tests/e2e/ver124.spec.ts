@@ -87,7 +87,8 @@ test("Test runs has one Bring in results menu, and Reports opens with a summary"
   await expect(page.getByTestId("report-summary-line")).toHaveText(/^All time: 1 run\./);
   await expect(page.getByTestId("tile-notrun")).toContainText("in open runs");
   await expect(page.getByRole("button", { name: "Copy summary" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "People", exact: true })).toBeVisible();
+  // The People tab is gone since ver_139.
+  await expect(page.getByRole("link", { name: "People", exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Testers", exact: true })).toHaveCount(0);
 });
 

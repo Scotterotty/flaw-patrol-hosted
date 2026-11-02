@@ -14,14 +14,13 @@ import { cx, EmptyState, Input, PageHeader, Select } from "@/components/ui";
 import { db } from "@/lib/db";
 import { projectAccess } from "@/lib/session";
 import { countStatuses, STATUSES, type StatusCounts } from "@/lib/status";
-import { caseHealth, defectReport, parseFilters, stepHistory, releaseOptions, runReport, suiteReport, testerReport, trendOptions, trends } from "@/lib/reports";
+import { caseHealth, defectReport, parseFilters, stepHistory, releaseOptions, runReport, suiteReport, caseFilterOptions, trends } from "@/lib/reports";
 import { SavedViews } from "@/components/saved-views";
-import { PRIORITY_LABEL } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { cleanReportQuery } from "@/lib/report-query";
 import { findingOptions, parseFindingFilters, sessionFindings } from "@/lib/findings";
 import { ViewTabs } from "@/components/view-tabs";
-import { CasesView, DefectsView, FailingView, RunKindFilter, FindingsView, StatusView, StepsView, TestersView, TrendsView } from "@/components/report-views";
+import { CasesView, DefectsView, FailingView, RunKindFilter, FindingsView, StatusView, StepsView, TrendsView } from "@/components/report-views";
 import { libraryProjectIds } from "@/lib/umbrella";
 import { ExportMenu } from "@/components/export-menu";
 import { exportTabs } from "@/lib/export-tabs";
@@ -30,6 +29,7 @@ import { RegressionView } from "@/components/regression-report";
 
 import { summaryFor } from "@/lib/report-summary-data";
 import { ReportSummaryBar } from "@/components/report-summary";
+import { CaseFilters, caseFilterWords } from "@/components/case-filters";
 
 export const metadata = { title: "Reports" };
 
@@ -41,7 +41,6 @@ const VIEWS = [
   { id: "regression", label: "Regression" },
   { id: "defects", label: "Bugs found" },
   { id: "cases", label: "Case history" },
-  { id: "testers", label: "People" },
   { id: "findings", label: "Session findings" },
 ] as const;
 type View = (typeof VIEWS)[number]["id"];
@@ -63,7 +62,8 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
     db.testSuite.findMany({ where: { projectId: { in: library } }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     releaseOptions(project.id),
     db.savedReport.findMany({ where: { projectId: project.id, OR: [{ shared: true }, { createdById: user.id }] }, orderBy: { name: "asc" } }),
-    view === "trends" ? trendOptions(project.id) : null,
+    // Priority, Folder and Tag on every tab but Regression and Session findings (ver_139).
+    view === "regression" || view === "findings" ? null : caseFilterOptions(project.id),
   ]);
   const findingOpts = view === "findings" ? await findingOptions(project.id) : null;
   const qs = (extra: Record<string, string | undefined>) => {
@@ -154,46 +154,7 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
           ))}
         </Select>
         <Input name="run" defaultValue={sp.run ?? ""} placeholder="Run # (optional)" className="w-36" aria-label="Run number" />
-        {options && (
-          <>
-            <Select name="priority" defaultValue={f.priority ?? ""} className="w-auto" aria-label="Priority">
-              <option value="">Any priority</option>
-              {(["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const).map((p) => (
-                <option key={p} value={p}>
-                  {PRIORITY_LABEL[p]}
-                </option>
-              ))}
-            </Select>
-            <Select name="tester" defaultValue={f.tester ?? ""} className="w-auto" aria-label="Tester">
-              <option value="">Any tester</option>
-              {options.testers.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </Select>
-            {options.folders.length > 0 && (
-              <Select name="folder" defaultValue={f.folder ?? ""} className="w-auto max-w-56" aria-label="Folder">
-                <option value="">Any folder</option>
-                {options.folders.map((x) => (
-                  <option key={x} value={x}>
-                    {x}
-                  </option>
-                ))}
-              </Select>
-            )}
-            {options.tags.length > 0 && (
-              <Select name="tag" defaultValue={f.tag ?? ""} className="w-auto" aria-label="Tag">
-                <option value="">Any tag</option>
-                {options.tags.map((x) => (
-                  <option key={x} value={x}>
-                    {x}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </>
-        )}
+        <CaseFilters f={f} options={options} tagsOnly={findingOpts?.tags} hideAll={view === "regression"} />
         {findingOpts && (
           <>
             <Select name="persona" defaultValue={sp.persona ?? ""} className="w-auto" aria-label="Persona">
@@ -223,7 +184,7 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
         )}
         <RunKindFilter current={f.kind} href={(k) => `?${qs({ runs: k })}`} />
         {kindGroup && <KindSelect kinds={parseRunKinds(kindGroup.group.runKinds)} value={sp.kind} />}
-        {(sp.suite || sp.release || sp.run || sp.from || sp.to || sp.range || sp.priority || sp.tester || sp.folder || sp.tag || sp.persona || sp.charter || sp.kinds || sp.open || sp.runs || sp.kind) && (
+        {(sp.suite || sp.release || sp.run || sp.from || sp.to || sp.range || sp.priority || sp.folder || sp.tag || sp.persona || sp.charter || sp.kinds || sp.open || sp.runs || sp.kind) && (
           <Link href={`?view=${view}`} className="pb-2 text-sm text-slate-500 hover:underline">
             Reset
           </Link>
@@ -231,13 +192,14 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
       </AutoFilterForm>
 
       {/* The one-line answer (ver_124, persona audit #10), following the dates and filters. */}
-      {view !== "regression" && runs.length > 0 && <ReportSummaryBar summary={await summaryFor(project.id, f, runs, scope)} />}
+      {view !== "regression" && runs.length > 0 && <ReportSummaryBar summary={await summaryFor(project.id, f, runs, caseFilterWords(scope, f))} />}
 
       <ScrollTabs label="Report views" className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200">
         {VIEWS.map((v) => (
           <Link
             key={v.id}
-            href={`?${qs(v.id === "trends" ? { view: v.id } : { view: v.id, priority: undefined, tester: undefined, folder: undefined, tag: undefined })}`}
+            // Your filters stay when you switch tabs (ver_139).
+            href={`?${qs({ view: v.id })}`}
             className={cx("-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap", view === v.id ? "border-accent-600 font-medium text-accent-700" : "border-transparent text-slate-600 hover:text-slate-900")}
           >
             {v.label}
@@ -268,7 +230,7 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
         <DefectsView rows={await defectReport(project.id, f)} scale={await severityScaleFor(project.id)} />
       ) : view === "cases" ? (
         <CasesView rows={await caseHealth(project.id, f)} />
-      ) : view === "findings" ? (
+      ) : (
         <FindingsView
           projectId={project.id}
           projectKey={project.key}
@@ -279,8 +241,6 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
           canAnswer={can(who, "run:execute")}
           canWrite={can(who, "case:edit")}
         />
-      ) : (
-        <TestersView rows={await testerReport(project.id, f)} />
       )}
       <WrapUpsSection items={wrapUps} />
       </div>

@@ -57,8 +57,6 @@ export async function partBlocks(cs: CustomScope, load: Loader, it: ReportPart, 
       if (!r.newer || !r.older) return nothing("Nothing to compare yet.");
       return [{ k: "text", text: `${r.newer} compared with ${r.older}` }, ...(await table("regression"))];
     }
-    case "testers":
-      return table("testers");
     case "defects.tiles":
     case "defects.list": {
       const [rows, scale] = await Promise.all([load.defects(f), load.scale()]);

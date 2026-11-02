@@ -10,11 +10,11 @@ import { mySpelling } from "@/lib/session";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AutoFilterForm } from "@/components/auto-filter-form";
-import { CasesView, DefectsView, FailingView, RunKindFilter, StatusView, StepsView, TestersView, TrendsView } from "@/components/report-views";
+import { CasesView, DefectsView, FailingView, RunKindFilter, StatusView, StepsView, TrendsView } from "@/components/report-views";
 import { cx, EmptyState, Input, PageHeader, Select } from "@/components/ui";
 import { ViewTabs } from "@/components/view-tabs";
 import { reportsHome, reportTabs } from "@/lib/tools";
-import { caseHealth, defectReport, parseFilters, releaseOptions, runReport, stepHistory, suiteReport, testerReport, trends, type RunRow } from "@/lib/reports";
+import { caseHealth, defectReport, parseFilters, releaseOptions, runReport, stepHistory, suiteReport, caseFilterOptions, trends, type RunRow } from "@/lib/reports";
 import { requireUser } from "@/lib/session";
 import { countStatuses, STATUSES, type StatusCounts } from "@/lib/status";
 import { loadUmbrella, platformColor } from "@/lib/umbrella";
@@ -30,6 +30,7 @@ import { ByCycle } from "@/components/by-cycle";
 
 import { summaryFor } from "@/lib/report-summary-data";
 import { ReportSummaryBar } from "@/components/report-summary";
+import { CaseFilters, caseFilterWords } from "@/components/case-filters";
 
 export const metadata = { title: "Reports" };
 
@@ -41,7 +42,6 @@ const VIEWS = [
   { id: "regression", label: "Regression" },
   { id: "defects", label: "Bugs found" },
   { id: "cases", label: "Case history" },
-  { id: "testers", label: "People" },
 ] as const;
 type View = (typeof VIEWS)[number]["id"];
 
@@ -155,9 +155,11 @@ export default async function UmbrellaReportsPage({ params, searchParams }: { pa
             )}
           </>
         )}
+        {/* Priority, Folder and Tag, as on a test cycle's Reports (ver_139). */}
+        <CaseFilters f={f} options={view === "regression" ? null : await caseFilterOptions(scope)} hideAll={view === "regression"} />
         <RunKindFilter current={f.kind} href={(k) => `?${qs({ runs: k })}`} />
         <KindSelect kinds={parseRunKinds(u.group.runKinds)} value={sp.kind} />
-        {(sp.release || sp.platform || sp.from || sp.to || sp.range || sp.runs || sp.kind) && (
+        {(sp.release || sp.platform || sp.from || sp.to || sp.range || sp.runs || sp.kind || sp.priority || sp.folder || sp.tag) && (
           <Link href={`?view=${view}`} className="pb-2 text-sm text-slate-500 hover:underline">
             Reset
           </Link>
@@ -165,7 +167,7 @@ export default async function UmbrellaReportsPage({ params, searchParams }: { pa
       </AutoFilterForm>
 
       {/* The one-line answer (ver_124, persona audit #10), following the dates and filters. */}
-      {view !== "regression" && runs.length > 0 && <ReportSummaryBar summary={await summaryFor(scope, f, runs, when)} />}
+      {view !== "regression" && runs.length > 0 && <ReportSummaryBar summary={await summaryFor(scope, f, runs, caseFilterWords(when, f))} />}
 
       <ScrollTabs label="Report views" className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200">
         {VIEWS.map((v) => (
@@ -204,10 +206,8 @@ export default async function UmbrellaReportsPage({ params, searchParams }: { pa
         <FailingView rows={await stepHistory(scope, f)} allTimeHref={f.allTime || f.release ? null : `?${qs({ range: "all", from: undefined, to: undefined })}`} />
       ) : view === "defects" ? (
         <DefectsView rows={await defectReport(scope, f)} scale={await severityScaleFor(u.hub.id)} />
-      ) : view === "cases" ? (
-        <CasesView rows={await caseHealth(scope, f)} />
       ) : (
-        <TestersView rows={await testerReport(scope, f)} />
+        <CasesView rows={await caseHealth(scope, f)} />
       )}
       <WrapUpsSection items={wrapUps} />
       </div>

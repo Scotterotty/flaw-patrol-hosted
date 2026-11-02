@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "./db";
 import { can, type Who } from "./permissions";
 import { regressionScope } from "./regression-data";
-import { parseItems } from "./report-parts";
+import { hadPeoplePart, parseItems } from "./report-parts";
 import { releaseOptions, type ReportFilters } from "./reports";
 import { dateRange } from "./spelling";
 import { newestRcNames } from "./story-coverage";
@@ -84,6 +84,7 @@ export async function reportsFor(homeId: string, user: Viewer, who: Who) {
   return rows.map((r) => ({
     ...r,
     items: parseItems(r.parts),
+    removedPeople: hadPeoplePart(r.parts),
     canEdit: can(who, "run:execute") && (r.createdById === user.id || (r.shared && can(who, "run:manage"))),
     canDelete: can(who, "run:execute") && (r.createdById === user.id || (r.shared && who.role === "ADMIN")),
   }));
