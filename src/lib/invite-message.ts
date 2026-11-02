@@ -8,6 +8,6 @@ export function inviteMessage(place: string, url: string) {
 }
 
 /** "Nov 7": when an invite link runs out, in the viewer's own time zone. */
-export function linkUntil(date: Date) {
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+export function linkUntil(date: Date, zone?: string) {
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", ...(zone ? { timeZone: zone } : {}) });
 }

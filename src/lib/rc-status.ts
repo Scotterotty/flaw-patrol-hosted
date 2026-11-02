@@ -32,6 +32,8 @@ export type RcColumn = {
   runIds: string[];
   /** The runs' names, listed small under the column when there's more than one. */
   runs: { name: string; href: string }[];
+  /** The kind and number of each run, such as "Smoke test R1" (ver_137), so nobody mistakes a smoke check for release testing. */
+  kinds?: string;
   build: string;
   /** Run fields shown on Release status cards, ready to print: "CSP 0.22.1 · Region EU" (ver_89). */
   extra: string;

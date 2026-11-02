@@ -1,5 +1,6 @@
 "use client";
 
+import { assignable } from "@/lib/assignable";
 import { NewsTag } from "./case-news-tag";
 import { newsLine } from "@/lib/case-news";
 import { useSpelling } from "@/components/spelling";
@@ -76,7 +77,7 @@ export function RunEntries({
   rows: EntryRow[];
   /** Server time the rows were read; live rows read later replace them (ver_112). */
   renderedAt: number;
-  members: { id: string; name: string; avatarAt?: Date | null; frame?: string | null; title?: string | null }[];
+  members: { id: string; name: string; avatarAt?: Date | null; frame?: string | null; title?: string | null; canTest?: boolean }[];
   canManage: boolean;
   /** Can record results in this run (it's open and they're allowed): lets them run just the selected cases. */
   canRun: boolean;
@@ -272,7 +273,7 @@ export function RunEntries({
               >
                 <option value="">Assign {selected.size} selected to…</option>
                 <option value="__none">Nobody</option>
-                {members.map((m) => (
+                {assignable(members).map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}
                   </option>

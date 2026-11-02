@@ -1,5 +1,6 @@
 "use client";
 
+import { assignable } from "@/lib/assignable";
 import type { ResultStatus } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -14,7 +15,7 @@ export type RunSource =
   | { kind: "cases"; caseIds: string[] }
   | { kind: "rerun"; runId: string; statuses: ResultStatus[] };
 
-export type Member = { id: string; name: string };
+export type Member = { id: string; name: string; canTest?: boolean };
 
 export function NewRunButton({
   projectId,
@@ -149,8 +150,8 @@ export function NewRunButton({
               onChange={(e) => setAssignee(e.target.value)}
             >
               <option value="">Nobody yet</option>
-              {meId && members.some((m) => m.id === meId) && <option value={meId}>Me ({members.find((m) => m.id === meId)!.name})</option>}
-              {members
+              {meId && assignable(members).some((m) => m.id === meId) && <option value={meId}>Me ({members.find((m) => m.id === meId)!.name})</option>}
+              {assignable(members)
                 .filter((m) => m.id !== meId)
                 .map((m) => (
                   <option key={m.id} value={m.id}>

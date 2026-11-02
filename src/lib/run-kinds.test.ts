@@ -22,6 +22,6 @@ describe("run kinds", () => {
     expect(kindIdFor("RC", [])).toBe("rc-2");
   });
   it("counts release candidates and plain runs for release status", () => {
-    expect([countsForRelease("rc"), countsForRelease(""), countsForRelease("smoke"), countsForRelease("bash")]).toEqual([true, true, false, false]);
+    expect([countsForRelease("rc"), countsForRelease(""), countsForRelease("smoke"), countsForRelease("bash")]).toEqual([true, true, true, false]);
   });
 });

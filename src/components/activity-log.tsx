@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { viewerZone } from "@/lib/zone-server";
 import { cleanQuery, ENOUGH_EXACT, forgivingFilter } from "@/lib/fuzzy";
 import { CloseMatchesLabel } from "./close-matches";
 import Link from "next/link";
@@ -14,6 +15,8 @@ const TONE: Record<string, Tone> = { signin: "orange", people: "blue", settings:
 
 /** Workspace settings → Activity log: admin and security events, newest first. */
 export async function ActivityLog({ filters, spelling }: { filters: ActivityFilters; spelling: Spelling }) {
+  // On the viewer's clock (ver_137), not the server's UTC.
+  const zone = await viewerZone();
   const where = activityWhere(filters);
   const take = pageSize(filters);
   const [entries, total, people, umbrellas, ws] = await Promise.all([
@@ -102,7 +105,7 @@ export async function ActivityLog({ filters, spelling }: { filters: ActivityFilt
               )}
               <tr className="border-b border-slate-100 align-top">
                 <td className="py-1.5 pr-2 whitespace-nowrap text-slate-500 tabular-nums">
-                  {shortDate(e.at, spelling)}, {clockTime(e.at, spelling)}
+                  {shortDate(e.at, spelling, zone)}, {clockTime(e.at, spelling, zone)}
                 </td>
                 <td className="py-1.5 pr-2 whitespace-nowrap text-slate-800">{e.actorLabel}</td>
                 <td className="py-1.5 pr-2 text-slate-800">

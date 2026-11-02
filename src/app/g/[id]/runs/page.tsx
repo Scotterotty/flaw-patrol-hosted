@@ -86,7 +86,7 @@ export default async function UmbrellaRunsPage({ params, searchParams }: { param
             <>
               {canUpload && <UploadAutomationButton scope={{ groupId: u.group.id }} />}
               {can(u.who, "run:create") && <StartBashButton projectId={u.hub.id} hideButton />}
-              <StartRunBox scope={{ groupId: u.group.id }} />
+              {can(u.who, "run:create") && <StartRunBox scope={{ groupId: u.group.id }} />}
             </>
           )
         }

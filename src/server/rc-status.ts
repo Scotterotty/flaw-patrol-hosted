@@ -1,4 +1,4 @@
-import { countsForRelease } from "@/lib/run-kinds";
+import { countsForRelease, kindLabel, parseRunKinds, shownKind } from "@/lib/run-kinds";
 import "server-only";
 import { stillBrokenByPlatform } from "@/lib/regression-data";
 
@@ -123,7 +123,7 @@ export async function rcStatus(
   // marked with it, or when it wasn't attached to a test cycle and ran while this release was on.
   const bashIds = new Set((await db.bugBash.findMany({ where: { runId: { in: fetched.map((r) => r.id) } }, select: { runId: true } })).map((b) => b.runId!));
   const plain = all.filter((r) => !bashIds.has(r.id));
-  // Smoke tests and custom kinds stay out unless added by hand (ver_95); release candidates and plain runs count.
+  // Every run marked with this release counts, whatever its kind (ver_137); the Runs picker still hides one per person.
   const mine = plain.filter((r) => r.release && releaseKey(r.release) === key && countsForRelease(r.kind));
   const from = Math.min(...mine.map((r) => r.createdAt.getTime()));
   const until = Math.min(...plain.filter((r) => r.release && releaseKey(r.release) !== key && r.createdAt.getTime() > from).map((r) => r.createdAt.getTime()));
@@ -149,8 +149,8 @@ export async function rcStatus(
     db.testRun.findMany({
       where: { id: { in: ids } },
       include: {
-        project: { select: { key: true, name: true, platform: true, groupId: true } },
-        entries: { select: { id: true, status: true, lastTestedAt: true } },
+        project: { select: { key: true, name: true, platform: true, groupId: true, group: { select: { runKinds: true } } } },
+        entries: { select: { id: true, status: true, lastTestedAt: true, kind: true } },
       },
       orderBy: [{ createdAt: "asc" }],
     }),
@@ -206,6 +206,7 @@ export async function rcStatus(
       label,
       runName: mine.map((r) => `${r.name} · ${r.project.key}`).join(", "),
       runs: mine.length > 1 ? mine.map((r) => ({ name: r.name, href: `/p/${r.project.key}/runs/${r.number}` })) : [],
+      kinds: mine.map((r) => `${kindLabel(parseRunKinds(r.project.group?.runKinds), shownKind(r))} R${r.number}`).join(", "),
       build: newest.build,
       extra: pickValues(newest, defsOf.get(newest.projectId) ?? [], "rc").map((v) => (v.id === "csp" ? `CSP ${v.value}` : `${v.name} ${v.value}`)).join(" · "),
       completed: mine.every((r) => r.state === "COMPLETED"),

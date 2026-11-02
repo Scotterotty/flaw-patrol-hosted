@@ -314,6 +314,11 @@ function Column({ c, now, auto, scale }: { c: RcColumn; now: Date | null; auto: 
           {st.label}
         </span>
       </div>
+      {c.kinds && !c.bash && (
+        <div className="mb-0.5 text-[11px] font-medium text-slate-600" data-testid="rc-column-kind">
+          {c.kinds}
+        </div>
+      )}
       <div className="mb-2 text-xs text-slate-500">{[c.build, c.extra].filter(Boolean).join(" · ") || " "}</div>
       <div className="text-3xl font-semibold text-slate-900">{percent(c)}%</div>
       <div className="text-xs text-slate-500">

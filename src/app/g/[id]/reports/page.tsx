@@ -1,10 +1,10 @@
+import { reportRange } from "@/lib/zone-server";
 import { AddPartsHere } from "@/components/add-part-bar";
 import { ScrollTabs } from "@/components/scroll-tabs";
 import { AttachWrapUps, WrapUpsSection } from "@/components/wrap-ups";
 import { attachedWrapUps, releaseStart, reportsWrapKey, wrapPickOf } from "@/lib/wrap-ups";
 import { KindSelect } from "@/components/kind-select";
 import { parseRunKinds } from "@/lib/run-kinds";
-import { dateRange } from "@/lib/spelling";
 import { severityScaleFor } from "@/lib/severity-server";
 import { mySpelling } from "@/lib/session";
 import Link from "next/link";
@@ -79,7 +79,7 @@ export default async function UmbrellaReportsPage({ params, searchParams }: { pa
   };
   const stepCounts = sum(runs.map((r) => r.steps));
   const where = platform ? platforms.find((p) => p.toLowerCase() === platform) : "every platform";
-  const when = f.release ? `Release ${f.release}` : f.allTime ? "All time" : dateRange(f.from, f.to, await mySpelling());
+  const when = f.release ? `Release ${f.release}` : f.allTime ? "All time" : await reportRange(f.from, f.to, sp, await mySpelling());
 
   // Attach wrap-ups (ver_96): bug bashes and exploring carried on this report, outside its pass rates.
   const wrapKey = reportsWrapKey(`/g/${u.group.id}/reports`);

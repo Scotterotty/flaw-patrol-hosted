@@ -435,6 +435,8 @@ export async function rcPlan(groupId: string) {
     allSuites: suites.map((s) => ({ id: s.id, name: s.name, cases: s.cases.length, caseIds: s.cases.map((c) => c.caseId) })),
     library: { folders, cases: cases.map((c) => ({ id: c.id, key: `${hub.key}-${c.number}`, title: c.title, folderId: c.folderId })) },
     lastRc,
+    // Releases that already have test cycles (ver_137): typing one shows "Start a run instead".
+    releases: projects.filter((p) => p.rcName.trim()).map((p) => ({ rc: p.rcName.trim(), platform: p.platform.trim() })),
     // Offered as "Use Demo RC 2" next to the empty Release box, never filled in (ver_99).
     suggested: (lastRc && nextRc(lastRc)) || "",
     runFields: parseRunFields(group.runFields),

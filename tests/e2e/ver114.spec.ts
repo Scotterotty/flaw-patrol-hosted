@@ -45,14 +45,12 @@ test("Add gives a message with the invite link, and the link lets them in", asyn
   const ctx = await browser.newContext();
   const p = await ctx.newPage();
   await p.goto(url!);
+  await p.getByLabel("Your name").fill("Nia New");
   await p.getByLabel("Choose a password").fill("nia first password 1");
   await p.getByLabel("Confirm password").fill("nia first password 1");
-  await p.getByRole("button", { name: "Choose password" }).click();
-  await expect(p).toHaveURL(/signin\?email=/);
-  await p.getByRole("button", { name: "Continue" }).click();
-  await p.getByLabel("Password", { exact: true }).fill("nia first password 1");
-  await p.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(p).not.toHaveURL(/signin/);
+  // Since ver_137 the invite signs them straight in.
+  await p.getByRole("button", { name: "Choose password and sign in" }).click();
+  await expect(p).not.toHaveURL(/signin|invite/);
   await ctx.close();
 
   // Someone who already has a password still gets the short sign-in-as-usual message.

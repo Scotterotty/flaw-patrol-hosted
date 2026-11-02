@@ -1,5 +1,7 @@
 "use server";
 
+import { assignable } from "@/lib/assignable";
+import { askForMemberAccess } from "./join-requests";
 import { libraryCaseNews } from "@/lib/case-news-data";
 import { NOT_BASH_CASE } from "@/lib/bash-cases";
 import { tagColorsFor } from "@/lib/tag-data";
@@ -25,6 +27,21 @@ import { createRun } from "./runs";
 export type RunBoxScope = { projectKey: string } | { groupId: string };
 
 export type RunBoxCycle = { id: string; key: string; name: string; color: string; current: boolean; rcName: string; members: { id: string; name: string }[] };
+
+const viewerLine = (team: string) => `You're a Viewer in ${team}. Ask an admin for Member access to start runs.`;
+
+/** The Start a run box's Ask for Member access (ver_137), for a Viewer who opened it: asks in the umbrella's team. */
+export async function askAccessFromRunBox(scope: RunBoxScope, path: string) {
+  const user = await requireUser();
+  let projectId: string | null = null;
+  if ("projectKey" in scope) {
+    const p = await db.project.findUnique({ where: { key: scope.projectKey.toUpperCase() }, select: { id: true, key: true, name: true, groupId: true, rcName: true } });
+    const u = p ? await umbrellaOf(p) : null;
+    projectId = u ? u.hub.id : (p?.id ?? null);
+  } else projectId = (await loadUmbrella(scope.groupId, user))?.hub.id ?? null;
+  if (!projectId) return { ok: false as const, error: "This umbrella isn't available." };
+  return askForMemberAccess(projectId, path);
+}
 
 /** Everything the box offers: the test cycles the viewer can start runs in, and the library to pick from. */
 export async function runBoxOptions(scope: RunBoxScope) {
@@ -66,6 +83,8 @@ export async function runBoxOptions(scope: RunBoxScope) {
     const roles = await db.projectMember.findMany({ where: { userId: user.id, projectId: { in: cycles.map((c) => c.id) } }, select: { projectId: true, role: true } });
     const roleOf = new Map<string, Role>(roles.map((r) => [r.projectId, r.role]));
     cycles = cycles.filter((c) => can({ role: user.isAdmin ? "ADMIN" : (roleOf.get(c.id) ?? null), rules }, "run:create"));
+    // A Viewer gets the way up instead of a dead end (ver_137); the box offers Ask for Member access.
+    if (!cycles.length && !empty && !newCycle?.canCreate && umbrella?.who.role === "VIEWER") throw new UserError(viewerLine(umbrella.group.name));
     if (!cycles.length && !empty && !newCycle?.canCreate) throw new UserError(umbrella ? `You can't start runs in any ${umbrella.group.name} test cycle yet. Ask an admin to add you to one.` : "You can't start runs here.");
 
     const libIds = await libraryProjectIds(library);
@@ -97,7 +116,7 @@ export async function runBoxOptions(scope: RunBoxScope) {
       meId: user.id,
       // Run fields (ver_89): the umbrella's, or CSP version for a test cycle outside one.
       runFields: umbrella ? parseRunFields(umbrella.group.runFields) : [CSP_FIELD],
-      cycles: cycles.map((c, i): RunBoxCycle => ({ id: c.id, key: c.key, name: c.name, color: colorOf(c.platform), current: c.current, rcName: c.rcName, members: members[i].map((m) => ({ id: m.id, name: m.name })) })),
+      cycles: cycles.map((c, i): RunBoxCycle => ({ id: c.id, key: c.key, name: c.name, color: colorOf(c.platform), current: c.current, rcName: c.rcName, members: assignable(members[i]).map((m) => ({ id: m.id, name: m.name })) })),
       allCount,
       // Whether the "Make a suite", "Write the first case" and "Import cases" links show (ver_118).
       canSuites: umbrella ? can(umbrella.who, "suite:manage") : true,
@@ -204,7 +223,7 @@ export async function createCycleFromRunBox(groupId: string, input: { name: stri
     const user = await requireUser();
     const [p, umbrella] = await Promise.all([db.project.findUniqueOrThrow({ where: { key: res.key } }), loadUmbrella(groupId, user)]);
     const members = await projectMembers(p.id);
-    const cycle: RunBoxCycle = { id: p.id, key: p.key, name: p.name, color: umbrella ? platformColor(umbrella.platforms, p.platform) : "#94a3b8", current: true, rcName: p.rcName, members: members.map((m) => ({ id: m.id, name: m.name })) };
+    const cycle: RunBoxCycle = { id: p.id, key: p.key, name: p.name, color: umbrella ? platformColor(umbrella.platforms, p.platform) : "#94a3b8", current: true, rcName: p.rcName, members: assignable(members).map((m) => ({ id: m.id, name: m.name })) };
     return { cycle };
   });
 }

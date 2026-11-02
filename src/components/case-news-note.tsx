@@ -3,14 +3,15 @@
 import Link from "next/link";
 import type { CaseNews, StepChange } from "@/lib/case-news";
 import { shortDate } from "@/lib/spelling";
-import { useSpelling } from "./spelling";
+import { useSpelling, useZone } from "./spelling";
 
 // New and Updated cases in the runner (ver_96): a note above the steps, and tags on updated steps.
 
 export function CaseNewsNote({ news, href }: { news: CaseNews | null | undefined; href?: string }) {
   const spelling = useSpelling();
+  const zone = useZone();
   if (!news) return null;
-  const day = (iso: string) => shortDate(new Date(iso), spelling);
+  const day = (iso: string) => shortDate(new Date(iso), spelling, zone);
   if (news.kind === "new")
     return (
       <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950" data-testid="case-news">

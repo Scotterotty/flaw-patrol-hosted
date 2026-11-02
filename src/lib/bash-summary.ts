@@ -1,5 +1,6 @@
 import "server-only";
 import { parseAreas, parseLinks, phaseOf, plusOnesOf, sevRank, timeRange } from "./bash";
+import { dayName, type Spelling } from "./spelling";
 import { parseCharter } from "./charter";
 import { findTemplate } from "./bash-template";
 import { loadBugTemplates } from "./bug-templates-data";
@@ -67,7 +68,7 @@ export async function loadBashFull(bashId: string) {
 export type BashFull = NonNullable<Awaited<ReturnType<typeof loadBashFull>>>;
 
 /** The report: counts, by area, worst bugs, prompts covered and not touched, and vs the last bash. */
-export async function bashReport(bashId: string) {
+export async function bashReport(bashId: string, clock: { spelling?: Spelling; zone?: string } = {}) {
   const full = await loadBashFull(bashId);
   if (!full) return null;
   const { bash, areas, items } = full;
@@ -91,7 +92,8 @@ export async function bashReport(bashId: string) {
   const end = bash.endedAt && bash.endedAt < bash.endsAt ? bash.endedAt : bash.endsAt;
   return {
     ...full,
-    when: `${bash.startsAt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} ${timeRange(bash.startsAt, end)}`,
+    // On the viewer's clock and Language setting when the page passes them (ver_137).
+    when: `${dayName(bash.startsAt, clock.spelling ?? "us", clock.zone)} ${timeRange(bash.startsAt, end, clock)}`,
     people,
     bugs: counted,
     notFiled: bash.wrappedAt ? counted.filter((b) => !b.bug).length : 0,

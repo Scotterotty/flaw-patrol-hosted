@@ -7,7 +7,9 @@ import { RunFieldInputs } from "./run-field-inputs";
 import type { RunField } from "@/lib/run-fields";
 import { forgivingFilter } from "@/lib/fuzzy";
 import { CloseMatchesLabel } from "./close-matches";
-import { onStartKind, onStartPrefetch } from "@/lib/start-kind";
+import { onStartKind, onStartPrefetch, startRunWith } from "@/lib/start-kind";
+import { andList } from "@/lib/link-access";
+import { releaseKey } from "@/lib/rc-status";
 import { prefetchOn, useLazy } from "@/lib/use-lazy";
 import { BoxWait } from "./box-wait";
 import { LiveBashPill } from "./bash";
@@ -677,6 +679,8 @@ export type RcPlan = {
   hubKey: string;
   suggested: string;
   lastRc: string;
+  /** Releases that already have test cycles, and their platforms (ver_137). */
+  releases: { rc: string; platform: string }[];
   /** The umbrella's run fields, asked in the box (ver_99). */
   runFields: RunField[];
   allSuites: { id: string; name: string; cases: number; caseIds: string[] }[];
@@ -793,6 +797,10 @@ function RcBox({
   // Nothing is picked for you (Scott, ver_99): the release name, platforms, what each runs and the
   // carry-over all start empty. Last release's choices are offered in each dropdown and as "Use Demo RC 2".
   const [rc, setRc] = useState("");
+  // Typing a release that already has test cycles points to Start a run instead (ver_137).
+  const existing = rc.trim() ? (plan.releases ?? []).filter((r) => releaseKey(r.rc) === releaseKey(rc)) : [];
+  const order = (p: string) => ((i) => (i < 0 ? 99 : i))(plan.platforms.findIndex((x) => x.name.toLowerCase() === p.toLowerCase()));
+  const existingPlatforms = [...new Set(existing.map((r) => r.platform).filter(Boolean))].sort((a, b) => order(a) - order(b));
   const [picked, setPicked] = useState<Set<string>>(() => new Set());
   const [choices, setChoices] = useState<Record<string, RcChoice>>({});
   // Bumped as run fields are typed in, so the still-needed list keeps up.
@@ -1266,6 +1274,24 @@ function RcBox({
                 <Input id="rc-name" value={rc} onChange={(e) => setRc(e.target.value)} placeholder="e.g. 2.1 or RC 22" />
               </Field>
             </div>
+            {existing.length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900" data-testid="rc-release-exists">
+                <span className="min-w-0 flex-1">
+                  {plan.umbrella} already has {rc.trim()} test cycles{existingPlatforms.length ? ` for ${andList(existingPlatforms)}` : ""}. To test in them, use <b>Start a run</b> and set Release to {rc.trim()}.
+                </span>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => {
+                    const release = rc.trim();
+                    setOpen(false);
+                    if (!startRunWith(release)) router.push(`/g/${groupId}?start=run&release=${encodeURIComponent(release)}`);
+                  }}
+                >
+                  Start a run instead
+                </Button>
+              </div>
+            )}
             <p className="mt-4 mb-1.5 text-sm font-medium text-slate-700">
               Platforms <span className="font-normal text-slate-500">· tick the ones testing this release, then pick the test cases each one tests</span>
             </p>

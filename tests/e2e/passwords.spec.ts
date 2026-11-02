@@ -44,16 +44,15 @@ test("passwords: first-time setup, wrong password, admin link, change", async ({
   const invite = /(http\S+\/invite\/\S+)/.exec(await page.getByLabel("Invite link").inputValue())?.[1];
   expect(invite).toBeTruthy();
   await m.goto(invite!);
+  await m.getByLabel("Your name").fill("Pat Member");
   await m.getByLabel("Choose a password").fill("first password 1");
   await m.getByLabel("Confirm password").fill("first password 2");
-  await m.getByRole("button", { name: "Choose password" }).click();
+  await m.getByRole("button", { name: "Choose password and sign in" }).click();
   await expect(m.getByText("The two passwords don't match.")).toBeVisible();
   await m.getByLabel("Confirm password").fill("first password 1");
-  await m.getByRole("button", { name: "Choose password" }).click();
-  await expect(m).toHaveURL(/signin\?email=/);
-  await tryPassword(m, member, "first password 1");
-  await expect(m).not.toHaveURL(/signin/);
-  // The account menu shows the email until they add a name.
+  // Since ver_137 the invite signs them straight in.
+  await m.getByRole("button", { name: "Choose password and sign in" }).click();
+  await expect(m).not.toHaveURL(/signin|invite/);
   await expect(m.locator('header button[aria-haspopup="menu"]')).toBeVisible();
   await signOut(m);
 

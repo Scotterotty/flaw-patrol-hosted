@@ -55,8 +55,9 @@ export async function suitePickerData(project: { id: string; groupId: string | n
 export async function projectMembers(projectId: string) {
   const members = await db.projectMember.findMany({
     where: { projectId },
-    select: { userId: true, user: { select: { name: true, email: true, avatarAt: true, gameEnabled: true, gameTitle: true, gameFrame: true } } },
+    select: { userId: true, role: true, user: { select: { name: true, email: true, avatarAt: true, gameEnabled: true, gameTitle: true, gameFrame: true } } },
     orderBy: { user: { name: "asc" } },
   });
-  return members.map((m) => ({ id: m.userId, name: m.user.name ?? m.user.email, avatarAt: m.user.avatarAt, ...badgeOf(m.user) }));
+  // canTest (ver_137): Viewers can't record results, so Assign lists leave them out (see assignable).
+  return members.map((m) => ({ id: m.userId, name: m.user.name ?? m.user.email, avatarAt: m.user.avatarAt, canTest: m.role !== "VIEWER", ...badgeOf(m.user) }));
 }

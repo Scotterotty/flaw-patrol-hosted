@@ -35,3 +35,26 @@ export function onStartPrefetch(kind: "rc" | "bash", start: () => void) {
 export function startPrefetch(kind: "rc" | "bash") {
   window.dispatchEvent(new CustomEvent(PREFETCH, { detail: kind }));
 }
+
+const START_RUN = "fp:start-run";
+
+/**
+ * The other way round (ver_137): the release box's "Start a run instead" opens the page's
+ * Start a run box with Release filled in. Returns the cleanup, for useEffect.
+ */
+export function onStartRun(open: (release: string) => void) {
+  const handler = (e: Event) => {
+    const d = (e as CustomEvent<{ release: string; handled: boolean }>).detail;
+    d.handled = true;
+    open(d.release);
+  };
+  window.addEventListener(START_RUN, handler);
+  return () => window.removeEventListener(START_RUN, handler);
+}
+
+/** Ask the page's Start a run box to open with this release; false when there's none here. */
+export function startRunWith(release: string) {
+  const detail = { release, handled: false };
+  window.dispatchEvent(new CustomEvent(START_RUN, { detail }));
+  return detail.handled;
+}

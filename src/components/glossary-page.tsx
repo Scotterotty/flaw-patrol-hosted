@@ -1,5 +1,7 @@
 "use client";
 
+import { useZone } from "./spelling";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -16,7 +18,7 @@ import { Button, cx, Field, Input, PageHeader, Select, Textarea } from "./ui";
 type Filter = "all" | "ask" | "mine" | "week";
 type Crown = { holder: string | null; holderCount: number; mine: number; toTake: number; youHold: boolean };
 
-const day = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const day = (iso: string, zone?: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: zone });
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 
 /** The Glossary page (ver_113): search, filters, A to Z, and every term with who added it. */
@@ -230,6 +232,7 @@ function TermRow({
   onHistory: () => void;
   onUses: () => void;
 }) {
+  const zone = useZone();
   const router = useRouter();
   const g = useGlossary();
   const [confirm, setConfirm] = useState(false);
@@ -265,7 +268,7 @@ function TermRow({
         ) : (
           <span>{asked ? "Asked" : "Added"}</span>
         )}
-        <span>· {day(r.createdAt)}</span>
+        <span>· {day(r.createdAt, zone)}</span>
         {writer && (
           <>
             <span>· answered by</span>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useZone } from "./spelling";
+
 import { Fragment, type ReactNode } from "react";
 import type { Role } from "@prisma/client";
 import { useRouter } from "next/navigation";
@@ -19,6 +21,7 @@ type Member = { userId: string; email: string; name: string | null; role: Role; 
 
 export function MembersPanel({ projectId, members, canManage, me, canEmail = false, nudge, requests = [], team = "" }: { projectId: string; members: Member[]; canManage: boolean; me: string; canEmail?: boolean; nudge?: ReactNode; requests?: JoinRequestRow[]; team?: string }) {
   const router = useRouter();
+  const zone = useZone();
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [email, setEmail] = useState("");
@@ -66,7 +69,7 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
                   m.name && m.email,
                   !m.signedIn ? (m.inviteSentAt ? `invited · email sent ${relativeTime(new Date(m.inviteSentAt))}` : "invited, hasn't signed in yet") : !m.hasPassword && "no password yet (send a password link)",
                   // When their invite link runs out (ver_114), so you know when to copy a new one.
-                  !m.signedIn && !m.hasPassword && m.inviteUntil && (new Date(m.inviteUntil) > new Date() ? `link works until ${linkUntil(new Date(m.inviteUntil))}` : "link ran out, copy a new one"),
+                  !m.signedIn && !m.hasPassword && m.inviteUntil && (new Date(m.inviteUntil) > new Date() ? `link works until ${linkUntil(new Date(m.inviteUntil), zone)}` : "link ran out, copy a new one"),
                 ]
                   .filter(Boolean)
                   .join(" · ")}

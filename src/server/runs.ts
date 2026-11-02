@@ -170,6 +170,19 @@ export async function setRunState(projectId: string, runId: string, state: "ACTI
   });
 }
 
+/** Before Close run (ver_137): how many cases still need a result, and who they're assigned to. */
+export async function closeRunCheck(projectId: string, runId: string) {
+  return attempt(async () => {
+    await requireProjectAction(projectId, "run:manage");
+    const run = await db.testRun.findFirst({ where: { id: runId, projectId }, select: { automated: true, entries: { select: { status: true, assigneeId: true } } } });
+    if (!run || run.automated) return { open: 0, total: 0, names: [] as string[] };
+    const open = run.entries.filter((e) => OPEN.includes(e.status));
+    const ids = [...new Set(open.map((e) => e.assigneeId).filter((id): id is string => !!id))];
+    const people = ids.length ? await db.user.findMany({ where: { id: { in: ids } }, select: { name: true, email: true } }) : [];
+    return { open: open.length, total: run.entries.length, names: people.map((u) => u.name?.trim() || u.email.split("@")[0]) };
+  });
+}
+
 export async function deleteRun(projectId: string, runId: string) {
   return attempt(async () => {
     const { project, user } = await requireProjectAction(projectId, "run:delete");

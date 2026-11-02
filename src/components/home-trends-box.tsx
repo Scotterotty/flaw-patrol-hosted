@@ -1,5 +1,7 @@
 "use client";
 
+import { useZone } from "./spelling";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
@@ -224,10 +226,11 @@ export function HomeTrendsBox({
 }
 
 /** "Nov 1, 1:05 PM PST", in the viewer's own time zone. */
-const timeOf = (iso: string) => new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+const timeOf = (iso: string, zone?: string) => new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short", timeZone: zone });
 
 /** By build (ver_133): the newest automated run, and how the last ones went, in one line. */
 function BuildHealth({ points }: { points: BuildPoint[] }) {
+  const zone = useZone();
   const last = points.at(-1);
   if (!last) return null;
   const h = buildHealth(points);
@@ -239,7 +242,7 @@ function BuildHealth({ points }: { points: BuildPoint[] }) {
         {last.rate === null ? "No tests ran" : `${fmt(last.passed)} of ${fmt(last.passed + last.failed)} passed`}
       </span>
       <span className="text-slate-500" suppressHydrationWarning>
-        {timeOf(last.at)}
+        {timeOf(last.at, zone)}
         {last.platform && ` · ${last.platform}`}
       </span>
       {points.length > 1 && (

@@ -7,9 +7,9 @@ import { CloseMatchesLabel } from "./close-matches";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { PRIORITIES, PRIORITY_LABEL } from "@/lib/format";
-import { startKind, startPrefetch } from "@/lib/start-kind";
+import { onStartRun, startKind, startPrefetch } from "@/lib/start-kind";
 import { prefetchOn } from "@/lib/use-lazy";
-import { addRunKind, createCycleFromRunBox, runBoxOptions, startRuns, type RunBoxOptions, type RunBoxScope } from "@/server/start-run";
+import { addRunKind, askAccessFromRunBox, createCycleFromRunBox, runBoxOptions, startRuns, type RunBoxOptions, type RunBoxScope } from "@/server/start-run";
 import { Modal } from "./modal";
 import { BusyStrip, SpinnerArt } from "./loading-spinner";
 import { RunFieldInputs } from "./run-field-inputs";
@@ -54,23 +54,63 @@ export function StartRunBox({
   const [open, setOpen] = useState(initialOpen && !disabled);
   // Starting and opening the run (ver_108): the box stays up and can't be closed until the run page shows.
   const [busy, setBusy] = useState(false);
-  const asked = useSearchParams().get("start");
+  const params = useSearchParams();
+  const asked = params.get("start");
+  // Release filled in when the release box's "Start a run instead" opened this (ver_137).
+  const [release, setRelease] = useState("");
   useEffect(() => {
-    if (openParam && asked === openParam && !disabled) setOpen(true);
-  }, [asked, openParam, disabled]);
+    if (openParam && asked === openParam && !disabled) {
+      setRelease(params.get("release") ?? "");
+      setOpen(true);
+    }
+  }, [asked, openParam, disabled, params]);
+  useEffect(
+    () =>
+      openParam && !disabled
+        ? onStartRun((r) => {
+            setRelease(r);
+            setOpen(true);
+          })
+        : undefined,
+    [openParam, disabled],
+  );
   return (
     <>
-      <Button variant={variant} size={size} onClick={() => setOpen(true)} disabled={disabled}>
+      <Button
+        variant={variant}
+        size={size}
+        onClick={() => {
+          setRelease("");
+          setOpen(true);
+        }}
+        disabled={disabled}
+      >
         {label}
       </Button>
       <Modal open={open} onClose={() => setOpen(false)} title={session ? "Start a session" : "Start a run"} wide locked={busy}>
-        <Box scope={scope} preset={preset} defaultName={defaultName} session={session} onClose={() => setOpen(false)} onBusy={setBusy} />
+        <Box scope={scope} preset={preset} defaultName={defaultName} session={session} release={release} onClose={() => setOpen(false)} onBusy={setBusy} />
       </Modal>
     </>
   );
 }
 
-function Box({ scope, preset, defaultName, session, onClose, onBusy }: { scope: RunBoxScope; preset?: RunBoxPreset; defaultName?: string; session?: boolean; onClose: () => void; onBusy: (busy: boolean) => void }) {
+function Box({
+  scope,
+  preset,
+  defaultName,
+  session,
+  release,
+  onClose,
+  onBusy,
+}: {
+  scope: RunBoxScope;
+  preset?: RunBoxPreset;
+  defaultName?: string;
+  session?: boolean;
+  release?: string;
+  onClose: () => void;
+  onBusy: (busy: boolean) => void;
+}) {
   const [opts, setOpts] = useState<RunBoxOptions | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -89,13 +129,53 @@ function Box({ scope, preset, defaultName, session, onClose, onBusy }: { scope: 
   if (!opts)
     return (
       <div className="space-y-3">
-        {error ? <ErrorText>{error}</ErrorText> : <p className="py-6 text-center text-sm text-slate-500">Loading the library…</p>}
+        {error?.startsWith("You're a Viewer") ? (
+          <ViewerAsk scope={scope} line={error} />
+        ) : error ? (
+          <ErrorText>{error}</ErrorText>
+        ) : (
+          <p className="py-6 text-center text-sm text-slate-500">Loading the library…</p>
+        )}
         <div className="flex justify-end">
           <Button onClick={onClose}>Close</Button>
         </div>
       </div>
     );
-  return <Form opts={opts} preset={preset} defaultName={defaultName} session={session} onClose={onClose} onBusy={onBusy} />;
+  return <Form opts={opts} preset={preset} defaultName={defaultName} session={session} initialRelease={release} onClose={onClose} onBusy={onBusy} />;
+}
+
+/** A Viewer who opens the box (ver_137): why they can't, and the way up, not a dead end. */
+function ViewerAsk({ scope, line }: { scope: RunBoxScope; line: string }) {
+  const [state, setState] = useState<"idle" | "asking" | "asked">("idle");
+  const [error, setError] = useState<string | null>(null);
+  const path = usePathname();
+  return (
+    <div className="rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-900 ring-1 ring-sky-200 ring-inset" data-testid="run-box-viewer">
+      <p>
+        {line}{" "}
+        {state === "asked" ? (
+          <span className="font-medium">You asked for Member access. An admin will see it in Members.</span>
+        ) : (
+          <button
+            type="button"
+            disabled={state === "asking"}
+            className="font-medium text-sky-800 underline hover:text-sky-950"
+            onClick={async () => {
+              setState("asking");
+              const res = await askAccessFromRunBox(scope, path);
+              if (!res.ok) {
+                setError(res.error);
+                setState("idle");
+              } else setState("asked");
+            }}
+          >
+            {state === "asking" ? "Asking…" : "Ask for Member access"}
+          </button>
+        )}
+      </p>
+      {error && <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>}
+    </div>
+  );
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -107,6 +187,7 @@ function Form({
   preset,
   defaultName,
   session,
+  initialRelease,
   onClose,
   onBusy,
 }: {
@@ -114,6 +195,7 @@ function Form({
   preset?: RunBoxPreset;
   defaultName?: string;
   session?: boolean;
+  initialRelease?: string;
   onClose: () => void;
   onBusy: (busy: boolean) => void;
 }) {
@@ -148,7 +230,7 @@ function Form({
   const [showOlder, setShowOlder] = useState(false);
   const [more, setMore] = useState(false);
   const [assignee, setAssignee] = useState("");
-  const [release, setRelease] = useState("");
+  const [release, setRelease] = useState(initialRelease ?? "");
   // "Use each test cycle's own" release, when the ticked test cycles have different ones (ver_99).
   const [cycleRelease, setCycleRelease] = useState(false);
   // Bumped as run fields are typed in, so the still-needed list keeps up.
@@ -605,6 +687,8 @@ function Form({
                   Undo
                 </button>
               </span>
+            ) : release.trim() ? (
+              <span data-testid="release-counts">Counts toward {release.trim()} on Release status. Leave it blank to keep this run out.</span>
             ) : undefined
           }
         >

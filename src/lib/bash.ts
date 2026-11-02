@@ -1,5 +1,6 @@
 import type { Severity } from "@prisma/client";
 import { z } from "zod";
+import { clockTime, type Spelling } from "./spelling";
 
 // Bug bashes (ver_93): a short, timed session where anyone picks an area and logs bugs.
 // Client-safe rules and words; the saving lives in src/server/bashes.ts.
@@ -157,7 +158,7 @@ export function plusOnesOf(v: unknown): { id: string; name: string }[] {
 }
 
 /** "1:00–2:00 PM" style times for the report. */
-export function timeRange(start: Date, end: Date) {
-  const t = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+export function timeRange(start: Date, end: Date, clock: { spelling?: Spelling; zone?: string } = {}) {
+  const t = (d: Date) => clockTime(d, clock.spelling ?? "us", clock.zone);
   return `${t(start)}–${t(end)}`;
 }

@@ -102,6 +102,8 @@ import { NavOrderProvider } from "@/components/nav-order";
 import { parseNavOrder } from "@/lib/nav-order";
 import { GlossaryProvider } from "@/components/glossary";
 import { BusyCorner } from "@/components/busy-corner";
+import { ZoneCookie } from "@/components/zone-cookie";
+import { viewerZone } from "@/lib/zone-server";
 
 export const metadata: Metadata = { title: { default: "Flaw Patrol", template: "%s · Flaw Patrol" } };
 
@@ -110,6 +112,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const user = await currentUser();
   const spotify = parseSpotifyLinks(user?.spotifyLinks);
   const spelling = await mySpelling();
+  // Your time zone (ver_137), saved by your browser, so server-drawn times are on your clock.
+  const zone = await viewerZone();
   // What's new after sign-in (ver_88): versions this person hasn't closed yet.
   const whatsNew = user && (user.whatsNewSeen ?? 0) < BUILD ? unseenFor(user.whatsNewSeen, await viewerOf(user)) : [];
   // Mini game crowns (ver_96): tell players once when they take or lose one.
@@ -136,7 +140,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <body className="min-h-screen font-sans antialiased">
         <SkipLink />
-        <SpellingProvider spelling={spelling}>
+        <SpellingProvider spelling={spelling} zone={zone}>
+          <ZoneCookie zone={zone} />
           <NavOrderProvider order={parseNavOrder(user?.navOrder)}>
           {/* The radio is up here so it keeps playing from page to page and project to project. */}
           {(() => {

@@ -7,6 +7,7 @@ import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
 import { emailInvite, newLink, placeName, RESET_HOURS } from "@/lib/invites";
 import { inviteMessage } from "@/lib/invite-message";
+import { inviteTitle } from "@/lib/invite-title";
 import { mailOn, sendMail } from "@/lib/mail";
 import { hashLinkToken, hashPassword, passwordProblem, verifyPassword } from "@/lib/password";
 import { requireProjectAction, requireUser } from "@/lib/session";
@@ -147,9 +148,36 @@ export async function copyInviteLink(projectId: string, userId: string) {
 
 /** The invite page: who the link is for, or null when it was used or expired. */
 export async function findInviteLink(token: string) {
-  const link = await db.passwordLink.findUnique({ where: { tokenHash: hashLinkToken(token) }, include: { user: { select: { email: true, passwordSetAt: true } } } });
+  const link = await db.passwordLink.findUnique({ where: { tokenHash: hashLinkToken(token) }, include: { user: { select: { id: true, email: true, name: true, passwordSetAt: true } } } });
   if (!link || link.kind !== "invite" || link.usedAt || link.expiresAt < new Date()) return null;
-  return { email: link.user.email, hasPassword: !!link.user.passwordSetAt };
+  // Who sent it and where to (ver_137), so the page reads "Demo Admin invited you to Mobile App".
+  const [by, places] = await Promise.all([
+    link.createdById ? db.user.findUnique({ where: { id: link.createdById }, select: { name: true, email: true } }) : null,
+    db.projectMember.findMany({
+      where: { userId: link.user.id, project: { archivedAt: null } },
+      orderBy: { createdAt: "asc" },
+      select: { project: { select: { name: true, group: { select: { name: true } }, hubOf: { select: { name: true } } } } },
+    }),
+  ]);
+  const title = inviteTitle(by?.name || by?.email, places.map((m) => m.project.group?.name ?? m.project.hubOf?.name ?? m.project.name));
+  return { email: link.user.email, hasPassword: !!link.user.passwordSetAt, hasName: !!link.user.name?.trim(), title };
+}
+
+/**
+ * Accept invite (ver_137): choose a password, give the name the team sees, and sign straight
+ * in, instead of typing the password again on the sign-in page. Success redirects home.
+ */
+export async function acceptInvite(token: string, input: { name: string; next: string; confirm: string }) {
+  const link = await db.passwordLink.findUnique({ where: { tokenHash: hashLinkToken(token) }, include: { user: { select: { name: true } } } });
+  if (!link || link.kind !== "invite") return { ok: false as const, error: "This link has expired or was already used. Ask an admin for a new one." };
+  const name = input.name.trim().slice(0, 80);
+  const hasName = !!link.user.name?.trim();
+  if (!hasName && !name) return { ok: false as const, error: "Type your name. Your team sees it on runs, bugs and bashes." };
+  const res = await resetWithLink(token, { next: input.next, confirm: input.confirm });
+  if (!res.ok) return res;
+  // Never overwrites a name someone already has.
+  if (!hasName) await db.user.update({ where: { id: link.userId }, data: { name } });
+  return passwordSignIn({ email: res.email, password: input.next, mode: "password", redirectTo: "/" });
 }
 
 export async function findPasswordLink(token: string) {

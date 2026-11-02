@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { passwordSignInOn, signIn } from "@/auth";
 import { LogoBanner } from "@/components/logo";
-import { ResetPasswordForm } from "@/components/reset-password";
+import { AcceptInviteForm } from "@/components/accept-invite";
 import { Button, Card } from "@/components/ui";
 import { signInButtons } from "@/lib/sign-in-config";
 import { findInviteLink } from "@/server/passwords";
@@ -22,7 +22,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         </div>
         {invite ? (
           <>
-            <h1 className="mb-1 text-lg font-semibold text-slate-900">You&apos;re invited to Flaw Patrol</h1>
+            <h1 className="mb-1 text-lg font-semibold text-slate-900">{invite.title}</h1>
             <p className="mb-4 text-sm text-slate-500">For {invite.email}</p>
             <div className="space-y-2">
               {buttons.map((p) => (
@@ -46,7 +46,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
                 </Link>
               ) : (
                 <div className={buttons.length ? "mt-4 border-t border-slate-200 pt-4" : ""}>
-                  <ResetPasswordForm token={token} submitLabel="Choose password" passwordLabel="Choose a password" />
+                  <AcceptInviteForm token={token} askName={!invite.hasName} />
                 </div>
               ))}
           </>

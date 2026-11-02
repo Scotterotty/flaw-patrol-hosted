@@ -94,7 +94,8 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
     ...(jira ? [{ label: "Open Jira", href: `${jira.siteUrl}/browse/${jira.jiraProjectKey}`, icon: "link" as const, external: true }] : []),
     { label: "Critical bugs", href: `${g}/bugs?sev=critical`, icon: "bug", count: counts.critical },
     { label: "Flagged cases", href: `${hub}/cases?flagged=1`, icon: "folder", count: counts.flagged, tool: "cases" },
-    { label: "Import cases", href: `${hub}/import`, icon: "down", tool: "cases" },
+    // Viewers can't import (ver_137): the shortcut opened "Not found".
+    ...(can(u.who, "import") ? [{ label: "Import cases", href: `${hub}/import`, icon: "down" as const, tool: "cases" as ToolId }] : []),
     { label: "Reports", href: `${g}/reports`, icon: "chart" },
   ];
   const shortcuts = allShortcuts.filter((s) => !s.tool || on(s.tool));

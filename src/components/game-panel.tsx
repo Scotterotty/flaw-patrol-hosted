@@ -1,5 +1,7 @@
 "use client";
 
+import { useZone } from "./spelling";
+
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { setQuestMap, setSeasonalMaps, updateMyGame } from "@/server/account";
@@ -531,9 +533,11 @@ function Crowns({ crowns, worn: wearing, onWear }: { crowns: CrownOption[]; worn
     .sort((a, b) => a.toTake - b.toTake || a.label.localeCompare(b.label))
     .slice(0, 3);
   const umbrellas = [...new Set(crowns.map((c) => c.umbrella))];
+  const zone = useZone();
   const day = (iso: string) => {
     const d = new Date(iso);
-    return d.toDateString() === new Date().toDateString() ? "today" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const on = (x: Date) => x.toLocaleDateString("en-US", { timeZone: zone });
+    return on(d) === on(new Date()) ? "today" : d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: zone });
   };
   return (
     <div className="mb-4 space-y-3" data-testid="crowns">

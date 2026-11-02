@@ -198,11 +198,13 @@ test("Invite emails go through the company's mail server", async ({ page, browse
   const ctx = await browser.newContext();
   const p = await ctx.newPage();
   await p.goto(url!);
-  await expect(p.getByRole("heading", { name: "You're invited to Flaw Patrol" })).toBeVisible();
+  // Since ver_137 it names who invited them and where, asks their name and signs them in.
+  await expect(p.getByRole("heading", { name: /^Demo Admin invited you to / })).toBeVisible();
+  await p.getByLabel("Your name").fill("Invited Person");
   await p.getByLabel("Choose a password").fill("invited person pw 1");
   await p.getByLabel("Confirm password").fill("invited person pw 1");
-  await p.getByRole("button", { name: "Choose password" }).click();
-  await expect(p).toHaveURL(/signin\?email=/);
+  await p.getByRole("button", { name: "Choose password and sign in" }).click();
+  await expect(p).not.toHaveURL(/signin|invite/);
   // The link works once.
   await p.goto(url!);
   await expect(p.getByRole("heading", { name: "This invite doesn't work anymore" })).toBeVisible();

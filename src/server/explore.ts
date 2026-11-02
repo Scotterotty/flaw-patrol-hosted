@@ -1,5 +1,6 @@
 "use server";
 
+import { assignable } from "@/lib/assignable";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -42,11 +43,11 @@ export async function exploreOptions(caseId: string) {
         () => true,
         () => false,
       );
-      if (ok) allowed.push({ ...p, members: (await projectMembers(p.id)).map((m) => ({ id: m.id, name: m.name })) });
+      if (ok) allowed.push({ ...p, members: assignable(await projectMembers(p.id)).map((m) => ({ id: m.id, name: m.name })) });
     }
     // "No test cycle": the run stays in the umbrella's Case library.
     const libraryOk = umbrella ? can(umbrella.who, "run:create") : false;
-    const libraryMembers = umbrella && libraryOk ? (await projectMembers(umbrella.hub.id)).map((m) => ({ id: m.id, name: m.name })) : [];
+    const libraryMembers = umbrella && libraryOk ? assignable(await projectMembers(umbrella.hub.id)).map((m) => ({ id: m.id, name: m.name })) : [];
     if (!allowed.length && !libraryOk) throw new UserError("You can't start runs here. Ask an admin to add you.");
     return {
       charter: { id: c.id, key: caseKey(c.project.key, c.number), title: c.title, explore: charter.explore, with: charter.with, discover: charter.discover, minutes: charter.minutes, persona: c.persona ? parsePersona(c.persona) : null },

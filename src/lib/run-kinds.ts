@@ -70,5 +70,10 @@ export function kindIdFor(name: string, taken: string[]) {
   }
 }
 
-/** Release status leaves out smoke tests, custom kinds, bug bashes and exploring; plain runs still count. */
-export const countsForRelease = (kind: string) => kind === "rc" || kind === "";
+/**
+ * Any run marked with a release counts toward it on Release status, whatever its kind (ver_137;
+ * ver_95 left smoke tests and custom kinds out). Bug bashes keep their own rule, and a run with
+ * no release never counts. Each column names its runs' kinds, so a smoke check isn't mistaken
+ * for full release testing.
+ */
+export const countsForRelease = (kind: string) => kind !== "bash";

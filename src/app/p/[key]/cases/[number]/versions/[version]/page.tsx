@@ -1,3 +1,4 @@
+import { viewerZone } from "@/lib/zone-server";
 import { StepsTable, actionCell, expectedCell } from "@/components/steps-table";
 import { dateTime } from "@/lib/spelling";
 import { parseCharter, reminderLabel } from "@/lib/charter";
@@ -76,7 +77,7 @@ export default async function CaseVersionPage({ params, searchParams }: { params
         <div>
           <h1 className="text-xl font-semibold tracking-tight">{v.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Version {v.version} of {c.currentVersion} · {v.authorName || "Unknown"} · {dateTime(v.createdAt, await mySpelling())}
+            Version {v.version} of {c.currentVersion} · {v.authorName || "Unknown"} · {dateTime(v.createdAt, await mySpelling(), await viewerZone())}
             {v.changeNote && ` · ${v.changeNote}`}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">

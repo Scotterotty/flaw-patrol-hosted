@@ -576,6 +576,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
           rows={rows}
           umbrella={name}
           canArchive={canArchiveCycles}
+          canChange={u.who.role !== "VIEWER"}
           addButton={can(u.who, "cycle:create") && !u.group.archivedAt ? <AddUmbrellaProject groupId={u.group.id} umbrella={name} platforms={u.platforms.map((p) => p.name)} colors={u.platforms.map((p) => platformColor(u.platforms, p.name))} loose={loose} label="Add test cycle" /> : undefined}
         />
       </div>

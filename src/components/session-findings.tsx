@@ -9,7 +9,7 @@ import { caseKey } from "@/lib/format";
 import { shortDate } from "@/lib/spelling";
 import { answerQuestion } from "@/server/findings";
 import { PersonaChip } from "./charter-view";
-import { useSpelling } from "./spelling";
+import { useSpelling, useZone } from "./spelling";
 import { Button, Card, cx, ErrorText, Textarea } from "./ui";
 
 const KIND_STYLE: Record<LogKind, string> = {
@@ -55,6 +55,7 @@ function FindingRow({ f, group, projectId, projectKey, canAnswer, canWrite }: { 
   const [pending, start] = useTransition();
   const router = useRouter();
   const spelling = useSpelling();
+  const zone = useZone();
   const { note } = f;
   const save = (value: string) =>
     start(async () => {
@@ -87,7 +88,7 @@ function FindingRow({ f, group, projectId, projectKey, canAnswer, canWrite }: { 
         </p>
         <p className="mt-0.5 text-xs text-slate-500">
           {f.tester || "Someone"} · R{f.run}
-          {f.release && ` ${f.release}`} · {clock(note.at)} into session · {shortDate(new Date(f.at), spelling)}
+          {f.release && ` ${f.release}`} · {clock(note.at)} into session · {shortDate(new Date(f.at), spelling, zone)}
           {note.attachments.length > 0 && ` · 📎 ${note.attachments.length}`}
         </p>
         {note.attachments.length > 0 && (
@@ -104,7 +105,7 @@ function FindingRow({ f, group, projectId, projectKey, canAnswer, canWrite }: { 
             <span className="font-medium">Answer:</span> {f.answer.text}
             <span className="text-emerald-700/80">
               {" "}
-              ({f.answer.by}, {shortDate(new Date(f.answer.at), spelling)})
+              ({f.answer.by}, {shortDate(new Date(f.answer.at), spelling, zone)})
             </span>
           </p>
         )}

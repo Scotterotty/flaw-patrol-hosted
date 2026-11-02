@@ -11,7 +11,7 @@ import { Modal } from "./modal";
 import { Button, cx, InfoTip, Select } from "./ui";
 import { shortDate } from "@/lib/spelling";
 import { StartBashButton } from "./bash-start";
-import { useSpelling } from "./spelling";
+import { useSpelling, useZone } from "./spelling";
 
 const LEVELS: Level[] = [1, 2, 3];
 const CELL: Record<RiskLevel, string> = { High: "bg-red-50", Med: "bg-amber-50", Low: "bg-emerald-50/60" };
@@ -54,6 +54,7 @@ export function RiskBoard({
 }) {
   const router = useRouter();
   const spelling = useSpelling();
+  const zone = useZone();
   const [cards, setCards] = useState(start);
   const [open, setOpen] = useState<string | null>(null);
   const [drag, setDrag] = useState<string | null>(null);
@@ -181,7 +182,7 @@ export function RiskBoard({
                           <span className="block truncate text-slate-800">{c.title || c.key}</span>
                           {bashed[c.key] && (
                             <span className="block text-[10px] text-rose-700">
-                              🐞 Bashed {shortDate(new Date(bashed[c.key].at), spelling)} · {bashed[c.key].bugs} {bashed[c.key].bugs === 1 ? "bug" : "bugs"}
+                              🐞 Bashed {shortDate(new Date(bashed[c.key].at), spelling, zone)} · {bashed[c.key].bugs} {bashed[c.key].bugs === 1 ? "bug" : "bugs"}
                             </span>
                           )}
                         </button>

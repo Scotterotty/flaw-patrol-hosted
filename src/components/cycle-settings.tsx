@@ -42,7 +42,20 @@ function Chip({ chip }: { chip: CycleChip }) {
  * each marked Same as the umbrella or Its own. Change opens that test cycle's choices right below
  * the row, one row at a time. Test cycles under an umbrella have no settings page of their own.
  */
-export function CycleSettingsTable({ rows, umbrella, canArchive, addButton }: { rows: CycleRow[]; umbrella: string; canArchive: boolean; addButton?: ReactNode }) {
+export function CycleSettingsTable({
+  rows,
+  umbrella,
+  canArchive,
+  addButton,
+  canChange = true,
+}: {
+  rows: CycleRow[];
+  umbrella: string;
+  canArchive: boolean;
+  addButton?: ReactNode;
+  /** Viewers read View, not Change (ver_137), like the rest of the page. */
+  canChange?: boolean;
+}) {
   const [open, setOpen] = useState<string | null>(null);
   const [menu, setMenu] = useState<string | null>(null);
   const [showOlder, setShowOlder] = useState(false);
@@ -131,8 +144,8 @@ export function CycleSettingsTable({ rows, umbrella, canArchive, addButton }: { 
                     <Chip chip={r.slack} />
                   </td>
                   <td className="px-4 py-2 text-right whitespace-nowrap">
-                    <Button size="sm" aria-expanded={isOpen} aria-label={`${isOpen ? "Hide" : "Change"} ${r.name}`} onClick={() => toggle(r.key)}>
-                      {isOpen ? "Hide" : "Change"}
+                    <Button size="sm" aria-expanded={isOpen} aria-label={`${isOpen ? "Hide" : canChange ? "Change" : "View"} ${r.name}`} onClick={() => toggle(r.key)}>
+                      {isOpen ? "Hide" : canChange ? "Change" : "View"}
                     </Button>
                     <span className="relative ml-1 inline-block" ref={menu === r.key ? menuRef : undefined}>
                       <Button size="sm" aria-haspopup="menu" aria-expanded={menu === r.key} aria-label={`More for ${r.name}`} onClick={() => setMenu(menu === r.key ? null : r.key)}>

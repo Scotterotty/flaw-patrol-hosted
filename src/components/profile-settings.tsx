@@ -1,5 +1,6 @@
 import { parseSpotifyLinks, validStation } from "@/lib/spotify";
 import { isSpelling } from "@/lib/spelling";
+import { viewerZone } from "@/lib/zone-server";
 import { ACCENTS, fontFor, isAccent, isBodyFont, isHeadingFont, isTextSize, isThemeMode, TEXT_SIZES, THEME_MODES, THEMES } from "@/lib/theme";
 import { levelFor, titleLabel, totalXp } from "@/lib/game";
 import { gameStats } from "@/lib/xp";
@@ -83,7 +84,7 @@ export async function ProfileSettings({ user }: { user: Me }) {
   ]
     .filter(Boolean)
     .join(" · ");
-  const sample = longDate(new Date(), spelling);
+  const sample = longDate(new Date(), spelling, await viewerZone());
   return (
     <OpenCardsProvider initial={user.openCards ?? []}>
       <div className="mb-3 flex justify-end">

@@ -1,5 +1,7 @@
 "use client";
 
+import { useZone } from "./spelling";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -555,7 +557,8 @@ export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin
   const first = [...bugs].sort((a, b) => a.at.localeCompare(b.at))[0];
   const most = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
   const areaName = (id: string) => bash.areas.find((a) => a.id === id)?.name ?? "";
-  const time = (iso: string) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const zone = useZone();
+  const time = (iso: string) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: zone });
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">

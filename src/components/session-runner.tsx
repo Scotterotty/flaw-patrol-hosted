@@ -16,7 +16,7 @@ import { saveDraft, submitResult, uploadAttachment } from "@/server/results";
 import { showQuestMoments } from "./quest-toast";
 import { TypeBadge } from "./badges";
 import { BugDialog } from "./bug-dialog";
-import { useSpelling } from "./spelling";
+import { useSpelling, useZone } from "./spelling";
 import { CaseFlagButton } from "./case-flag";
 import { CharterView } from "./charter-view";
 import { DefectChip, FileChip } from "./runner";
@@ -635,10 +635,11 @@ function SaveState({ state }: { state: "idle" | "waiting" | "saving" | "saved" |
 function PreviousSessionNote({ previous }: { previous: PreviousSession }) {
   const c = noteCounts(previous.notes);
   const spelling = useSpelling();
+  const zone = useZone();
   return (
     <div className="mb-4 rounded-md border border-slate-200 bg-surface px-3 py-2 text-sm text-slate-600">
       Last explored in this run: <StatusChip status={previous.status} /> by {previous.testerName}{" "}
-      <span suppressHydrationWarning>{dateTime(new Date(previous.createdAt), spelling)}</span>
+      <span suppressHydrationWarning>{dateTime(new Date(previous.createdAt), spelling, zone)}</span>
       {previous.elapsedSec !== null && ` · ${clock(previous.elapsedSec)}`}
       <span className="block text-xs text-slate-500">
         {count(c.note, "note")}, {count(c.bug, "bug")}, {count(c.question, "question")}, {count(c.idea, "idea")}. Starting again records a new session.

@@ -49,6 +49,8 @@ test("Active and Closed tabs on Test runs, Active and Archived tabs on Test case
   await page.goto(runUrl);
   await page.getByRole("button", { name: "More" }).click();
   await page.getByRole("button", { name: "Close run" }).click();
+  // Untested cases: it asks first (ver_137).
+  await page.getByTestId("close-run-ask").getByRole("button", { name: "Close anyway" }).click();
   await expect(page.getByText("Closed", { exact: true })).toBeVisible();
 
   await page.goto(`/p/${KEY}/runs`);

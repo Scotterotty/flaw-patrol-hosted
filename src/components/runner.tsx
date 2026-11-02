@@ -3,7 +3,7 @@
 import { TagPills } from "./tag-pill";
 import type { TagColors } from "@/lib/tags";
 import { dateTime } from "@/lib/spelling";
-import { useSpelling } from "@/components/spelling";
+import { useSpelling, useZone } from "@/components/spelling";
 import type { ResultStatus } from "@prisma/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -143,6 +143,7 @@ export function Runner({
   runDefects: LinkedDefect[];
 }) {
   const spelling = useSpelling();
+  const zone = useZone();
   const router = useRouter();
   const n = entry.steps.length;
   const draft = entry.draft?.stepResults.length === n ? entry.draft : null;
@@ -862,7 +863,7 @@ export function Runner({
         {previous && (
           <div className="mb-4 rounded-md border border-slate-200 bg-surface px-3 py-2 text-sm text-slate-600">
             Last result in this run: <StatusChip status={previous.status} /> by {previous.testerName}{" "}
-            <span suppressHydrationWarning>{dateTime(new Date(previous.createdAt), spelling)}</span>
+            <span suppressHydrationWarning>{dateTime(new Date(previous.createdAt), spelling, zone)}</span>
             {previous.comment && <span className="block text-xs text-slate-500">“{previous.comment}”</span>}
             {saved && <span className="block text-xs text-slate-500">Its step results are shown below. Change anything and save to record a new result.</span>}
             {previous.defects.length > 0 && (

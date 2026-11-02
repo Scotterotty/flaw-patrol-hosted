@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { longDate, SPELLINGS, spell, type Spelling } from "@/lib/spelling";
 import { updateMySpelling } from "@/server/account";
+import { useZone } from "./spelling";
 import { cx, ErrorText } from "./ui";
 
 const option = (selected: boolean) =>
@@ -11,6 +12,8 @@ const option = (selected: boolean) =>
 
 /** US or UK English for the app's own words and dates. Saves to your account and redraws the app. */
 export function LanguageSettings({ mine }: { mine: Spelling | null }) {
+  // Today on your own clock (ver_137), so the sample date doesn't change as the page loads.
+  const zone = useZone();
   const router = useRouter();
   const [pick, setPick] = useState<Spelling>(mine ?? "us");
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +45,7 @@ export function LanguageSettings({ mine }: { mine: Spelling | null }) {
       </p>
       <p className="rounded-md border border-dashed border-slate-300 px-3 py-2 text-xs text-slate-600" aria-label="Preview">
         <span className="font-medium text-slate-800">Preview: </span>
-        {spell(`Accent color · Gray text · Organize folders · Canceled · ${longDate(new Date(), pick)}`, pick)}
+        {spell(`Accent color · Gray text · Organize folders · Canceled · ${longDate(new Date(), pick, zone)}`, pick)}
       </p>
     </div>
   );

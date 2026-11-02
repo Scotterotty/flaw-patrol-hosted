@@ -62,15 +62,19 @@ export function spell(text: string, spelling: Spelling): string {
 }
 
 const locale = (s: Spelling) => (s === "uk" ? "en-GB" : "en-US");
+// An optional time zone (ver_137): the viewer's, so server-drawn times aren't in the server's UTC.
+const tz = (zone?: string) => (zone ? { timeZone: zone } : {});
 
 /** Oct 24, 2026 or 24 Oct 2026. */
-export const longDate = (d: Date, s: Spelling) => d.toLocaleDateString(locale(s), { year: "numeric", month: "short", day: "numeric" });
+export const longDate = (d: Date, s: Spelling, zone?: string) => d.toLocaleDateString(locale(s), { year: "numeric", month: "short", day: "numeric", ...tz(zone) });
 /** Oct 24 or 24 Oct. */
-export const shortDate = (d: Date, s: Spelling) => d.toLocaleDateString(locale(s), { month: "short", day: "numeric" });
+export const shortDate = (d: Date, s: Spelling, zone?: string) => d.toLocaleDateString(locale(s), { month: "short", day: "numeric", ...tz(zone) });
 /** 10/24/2026, 3:05 PM or 24/10/2026, 15:05. */
-export const dateTime = (d: Date, s: Spelling) => d.toLocaleString(locale(s), { dateStyle: "short", timeStyle: "short" });
+export const dateTime = (d: Date, s: Spelling, zone?: string) => d.toLocaleString(locale(s), { dateStyle: "short", timeStyle: "short", ...tz(zone) });
 /** 3:05 PM or 15:05. */
-export const clockTime = (d: Date, s: Spelling) => d.toLocaleTimeString(locale(s), { hour: "numeric", minute: "2-digit" });
+export const clockTime = (d: Date, s: Spelling, zone?: string) => d.toLocaleTimeString(locale(s), { hour: "numeric", minute: "2-digit", ...tz(zone) });
+/** Sun, Nov 1 or Sun 1 Nov. */
+export const dayName = (d: Date, s: Spelling, zone?: string) => d.toLocaleDateString(locale(s), { weekday: "short", month: "short", day: "numeric", ...tz(zone) });
 /** Sep 27 – Oct 27, 2026 or 27 Sep – 27 Oct 2026, for report date ranges (UTC days, like the date boxes). */
 export const dateRange = (from: Date, to: Date, s: Spelling) =>
   new Intl.DateTimeFormat(locale(s), { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" }).formatRange(from, to);

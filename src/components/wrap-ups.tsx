@@ -8,7 +8,7 @@ import { shortDate } from "@/lib/spelling";
 import { WRAP_HEADING, WRAP_NOTE, wrapLine } from "@/lib/wrap-up-text";
 import type { WrapPick, WrapUp } from "@/lib/wrap-ups";
 import { saveWrapUps, wrapUpChoices, type WrapScope } from "@/server/wrap-ups";
-import { useSpelling } from "./spelling";
+import { useSpelling, useZone } from "./spelling";
 import { Button, Card, cx, ErrorText } from "./ui";
 
 type Range = "today" | "week" | "release";
@@ -20,6 +20,7 @@ type Range = "today" | "week" | "release";
 export function AttachWrapUps({ scope, prefKey, pick, count, release }: { scope: WrapScope; prefKey: string; pick: WrapPick; count: number; release?: string }) {
   const router = useRouter();
   const spelling = useSpelling();
+  const zone = useZone();
   const [open, setOpen] = useState(false);
   const [range, setRange] = useState<Range>("today");
   const [list, setList] = useState<WrapUp[] | null>(null);
@@ -100,7 +101,7 @@ export function AttachWrapUps({ scope, prefKey, pick, count, release }: { scope:
                         <span className="mr-1 text-xs font-medium text-slate-500">{w.type === "bash" ? "🐞 Bug bash" : "🧭 Exploratory"}</span>
                         <span className="font-medium text-slate-900">{w.title}</span>
                         <span className="block text-xs text-slate-500">
-                          {shortDate(new Date(w.at), spelling)} · {wrapLine(w)}
+                          {shortDate(new Date(w.at), spelling, zone)} · {wrapLine(w)}
                         </span>
                       </span>
                     </label>
@@ -124,6 +125,7 @@ export function AttachWrapUps({ scope, prefKey, pick, count, release }: { scope:
 /** The attached wrap-ups as their own section, under the report. */
 export function WrapUpsSection({ items }: { items: WrapUp[] }) {
   const spelling = useSpelling();
+  const zone = useZone();
   if (!items.length) return null;
   return (
     <Card className="mt-5 p-5" data-testid="wrap-ups">
@@ -141,7 +143,7 @@ export function WrapUpsSection({ items }: { items: WrapUp[] }) {
               </Link>
             </p>
             <p className="mt-0.5 text-xs text-slate-600">
-              {shortDate(new Date(w.at), spelling)} · {wrapLine(w)}
+              {shortDate(new Date(w.at), spelling, zone)} · {wrapLine(w)}
             </p>
             {w.worst && <p className="mt-0.5 text-xs text-slate-600">Worst: {w.worst}</p>}
             {w.summary && <p className="mt-1 text-sm text-slate-700 italic">&ldquo;{w.summary}&rdquo;</p>}
