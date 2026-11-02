@@ -637,7 +637,7 @@ export function CaseEditor(props: CaseEditorProps) {
             touch();
           }}
         />
-        {props.extra}
+        {props.extra && <Fragment key="extra">{props.extra}</Fragment>}
         <Field
           label={isCharter ? "Setup (optional)" : "Preconditions"}
           htmlFor="preconditions"

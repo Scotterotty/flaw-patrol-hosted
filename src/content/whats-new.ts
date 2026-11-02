@@ -40,6 +40,7 @@ export const WHATS_NEW: WhatsNewEntry[] = [
         title: "See which row failed",
         text: "Bugs name the row and its values, history pips get a stripe per row, and Failing steps says which row. Reports still count the case once.",
       },
+      { kind: "fix", title: "Fixed a console warning on the case edit page" },
     ],
   },
   {
