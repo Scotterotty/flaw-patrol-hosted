@@ -22,6 +22,22 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 135,
+    date: "2026-11-01",
+    items: [
+      {
+        kind: "better",
+        title: "Import moves expected results out of the step",
+        text: "When a qTest file has the expected results under the step name in the same cell, Import puts them in Expected. The preview shows the moved lines in green, and Keep one more line in the step fixes a step whose name is two sentences.",
+      },
+      {
+        kind: "fix",
+        title: "Excel files with merged cells import",
+        text: "An .xlsx file with an empty block of merged cells no longer stops with Something went wrong.",
+      },
+    ],
+  },
+  {
     version: 134,
     date: "2026-11-01",
     items: [
