@@ -22,6 +22,22 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 148,
+    date: "2026-11-02",
+    items: [
+      {
+        kind: "better",
+        title: "Automated cases stay out of runs you test by hand",
+        text: "Start a run now leaves out the cases your automation already runs. Tick Also include the automated cases if someone should check them by hand too. Where they are in a run, they have a 🤖 Automated tag.",
+      },
+      {
+        kind: "new",
+        title: "Remove from run",
+        text: "Take a case nobody has tested yet out of a run from its row on the run page, with Undo. Older runs with automated cases offer Take them out of this run.",
+      },
+    ],
+  },
+  {
     version: 147,
     date: "2026-11-02",
     items: [
