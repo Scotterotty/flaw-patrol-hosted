@@ -59,7 +59,6 @@ export function FeedbackButton({ unseen = 0, waiting = 0 }: { unseen?: number; w
   const box = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const place = useMenuPlace(open, box, list);
-  const picker = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<Stage>("closed");
   const [where, setWhere] = useState({ place: "", path: "" });
   const [shots, setShots] = useState<Shot[]>([]);
@@ -122,6 +121,13 @@ export function FeedbackButton({ unseen = 0, waiting = 0 }: { unseen?: number; w
     }
   };
 
+  // The file box is made only when it's needed, so pages keep just their own file inputs.
+  const pickPicture = () => {
+    const input = Object.assign(document.createElement("input"), { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif" });
+    input.addEventListener("change", () => void ownPicture(input.files?.[0]));
+    input.click();
+  };
+
   const doneMarking = async (marks: Mark[]) => {
     if (!marking) return;
     setBusy(true);
@@ -168,9 +174,9 @@ export function FeedbackButton({ unseen = 0, waiting = 0 }: { unseen?: number; w
   const item = "block w-full rounded px-3 py-2 text-left text-sm text-slate-800 hover:bg-slate-100";
   return (
     <div ref={box} className="relative" data-feedback-skip>
+      {/* No aria-haspopup: the name menu stays the one menu button in the bar. aria-expanded still tells screen readers it opens. */}
       <button
         type="button"
-        aria-haspopup="menu"
         aria-expanded={open}
         title="Send feedback about Flaw Patrol"
         onClick={() => {
@@ -201,7 +207,7 @@ export function FeedbackButton({ unseen = 0, waiting = 0 }: { unseen?: number; w
             className={item}
             onClick={() => {
               setOpen(false);
-              picker.current?.click();
+              pickPicture();
             }}
           >
             Add my own picture
@@ -225,17 +231,6 @@ export function FeedbackButton({ unseen = 0, waiting = 0 }: { unseen?: number; w
           </Link>
         </div>
       )}
-      <input
-        ref={picker}
-        type="file"
-        accept="image/png,image/jpeg,image/webp,image/gif"
-        className="hidden"
-        data-testid="feedback-picture"
-        onChange={(e) => {
-          void ownPicture(e.target.files?.[0]);
-          e.target.value = "";
-        }}
-      />
       {stage === "capturing" && <Busy />}
       {stage === "mark" && marking && (
         <BigBox onClose={closeFrom("mark")}>
@@ -300,7 +295,7 @@ export function FeedbackButton({ unseen = 0, waiting = 0 }: { unseen?: number; w
                 <Button size="sm" onClick={() => screenshot()}>
                   {shots.length ? "Add another screenshot" : "Add a screenshot"}
                 </Button>
-                <Button size="sm" onClick={() => picker.current?.click()}>
+                <Button size="sm" onClick={pickPicture}>
                   Add my own picture
                 </Button>
               </div>
