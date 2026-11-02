@@ -4,11 +4,25 @@ import type { Severity } from "@prisma/client";
 import { open } from "./crypto";
 import { richText } from "./jira-format";
 import { parseSeverity, parseSeverityConfig, scaleOf } from "./severity";
+import { foundInLine, parseFoundIn, type FoundInField, type JiraVersion } from "./found-in";
 import { jiraConfigFor } from "./umbrella";
 
 // Minimal Jira Cloud REST v3 client using an API token (basic auth).
 
-export type JiraIssue = { key: string; summary: string; status: string; category: string; url: string; severity: Severity | null; priority: string; type: string; parent: string | null; points?: number | null };
+export type JiraIssue = {
+  key: string;
+  summary: string;
+  status: string;
+  category: string;
+  url: string;
+  severity: Severity | null;
+  priority: string;
+  type: string;
+  parent: string | null;
+  points?: number | null;
+  /** Found-in version (ver_141): the names in the picked version field, when that setting is on. */
+  foundIn?: string | null;
+};
 
 export class JiraError extends Error {
   /** Jira's complaints per field id (or "reporter"), when it refused some fields. */
@@ -52,7 +66,7 @@ export function jiraValue(f: MetaField, v: FieldValue): unknown {
 export const UNREADABLE_TOKEN =
   "The saved Jira API token can't be read here. It was saved with a different AUTH_SECRET (from another copy of Flaw Patrol, or an older .env). Paste the API token again in Settings → Jira, and give every copy that shares this database the same AUTH_SECRET.";
 
-export type JiraCreds = { siteUrl: string; email: string; token: string; jiraProjectKey: string; issueType: string; /** Settings → Jira → Severity field (ver_91). */ severity?: unknown };
+export type JiraCreds = { siteUrl: string; email: string; token: string; jiraProjectKey: string; issueType: string; /** Settings → Jira → Severity field (ver_91). */ severity?: unknown; /** Settings → Jira → Found-in version (ver_141). */ foundIn?: unknown };
 
 export async function jiraFor(projectId: string): Promise<JiraClient | null> {
   // A project in an umbrella uses the umbrella's Jira unless it has its own.
@@ -111,11 +125,17 @@ export class JiraClient {
   leadLines: string[] = [];
   /** Blocks put last in the description, like the Sentry errors section (ver_96). */
   tailBlocks: object[] = [];
+  /**
+   * Found-in version (ver_141): the version for the next issue filed. known is false when Jira
+   * has no version by that name, so it goes in the description instead of the field.
+   */
+  foundIn: { field: FoundInField; label: string; value: string; known: boolean } | null = null;
 
-  private withLead(description: object) {
-    if (!this.leadLines.length && !this.tailBlocks.length) return description;
+  private withLead(description: object, more: string[] = []) {
+    const lead = [...this.leadLines, ...more];
+    if (!lead.length && !this.tailBlocks.length) return description;
     const d = description as { type?: string; content?: object[] };
-    const lines = this.leadLines.map((t) => ({ type: "paragraph", content: [{ type: "text", text: t, marks: [{ type: "strong" }] }] }));
+    const lines = lead.map((t) => ({ type: "paragraph", content: [{ type: "text", text: t, marks: [{ type: "strong" }] }] }));
     return { ...d, content: [...lines, ...(d.content ?? []), ...this.tailBlocks] };
   }
 
@@ -186,7 +206,8 @@ export class JiraClient {
   private async fields() {
     const [sev, points] = await Promise.all([this.severityField(), this.pointsField()]);
     const base = ["summary", "status", "priority", "issuetype", "parent"];
-    return [...base, ...(sev ? [sev] : []), ...(points ? [points] : [])];
+    const found = parseFoundIn(this.creds.foundIn);
+    return [...base, ...(sev ? [sev] : []), ...(points ? [points] : []), ...(found ? [found.field] : [])];
   }
 
   private async toIssue(raw: RawIssue): Promise<JiraIssue> {
@@ -205,7 +226,16 @@ export class JiraClient {
       type: (raw.fields.issuetype as { name?: string } | undefined)?.name ?? "",
       parent: (raw.fields.parent as { key?: string } | undefined)?.key ?? null,
       points: typeof pts === "number" ? pts : null,
+      foundIn: this.foundInOf(raw),
     };
+  }
+
+  /** The names in the found-in field, or null when the setting is off or Jira didn't send the field. */
+  private foundInOf(raw: RawIssue) {
+    const found = parseFoundIn(this.creds.foundIn);
+    if (!found || !(found.field in raw.fields)) return null;
+    const list = raw.fields[found.field];
+    return Array.isArray(list) ? list.map((v) => (v as { name?: string })?.name ?? "").filter(Boolean).join(", ") : "";
   }
 
   async check() {
@@ -374,6 +404,15 @@ export class JiraClient {
     return list.filter((v) => !v.archived).map((v) => v.name).reverse();
   }
 
+  /** The bug project's versions (ver_141), newest first, with whether each is released. Archived ones are left out. */
+  async versionList(): Promise<JiraVersion[]> {
+    const list = await this.call<{ name: string; released?: boolean; archived?: boolean }[]>(`/rest/api/3/project/${encodeURIComponent(this.creds.jiraProjectKey)}/versions`);
+    return list
+      .filter((v) => !v.archived && v.name)
+      .map((v) => ({ name: v.name, released: !!v.released }))
+      .reverse();
+  }
+
   /** Link a new bug to a story with Jira's "Relates" link: the only story write Flaw Patrol makes. */
   async relate(bugKey: string, storyKey: string) {
     await this.call("/rest/api/3/issueLink", {
@@ -410,11 +449,17 @@ export class JiraClient {
     fields?: Record<string, { name: string; value: unknown }>;
   }) {
     const sev = await this.severityField();
+    const found = this.foundIn?.value ? this.foundIn : null;
     const optional: Record<string, { name: string; value: unknown }> = {
       ...(sev ? { [sev]: { name: "Severity", value: { value: this.scale.labels[input.severity] } } } : {}),
       ...(this.labels.length ? { labels: { name: "Labels", value: this.labels } } : {}),
+      // Found-in version (ver_141), unless the bug's own layout fills the same field.
+      ...(found?.known ? { [found.field]: { name: found.label, value: [{ name: found.value }] } } : {}),
       ...input.fields,
     };
+    // A version Jira doesn't have, or one it refused, is said first in the description instead.
+    const foundLead = (gone: Set<string>) =>
+      !found || input.fields?.[found.field] ? [] : !found.known ? [foundInLine(found.label, found.value, "missing")] : gone.has(found.field) ? [foundInLine(found.label, found.value, "refused")] : [];
     let reporterSet = !!input.reporterId;
     const self = reporterSet && input.reporterId === (await this.me().catch(() => null))?.accountId;
     const dropped = new Set<string>();
@@ -425,13 +470,14 @@ export class JiraClient {
         project: { key: this.creds.jiraProjectKey },
         issuetype: { name: this.creds.issueType },
         summary: input.summary,
-        description: this.withLead(input.description({ reporterSet, dropped: names })),
+        description: this.withLead(input.description({ reporterSet, dropped: names }), foundLead(dropped)),
         ...(reporterSet && !self ? { reporter: { id: input.reporterId } } : {}),
         ...extra,
       };
       try {
         const { key } = await this.call<{ key: string }>("/rest/api/3/issue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fields }) });
-        return { key, reporterSet, dropped: names };
+        const foundSet = !!found?.known && !input.fields?.[found.field] && !dropped.has(found.field);
+        return { key, reporterSet, dropped: names, foundSet };
       } catch (e) {
         if (!(e instanceof JiraError) || /rejected|reach/.test(e.message)) throw e;
         const blamed = Object.keys(e.fields);
@@ -550,6 +596,9 @@ export async function refreshDefectStatuses(projectId: string, force = false) {
           externalPriority: issue.priority || null,
           // Jira's Severity field is the source of truth when the site has one.
           ...(issue.severity && { severity: issue.severity }),
+          // Found-in version (ver_141): a version set in Jira comes back here. An empty field keeps
+          // what was filed, since a release Jira didn't have is only in the description.
+          ...(issue.foundIn && { foundIn: issue.foundIn }),
           syncedAt: new Date(),
         },
       });

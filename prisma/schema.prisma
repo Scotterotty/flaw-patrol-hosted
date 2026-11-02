@@ -921,6 +921,9 @@ model Defect {
   layout           Json?
   answers          Json?
   files            Attachment[]
+  /// Found-in version (ver_141): the Jira version it was filed against, or the release when Jira
+  /// didn't have it. Refreshed from Jira's field while Settings → Jira → Found-in version is on.
+  foundIn          String        @default("")
 
   @@unique([projectId, number])
   @@index([projectId, externalKey])
@@ -1042,6 +1045,8 @@ model JiraConfig {
   /// A company bug template it uses (ver_96); its layout wins over bugTemplate while set.
   sharedTemplate   SharedBugTemplate? @relation(fields: [sharedTemplateId], references: [id], onDelete: SetNull)
   sharedTemplateId String?
+  /// Found-in version (ver_141): { field: "versions" | "fixVersions" }; null = off. See src/lib/found-in.ts.
+  foundIn          Json?
   updatedAt        DateTime           @updatedAt
 }
 

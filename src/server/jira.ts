@@ -44,6 +44,7 @@ import { entryRegression } from "@/lib/regression-data";
 import { bugContext } from "@/lib/bug-context";
 import { answersText, layoutFromImported, layoutTitle, listWords, missing, parseAnswers, parseLayout, withFileNames, type Answer, type BugLayout, type RunFill } from "@/lib/bug-layout";
 import { templateHome } from "@/lib/bug-templates-data";
+import { FOUND_IN_FIELDS, foundInDraft, foundInRelease, matchVersion, parseFoundIn, type FoundInDraft } from "@/lib/found-in";
 
 async function wrap<T extends object>(fn: () => Promise<T>) {
   return attempt(async () => {
@@ -142,6 +143,80 @@ export async function removeJiraConfig(projectId: string) {
     revalidatePath("/g", "layout");
     await logActivity({ actor: user, kind: "settings", action: "Removed Jira connection", project });
     return {};
+  });
+}
+
+/** The release this run entry was testing: the run's Release, else its bug bash's, else the test cycle's release name. */
+async function entryRelease(entry: { run: { id: string; release: string; project: { rcName: string } } }) {
+  const bash = entry.run.release.trim() ? null : await db.bugBash.findUnique({ where: { runId: entry.run.id }, select: { release: true } });
+  return foundInRelease({ run: entry.run.release, bash: bash?.release, cycle: entry.run.project.rcName });
+}
+
+/** Found-in version (ver_141) for a new bug from this entry, or null when the setting is off. */
+async function foundInFor(client: JiraClient, entry: Entry): Promise<FoundInDraft | null> {
+  const cfg = parseFoundIn(client.creds.foundIn);
+  if (!cfg) return null;
+  const [versions, meta, release] = await Promise.all([client.versionList().catch(() => []), client.createMeta().catch(() => null), entryRelease(entry)]);
+  const f = meta?.find((x) => x.id === cfg.field);
+  return foundInDraft(cfg, versions, release, { onScreen: !meta || !!f, label: f?.name });
+}
+
+/**
+ * Set the version the next issue is filed with: the one picked in the bug box (chosen), or the
+ * release picked for you when the box didn't say. Returns what the bug keeps as its found-in.
+ */
+async function applyFoundIn(client: JiraClient, entryId: string, projectId: string, chosen: string | null | undefined) {
+  client.foundIn = null;
+  if (!parseFoundIn(client.creds.foundIn) || chosen === null || chosen === "") return "";
+  const { entry } = await bugContext(projectId, entryId, null, "");
+  const d = await foundInFor(client, entry);
+  if (!d) return "";
+  const value = chosen === undefined ? d.value : chosen;
+  if (!value) return "";
+  const match = matchVersion([...d.current, ...d.older].map((name) => ({ name, released: false })), value);
+  client.foundIn = { field: d.field, label: d.label, value: match?.name ?? value, known: !!match };
+  return match?.name ?? value;
+}
+
+/** The bug box's Found in line (ver_141): the version picked for you and Jira's list, or null when it's off. */
+export async function previewFoundIn(projectId: string, entryId: string) {
+  return wrap(async () => {
+    await requireProjectAction(projectId, "run:execute");
+    const client = await jiraFor(projectId);
+    if (!client) return { foundIn: null };
+    const { entry } = await bugContext(projectId, entryId, null, "");
+    return { foundIn: await foundInFor(client, entry) };
+  });
+}
+
+const foundInSchema = z.object({ field: z.enum(["versions", "fixVersions"]).nullable() });
+
+/** Settings → Jira → Found-in version (ver_141): whether the field is on the create screen, and Jira's versions. */
+export async function checkFoundIn(projectId: string, field: "versions" | "fixVersions") {
+  return wrap(async () => {
+    await requireProjectAction(projectId, "jira:manage");
+    const client = await jiraFor(projectId);
+    if (!client) throw new UserError("Jira isn't connected for this test cycle.");
+    const picked = foundInSchema.parse({ field }).field ?? "versions";
+    const [meta, versions] = await Promise.all([client.createMeta(true), client.versionList().catch(() => null)]);
+    const f = meta.find((x) => x.id === picked);
+    return { onScreen: !!f, label: f?.name ?? FOUND_IN_FIELDS[picked].label, project: client.creds.jiraProjectKey, versions: versions?.map((v) => v.name) ?? null };
+  });
+}
+
+/** Turn the found-in version on (with its field) or off. */
+export async function saveFoundIn(projectId: string, input: z.input<typeof foundInSchema>) {
+  return wrap(async () => {
+    const { project, user } = await requireProjectAction(projectId, "jira:manage");
+    const data = foundInSchema.parse(input);
+    const cfg = await jiraConfigFor(projectId);
+    if (!cfg) throw new UserError("Connect Jira first.");
+    if (cfg.projectId !== projectId) throw new UserError("This test cycle uses its umbrella's Jira. Change the found-in version in the umbrella's settings.");
+    await db.jiraConfig.update({ where: { projectId }, data: { foundIn: data.field ? { field: data.field } : Prisma.DbNull } });
+    revalidatePath(`/p/${project.key}`, "layout");
+    revalidatePath("/g", "layout");
+    await logActivity({ actor: user, kind: "settings", action: "Changed the found-in version", project, detail: data.field ? FOUND_IN_FIELDS[data.field].label : "Off" });
+    return { field: data.field };
   });
 }
 
@@ -253,6 +328,8 @@ const bugSchema = z.object({
   /** Sentry errors (ver_96): a section at the end of the description. */
   sentry: z.array(z.unknown()).max(20).default([]),
   template: templateSchema.optional(),
+  /** Found-in version (ver_141): left out = the release picked for you, null or "" = leave it out. */
+  foundIn: z.string().trim().max(255).nullable().optional(),
   imported: z
     .object({
       tag: line(40),
@@ -467,6 +544,7 @@ export async function fileJiraBug(projectId: string, entryId: string, input: z.i
     const files = data.attachmentIds.flatMap((id) => found.filter((f) => f.id === id));
     const template = data.template && (await templateOf(projectId)) ? data.template : null;
     const imported = data.imported ? await importedOf(projectId) : null;
+    const foundIn = await applyFoundIn(client, entryId, projectId, data.foundIn);
     let key: string, reporterSet: boolean;
     let attachError: string | null = null;
     let linkError: string | null = null;
@@ -533,7 +611,7 @@ export async function fileJiraBug(projectId: string, entryId: string, input: z.i
       account && !reporterSet
         ? `Jira wouldn't let Flaw Patrol set you as the reporter of ${key}, so your name is in its description instead. Ask a Flaw Patrol admin to check Settings → Jira.`
         : null;
-    const issue = await client.getIssue(key).catch(() => ({ key, summary, status: "", category: "new", url: `${client.creds.siteUrl}/browse/${key}`, severity: null, priority: "", type: "", parent: null }));
+    const issue = await client.getIssue(key).catch(() => ({ key, summary, status: "", category: "new", url: `${client.creds.siteUrl}/browse/${key}`, severity: null, priority: "", type: "", parent: null, foundIn: null as string | null }));
     // A bug saved here first keeps its number, runs and history, and now points at Jira.
     const defect = local
       ? await db.defect.update({
@@ -551,6 +629,7 @@ export async function fileJiraBug(projectId: string, entryId: string, input: z.i
           },
         })
       : await upsertFromIssue(projectId, issue, user, data.severity);
+    if (foundIn) await db.defect.update({ where: { id: defect.id }, data: { foundIn: issue.foundIn || foundIn } });
     if (local) revalidatePath(`/p/${project.key}`, "layout");
     // Only stories the case really links.
     if (data.stories.length) {
@@ -573,14 +652,22 @@ async function rememberAnswers(userId: string, current: unknown, b: TemplateBug)
 }
 
 /** When Jira isn't connected: record the defect here only. */
-export async function createLocalDefect(projectId: string, input: { title: string; severity: Severity; description?: string }) {
+/** The release a bug saved here (no Jira) was found in (ver_141), from its run entry. */
+async function localRelease(projectId: string, entryId: string | undefined) {
+  if (!entryId) return "";
+  const entry = await db.runEntry.findFirst({ where: { id: entryId, run: { projectId } }, select: { run: { select: { id: true, release: true, project: { select: { rcName: true } } } } } });
+  return entry ? (await entryRelease(entry)).name.slice(0, 255) : "";
+}
+
+export async function createLocalDefect(projectId: string, input: { title: string; severity: Severity; description?: string; entryId?: string; foundIn?: string }) {
   return wrap(async () => {
     const { user } = await requireProjectAction(projectId, "run:execute");
     const title = z.string().trim().min(1, "Add a summary").max(300).parse(input.title);
     const description = z.string().max(20000).default("").parse(input.description ?? "").trim();
+    const foundIn = z.string().trim().max(255).default("").parse(input.foundIn ?? "") || (await localRelease(projectId, input.entryId));
     const { defectSeq } = await db.project.update({ where: { id: projectId }, data: { defectSeq: { increment: 1 } } });
     const defect = await db.defect.create({
-      data: { projectId, number: defectSeq, title, description, severity: input.severity, createdById: user.id, createdBy: user.name ?? user.email },
+      data: { projectId, number: defectSeq, title, description, severity: input.severity, createdById: user.id, createdBy: user.name ?? user.email, foundIn },
     });
     return { defect: toLinked(defect) };
   });
@@ -919,6 +1006,8 @@ const templatedSchema = z.object({
   bashItemId: z.string().max(40).optional(),
   /** Lines that go under the headings, like where in the bash it was found. */
   notes: z.array(z.object({ name: z.string().max(120), text: z.string().max(10000) })).max(6).default([]),
+  /** Found-in version (ver_141): left out = the release picked for you, null or "" = leave it out. */
+  foundIn: z.string().trim().max(255).nullable().optional(),
 });
 
 /** Only the headings the template has, in its order, with what was filled in under each. */
@@ -972,7 +1061,8 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
     if (!client) {
       if (local) throw new UserError("Jira isn't connected for this test cycle.");
       const { defectSeq } = await db.project.update({ where: { id: projectId }, data: { defectSeq: { increment: 1 } } });
-      const defect = await db.defect.create({ data: { projectId, number: defectSeq, title: summary, severity: data.severity, createdById: user.id, createdBy: user.name ?? user.email, ...keep } });
+      const release = data.foundIn === null || data.foundIn === "" ? "" : (data.foundIn ?? (await localRelease(projectId, entryId)));
+      const defect = await db.defect.create({ data: { projectId, number: defectSeq, title: summary, severity: data.severity, createdById: user.id, createdBy: user.name ?? user.email, foundIn: release, ...keep } });
       if (allFiles.length) await db.attachment.updateMany({ where: { id: { in: allFiles.map((f) => f.id) }, projectId }, data: { defectId: defect.id } });
       return { defect: toLinked(defect), attachError: null as string | null, reporterNote: null as string | null, linkError: null as string | null };
     }
@@ -988,6 +1078,7 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
     const { ctx } = await bugContext(projectId, entryId, data.stepIndex, data.actual);
     const account = await jiraAccountOf(client, user);
     const tester = user.name ?? user.email;
+    const foundIn = await applyFoundIn(client, entryId, projectId, data.foundIn);
     // Jira fields copied from an example bug, filled as an imported template fills them.
     const meta = layout.fields.length ? await client.createMeta().catch(() => null) : null;
     const fields: Record<string, { name: string; value: unknown }> = {};
@@ -1026,7 +1117,7 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
     }
     const reporterNote =
       account && !reporterSet ? `Jira wouldn't let Flaw Patrol set you as the reporter of ${key}, so your name is in its description instead. Ask a Flaw Patrol admin to check Settings → Jira.` : null;
-    const issue = await client.getIssue(key).catch(() => ({ key, summary, status: "", category: "new", url: `${client.creds.siteUrl}/browse/${key}`, severity: null, priority: "", type: "", parent: null }));
+    const issue = await client.getIssue(key).catch(() => ({ key, summary, status: "", category: "new", url: `${client.creds.siteUrl}/browse/${key}`, severity: null, priority: "", type: "", parent: null, foundIn: null as string | null }));
     const mirrored = local
       ? await db.defect.update({
           where: { id: local.id },
@@ -1043,7 +1134,7 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
           },
         })
       : await upsertFromIssue(projectId, issue, user, data.severity);
-    const defect = await db.defect.update({ where: { id: mirrored.id }, data: keep });
+    const defect = await db.defect.update({ where: { id: mirrored.id }, data: { ...keep, ...(foundIn && { foundIn: issue.foundIn || foundIn }) } });
     if (allFiles.length) await db.attachment.updateMany({ where: { id: { in: allFiles.map((f) => f.id) }, projectId }, data: { defectId: defect.id } });
     if (local) revalidatePath(`/p/${project.key}`, "layout");
     if (data.stories.length) {

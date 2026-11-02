@@ -25,6 +25,7 @@ import { ExpandRow, SettingsRows } from "@/components/settings-row";
 import { AutomationFilesPanel } from "@/components/automation-storage";
 import { mb, parseFileSettings } from "@/lib/automation-files";
 import { storageUsage } from "@/lib/automation-storage";
+import { parseFoundIn } from "@/lib/found-in";
 import { BugTemplatePanel, JiraSettings, StoriesPanel } from "@/components/jira-settings";
 import { parseSeverityConfig } from "@/lib/severity";
 import { MembersPanel } from "@/components/members";
@@ -80,7 +81,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
   const ownJiraP = db.jiraConfig
     .findMany({
       where: { projectId: { in: u.projects.map((p) => p.id) } },
-      select: { projectId: true, siteUrl: true, email: true, jiraProjectKey: true, issueType: true, tokenEncrypted: true, bugTemplate: true, stories: true, severity: true },
+      select: { projectId: true, siteUrl: true, email: true, jiraProjectKey: true, issueType: true, tokenEncrypted: true, bugTemplate: true, stories: true, severity: true, foundIn: true },
     })
     .then((x) => x);
   const myRolesP = db.projectMember.findMany({ where: { userId: user.id, projectId: { in: ids } }, select: { projectId: true, role: true } }).then((x) => x);
@@ -286,6 +287,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               shared={view!.shared}
               stories={parseStoriesConfig(mine.stories)}
               severity={parseSeverityConfig(mine.severity)}
+              foundIn={parseFoundIn(mine.foundIn)}
             />
           ) : (
             <JiraSettings projectId={p.id} current={null} template={parseTemplateSettings(null)} />
@@ -365,6 +367,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                   template={template}
                   connectionOnly
                   severity={parseSeverityConfig(jira?.severity)}
+                  foundIn={parseFoundIn(jira?.foundIn)}
                 />
               </ExpandRow>
             ) : (

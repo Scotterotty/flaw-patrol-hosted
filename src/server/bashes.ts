@@ -593,7 +593,7 @@ async function fileItem(bash: Awaited<ReturnType<typeof loadBash>>, itemId: stri
     defectId = r.defect.id;
     key = r.defect.externalKey ?? `D-${r.defect.number}`;
   } else {
-    const r = await createLocalDefect(bash.run.projectId, { title: item.text, severity: item.severity });
+    const r = await createLocalDefect(bash.run.projectId, { title: item.text, severity: item.severity, entryId: entry?.id, foundIn: bash.release });
     if (!r.ok) throw new UserError(r.error);
     defectId = r.defect.id;
     key = `D-${r.defect.number}`;

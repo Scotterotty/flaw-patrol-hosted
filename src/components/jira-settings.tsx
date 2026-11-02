@@ -5,10 +5,12 @@ import { Fragment, useCallback, useEffect, useState, useTransition } from "react
 import { FIELD_SOURCES, SECTION_SOURCES, templateKind, type FieldSource, type ImportedTemplate, type SectionSource, type TemplateSettings } from "@/lib/bug-template";
 import {
   checkBugTemplate,
+  checkFoundIn,
   checkJiraReporters,
   readBugTemplate,
   removeJiraConfig,
   saveBugTemplate,
+  saveFoundIn,
   saveImportedTemplate,
   jiraSeverityFields,
   saveJiraConfig,
@@ -20,7 +22,8 @@ import { pickSharedTemplate } from "@/server/shared-templates";
 import { PLAIN_SCALE, SEVERITIES, type SeverityConfig } from "@/lib/severity";
 import { loadIssueTypes, saveStoriesConfig } from "@/server/stories";
 import { DEFAULT_STORIES, STORY_TYPES, type StoriesConfig } from "@/lib/stories-config";
-import { Button, Card, ErrorText, Field, InfoTip, Input, Select } from "./ui";
+import { FOUND_IN_FIELDS, type FoundInConfig, type FoundInField } from "@/lib/found-in";
+import { Button, Card, cx, ErrorText, Field, InfoTip, Input, Select } from "./ui";
 
 export function JiraSettings({
   projectId,
@@ -30,6 +33,7 @@ export function JiraSettings({
   connectionOnly = false,
   shared,
   severity = null,
+  foundIn = null,
 }: {
   projectId: string;
   current: { siteUrl: string; email: string; jiraProjectKey: string; issueType: string; tokenReadable: boolean } | null;
@@ -41,6 +45,8 @@ export function JiraSettings({
   shared?: SharedView;
   /** Settings → Jira → Severity field (ver_91). */
   severity?: SeverityConfig | null;
+  /** Settings → Jira → Found-in version (ver_141). */
+  foundIn?: FoundInConfig | null;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -118,6 +124,7 @@ export function JiraSettings({
         </div>
         {current?.tokenReadable && <ReporterCheck key={checked} projectId={projectId} />}
         {current?.tokenReadable && <SeveritySettings key={`sev-${checked}`} projectId={projectId} saved={severity} />}
+        {current?.tokenReadable && <FoundInSettings key={`found-${checked}`} projectId={projectId} saved={foundIn} />}
         <div className="flex gap-2">
           <Button type="submit" variant="primary" disabled={pending}>
             {pending ? "Checking…" : current ? "Save and test" : "Connect Jira"}
@@ -1081,6 +1088,116 @@ function SeveritySettings({ projectId, saved }: { projectId: string; saved: Seve
         </div>
       )}
       {ok && !editing && <p className="text-xs text-emerald-700">Saved. Existing bugs keep their values.</p>}
+    </div>
+  );
+}
+
+type FoundInCheck = { onScreen: boolean; label: string; project: string; versions: string[] | null };
+
+/**
+ * Found-in version (ver_141): put the release being tested into a Jira version field on new bugs.
+ * One switch and one field pick; the check says whether Jira's create screen has the field.
+ */
+function FoundInSettings({ projectId, saved }: { projectId: string; saved: FoundInConfig | null }) {
+  const router = useRouter();
+  const [on, setOn] = useState(!!saved);
+  const [field, setField] = useState<FoundInField>(saved?.field ?? "versions");
+  const [check, setCheck] = useState<FoundInCheck | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
+  const [pending, start] = useTransition();
+  const dirty = on !== !!saved || (on && field !== (saved?.field ?? "versions"));
+  useEffect(() => {
+    if (!on) return;
+    let live = true;
+    setCheck(null);
+    checkFoundIn(projectId, field).then((res) => {
+      if (!live) return;
+      if (!res.ok) return setError(res.error);
+      setCheck(res);
+    });
+    return () => {
+      live = false;
+    };
+  }, [on, field, projectId]);
+  return (
+    <div className="space-y-2 border-t border-slate-100 pt-3 text-sm" data-testid="jira-found-in">
+      <p className="flex items-center gap-1 text-xs font-semibold text-slate-600">
+        Found-in version
+        <InfoTip text="New bugs get the release being tested as their Jira version. The release comes from the run's Release field. In a bug bash it's the bash's release. If neither has one, it's the test cycle's release name. Whoever files a bug can change it or leave it out." />
+      </p>
+      <div className="flex items-start gap-2.5">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          aria-label="Put the release being tested into new Jira bugs"
+          onClick={() => {
+            setOn(!on);
+            setOk(false);
+          }}
+          className={cx("relative mt-0.5 h-[18px] w-8 shrink-0 rounded-full transition-colors", on ? "bg-accent-600" : "bg-slate-300")}
+        >
+          <span className={cx("absolute top-0.5 size-3.5 rounded-full bg-white shadow transition-all", on ? "left-4" : "left-0.5")} />
+        </button>
+        <span className="text-sm text-slate-700">Put the release being tested into new Jira bugs</span>
+      </div>
+      {on && (
+        <div className="space-y-2 pl-10">
+          <Field label="Jira field" htmlFor="found-in-field">
+            <Select
+              id="found-in-field"
+              value={field}
+              onChange={(e) => {
+                setField(e.target.value as FoundInField);
+                setOk(false);
+              }}
+              className="w-auto min-w-64 max-w-full"
+            >
+              {(Object.keys(FOUND_IN_FIELDS) as FoundInField[]).map((f) => (
+                <option key={f} value={f}>
+                  {FOUND_IN_FIELDS[f].label} ({FOUND_IN_FIELDS[f].hint})
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+          {!check && !error ? (
+            <p className="text-xs text-slate-500">Checking Jira&apos;s create screen…</p>
+          ) : check?.onScreen ? (
+            <p className="text-xs text-emerald-700" data-testid="found-in-check">
+              {check.project}&apos;s create screen has {check.label}.
+              {check.versions && ` Jira has ${check.versions.length === 1 ? "1 version" : `${check.versions.length} versions`}${check.versions.length ? `: ${check.versions.slice(0, 8).join(", ")}${check.versions.length > 8 ? "…" : ""}` : ""}.`}
+            </p>
+          ) : check ? (
+            <p className="text-xs text-amber-800" data-testid="found-in-check">
+              {check.label} isn&apos;t on {check.project}&apos;s create screen, so the release goes in the description. A Jira admin can add the field to the screen.
+            </p>
+          ) : null}
+          <p className="text-xs text-slate-500">
+            When the release isn&apos;t a version in Jira, the bug still gets filed, and the release name goes in the description. Release names match loosely: &quot;RC22&quot; and &quot;RC 22&quot; are the
+            same version. Flaw Patrol never adds versions to Jira.
+          </p>
+        </div>
+      )}
+      {(dirty || pending) && (
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              const res = await saveFoundIn(projectId, { field: on ? field : null });
+              if (!res.ok) return setError(res.error);
+              setOk(true);
+              router.refresh();
+            })
+          }
+        >
+          {pending ? "Saving…" : "Save found-in version"}
+        </Button>
+      )}
+      {ok && !dirty && <p className="text-xs text-emerald-700">{on ? "Saved. New bugs get a found-in version." : "Saved. New bugs don't get a found-in version."}</p>}
     </div>
   );
 }

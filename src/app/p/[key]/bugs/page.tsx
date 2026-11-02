@@ -20,7 +20,7 @@ import { cycleSettingsHref, hubGroupId, jiraConfigFor } from "@/lib/umbrella";
 
 export const metadata = { title: "Bugs" };
 
-export default async function DefectsPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ status?: string; severity?: string; jira?: string }> }) {
+export default async function DefectsPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ status?: string; severity?: string; jira?: string; version?: string }> }) {
   const spelling = await mySpelling();
   const { key } = await params;
   const sp = await searchParams;
@@ -38,6 +38,9 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
   if (sp.severity) where.severity = sp.severity as Prisma.DefectWhereInput["severity"];
   // Bugs saved before Jira was connected (ver_91).
   if (sp.jira === "local") where.externalKey = null;
+  // Found-in version (ver_141).
+  if (sp.version) where.foundIn = sp.version;
+  const versions = (await db.defect.findMany({ where: { projectId: project.id, foundIn: { not: "" } }, distinct: ["foundIn"], orderBy: { createdAt: "desc" }, take: 30, select: { foundIn: true } })).map((d) => d.foundIn);
   const scale = await severityScaleFor(project.id);
   const defects = await db.defect.findMany({
     where,
@@ -100,6 +103,16 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
             </option>
           ))}
         </Select>
+        {(versions.length > 0 || sp.version) && (
+          <Select name="version" defaultValue={sp.version ?? ""} className="w-auto" aria-label="Found in version">
+            <option value="">Any version</option>
+            {[...new Set([...versions, ...(sp.version ? [sp.version] : [])])].map((v) => (
+              <option key={v} value={v}>
+                Found in {v}
+              </option>
+            ))}
+          </Select>
+        )}
       </AutoFilterForm>
       {defects.length === 0 ? (
         <EmptyState title="No bugs">When a tester reports a bug from a test step, it shows up here with the run and case it came from.</EmptyState>
@@ -153,6 +166,11 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
                       {d.externalPriority && <p className="mt-1 text-xs whitespace-nowrap text-slate-500">Priority: {d.externalPriority}</p>}
                     </td>
                     <td className="px-4 py-2 text-xs">
+                      {d.foundIn && (
+                        <p className="mb-0.5 font-medium text-slate-700" data-testid="bug-found-in">
+                          Version {d.foundIn}
+                        </p>
+                      )}
                       {found.map((l) => (
                         <p key={l.result.entryId}>
                           <Link href={`/p/${project.key}/runs/${l.result.run.number}/execute?entry=${l.result.entryId}`} className="hover:underline">

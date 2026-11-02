@@ -22,6 +22,28 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 141,
+    date: "2026-11-01",
+    items: [
+      {
+        kind: "new",
+        title: "Found-in version on Jira bugs",
+        text: "Turn it on in Settings → Jira → Found-in version, and new bugs get the release being tested in Jira's Affects versions. It comes from the run's Release, so most people never touch it.",
+        who: "admin",
+      },
+      {
+        kind: "new",
+        title: "Found in, in the bug box",
+        text: "When it's on, the bug box shows Found in under Severity, already picked. Change it, or pick Leave it out. A release Jira doesn't have goes in the description instead, and the box says so first.",
+      },
+      {
+        kind: "better",
+        title: "Filter bugs by version",
+        text: "The Bugs page shows each bug's version under Found in, with a filter to see what one release turned up.",
+      },
+    ],
+  },
+  {
     version: 140,
     date: "2026-11-01",
     items: [

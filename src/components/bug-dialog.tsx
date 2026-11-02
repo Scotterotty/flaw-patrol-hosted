@@ -9,7 +9,9 @@ import { DEFAULT_SEVERITY, defaultSeverityOf, PLAIN_SCALE, type SeverityScale } 
 import type { ImportedDraft, LinkedDefect, ReporterInfo } from "@/server/jira";
 import type { KnownBug } from "@/lib/known-bugs";
 import { importedTitle } from "@/lib/bug-template";
-import { createLocalDefect, fileJiraBug, fileTemplatedBug, linkJiraIssue, previewJiraBug, previewLocalBug, searchJira, startTemplatedBug } from "@/server/jira";
+import { createLocalDefect, fileJiraBug, fileTemplatedBug, linkJiraIssue, previewFoundIn, previewJiraBug, previewLocalBug, searchJira, startTemplatedBug } from "@/server/jira";
+import type { FoundInDraft } from "@/lib/found-in";
+import { FoundInLine } from "./found-in-line";
 import { bugTemplateChoices } from "@/server/bug-templates";
 import type { CurrentLayout } from "@/lib/bug-templates-data";
 import { deviceCell, nowCell, startAnswers, type Answer } from "@/lib/bug-layout";
@@ -135,6 +137,9 @@ export function BugDialog({
   const [chosen, setChosen] = useState("");
   const [draft, setDraft] = useState<TemplatedDraft | null>(null);
   const [loadingTemplate, startTemplate] = useTransition();
+  // Found-in version (ver_141): the Jira version picked for you, and what the person picked.
+  const [foundDraft, setFoundDraft] = useState<FoundInDraft | null>(null);
+  const [foundIn, setFoundIn] = useState("");
   // Where a file made in the box came from, as the chips say it: "Step 3", "Whole case".
   const here = stepLabel.charAt(0).toUpperCase() + stepLabel.slice(1);
   const files = [...attachments, ...added.filter((a) => !attachments.some((b) => b.id === a.id))];
@@ -192,6 +197,13 @@ export function BugDialog({
     setNotThis([]);
     setDraft(null);
     setChosen("");
+    setFoundDraft(null);
+    if (jiraConnected)
+      void previewFoundIn(projectId, entryId).then((res) => {
+        if (!res.ok || !res.foundIn) return;
+        setFoundDraft(res.foundIn);
+        setFoundIn(res.foundIn.value);
+      });
     void bugTemplateChoices(projectId).then((res) => {
       if (!res.ok) return;
       setChoices(res.templates.length ? { current: res.current, templates: res.templates } : null);
@@ -270,6 +282,11 @@ export function BugDialog({
     });
   };
 
+  // Hidden when the bug's own layout already has that Jira field (a copied layout's version field).
+  const layoutFields = chosen ? (draft?.fields ?? []) : imported ? imported.fields : [];
+  const foundShown = !!foundDraft && jiraConnected && !layoutFields.some((f) => f.id === foundDraft.field);
+  const foundBox = foundShown && foundDraft ? <FoundInLine key={`${entryId}-${stepIndex}`} draft={foundDraft} value={foundIn} onChange={setFoundIn} /> : null;
+
   const done = (d: LinkedDefect) => {
     onLinked(d);
     onClose();
@@ -296,6 +313,7 @@ export function BugDialog({
           regression: !!regression && markReg,
           sentry: sentryList,
           ...(fromDefect && { fromDefectId: fromDefect.id }),
+          ...(foundShown && { foundIn }),
         });
         if (!res.ok) return setError(res.error);
         const notes = [res.attachError && `${res.defect.externalKey} was created, but attaching files failed: ${res.attachError}`, res.reporterNote, res.linkError].filter((n): n is string => !!n);
@@ -305,7 +323,7 @@ export function BugDialog({
         return;
       }
       if (!jiraConnected) {
-        const res = await createLocalDefect(projectId, { title: summary, severity, description: happened });
+        const res = await createLocalDefect(projectId, { title: summary, severity, description: happened, entryId });
         return res.ok ? done(res.defect) : setError(res.error);
       }
       // Screenshots and videos first, then logs, as they appear on the bug.
@@ -321,6 +339,7 @@ export function BugDialog({
         regression: !!regression && markReg,
         sentry: sentryList,
         ...(fromDefect && { fromDefectId: fromDefect.id }),
+        ...(foundShown && { foundIn }),
         ...(template && { template }),
         ...(imported && {
           imported: {
@@ -456,6 +475,7 @@ export function BugDialog({
                   <>
                     {reporter && jiraConnected && <ReporterLine reporter={reporter} />}
                     <TemplatedForm projectId={projectId} draft={draft} setDraft={(fn) => setDraft((d) => (d ? fn(d) : d))} severity={severity} setSeverity={setSeverity} scale={scale} setError={setError} />
+                    {foundBox}
                     <BugFiles files={files} include={include} setInclude={setInclude} candidates={candidates} onPick={pick} onUpload={upload} capture={capture} uploading={uploading} />
                   </>
                 ) : (
@@ -482,6 +502,7 @@ export function BugDialog({
                     onPick={pick}
                     capture={capture}
                   />
+                  {foundBox}
                 </>
               ) : imported ? (
                 <>
@@ -496,6 +517,7 @@ export function BugDialog({
                       setSevPicked(true);
                     }}
                   />
+                  {foundBox}
                   <BugFiles
                     files={files}
                     include={include}
@@ -526,6 +548,7 @@ export function BugDialog({
                       ))}
                     </Select>
                   </Field>
+                  {foundBox}
                   {jiraConnected ? (
                     <>
                       {reporter && <ReporterLine reporter={reporter} />}

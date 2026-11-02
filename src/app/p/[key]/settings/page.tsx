@@ -1,6 +1,7 @@
 import { badgeOf } from "@/lib/game";
 import { ArchiveCard } from "@/components/archive-project";
 import { archiveCardData } from "@/lib/archive-card";
+import { parseFoundIn } from "@/lib/found-in";
 import { JiraSettings } from "@/components/jira-settings";
 import { parseSeverityConfig } from "@/lib/severity";
 import { CycleSlack, SlackCard } from "@/components/slack-card";
@@ -56,7 +57,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
   const sentryRow = await db.sentryConfig.findUnique({ where: { projectId: project.id } });
   const jiraRow = await db.jiraConfig.findUnique({
     where: { projectId: project.id },
-    select: { siteUrl: true, email: true, jiraProjectKey: true, issueType: true, tokenEncrypted: true, bugTemplate: true, stories: true, severity: true },
+    select: { siteUrl: true, email: true, jiraProjectKey: true, issueType: true, tokenEncrypted: true, bugTemplate: true, stories: true, severity: true, foundIn: true },
   });
   // Under an umbrella: where the library, Jira and team come from.
   const parent = project.groupId ? await db.projectGroup.findUnique({ where: { id: project.groupId }, include: { hub: { select: { id: true, key: true, jira: { select: { jiraProjectKey: true, siteUrl: true, bugTemplate: true, sharedTemplateId: true } } } } } }) : null;
@@ -143,7 +144,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
                 This test cycle files bugs into its own Jira project, {jiraRow.jiraProjectKey}. Disconnect it below to use {umbrella.name}&apos;s instead.
               </p>
             )}
-            <JiraSettings projectId={project.id} current={jira} template={templateView.template} shared={templateView.shared} stories={parseStoriesConfig(jiraRow?.stories)} severity={parseSeverityConfig(jiraRow?.severity)} />
+            <JiraSettings projectId={project.id} current={jira} template={templateView.template} shared={templateView.shared} stories={parseStoriesConfig(jiraRow?.stories)} severity={parseSeverityConfig(jiraRow?.severity)} foundIn={parseFoundIn(jiraRow?.foundIn)} />
           </>
         )
       )}

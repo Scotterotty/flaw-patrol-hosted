@@ -5,7 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Severity } from "@prisma/client";
 import { AutoFilterForm } from "@/components/auto-filter-form";
-import { Card, cx, EmptyState, Input, PageHeader } from "@/components/ui";
+import { Card, cx, EmptyState, Input, PageHeader, Select } from "@/components/ui";
 import { db } from "@/lib/db";
 import { caseKey } from "@/lib/format";
 import { LocalDefectStatus, RefreshJiraButton, SendToJiraButton } from "@/components/defect-controls";
@@ -26,7 +26,7 @@ export const metadata = { title: "Bugs" };
 const SEV_BG: Record<Severity, string> = { SHOWSTOPPER: "#b91c1c", CRITICAL: "#ea580c", PROBLEMATIC: "#ca8a04", MINOR: "#475569", ENHANCEMENT: "#94a3b8" };
 
 /** Every bug filed from any project under the umbrella, once each: a Jira issue filed from two platforms shows once with both. */
-export default async function UmbrellaBugsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ q?: string; all?: string; rc?: string; platform?: string; sev?: string; jira?: string }> }) {
+export default async function UmbrellaBugsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ q?: string; all?: string; rc?: string; platform?: string; sev?: string; jira?: string; version?: string }> }) {
   const spelling = await mySpelling();
   const { id } = await params;
   const sp = await searchParams;
@@ -57,6 +57,8 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
   const rcOrder = [...new Set(u.projects.slice().reverse().map((p) => p.rcName).filter(Boolean))];
   const latestRc = rcOrder.at(-1) ?? null;
   const rcOf = (d: (typeof defects)[number]) => byId.get(d.projectId)?.rcName || d.links.map((l) => l.result.run.release).find(Boolean) || "";
+  // Found-in version (ver_141): the Jira version each bug was filed against.
+  const versions = [...new Set(defects.slice().reverse().map((d) => d.foundIn).filter(Boolean))].slice(0, 30);
 
   // One row per Jira issue (or per bug when it isn't in Jira), oldest filing first.
   type Row = { key: string; first: (typeof defects)[number]; platforms: string[]; rcs: string[]; cases: string[]; check: LastCheck | null };
@@ -82,6 +84,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
     [...rows.values()]
       .filter((r) => !sp.platform || r.platforms.some((p) => p.toLowerCase() === sp.platform!.toLowerCase()))
       .filter((r) => !sp.rc || r.rcs.includes(sp.rc))
+      .filter((r) => !sp.version || r.first.foundIn === sp.version)
       .filter((r) => sp.sev !== "critical" || isSevere(r.first.severity, scale)),
     sp.q ?? "",
     (r) => `${r.first.title} ${r.first.externalKey ?? ""} ${r.cases.join(" ")}`,
@@ -96,7 +99,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
 
   const link = (patch: Record<string, string | undefined>) => {
     const s = new URLSearchParams();
-    for (const [k, v] of Object.entries({ q: sp.q, all: sp.all, rc: sp.rc, platform: sp.platform, sev: sp.sev, jira: sp.jira, ...patch })) if (v) s.set(k, v);
+    for (const [k, v] of Object.entries({ q: sp.q, all: sp.all, rc: sp.rc, platform: sp.platform, sev: sp.sev, jira: sp.jira, version: sp.version, ...patch })) if (v) s.set(k, v);
     return `?${s}`;
   };
   const chip = (label: string, on: boolean, href: string, dot?: string) => (
@@ -128,13 +131,26 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
       )}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <AutoFilterForm className="min-w-60 flex-1">
-          {Object.entries({ all: sp.all, rc: sp.rc, platform: sp.platform, sev: sp.sev, jira: sp.jira }).map(([k, v]) => v && <input key={k} type="hidden" name={k} value={v} />)}
+          {Object.entries({ all: sp.all, rc: sp.rc, platform: sp.platform, sev: sp.sev, jira: sp.jira, version: sp.version }).map(([k, v]) => v && <input key={k} type="hidden" name={k} value={v} />)}
           <Input name="q" type="search" defaultValue={sp.q} placeholder="Search bugs, Jira keys or case IDs" aria-label="Search bugs" className="w-full" />
         </AutoFilterForm>
         {chip(showAll ? "Open and closed" : "Open", !showAll, link({ all: showAll ? undefined : "1" }))}
         {sp.jira === "local" && chip("Not in Jira", true, link({ jira: undefined }))}
         {sp.sev === "critical" ? chip("Critical only", true, link({ sev: undefined })) : chip("Critical", false, link({ sev: "critical" }))}
         {latestRc && chip(latestRc, sp.rc === latestRc, link({ rc: sp.rc === latestRc ? undefined : latestRc }))}
+        {(versions.length > 0 || sp.version) && (
+          <AutoFilterForm>
+            {Object.entries({ q: sp.q, all: sp.all, rc: sp.rc, platform: sp.platform, sev: sp.sev, jira: sp.jira }).map(([k, v]) => v && <input key={k} type="hidden" name={k} value={v} />)}
+            <Select name="version" defaultValue={sp.version ?? ""} className="w-auto" aria-label="Found in version">
+              <option value="">Any version</option>
+              {[...new Set([...versions, ...(sp.version ? [sp.version] : [])])].map((v) => (
+                <option key={v} value={v}>
+                  Found in {v}
+                </option>
+              ))}
+            </Select>
+          </AutoFilterForm>
+        )}
         {u.platforms.map((p) => chip(p.name, sp.platform?.toLowerCase() === p.name.toLowerCase(), link({ platform: sp.platform?.toLowerCase() === p.name.toLowerCase() ? undefined : p.name }), platformColor(u.platforms, p.name)))}
       </div>
       {list.length === 0 ? (
@@ -184,7 +200,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
                           {d.title}
                         </Link>
                       )}
-                      <span className="block text-xs text-slate-500">{[d.externalKey ?? `${home?.key}-D${d.number}`, r.cases.length ? `from ${r.cases.join(", ")}` : ""].filter(Boolean).join(" · ")}</span>
+                      <span className="block text-xs text-slate-500">{[d.externalKey ?? `${home?.key}-D${d.number}`, r.cases.length ? `from ${r.cases.join(", ")}` : "", d.foundIn && `found in ${d.foundIn}`].filter(Boolean).join(" · ")}</span>
                       {jira && canRun && !d.externalKey && <span className="block text-xs text-slate-500">Saved before Jira was connected</span>}
                       <LastCheckLine check={r.check} spelling={spelling} />
                       {d.answers == null && !d.externalKey && <BugDescription text={d.description} />}
