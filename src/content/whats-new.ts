@@ -22,6 +22,24 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 140,
+    date: "2026-11-01",
+    items: [
+      {
+        kind: "fix",
+        title: "One Keeper of Words crown for the whole team",
+        text: "The Glossary is one list for everyone, so its crown is one crown too. Adding terms no longer crowns you in every umbrella at once.",
+        game: true,
+      },
+      {
+        kind: "better",
+        title: "Crown notes show in their own umbrella and close by themselves",
+        text: "A crown note waits until you open that umbrella, and it closes after 10 seconds. Point at it to keep it open.",
+        game: true,
+      },
+    ],
+  },
+  {
     version: 139,
     date: "2026-11-01",
     items: [
