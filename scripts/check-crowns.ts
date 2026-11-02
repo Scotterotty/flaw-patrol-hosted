@@ -2,6 +2,8 @@
 // old way (scripts/crowns-before-ver129.ts) and the ver_129 way (src/lib/crowns.ts), each from
 // the same starting crowns, and fails unless the lists, the saved crowns and everyone's worn
 // titles all match. Then opens them again the new way and checks nothing was saved twice.
+// ver_140: Keeper of Words became one crown for the whole team, so it is left out of the
+// comparison (the old way still hands it out in every umbrella, on purpose no longer matched).
 //
 // It puts the starting crowns back between the two ways, so it only runs on a local database.
 // Run: npm run check:crowns (DATABASE_URL picks the database; e2e:all runs it on the test database).
@@ -34,10 +36,13 @@ async function main() {
     for (const t of titles) await db.user.update({ where: { id: t.id }, data: { gameTitle: t.gameTitle, gameTitleBefore: t.gameTitleBefore } });
   };
   // A crown that changed hands gets a new "since"; only whether it kept the starting one can match.
-  const view = (list: Awaited<ReturnType<typeof crownsFor>>) => list.map((c) => ({ ...c, since: startSince.get(`${c.groupId}|${c.key}`) === c.since.getTime() ? "kept" : "new" }));
+  const notWords = (c: { key: string }) => c.key !== "words";
+  const view = (list: Awaited<ReturnType<typeof crownsFor>>) => list.filter(notWords).map((c) => ({ ...c, since: startSince.get(`${c.groupId}|${c.key}`) === c.since.getTime() ? "kept" : "new" }));
   const saved = async () =>
-    (await db.crown.findMany({ orderBy: [{ groupId: "asc" }, { key: "asc" }] })).map((c) => ({ groupId: c.groupId, key: c.key, label: c.label, userId: c.userId, counts: c.counts, since: startSince.get(`${c.groupId}|${c.key}`) === c.since.getTime() ? "kept" : "new" }));
-  const worn = async () => db.user.findMany({ select: { id: true, gameTitle: true, gameTitleBefore: true }, orderBy: { id: "asc" } });
+    (await db.crown.findMany({ orderBy: [{ groupId: "asc" }, { key: "asc" }] })).filter(notWords).map((c) => ({ groupId: c.groupId, key: c.key, label: c.label, userId: c.userId, counts: c.counts, since: startSince.get(`${c.groupId}|${c.key}`) === c.since.getTime() ? "kept" : "new" }));
+  const words = (t: string | null) => (t && /^crown\|[^|]*\|words\|/.test(t) ? "words" : t);
+  const worn = async () =>
+    (await db.user.findMany({ select: { id: true, gameTitle: true, gameTitleBefore: true }, orderBy: { id: "asc" } })).map((u) => ({ ...u, gameTitle: words(u.gameTitle) }));
 
   const run = async (fn: typeof crownsFor) => {
     const out = new Map<string, unknown>();
