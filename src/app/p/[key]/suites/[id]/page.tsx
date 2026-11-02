@@ -139,6 +139,7 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
               suiteVersion={suite.currentVersion}
               initialOpen={startNow}
               fields={await runFieldsFor(project.id)}
+              autoCases={activeCases.filter((c) => c.testCase.type === "AUTOMATED").length}
             />
           )}
         </div>

@@ -14,6 +14,7 @@ import { buildEntries } from "./snapshot";
 import { fieldsOrFail } from "./run-field-input";
 import { parseFieldValues } from "@/lib/run-fields";
 import { suiteForCases } from "@/lib/suite-match";
+import { automatedIn, ONLY_AUTOMATED } from "@/lib/automated-cases";
 
 const runSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
@@ -27,6 +28,8 @@ const runSchema = z.object({
   assigneeId: z.string().nullable().default(null),
   /** The umbrella's run fields, by field id. "csp" fills cspVersion. */
   fields: z.record(z.string(), z.string().max(200)).default({}),
+  /** "Also include the automated cases": a suite's automated-only cases stay in. Off, they're left out. */
+  withAutomated: z.boolean().default(false),
 });
 export type RunInput = z.input<typeof runSchema>;
 
@@ -64,6 +67,12 @@ export async function createRun(projectId: string, from: z.input<typeof source>,
           suiteId = suite.id;
           suiteVersion = suite.currentVersion;
           caseIds = suite.cases.map((c) => c.caseId);
+          // Automation already runs its automated-only cases: they stay out unless asked for.
+          if (!data.withAutomated) {
+            const auto = await automatedIn(tx, caseIds);
+            if (auto.size && auto.size === caseIds.length) throw new UserError(ONLY_AUTOMATED);
+            caseIds = caseIds.filter((id) => !auto.has(id));
+          }
         } else if (src.kind === "rerun") {
           const prev = await tx.testRun.findFirst({
             where: { id: src.runId, projectId },
@@ -119,6 +128,8 @@ export async function createRun(projectId: string, from: z.input<typeof source>,
             environment: data.environment,
             release: data.release,
             kind: runKind,
+            // Any automated-only case still here was picked or asked for.
+            withAutomated: entries.some((e) => e.kind === "AUTOMATED"),
             createdById: user.id,
             createdBy: user.name ?? user.email,
             entries: { create: entries.map(({ assigneeId, ...e }) => ({ ...e, assigneeId })) },
@@ -139,7 +150,7 @@ export async function updateRun(projectId: string, runId: string, input: RunInpu
   return attempt(async () => {
     const { project } = await requireProjectAction(projectId, "run:create");
     // The kind and assignee are picked when a run starts; Edit details doesn't change them.
-    const { assigneeId: _ignored, runKind: _kind, fields: input2, cspVersion, ...data } = runSchema.parse(input); // eslint-disable-line @typescript-eslint/no-unused-vars
+    const { assigneeId: _ignored, runKind: _kind, withAutomated: _auto, fields: input2, cspVersion, ...data } = runSchema.parse(input); // eslint-disable-line @typescript-eslint/no-unused-vars
     const run = await db.testRun.findFirst({ where: { id: runId, projectId }, select: { fields: true } });
     if (!run) throw new UserError("Run not found.");
     const typed = await fieldsOrFail(projectId, { csp: cspVersion, ...input2 }, { strict: false });
@@ -252,5 +263,66 @@ export async function markRunCasesRunBefore(projectId: string, runId: string, en
     const { count } = await db.testCase.updateMany({ where: { id: { in: [...new Set(entries.map((e) => e.caseId))] } }, data: { runBefore } });
     for (const key of new Set([project.key, ...entries.map((e) => e.testCase.project.key)])) revalidatePath(`/p/${key}`, "layout");
     return { count };
+  });
+}
+
+/**
+ * Remove from run: takes untested cases out of a run, such as automated cases put in by
+ * mistake. Cases with any result, draft or bug stay. Returns what came out, for Undo.
+ */
+export async function removeRunEntries(projectId: string, runId: string, entryIds: string[]) {
+  return attempt(async () => {
+    const { project, user } = await requireProjectAction(projectId, "run:manage");
+    const run = await db.testRun.findFirst({ where: { id: runId, projectId }, select: { number: true, name: true, automated: true, bugBash: { select: { id: true } } } });
+    if (!run || run.automated || run.bugBash) throw new UserError("Run not found.");
+    const rows = await db.runEntry.findMany({
+      where: { id: { in: entryIds.slice(0, 5000) }, runId, status: "UNTESTED", draftAt: null, results: { none: {} } },
+      select: { id: true, caseId: true, position: true, assigneeId: true },
+    });
+    if (!rows.length) throw new UserError("Only cases nobody has tested yet can be taken out.");
+    await db.runEntry.deleteMany({ where: { id: { in: rows.map((r) => r.id) }, runId } });
+    await logActivity({ actor: user, kind: "run", action: `Took ${rows.length} ${rows.length === 1 ? "case" : "cases"} out of run R${run.number} "${run.name}"`, project, detail: "" });
+    revalidatePath(`/p/${project.key}`, "layout");
+    return { removed: rows.map(({ caseId, position, assigneeId }) => ({ caseId, position, assigneeId })) };
+  });
+}
+
+/** Undo for Remove from run: puts the cases back where they were, as they are now. */
+export async function restoreRunEntries(projectId: string, runId: string, items: { caseId: string; position: number; assigneeId: string | null }[]) {
+  return attempt(async () => {
+    const { project } = await requireProjectAction(projectId, "run:manage");
+    const run = await db.testRun.findFirst({ where: { id: runId, projectId }, select: { id: true, automated: true, entries: { select: { caseId: true } } } });
+    if (!run || run.automated) throw new UserError("Run not found.");
+    const have = new Set(run.entries.map((e) => e.caseId));
+    const back = items.slice(0, 5000).filter((i) => !have.has(i.caseId));
+    if (!back.length) return { count: 0 };
+    const team = new Set((await db.projectMember.findMany({ where: { projectId }, select: { userId: true } })).map((m) => m.userId));
+    const library = await libraryProjectIds(project);
+    const count = await db.$transaction(
+      async (tx) => {
+        const entries = await buildEntries(tx, library, back.map((i) => i.caseId), null);
+        const at = new Map(back.map((i) => [i.caseId, i]));
+        await tx.runEntry.createMany({
+          data: entries.map((e) => {
+            const was = at.get(e.caseId)!;
+            return { ...e, runId, position: was.position, assigneeId: was.assigneeId && team.has(was.assigneeId) ? was.assigneeId : null };
+          }),
+        });
+        return entries.length;
+      },
+      { timeout: 60_000 },
+    );
+    revalidatePath(`/p/${project.key}`, "layout");
+    return { count };
+  });
+}
+
+/** "Keep them" on the run page's automated cases note: they're meant to be in this run. */
+export async function keepAutomatedInRun(projectId: string, runId: string) {
+  return attempt(async () => {
+    const { project } = await requireProjectAction(projectId, "run:manage");
+    await db.testRun.updateMany({ where: { id: runId, projectId }, data: { withAutomated: true } });
+    revalidatePath(`/p/${project.key}`, "layout");
+    return {};
   });
 }

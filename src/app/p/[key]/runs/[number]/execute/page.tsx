@@ -10,7 +10,7 @@ import { CrumbName } from "@/components/crumb-name";
 import { fieldBits } from "@/lib/run-fields";
 import type { ResultStatus } from "@prisma/client";
 import Link from "next/link";
-import { FlakyBadge, PriorityBadge } from "@/components/badges";
+import { AutomatedBadge, FlakyBadge, PriorityBadge } from "@/components/badges";
 import { CaseSortToggle } from "@/components/case-sort-toggle";
 import { sortCases } from "@/lib/case-sort";
 import { readCaseSort } from "@/lib/case-sort-server";
@@ -268,6 +268,7 @@ export default async function ExecutePage({
                         <PriorityBadge priority={e.priority} />
                         <LiveStatusLabel id={e.id} status={e.status} renderedAt={renderedAt} />
                         {flakyIds.has(e.caseId) && <FlakyBadge flips={flakyIds.get(e.caseId)!} compact />}
+                        {e.kind === "AUTOMATED" && !run.automated && <AutomatedBadge />}
                         {e.testCase.flag && (
                           <span title={`Flagged: ${flagLabel(e.testCase.flag)}`} className="text-orange-500">
                             <FlagIcon className="size-3.5" />

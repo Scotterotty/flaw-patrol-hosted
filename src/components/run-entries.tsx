@@ -10,12 +10,12 @@ import { useRouter } from "next/navigation";
 import { Fragment, useMemo, useState, useTransition } from "react";
 import { relativeTime } from "@/lib/format";
 import { STATUSES, STATUS_LABEL, STATUS_STYLE } from "@/lib/status";
-import { assignEntries, markRunCasesRunBefore } from "@/server/runs";
+import { assignEntries, keepAutomatedInRun, markRunCasesRunBefore, removeRunEntries, restoreRunEntries } from "@/server/runs";
 import { useLiveSteps } from "@/lib/live-steps";
 import { useLiveRow, useLiveRows, type LiveRow } from "@/lib/live-rows";
 import { PersonLabel } from "./avatar";
 import type { CaseSort } from "@/lib/case-sort";
-import { PriorityBadge, TypeBadge, FlakyBadge, RegressionBadge } from "./badges";
+import { AutomatedBadge, PriorityBadge, TypeBadge, FlakyBadge, RegressionBadge } from "./badges";
 import { CaseSortToggle } from "./case-sort-toggle";
 import { StatusChip } from "./status";
 import { buttonClass, cx, Input, Select } from "./ui";
@@ -46,6 +46,10 @@ export type EntryRow = {
   known?: number;
   /** Flaky: how often its result flipped in its last 10 runs. */
   flaky?: number;
+  /** Automated-only case (automation already runs it): tagged 🤖 Automated. */
+  automated?: boolean;
+  /** Nobody has tested it yet (no result, nothing in progress), so Remove from run can take it out. */
+  removable?: boolean;
   /** Regression: where it passed before, for the badge's hover. */
   regression?: string;
   /** Step results so far, for a case that's in progress. */
@@ -69,6 +73,8 @@ export function RunEntries({
   sort,
   tagColors,
   canMarkRunBefore = false,
+  canRemove = false,
+  autoNote = false,
 }: {
   projectId: string;
   projectKey: string;
@@ -86,6 +92,10 @@ export function RunEntries({
   tagColors?: TagColors;
   /** Can say the run's new cases were run before Flaw Patrol: needs case editing. */
   canMarkRunBefore?: boolean;
+  /** Can take untested cases out of the run (Close and reopen runs permission). */
+  canRemove?: boolean;
+  /** Offer to take out the untested automated cases: they weren't put in on purpose. */
+  autoNote?: boolean;
 }) {
   const spelling = useSpelling();
   // Other people's progress from the live check, without waiting for the page to reload.
@@ -125,8 +135,35 @@ export function RunEntries({
       setNews("");
       router.refresh();
     });
+  // Remove from run, with Undo for what just came out.
+  const [removed, setRemoved] = useState<{ caseId: string; position: number; assigneeId: string | null }[] | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  const remove = (entryIds: string[]) =>
+    start(async () => {
+      setRemoveError(null);
+      const res = await removeRunEntries(projectId, runId, entryIds);
+      if (!res.ok) return setRemoveError(res.error);
+      setRemoved(res.removed);
+      setSelected(new Set());
+      router.refresh();
+    });
+  const undoRemove = () =>
+    start(async () => {
+      if (!removed) return;
+      const res = await restoreRunEntries(projectId, runId, removed);
+      if (!res.ok) return setRemoveError(res.error);
+      setRemoved(null);
+      router.refresh();
+    });
+  const keepAuto = () =>
+    start(async () => {
+      const res = await keepAutomatedInRun(projectId, runId);
+      if (!res.ok) return setRemoveError(res.error);
+      router.refresh();
+    });
+  const autoLeft = rows.filter((r) => r.automated && r.removable);
   const byId = new Map(members.map((m) => [m.id, m]));
-  const canSelect = canManage || canRun;
+  const canSelect = canManage || canRun || canRemove;
   // Selected cases in the order they're listed, as case numbers for a short, shareable link.
   const only = rows.filter((r) => selected.has(r.id)).map((r) => r.caseNumber);
 
@@ -157,6 +194,42 @@ export function RunEntries({
 
   return (
     <div>
+      {removed && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800" data-testid="removed-note">
+          <span>
+            Took {removed.length === 1 ? "1 case" : `${removed.length} cases`} out of this run.
+          </span>
+          <button type="button" disabled={pending} className="font-medium text-accent-700 underline" onClick={undoRemove}>
+            Undo
+          </button>
+          <button type="button" className="ml-auto text-xs text-slate-500 hover:underline" onClick={() => setRemoved(null)}>
+            Dismiss
+          </button>
+        </div>
+      )}
+      {!removed && autoNote && canRemove && autoLeft.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-slate-800" data-testid="auto-note">
+          <span className="min-w-0 flex-1">
+            <b>
+              {autoLeft.length === 1 ? "1 automated case is" : `${autoLeft.length} automated cases are`} in this run.
+            </b>{" "}
+            Your automation already runs {autoLeft.length === 1 ? "it" : "them"}, so nobody needs to test {autoLeft.length === 1 ? "it" : "them"} by hand here.
+          </span>
+          <span className="flex flex-wrap gap-2">
+            <button type="button" disabled={pending} className={buttonClass("primary", "sm")} onClick={() => remove(autoLeft.map((r) => r.id))}>
+              Take {autoLeft.length === 1 ? "it" : "them"} out of this run
+            </button>
+            <button type="button" disabled={pending} className={buttonClass("secondary", "sm")} onClick={keepAuto}>
+              Keep {autoLeft.length === 1 ? "it" : "them"}
+            </button>
+          </span>
+        </div>
+      )}
+      {removeError && (
+        <p className="mb-3 text-xs text-red-700" role="alert">
+          {removeError}
+        </p>
+      )}
       {marked && (
         <div className="mb-3 rounded-lg border border-accent-200 bg-accent-50 px-3 py-2 text-sm text-slate-800" data-testid="news-heads-up">
           Done. {marked.length === 1 ? "This case is" : `These ${marked.length} cases are`} marked as run before, so runs won&apos;t call {marked.length === 1 ? "it" : "them"} new again.{" "}
@@ -263,6 +336,17 @@ export function RunEntries({
                 Run {selected.size} selected
               </Link>
             )}
+            {canRemove && rows.some((r) => selected.has(r.id) && r.removable) && (
+              <button
+                type="button"
+                disabled={pending}
+                className={buttonClass("secondary", "sm")}
+                title="Only cases nobody has tested yet come out"
+                onClick={() => remove(rows.filter((r) => selected.has(r.id) && r.removable).map((r) => r.id))}
+              >
+                Remove {rows.filter((r) => selected.has(r.id) && r.removable).length} from run
+              </button>
+            )}
             {canManage && (
               <Select
                 className="h-8 w-auto text-xs"
@@ -357,6 +441,7 @@ export function RunEntries({
                   <Link href={`/p/${projectKey}/runs/${runNumber}/execute?entry=${r.id}`} className="hover:underline">
                     <span className="font-mono text-xs text-slate-500">{r.caseKey}</span> <TagPills tags={r.tags} colors={tagColors} hits={tagHits(query, r.tags)} /> <span className="font-medium text-slate-900">{r.title}</span>
                   </Link>
+                  {r.automated ? <span className="ml-1.5 align-middle"><AutomatedBadge /></span> : null}
                   {r.regression ? <span className="ml-1.5 align-middle"><RegressionBadge tip={r.regression} /></span> : null}
                   {r.flaky ? <span className="ml-1.5 align-middle"><FlakyBadge flips={r.flaky} /></span> : null}
                   {r.news && <NewsTag kind={r.news.kind} title={r.news.why} className="ml-1.5" />}
@@ -422,6 +507,17 @@ export function RunEntries({
                   >
                     {r.status === "UNTESTED" ? "Test" : r.status === "IN_PROGRESS" ? "Continue" : "Retest"}
                   </Link>
+                  {canRemove && r.removable && (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => remove([r.id])}
+                      aria-label={`Remove ${r.caseKey} from run`}
+                      className="mt-1 block w-full text-right text-[11px] text-slate-500 hover:text-red-700 hover:underline max-sm:mt-0 max-sm:ml-2 max-sm:inline max-sm:w-auto"
+                    >
+                      Remove from run
+                    </button>
+                  )}
                 </td>
               </tr>
               </Fragment>

@@ -2,6 +2,7 @@
 
 import { TagPills } from "./tag-pill";
 import { NewsTag } from "./case-news-tag";
+import { AutomatedBadge } from "./badges";
 import { forgivingFilter, tagHits } from "@/lib/fuzzy";
 import { CloseMatchesLabel } from "./close-matches";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -223,6 +224,8 @@ function Form({
   const [picked, setPicked] = useState<string[]>(preset?.what === "cases" ? preset.caseIds.filter((id) => opts.cases.some((c) => c.id === id)) : []);
   // Nothing ticked for you (Scott, ver_99), except the test cycle the box was opened from.
   const [cycles, setCycles] = useState<string[]>(opts.hereId && opts.cycles.some((c) => c.id === opts.hereId) ? [opts.hereId] : []);
+  // "Also include the automated cases": off, automation's own cases stay out of the run.
+  const [withAuto, setWithAuto] = useState(false);
   const [q, setQ] = useState("");
   const [folder, setFolder] = useState("");
   const [tag, setTag] = useState("");
@@ -261,16 +264,21 @@ function Form({
     );
     return { visible: [...found.exact, ...found.close], closeStart: found.close.length ? found.exact.length : -1 };
   }, [opts, folder, tag, priority, q]);
-  // Tick all takes the exact matches only, when there are some.
-  const tickable = closeStart > 0 ? visible.slice(0, closeStart) : visible;
+  // Tick all takes the exact matches only, when there are some, and skips automated cases
+  // unless they're included. Ticking one yourself always works.
+  const isAuto = (c: { type: string }) => c.type === "AUTOMATED";
+  const tickable = (closeStart > 0 ? visible.slice(0, closeStart) : visible).filter((c) => withAuto || !isAuto(c));
   const pickedSet = new Set(picked);
   // New cases: a button to tick the ones shown, and a reminder for ones left out of picked folders.
   const newShown = tickable.filter((c) => opts.news[c.id] === "new" && !pickedSet.has(c.id));
   const pickedFolders = new Set(opts.cases.filter((c) => pickedSet.has(c.id)).map((c) => c.folderId));
-  const leftOut = opts.cases.filter((c) => opts.news[c.id] === "new" && !pickedSet.has(c.id) && pickedFolders.has(c.folderId));
+  const leftOut = opts.cases.filter((c) => opts.news[c.id] === "new" && !pickedSet.has(c.id) && pickedFolders.has(c.folderId) && (withAuto || !isAuto(c)));
+  // Automated cases the tick box is about, for what's picked to run.
+  const autoHere = what === "all" ? opts.autoCount : what === "suite" ? (suite?.autoCases ?? 0) : what === "cases" ? opts.cases.filter(isAuto).length : 0;
   // No cases anywhere the box can pick from.
   const noCases = opts.allCount === 0 && opts.cases.length === 0;
-  const count = what === "all" ? opts.allCount : what === "suite" ? (suite?.cases ?? 0) : what === "cases" ? picked.length : 0;
+  const count =
+    what === "all" ? opts.allCount + (withAuto ? opts.autoCount : 0) : what === "suite" ? (suite?.cases ?? 0) - (withAuto ? 0 : (suite?.autoCases ?? 0)) : what === "cases" ? picked.length : 0;
   const members = chosen.length === 1 ? chosen[0].members : [];
   const shownCycles = opts.cycles.filter((c) => c.current || showOlder || ticked.includes(c.id));
   const older = opts.cycles.filter((c) => !c.current && !ticked.includes(c.id)).length;
@@ -325,6 +333,7 @@ function Form({
         what,
         suiteId: what === "suite" ? suiteId : undefined,
         caseIds: what === "cases" ? picked : undefined,
+        withAutomated: withAuto,
         name: name.trim() || autoName,
         release: release.trim(),
         cycleRelease: !release.trim() && cycleRelease,
@@ -435,12 +444,25 @@ function Form({
           </div>
         ) : (
           <div className="grid gap-2 sm:grid-cols-3">
-            {choice("all", opts.umbrella ? "Whole Case library" : "Every case", `All ${opts.allCount} active cases`)}
+            {choice("all", opts.umbrella ? "Whole Case library" : "Every case", opts.autoCount ? `${opts.allCount} ${opts.allCount === 1 ? "case" : "cases"} you test by hand` : `All ${opts.allCount} active cases`)}
             {choice("suite", "A suite", opts.suites.length ? opts.suites.map((s) => s.name).join(", ") : "None yet")}
             {choice("cases", "Pick cases", "Search and tick")}
           </div>
         )}
       </section>
+
+      {what && autoHere > 0 && (
+        <label className="flex cursor-pointer items-start gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm" data-testid="with-auto">
+          <input type="checkbox" className="mt-1" checked={withAuto} onChange={(e) => setWithAuto(e.target.checked)} />
+          <span className="min-w-0">
+            Also include the {autoHere === 1 ? "automated case" : `${autoHere} automated cases`} <AutomatedBadge tip="Made from automation results. Automation already runs these." />
+            <span className="block text-xs text-slate-500">
+              Your automation already runs {autoHere === 1 ? "it" : "these"} and sends the results in. Tick this only if someone will check {autoHere === 1 ? "it" : "them"} by hand too.
+              {what === "cases" && !withAuto && " Tick all skips them; a case you tick yourself still goes in."}
+            </span>
+          </span>
+        </label>
+      )}
 
       {what === "all" && <p className="text-xs text-slate-500">Every active case as it is now. Cases added later aren&apos;t in this run.</p>}
 
@@ -454,6 +476,7 @@ function Form({
                   <span className="min-w-0 flex-1 truncate font-medium text-slate-900">{s.name}</span>
                   <span className="text-xs text-slate-500">
                     {s.cases} {s.cases === 1 ? "case" : "cases"}
+                    {s.autoCases > 0 && !withAuto ? ` · ${s.autoCases} automated left out` : ""}
                     {opts.umbrella && !s.shared ? " · this test cycle only" : ""}
                   </span>
                 </label>
@@ -547,6 +570,11 @@ function Form({
                   <span className="min-w-0 flex-1">
                     <span className="font-mono text-xs text-slate-500">{c.key}</span> <TagPills tags={c.tags} colors={opts.tagColors} hits={tagHits(q, c.tags)} /> {c.title}
                     {opts.news[c.id] && <NewsTag kind={opts.news[c.id]} className="ml-1" title={opts.news[c.id] === "new" ? "Never run before" : "Steps changed since its last run"} />}
+                    {isAuto(c) && (
+                      <span className="ml-1 align-middle">
+                        <AutomatedBadge tip="Made from automation results. Automation already runs this case." />
+                      </span>
+                    )}
                     {c.folderPath && <span className="text-xs text-slate-500"> · {c.folderPath}</span>}
                   </span>
                 </label>

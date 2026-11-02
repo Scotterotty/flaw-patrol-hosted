@@ -331,6 +331,9 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         canManage={can(who, "run:assign")}
         canRun={run.state === "ACTIVE" && can(who, "run:execute")}
         canMarkRunBefore={can(who, "case:edit")}
+        // Bug bash runs hold the bash's areas: they're changed on the bash, not here.
+        canRemove={can(who, "run:manage") && run.kind !== "bash"}
+        autoNote={!run.withAutomated}
         meId={user.id}
         sort={sort}
         tagColors={tagColors}
@@ -342,6 +345,8 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           folderPath: e.folderPath,
           priority: e.priority,
           charter: e.kind === "EXPLORATORY",
+          automated: e.kind === "AUTOMATED",
+          removable: e.status === "UNTESTED" && !e.draftAt && e.results.length === 0,
           lastTestedAt: e.lastTestedAt?.toISOString() ?? null,
           defects: defectsByEntry.get(e.id)?.size ?? 0,
           known: knownMap.get(e.id)?.length ?? 0,

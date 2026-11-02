@@ -20,6 +20,7 @@ import { libraryProjectIds, loadUmbrella, platformColor, umbrellaOf } from "@/li
 import { attempt, UserError } from "./result";
 import { addUmbrellaProject } from "./umbrella";
 import { createRun } from "./runs";
+import { ONLY_AUTOMATED } from "@/lib/automated-cases";
 
 // The Start a run box: pick what to run from the library (all of it, a
 // suite, or ticked cases), then the test cycles to run it in, one run in each.
@@ -88,16 +89,26 @@ export async function runBoxOptions(scope: RunBoxScope) {
     if (!cycles.length && !empty && !newCycle?.canCreate) throw new UserError(umbrella ? `You can't start runs in any ${umbrella.group.name} test cycle yet. Ask an admin to add you to one.` : "You can't start runs here.");
 
     const libIds = await libraryProjectIds(library);
-    const [picker, suites, members, allCount] = await Promise.all([
+    const wholeLib = { projectId: umbrella ? umbrella.hub.id : library.id, archived: false, ...NOT_BASH_CASE };
+    const [picker, suites, members, allCount, autoCount] = await Promise.all([
       suitePickerData(library),
       db.testSuite.findMany({
         where: { projectId: { in: libIds }, archived: false },
         orderBy: { name: "asc" },
-        select: { id: true, name: true, projectId: true, _count: { select: { cases: { where: { testCase: { archived: false } } } } } },
+        select: {
+          id: true,
+          name: true,
+          projectId: true,
+          _count: { select: { cases: { where: { testCase: { archived: false } } } } },
+          // Automated-only cases in it, left out unless "Also include the automated cases" is ticked.
+          cases: { where: { testCase: { archived: false, type: "AUTOMATED" } }, select: { caseId: true } },
+        },
       }),
       Promise.all(cycles.map((c) => projectMembers(c.id))),
       // "Whole Case library": the umbrella's library, or a lone project's own cases.
-      db.testCase.count({ where: { projectId: umbrella ? umbrella.hub.id : library.id, archived: false, ...NOT_BASH_CASE } }),
+      // Counted without the automated-only ones: automation already runs those.
+      db.testCase.count({ where: { ...wholeLib, type: { not: "AUTOMATED" } } }),
+      db.testCase.count({ where: { ...wholeLib, type: "AUTOMATED" } }),
     ]);
     const colorOf = (platform: string) => (umbrella ? platformColor(umbrella.platforms, platform) : "#94a3b8");
     // Run kinds: what kind of run it is, asked first in an umbrella.
@@ -118,12 +129,13 @@ export async function runBoxOptions(scope: RunBoxScope) {
       runFields: umbrella ? parseRunFields(umbrella.group.runFields) : [CSP_FIELD],
       cycles: cycles.map((c, i): RunBoxCycle => ({ id: c.id, key: c.key, name: c.name, color: colorOf(c.platform), current: c.current, rcName: c.rcName, members: assignable(members[i]).map((m) => ({ id: m.id, name: m.name })) })),
       allCount,
+      autoCount,
       // Whether the "Make a suite", "Write the first case" and "Import cases" links show.
       canSuites: umbrella ? can(umbrella.who, "suite:manage") : true,
       canCases: umbrella ? can(umbrella.who, "case:edit") : true,
       canImport: umbrella ? can(umbrella.who, "import") : true,
       tagColors: await tagColorsFor(library.id),
-      suites: suites.map((s) => ({ id: s.id, name: s.name, cases: s._count.cases, ownerId: s.projectId, shared: !!umbrella && s.projectId !== here?.id })),
+      suites: suites.map((s) => ({ id: s.id, name: s.name, cases: s._count.cases, autoCases: s.cases.length, ownerId: s.projectId, shared: !!umbrella && s.projectId !== here?.id })),
       ...picker,
       // New and Updated cases, by case id.
       news: await libraryCaseNews(picker.cases.map((c) => c.id)),
@@ -149,6 +161,8 @@ const startSchema = z.object({
   cycleRelease: z.boolean().default(false),
   /** The run kind picked first. */
   runKind: z.string().trim().max(40).default(""),
+  /** "Also include the automated cases". Off, Whole Case library and suites leave them out. */
+  withAutomated: z.boolean().default(false),
 });
 
 /** Start one run in each ticked test cycle. Each test cycle's own release only when asked for. */
@@ -161,6 +175,8 @@ export async function startRuns(input: z.input<typeof startSchema>) {
     for (const cycleId of [...new Set(data.cycleIds)]) {
       const { project } = await requireProjectAction(cycleId, "run:create");
       let source: Parameters<typeof createRun>[1];
+      // Whole Case library and suites leave out automated-only cases unless asked;
+      // cases ticked one by one always go in.
       if (data.what === "suite") source = { kind: "suite", suiteId: data.suiteId! };
       else {
         const u = await umbrellaOf(project);
@@ -168,12 +184,13 @@ export async function startRuns(input: z.input<typeof startSchema>) {
         const ids = data.what === "all" ? (u && !u.isHub ? [u.hub.id] : [project.id]) : await libraryProjectIds(project);
         const cases = await db.testCase.findMany({
           // The whole library never takes in a bug bash's area charters.
-          where: { projectId: { in: ids }, archived: false, ...(data.what === "cases" ? { id: { in: data.caseIds } } : NOT_BASH_CASE) },
+          where: { projectId: { in: ids }, archived: false, ...(data.what === "cases" ? { id: { in: data.caseIds } } : { ...NOT_BASH_CASE, ...(data.withAutomated ? {} : { type: { not: "AUTOMATED" as const } }) }) },
           orderBy: [{ projectId: "asc" }, { number: "asc" }],
           select: { id: true },
         });
         const order = data.what === "cases" ? new Map(data.caseIds!.map((id, i) => [id, i])) : null;
         const caseIds = cases.map((c) => c.id).sort((a, b) => (order ? order.get(a)! - order.get(b)! : 0));
+        if (!caseIds.length && data.what === "all" && !data.withAutomated) throw new UserError(ONLY_AUTOMATED);
         if (!caseIds.length) throw new UserError(started.length ? stopped(started, project.name, "it has none of these cases") : `${project.name} has none of these cases to run.`);
         source = { kind: "cases", caseIds };
       }
@@ -188,6 +205,7 @@ export async function startRuns(input: z.input<typeof startSchema>) {
         environment: data.environment,
         release: data.release || (data.cycleRelease ? project.rcName : ""),
         runKind: data.runKind,
+        withAutomated: data.withAutomated,
         assigneeId: member ? data.assigneeId : null,
       });
       if (!res.ok) throw new UserError(started.length ? stopped(started, project.name, res.error) : `${project.name}: ${res.error}`);

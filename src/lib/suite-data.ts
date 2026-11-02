@@ -17,7 +17,7 @@ export async function suitePickerData(project: { id: string; groupId: string | n
     db.testCase.findMany({
       where: { projectId: { in: ids }, archived: false, ...NOT_BASH_CASE },
       orderBy: [{ projectId: "asc" }, { number: "asc" }],
-      select: { id: true, number: true, title: true, folderId: true, priority: true, tags: true, projectId: true },
+      select: { id: true, number: true, title: true, folderId: true, priority: true, tags: true, projectId: true, type: true },
     }),
     db.$queryRaw<{ tag: string }[]>`SELECT DISTINCT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ANY(${ids}) AND archived = false ORDER BY tag`,
     db.project.findMany({ where: { id: { in: ids } }, select: { id: true, key: true } }),
