@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 147,
+    date: "2026-11-02",
+    items: [
+      {
+        kind: "better",
+        title: "Lines between shared steps",
+        text: "Steps inside a shared step block now have a thin line above each one, like other steps, so it's easy to see where each step and its expected result start and end.",
+      },
+    ],
+  },
+  {
     version: 146,
     date: "2026-11-02",
     items: [

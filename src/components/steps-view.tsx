@@ -3,7 +3,7 @@ import { StepText } from "./step-text";
 import { StepsTable, actionCell, expectedCell } from "./steps-table";
 import { cx } from "./ui";
 
-/** Read-only steps table; consecutive steps from one shared step are grouped. */
+/** Read-only steps table; consecutive steps from one shared step are grouped, with a line above each of their steps. */
 export function StepsView({ steps, projectKey }: { steps: ExpandedStep[]; projectKey: string }) {
   if (!steps.length) return <p className="px-4 py-6 text-sm text-slate-500">No steps yet.</p>;
   const groups: { shared?: ExpandedStep["shared"]; items: ExpandedStep[]; root: string }[] = [];
@@ -30,7 +30,7 @@ export function StepsView({ steps, projectKey }: { steps: ExpandedStep[]; projec
             </tr>
           )}
           {g.items.map((s) => (
-            <tr key={s.number} className="align-top">
+            <tr key={s.number} className={cx("align-top", g.shared && "border-t border-violet-200/60")}>
               <td className="px-4 py-2 font-mono text-xs text-slate-500">{s.number}</td>
               <td className={cx("px-4 text-slate-800", actionCell)}>
                 <StepText text={s.action} />

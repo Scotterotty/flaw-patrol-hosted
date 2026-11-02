@@ -75,9 +75,9 @@ export function SharedItem({
           )}
         </div>
       )}
-      <ol className="mt-2 space-y-1 border-l-2 border-violet-200 pl-3 text-sm">
+      <ol className="mt-2 divide-y divide-violet-200/60 border-l-2 border-violet-200 pl-3 text-sm">
         {def.steps.map((s, i) => (
-          <li key={i} className="grid gap-1 md:grid-cols-2 wrap-anywhere">
+          <li key={i} className="grid gap-1 py-1.5 md:grid-cols-2 wrap-anywhere">
             <span className="min-w-0 text-slate-700">
               {fillPlaceholders(s.action, def.parameters, params)}
             </span>
