@@ -17,6 +17,10 @@ export type BugContext = {
   fields?: { name: string; value: string }[];
   environment: string;
   preconditions: string;
+  /** Test data (ver_138): which row failed and its values, like "Test data row 2 of 3: role = viewer". */
+  testRow?: string;
+  /** Test data: the row's short label, like "Safari · viewer", added to the end of the summary. */
+  rowName?: string;
   steps: { number: string; action: string; expected: string }[];
   failedIndex: number | null; // 0-based; null when filed for the whole case
   actual: string;
@@ -51,9 +55,10 @@ export function bugTitle(caseTitle: string, step: { action: string; expected: st
   return [caseTitle.trim(), step && short(step.action, 60), what].filter(Boolean).join(": ").slice(0, 250);
 }
 
-export function defaultSummary(ctx: Pick<BugContext, "caseTitle" | "steps" | "failedIndex" | "actual" | "titleTags">): string {
+export function defaultSummary(ctx: Pick<BugContext, "caseTitle" | "steps" | "failedIndex" | "actual" | "titleTags" | "rowName">): string {
   const step = ctx.failedIndex === null ? null : (ctx.steps[ctx.failedIndex] ?? null);
-  return withBracketTags(ctx.titleTags ?? [], bugTitle(ctx.caseTitle, step, ctx.actual ?? "")).slice(0, 250);
+  const title = bugTitle(ctx.caseTitle, step, ctx.actual ?? "");
+  return withBracketTags(ctx.titleTags ?? [], ctx.rowName ? `${title} (${ctx.rowName})` : title).slice(0, 250);
 }
 
 /** Plain-text version, shown as the preview in the dialog. */
@@ -65,6 +70,7 @@ export function bugText(ctx: BugContext): string {
     `Found while running ${ctx.caseKey} "${ctx.caseTitle}" in ${ctx.runLabel}.`,
     [ctx.build && `Build: ${ctx.build}`, ...fieldLines(ctx), ctx.environment && `Environment: ${ctx.environment}`].filter(Boolean).join(" · "),
     ctx.preconditions && `Preconditions: ${ctx.preconditions}`,
+    ctx.testRow,
     "",
     "Steps to reproduce:",
     ...upto.map((s, i) => `${i + 1}. ${s.action}`),
@@ -89,6 +95,7 @@ export function bugAdf(ctx: BugContext): Node {
   const env = [ctx.build && `Build: ${ctx.build}`, ...fieldLines(ctx), ctx.environment && `Environment: ${ctx.environment}`].filter(Boolean).join(" · ");
   if (env) content.push(para(text(env)));
   if (ctx.preconditions) content.push(para(bold("Preconditions: "), text(ctx.preconditions)));
+  if (ctx.testRow) content.push(para(text(ctx.testRow)));
   if (upto.length) {
     content.push(para(bold("Steps to reproduce")));
     content.push({
@@ -326,7 +333,7 @@ export function answersAdf(
 export function sectionText(source: string, ctx: BugContext) {
   const upto = ctx.failedIndex === null ? ctx.steps : ctx.steps.slice(0, ctx.failedIndex + 1);
   const failed = ctx.failedIndex === null ? null : ctx.steps[ctx.failedIndex];
-  if (source === "steps") return [ctx.preconditions && `Preconditions: ${ctx.preconditions}`, ...upto.map((s, i) => `${i + 1}. ${s.action || "(no action text)"}`)].filter(Boolean).join("\n");
+  if (source === "steps") return [ctx.preconditions && `Preconditions: ${ctx.preconditions}`, ctx.testRow, ...upto.map((s, i) => `${i + 1}. ${s.action || "(no action text)"}`)].filter(Boolean).join("\n");
   if (source === "expected") return failed?.expected ?? "";
   if (source === "actual") return ctx.actual;
   if (source === "env") return [ctx.release && `Release: ${ctx.release}`, ctx.build && `Build: ${ctx.build}`, ...fieldLines(ctx), ctx.environment && `Environment: ${ctx.environment}`].filter(Boolean).join("\n");

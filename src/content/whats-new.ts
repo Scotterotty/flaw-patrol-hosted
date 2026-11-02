@@ -22,6 +22,27 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 138,
+    date: "2026-11-01",
+    items: [
+      {
+        kind: "new",
+        title: "Test data: run one case with different values",
+        text: "Write \"Sign in as {{role}}\" in a step, then click + Add test data under the steps and list admin, viewer and guest. The case runs three times, once for each row, and each row gets its own pass or fail. It's optional: cases without a table work as before.",
+      },
+      {
+        kind: "better",
+        title: "Shared steps fill in from test data",
+        text: "A shared step blank with the same name as a test data column takes each row's value. Other blanks still ask for one value.",
+      },
+      {
+        kind: "better",
+        title: "See which row failed",
+        text: "Bugs name the row and its values, history pips get a stripe per row, and Failing steps says which row. Reports still count the case once.",
+      },
+    ],
+  },
+  {
     version: 137,
     date: "2026-11-01",
     items: [

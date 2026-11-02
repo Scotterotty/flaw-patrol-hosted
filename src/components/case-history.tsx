@@ -9,6 +9,8 @@ import { isFlaky } from "@/lib/run-history";
 import { countStatuses, pct, STATUS_LABEL, totals } from "@/lib/status";
 import { parseSessionLog } from "@/lib/charter";
 import { withoutHeadings } from "@/lib/step-checks";
+import { rowsLine } from "@/lib/test-data";
+import { rowsOfResult, rowsTip } from "@/lib/test-data-history";
 import { PersonLabel } from "./avatar";
 import { SessionLogDetails } from "./charter-view";
 import { HistoryStrip, StatusChip } from "./status";
@@ -75,7 +77,13 @@ export async function CaseHistory({ caseId, charter, canRun = true }: { caseId: 
         <h2 className="text-sm font-semibold text-slate-800">Execution history</h2>
         {results.length > 0 && (
           <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-            <HistoryStrip statuses={[...results].reverse().map((r) => ({ status: r.status, title: `${r.automated ? "🤖 " : ""}R${r.run.number} ${r.run.name}: ${STATUS_LABEL[r.status].toLowerCase()}`, href: runHref(r) }))} max={30} />
+            <HistoryStrip
+              statuses={[...results].reverse().map((r) => {
+                const rows = rowsOfResult(r.entry?.steps, r.stepResults);
+                return { status: r.status, rows, title: `${r.automated ? "🤖 " : ""}R${r.run.number} ${r.run.name}: ${STATUS_LABEL[r.status].toLowerCase()}${rows ? `. ${rowsTip(rows)}` : ""}`, href: runHref(r) };
+              })}
+              max={30}
+            />
             <span>
               {count(results.length, "run")} · {pct(t.passRate)} passed
               {lastPass ? ` · last passed ${relativeTime(lastPass.createdAt, spelling)}` : " · never passed"}
@@ -102,6 +110,7 @@ export async function CaseHistory({ caseId, charter, canRun = true }: { caseId: 
             <tbody className="divide-y divide-slate-100">
               {results.map((r) => {
                 const steps = countStatuses(withoutHeadings(r.entry?.steps, (r.stepResults as { status: ResultStatus }[]) ?? []).map((s) => s.status));
+                const rows = rowsOfResult(r.entry?.steps, r.stepResults);
                 const session = r.sessionLog ? parseSessionLog(r.sessionLog) : null;
                 return (
                   <tr key={r.id} className="align-top">
@@ -148,7 +157,11 @@ export async function CaseHistory({ caseId, charter, canRun = true }: { caseId: 
                         <>
                           {steps.PASSED} passed{steps.FAILED ? `, ${steps.FAILED} failed` : ""}
                           {steps.BLOCKED ? `, ${steps.BLOCKED} blocked` : ""}
-                          
+                          {rows && (
+                            <span className="block text-slate-500" title={rowsTip(rows)}>
+                              {rowsLine(rows)}
+                            </span>
+                          )}
                         </>
                       )}
                     </td>

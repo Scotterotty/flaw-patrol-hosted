@@ -1,7 +1,8 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { pathOf } from "@/lib/folders";
-import { expandSteps, parseCaseSteps, parseParams, parsePlainSteps, sharedStepIdsIn, type SharedStepDef } from "@/lib/steps";
+import { parseTestData } from "@/lib/test-data";
+import { expandForRun, parseCaseSteps, parseParams, parsePlainSteps, sharedStepIdsIn, type SharedStepDef } from "@/lib/steps";
 
 type Tx = Prisma.TransactionClient;
 
@@ -10,7 +11,7 @@ type Tx = Prisma.TransactionClient;
  * expanded with the version in force right now, so the run records exactly
  * what the tester was asked to do.
  */
-export async function buildEntries(tx: Tx, projectId: string | string[], caseIds: string[], assigneeId: string | null) {
+export async function buildEntries(tx: Tx, projectId: string | string[], caseIds: string[], assigneeId: string | null, opts?: { wholeCase?: boolean }) {
   // A project in an umbrella also runs cases from the umbrella's shared library.
   const projectIds = Array.isArray(projectId) ? projectId : [projectId];
   const cases = await tx.testCase.findMany({
@@ -34,7 +35,10 @@ export async function buildEntries(tx: Tx, projectId: string | string[], caseIds
   );
   const folders = await tx.folder.findMany({ where: { projectId: { in: projectIds } }, select: { id: true, parentId: true, name: true } });
 
-  return ordered.map((c, i) => ({
+  return ordered.map((c, i) => {
+    // Automation results (wholeCase) give one result for the whole case, so rows are left out.
+    const data = c.type === "EXPLORATORY" || opts?.wholeCase ? null : parseTestData(c.versions[0]?.testData);
+    return {
     caseId: c.id,
     caseVersion: c.currentVersion,
     position: i,
@@ -42,10 +46,12 @@ export async function buildEntries(tx: Tx, projectId: string | string[], caseIds
     preconditions: c.preconditions,
     priority: c.priority,
     folderPath: pathOf(folders, c.folderId).join(" / "),
-    steps: (c.type === "EXPLORATORY" ? [] : expandSteps(items[i], defs)) as unknown as Prisma.InputJsonValue,
+    steps: (c.type === "EXPLORATORY" ? [] : expandForRun(items[i], defs, data)) as unknown as Prisma.InputJsonValue,
+    testData: data ? (data as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
     kind: c.type,
     charter: c.type === "EXPLORATORY" ? ((c.versions[0]?.charter ?? {}) as Prisma.InputJsonValue) : Prisma.DbNull,
     persona: c.persona ? (c.persona as Prisma.InputJsonValue) : Prisma.DbNull,
     assigneeId,
-  }));
+    };
+  });
 }

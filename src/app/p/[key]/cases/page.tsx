@@ -150,6 +150,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
       flaggedAt: true,
       flagRunNumber: true,
       personaId: true,
+      dataRows: true,
       _count: { select: { sharedUsages: true } },
     } satisfies Prisma.TestCaseSelect;
   const [[splitHand, splitAuto, splitBoth], [cases, total, tagRows, activeCount, archivedCount]] = await Promise.all([splits, Promise.all([
@@ -458,6 +459,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
               tags: c.tags,
               version: c.currentVersion,
               usesShared: c._count.sharedUsages > 0,
+              dataRows: c.dataRows,
               stories: c.jiraStories,
               folder: !folder || c.folderId !== folder.id ? folderLabel(c.folderId) : "",
               folderId: c.folderId,

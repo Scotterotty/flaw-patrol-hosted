@@ -1,3 +1,5 @@
+import { TestDataView } from "@/components/test-data-view";
+import { parseTestData, testDataChanges } from "@/lib/test-data";
 import { viewerZone } from "@/lib/zone-server";
 import { StepsTable, actionCell, expectedCell } from "@/components/steps-table";
 import { dateTime } from "@/lib/spelling";
@@ -64,6 +66,10 @@ export default async function CaseVersionPage({ params, searchParams }: { params
     }
   }
   const stepsChanged = diff.some((d) => d.op !== "same");
+  // Test data (ver_138): what changed in the table, in words, and the table this version had.
+  const table = parseTestData(v.testData);
+  const tableChanges = prev ? testDataChanges(parseTestData(prev.testData), table) : [];
+  if (tableChanges.length) fieldChanges.push({ label: "Test data", from: "", to: tableChanges.join(" ") });
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -101,7 +107,13 @@ export default async function CaseVersionPage({ params, searchParams }: { params
                 <div key={f.label} className="contents">
                   <dt className="text-slate-500">{f.label}</dt>
                   <dd>
-                    <del className="bg-red-50 text-red-700">{f.from}</del> → <ins className="bg-emerald-50 text-emerald-800 no-underline">{f.to}</ins>
+                    {f.label === "Test data" ? (
+                      <span>{f.to}</span>
+                    ) : (
+                      <>
+                        <del className="bg-red-50 text-red-700">{f.from}</del> → <ins className="bg-emerald-50 text-emerald-800 no-underline">{f.to}</ins>
+                      </>
+                    )}
                   </dd>
                 </div>
               ))}
@@ -137,6 +149,7 @@ export default async function CaseVersionPage({ params, searchParams }: { params
           </tbody>
         </StepsTable>
       </Card>
+      {table && <TestDataView data={table} />}
       {items.some((i) => i.kind === "shared") && (
         <p className="mt-2 text-xs text-slate-500">Shared steps are shown by name; open one to see its own version history.</p>
       )}

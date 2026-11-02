@@ -32,6 +32,8 @@ export type CaseRow = {
   tags: string[];
   version: number;
   usesShared: boolean;
+  /** Rows of test data (ver_138): the case runs once per row. */
+  dataRows?: number;
   folder: string;
   /** The folder the case is in, for dragging it to another one. */
   folderId?: string | null;
@@ -293,6 +295,15 @@ export function CaseTable({
                     <Link href={`/p/${projectKey}/cases/${r.number}`} draggable={false} className="font-medium text-slate-900 hover:text-accent-700 hover:underline">
                       {r.title}
                     </Link>
+                    {r.dataRows ? (
+                      <span
+                        className="flex-none rounded bg-violet-50 px-1.5 py-0.5 text-[11px] font-medium text-violet-700 ring-1 ring-violet-200 ring-inset"
+                        title={`Runs once for each of ${r.dataRows} rows of test data.`}
+                        data-testid="data-rows-tag"
+                      >
+                        {r.dataRows} {r.dataRows === 1 ? "row" : "rows"}
+                      </span>
+                    ) : null}
                     {r.flaky ? <FlakyBadge flips={r.flaky} /> : null}
                     {r.flag && <FlagMark flag={r.flag} />}
                   </span>

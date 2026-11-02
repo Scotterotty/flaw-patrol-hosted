@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { fillRow, valuesUsed, type TestData } from "./test-data";
 
 // Step data shared by the editor, the server actions, CSV import and (later)
 // the execution view. Kept free of database imports so it can run anywhere.
@@ -73,6 +74,10 @@ export type ExpandedStep = PlainStep & {
   number: string;
   /** Set when this step came from a shared step. */
   shared?: { id: string; name: string; version: number };
+  /** Test data (ver_138): which row of the case's table this step belongs to, from 0. */
+  row?: number;
+  /** Test data: the values filled into this step from its row, shown in blue in the runner. */
+  vals?: string[];
 };
 
 /**
@@ -80,8 +85,14 @@ export type ExpandedStep = PlainStep & {
  * with numbering like 3.1, 3.2; an unknown or deleted shared step becomes a
  * single placeholder step so nothing silently disappears.
  */
-export function expandSteps(items: CaseStepItem[], defs: Map<string, SharedStepDef>): ExpandedStep[] {
+export function expandSteps(items: CaseStepItem[], defs: Map<string, SharedStepDef>, columns: string[] = []): ExpandedStep[] {
   const out: ExpandedStep[] = [];
+  // Shared step blanks named after a test data column are left for each row to fill.
+  const fromRow = (params: SharedStepParam[], given: Record<string, string>) => {
+    if (!columns.length) return { params, given };
+    const keep = (n: string) => !columns.includes(n);
+    return { params: params.filter((p) => keep(p.name)), given: Object.fromEntries(Object.entries(given).filter(([k]) => keep(k))) };
+  };
   items.forEach((item, i) => {
     const n = String(i + 1);
     if (item.kind === "step") {
@@ -93,12 +104,13 @@ export function expandSteps(items: CaseStepItem[], defs: Map<string, SharedStepD
       out.push({ number: n, action: "[Missing shared step]", expected: "" });
       return;
     }
-    const shared = { id: def.id, name: fillPlaceholders(def.name, def.parameters, item.params), version: def.version };
+    const { params, given } = fromRow(def.parameters, item.params);
+    const shared = { id: def.id, name: fillPlaceholders(def.name, params, given), version: def.version };
     def.steps.forEach((s, j) => {
       out.push({
         number: def.steps.length === 1 ? n : `${n}.${j + 1}`,
-        action: fillPlaceholders(s.action, def.parameters, item.params),
-        expected: fillPlaceholders(s.expected, def.parameters, item.params),
+        action: fillPlaceholders(s.action, params, given),
+        expected: fillPlaceholders(s.expected, params, given),
         shared,
       });
     });
@@ -113,4 +125,29 @@ export function sharedStepIdsIn(items: CaseStepItem[]): string[] {
 /** Drop blank plain steps the editor leaves behind. */
 export function cleanSteps(items: CaseStepItem[]): CaseStepItem[] {
   return items.filter((i) => i.kind === "shared" || i.action.trim() !== "" || i.expected.trim() !== "");
+}
+
+/**
+ * Steps for a run of a case with test data (ver_138): the case's steps once per row, with that
+ * row's values filled into the {{blanks}}. With no test data, the same as expandSteps.
+ */
+export function expandForRun(items: CaseStepItem[], defs: Map<string, SharedStepDef>, data: TestData | null): ExpandedStep[] {
+  if (!data) return expandSteps(items, defs);
+  const base = expandSteps(items, defs, data.columns);
+  return data.rows.flatMap((_, r) =>
+    base.map((s) => ({
+      ...s,
+      action: fillRow(s.action, data, r),
+      expected: fillRow(s.expected, data, r),
+      shared: s.shared && { ...s.shared, name: fillRow(s.shared.name, data, r) },
+      row: r,
+      vals: valuesUsed(`${s.action}\n${s.expected}`, data, r),
+    })),
+  );
+}
+
+/** "Step 2", or "Row 2, step 2" for a case run with test data. */
+export function stepLabel(step: Pick<ExpandedStep, "number" | "row"> | undefined, fallback = ""): string {
+  if (!step) return fallback;
+  return step.row !== undefined ? `Row ${step.row + 1}, step ${step.number}` : `Step ${step.number}`;
 }

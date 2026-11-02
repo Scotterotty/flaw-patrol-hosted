@@ -214,7 +214,9 @@ export async function stepHistory(scope: ReportScope, f: ReportFilters): Promise
 
   const agg = new Map<string, StepHistory>();
   for (const r of [...latest.values()].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())) {
-    const steps = (r.entry.steps as { number: string; action: string }[]) ?? [];
+    const steps = (r.entry.steps as { number: string; action: string; row?: number }[]) ?? [];
+    // Test data (ver_138): a step of a row reads "2 (row 2)", so the row that failed is named.
+    const num = (st: { number: string; row?: number }) => (typeof st.row === "number" ? `${st.number} (row ${st.row + 1})` : st.number);
     ((r.stepResults as { status: ResultStatus }[]) ?? []).forEach((s, i) => {
       const step = steps[i];
       if (!step || s.status === "UNTESTED") return;
@@ -225,7 +227,7 @@ export async function stepHistory(scope: ReportScope, f: ReportFilters): Promise
         caseProjectKey: r.entry.testCase.project.key,
         caseNumber: r.entry.testCase.number,
         title: r.entry.title,
-        step: step.number,
+        step: num(step),
         action: step.action,
         runs: 0,
         failures: 0,
@@ -239,7 +241,7 @@ export async function stepHistory(scope: ReportScope, f: ReportFilters): Promise
       };
       // Latest wording and numbering win.
       cur.title = r.entry.title;
-      cur.step = step.number;
+      cur.step = num(step);
       cur.runs++;
       if (s.status === "FAILED") cur.failed++;
       if (s.status === "BLOCKED") cur.blocked++;

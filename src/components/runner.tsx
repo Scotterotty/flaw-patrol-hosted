@@ -16,7 +16,8 @@ import { mapHistorySteps, SHOW_HISTORY_EVENT, STILL_OCCURS_EVENT, type HistoryRu
 import { relativeTime } from "@/lib/format";
 import { deriveCaseStatus, SETTABLE, STATUS_HELP, STATUS_LABEL, STATUS_STYLE } from "@/lib/status";
 import { fillChecks, firstOfShared, rollUp, stepChecks, withoutHeadings } from "@/lib/step-checks";
-import type { ExpandedStep } from "@/lib/steps";
+import { stepLabel as labelOfStep, type ExpandedStep } from "@/lib/steps";
+import { rowLabel, rowResults, rowsLine, type TestData } from "@/lib/test-data";
 import type { LinkedDefect } from "@/server/jira";
 import { saveDraft, submitResult, uploadAttachment } from "@/server/results";
 import { showQuestMoments } from "./quest-toast";
@@ -59,6 +60,8 @@ export type RunnerEntry = {
   preconditions: string;
   folderPath: string;
   steps: ExpandedStep[];
+  /** Test data (ver_138): the case runs once per row; each step's `row` says which. */
+  testData?: TestData | null;
   status: ResultStatus;
   /** Results autosaved earlier and not yet saved as the case result. */
   draft: Draft | null;
@@ -236,6 +239,25 @@ export function Runner({
     });
   }, [checkResults, checkCount]);
   const [override, setOverride] = useState<ResultStatus | null>(start0?.override ?? null);
+  // Test data (ver_138): the steps hold one copy per row; the runner shows one row at a time.
+  const data: TestData | null = entry.testData && entry.steps.some((st) => st.row !== undefined) ? entry.testData : null;
+  const activeRow = data ? (entry.steps[current]?.row ?? 0) : null;
+  const rowStatuses = useMemo(
+    () => (data ? rowResults(entry.steps.map((st, i) => (heading(i) ? undefined : st.row)), statuses, data.rows.length) : []),
+    [data, entry.steps, statuses, heading],
+  );
+  /** Open a row: its first step without a result, or its first step. */
+  const goRow = useCallback(
+    (r: number) => {
+      const mine = entry.steps.flatMap((st, i) => (st.row === r && !heading(i) ? [i] : []));
+      const at = mine.find((i) => statuses[i] === "UNTESTED") ?? mine[0];
+      if (at !== undefined) {
+        setCurrent(at);
+        setCurCheck(0);
+      }
+    },
+    [entry.steps, heading, statuses],
+  );
   // Save and next on a case with no step marked asks first.
   const [askSkip, setAskSkip] = useState(false);
   const [passThenNext, setPassThenNext] = useState(false);
@@ -427,13 +449,18 @@ export function Runner({
   const firstFailed = statuses.findIndex((st) => st === "FAILED");
   // Report bug for case (ver_124, persona audit #4): start from the first failed step, not the
   // case's title. Other failed steps and the case comment go in What happened too.
+  // Test data (ver_138): a bug's title says which row, like "(Safari · viewer)".
+  const withRow = (title: string, i: number) => {
+    const r = entry.steps[i]?.row;
+    return data && r !== undefined ? `${title} (${rowLabel(data, r)})`.slice(0, 250) : title;
+  };
   const caseBug = (() => {
     const failed = statuses.flatMap((st, i) => (st === "FAILED" ? [i] : []));
     const focus = failed[0] ?? null;
     if (focus === null) return { focus, actual: comment, suggested: comment.trim() ? bugTitle(entry.title, null, comment) : "" };
-    const more = failed.slice(1).map((i) => `Step ${entry.steps[i]?.number} also failed${actuals[i]?.trim() ? `: ${actuals[i].trim()}` : "."}`);
+    const more = failed.slice(1).map((i) => `${labelOfStep(entry.steps[i])} also failed${actuals[i]?.trim() ? `: ${actuals[i].trim()}` : "."}`);
     const actual = [actuals[focus]?.trim() ?? "", ...more, comment.trim() && `Comment: ${comment.trim()}`].filter(Boolean).join("\n\n");
-    return { focus, actual, suggested: bugTitle(entry.title, entry.steps[focus] ?? null, actuals[focus] ?? "") };
+    return { focus, actual, suggested: withRow(bugTitle(entry.title, entry.steps[focus] ?? null, actuals[focus] ?? ""), focus) };
   })();
   useEffect(() => (busy ? holdLive() : undefined), [busy]);
   // That hold also stops the run list refreshing, so hand it this case's step results directly.
@@ -600,7 +627,7 @@ export function Runner({
 
   // Take screenshot / Record screen: the browser's own screen sharing, attached like any other file.
   const capture = useCaptureSupport();
-  const stepLabel = (i: number | null) => (i === null ? "the case" : `step ${entry.steps[i]?.number ?? i + 1}`);
+  const stepLabel = (i: number | null) => (i === null ? "the case" : entry.steps[i] ? labelOfStep(entry.steps[i]).toLowerCase() : `step ${i + 1}`);
   const fileLabel = (i: number | null) => (i === null ? "Whole case" : `Step ${entry.steps[i]?.number ?? i + 1}`);
   const captureName = (i: number | null) => `${entry.caseKey} ${i === null ? "case" : `step ${entry.steps[i]?.number ?? i + 1}`}`;
   const [preview, setPreview] = useState<{ id: string; fileName: string; seconds: number; size: number; stepIndex: number | null } | null>(null);
@@ -734,6 +761,12 @@ export function Runner({
       const t = e.target as HTMLElement;
       if (t.closest("input, textarea, select, dialog") || e.ctrlKey || e.metaKey || e.altKey) return;
       const k = e.key.toLowerCase();
+      if (data && activeRow !== null && (k === "]" || k === "[")) {
+        e.preventDefault();
+        const to = activeRow + (k === "]" ? 1 : -1);
+        if (to >= 0 && to < data.rows.length) goRow(to);
+        return;
+      }
       // Arrows go check by check inside a step with checks, and skip headings.
       const many = checkCount(current);
       if (k === "arrowdown" || k === "j") {
@@ -766,7 +799,7 @@ export function Runner({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [current, curCheck, n, setStep, setCheck, checkCount, stepAfter, submit]);
+  }, [current, curCheck, n, setStep, setCheck, checkCount, stepAfter, submit, data, activeRow, goRow]);
 
   // Paste a screenshot anywhere to attach it to the current step.
   useEffect(() => {
@@ -925,24 +958,54 @@ export function Runner({
               </span>
             ))}
             <kbd>U</kbd> clear <kbd>↑</kbd>
-            <kbd>↓</kbd> move · paste a screenshot to attach it
+            <kbd>↓</kbd> move{data && <> · <kbd>[</kbd> <kbd>]</kbd> row</>} · paste a screenshot to attach it
           </span>
           {n > 0 && (
             <button
               type="button"
               className="text-accent-700 hover:underline"
               onClick={() => {
-                setCheckResults((prev) => prev.map((c) => c.map((x) => (x === "UNTESTED" ? "PASSED" : x))));
-                setStatuses((prev) => prev.map((s, i) => (s === "UNTESTED" && !heading(i) && !checkCount(i) ? "PASSED" : s)));
+                // With test data, only the row on screen: the other rows still need running.
+                const here = (i: number) => activeRow === null || entry.steps[i]?.row === activeRow;
+                setCheckResults((prev) => prev.map((c, i) => (here(i) ? c.map((x) => (x === "UNTESTED" ? "PASSED" : x)) : c)));
+                setStatuses((prev) => prev.map((s, i) => (s === "UNTESTED" && here(i) && !heading(i) && !checkCount(i) ? "PASSED" : s)));
               }}
             >
-              Pass all remaining steps
+              {activeRow === null ? "Pass all remaining steps" : `Pass the rest of row ${activeRow + 1}`}
             </button>
           )}
         </div>
 
+        {data && activeRow !== null && (
+          <div className="mb-3 grid gap-2" data-testid="test-data-rows">
+            <p className="text-sm text-slate-600">
+              This case runs once for each row of test data. Values from the row show in <span className="rounded bg-blue-50 px-0.5 font-medium text-blue-800 ring-1 ring-blue-100 ring-inset">blue</span>.
+            </p>
+            <div role="tablist" aria-label="Test data rows" className="flex gap-2 overflow-x-auto pb-1">
+              {data.rows.map((_, r) => (
+                <button
+                  key={r}
+                  type="button"
+                  role="tab"
+                  aria-selected={r === activeRow}
+                  onClick={() => goRow(r)}
+                  className={cx(
+                    "grid min-w-0 shrink-0 gap-0.5 rounded-lg border bg-surface px-3 py-1.5 text-left text-xs",
+                    r === activeRow ? "border-accent-500 ring-2 ring-accent-500/20" : "border-slate-200 hover:border-slate-300",
+                  )}
+                >
+                  <span className="flex items-center gap-1.5 font-medium text-slate-800">
+                    Row {r + 1} <StatusChip status={rowStatuses[r] ?? "UNTESTED"} />
+                  </span>
+                  <span className="max-w-48 truncate text-slate-500">{rowLabel(data, r)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <ol className="space-y-2">
           {entry.steps.map((step, i) => {
+            if (activeRow !== null && step.row !== activeRow) return null;
             const s = statuses[i];
             const problem = s !== "UNTESTED" && s !== "PASSED" && s !== "SKIPPED";
             const stepDefects = defects.filter((d) => d.stepIndex === i);
@@ -1006,7 +1069,7 @@ export function Runner({
                             ))}
                           </span>
                         ) : (
-                          <StepText text={step.action} className="whitespace-pre-wrap wrap-anywhere" />
+                          <StepText text={step.action} marks={step.vals} className="whitespace-pre-wrap wrap-anywhere" />
                         )}
                       </div>
                       <div
@@ -1018,7 +1081,7 @@ export function Runner({
                         )}
                       >
                         <span className="block text-[11px] font-medium tracking-wide text-slate-400 uppercase select-none">Expected</span>
-                        {(many ? many.expected : step.expected) ? <StepText text={many ? many.expected : step.expected} className="whitespace-pre-wrap wrap-anywhere" /> : "–"}
+                        {(many ? many.expected : step.expected) ? <StepText text={many ? many.expected : step.expected} marks={step.vals} className="whitespace-pre-wrap wrap-anywhere" /> : "–"}
                       </div>
                       <div className="min-w-0 md:col-start-2 md:border-l md:border-slate-200 md:pl-3">
                         <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-dashed border-slate-200 pt-2 select-none" role="group" aria-label={`Step ${step.number} status`}>
@@ -1173,6 +1236,27 @@ export function Runner({
             );
           })}
         </ol>
+        {data && activeRow !== null && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+            {activeRow < data.rows.length - 1 ? (
+              <Button size="sm" variant="primary" onClick={() => goRow(activeRow + 1)}>
+                Next row ({activeRow + 2} of {data.rows.length})
+              </Button>
+            ) : (
+              <span className="text-slate-600">This is the last row.</span>
+            )}
+            {activeRow > 0 && (
+              <Button size="sm" onClick={() => goRow(activeRow - 1)}>
+                Back to row {activeRow}
+              </Button>
+            )}
+            <span className="text-slate-600" data-testid="test-data-rows-line">
+              {rowsLine(rowStatuses)}
+              {rowStatuses.some((x) => x === "FAILED") && `, ${rowStatuses.filter((x) => x === "FAILED").length} failed`}
+              {rowStatuses.some((x) => x === "UNTESTED" || x === "IN_PROGRESS") && `, ${rowStatuses.filter((x) => x === "UNTESTED" || x === "IN_PROGRESS").length} not finished`}. The case passes only when every row passes.
+            </span>
+          </div>
+        )}
         {n === 0 && <p className="rounded-lg border border-dashed border-slate-300 bg-surface p-6 text-center text-sm text-slate-500">This case has no steps. Set the case result below.</p>}
 
         <input
@@ -1202,7 +1286,7 @@ export function Runner({
                 <StatusChip status={caseStatus} solid />
               )}
               <span className="text-xs text-slate-500">
-                {`from steps: ${
+                {data ? `from rows: ${rowsLine(rowStatuses)}${rowStatuses.some((x) => x === "FAILED") ? `, ${rowStatuses.filter((x) => x === "FAILED").length} failed` : ""}` : `from steps: ${
                   Object.entries(stepCounts)
                     .filter(([k]) => k !== "UNTESTED")
                     .map(([k, v]) => `${v} ${STATUS_LABEL[k as ResultStatus].toLowerCase()}`)
@@ -1218,7 +1302,7 @@ export function Runner({
                     setReveal((r) => ({ i: firstFailed, focus: false, n: (r?.n ?? 0) + 1 }));
                   }}
                 >
-                  Go to step {entry.steps[firstFailed]?.number}
+                  Go to {labelOfStep(entry.steps[firstFailed]).toLowerCase()}
                 </button>
               )}
               {!runClosed && (
@@ -1254,6 +1338,11 @@ export function Runner({
             >
               Use the steps&apos; result{derived !== "UNTESTED" && ` (${STATUS_LABEL[derived]})`}
             </button>
+          )}
+          {data && override && derived !== "UNTESTED" && override !== derived && (
+            <span className="w-full text-xs text-amber-800" data-testid="rows-disagree">
+              You set this by hand. The rows say {STATUS_LABEL[derived]}.
+            </span>
           )}
         </div>
         {/* The comment gets its own full-width line, with the case buttons under it (ver_87: it used to shrink to a few letters). */}
@@ -1401,9 +1490,9 @@ export function Runner({
         stepIndex={bugFor ?? null}
         known={bugFor === undefined ? [] : knownBugs.filter((b) => b.state !== "expected" && b.stepIndex === (bugFor ?? null) && checks[b.id] !== "still")}
         onKnownStill={(b) => checkKnown(b, "still")}
-        stepLabel={bugFor === null || bugFor === undefined ? "whole case" : `step ${entry.steps[bugFor]?.number}`}
+        stepLabel={bugFor === null || bugFor === undefined ? "whole case" : labelOfStep(entry.steps[bugFor]).toLowerCase()}
         actual={bugFor === null || bugFor === undefined ? caseBug.actual : actuals[bugFor]}
-        suggested={bugFor === null || bugFor === undefined ? caseBug.suggested : bugTitle(entry.title, entry.steps[bugFor] ?? null, actuals[bugFor] ?? "")}
+        suggested={bugFor === null || bugFor === undefined ? caseBug.suggested : withRow(bugTitle(entry.title, entry.steps[bugFor] ?? null, actuals[bugFor] ?? ""), bugFor)}
         focus={bugFor === null ? caseBug.focus : null}
         attachments={attachments.filter((a) => (bugFor === null ? true : a.stepIndex === bugFor)).map((a) => ({ ...a, label: fileLabel(a.stepIndex) }))}
         others={attachments.filter((a) => bugFor !== null && a.stepIndex !== bugFor).map((a) => ({ ...a, label: fileLabel(a.stepIndex) }))}

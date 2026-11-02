@@ -1,3 +1,5 @@
+import { rowsOfResult } from "@/lib/test-data-history";
+import { parseTestData } from "@/lib/test-data";
 import { titleWithTags } from "@/lib/tags";
 import { tagColorsFor } from "@/lib/tag-data";
 import { TagPills } from "@/components/tag-pill";
@@ -165,7 +167,8 @@ export default async function ExecutePage({
       comment: r.comment,
       testerName: r.testerName,
       caseVersion: r.caseVersion,
-      steps: stepResults.map((sr, i) => ({ number: snapshot[i]?.number ?? String(i + 1), action: snapshot[i]?.action ?? "", status: sr.status, actual: sr.actual ?? "", ...(headings.has(i) ? { heading: true } : {}) })),
+      rows: rowsOfResult(r.entry.steps, r.stepResults),
+      steps: stepResults.map((sr, i) => ({ number: snapshot[i]?.row !== undefined ? `R${snapshot[i].row! + 1} · ${snapshot[i].number}` : (snapshot[i]?.number ?? String(i + 1)), action: snapshot[i]?.action ?? "", status: sr.status, actual: sr.actual ?? "", ...(headings.has(i) ? { heading: true } : {}) })),
       defects: r.defects.map((l) => ({
         stepIndex: l.stepIndex,
         defect: { id: l.defect.id, number: l.defect.number, title: l.defect.title, externalKey: l.defect.externalKey, externalUrl: l.defect.externalUrl, status: l.defect.externalStatus ?? l.defect.status },
@@ -350,6 +353,7 @@ export default async function ExecutePage({
             preconditions: entry.preconditions,
             folderPath: entry.folderPath,
             steps: (Array.isArray(entry.steps) ? entry.steps : []) as unknown as ExpandedStep[],
+            testData: parseTestData(entry.testData),
             status: entry.status,
             draft: parseDraft(entry.draft),
             stories,

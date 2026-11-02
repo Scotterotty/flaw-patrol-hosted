@@ -26,7 +26,7 @@ async function retitle(caseId: string, projectId: string, title: string, tags: s
     ...(v
       ? [
           db.caseVersion.create({
-            data: { caseId: c.id, version: c.currentVersion + 1, title, preconditions: v.preconditions, priority: v.priority, type: v.type, automationId: v.automationId, tags, folderPath: v.folderPath, steps: v.steps as Prisma.InputJsonValue, charter: v.charter ?? Prisma.DbNull, personaName: v.personaName, changeNote, ...author },
+            data: { caseId: c.id, version: c.currentVersion + 1, title, preconditions: v.preconditions, priority: v.priority, type: v.type, automationId: v.automationId, tags, folderPath: v.folderPath, steps: v.steps as Prisma.InputJsonValue, charter: v.charter ?? Prisma.DbNull, testData: v.testData ?? Prisma.DbNull, personaName: v.personaName, changeNote, ...author },
           }),
         ]
       : []),
@@ -107,7 +107,7 @@ export async function convertBracketTitles(projectId: string, opts: { dropDash: 
         ...(v
           ? [
               db.caseVersion.create({
-                data: { caseId: c.id, version: c.currentVersion + 1, title: s.title, preconditions: v.preconditions, priority: v.priority, type: v.type, automationId: v.automationId, tags, folderPath: v.folderPath, steps: v.steps as Prisma.InputJsonValue, charter: v.charter ?? Prisma.DbNull, personaName: v.personaName, changeNote: "Brackets turned into tags", ...author },
+                data: { caseId: c.id, version: c.currentVersion + 1, title: s.title, preconditions: v.preconditions, priority: v.priority, type: v.type, automationId: v.automationId, tags, folderPath: v.folderPath, steps: v.steps as Prisma.InputJsonValue, charter: v.charter ?? Prisma.DbNull, testData: v.testData ?? Prisma.DbNull, personaName: v.personaName, changeNote: "Brackets turned into tags", ...author },
               }),
             ]
           : []),
@@ -134,7 +134,7 @@ export async function undoBracketTitles(projectId: string, undo: { id: string; t
         ...(v
           ? [
               db.caseVersion.create({
-                data: { caseId: c.id, version: c.currentVersion + 1, title: u.title, preconditions: v.preconditions, priority: v.priority, type: v.type, automationId: v.automationId, tags: u.tags, folderPath: v.folderPath, steps: v.steps as Prisma.InputJsonValue, charter: v.charter ?? Prisma.DbNull, personaName: v.personaName, changeNote: "Undid brackets turned into tags", ...author },
+                data: { caseId: c.id, version: c.currentVersion + 1, title: u.title, preconditions: v.preconditions, priority: v.priority, type: v.type, automationId: v.automationId, tags: u.tags, folderPath: v.folderPath, steps: v.steps as Prisma.InputJsonValue, charter: v.charter ?? Prisma.DbNull, testData: v.testData ?? Prisma.DbNull, personaName: v.personaName, changeNote: "Undid brackets turned into tags", ...author },
               }),
             ]
           : []),

@@ -37,6 +37,8 @@ import { skipAreaWord } from "@/server/tags";
 import { linkStory } from "@/server/stories";
 import Link from "next/link";
 import { saveSharedStep } from "@/server/shared-steps";
+import { testDataProblem, type TestData } from "@/lib/test-data";
+import { TestDataBox } from "./test-data-box";
 import { Modal } from "./modal";
 import {
   Button,
@@ -69,6 +71,8 @@ export type CaseEditorProps = {
     /** Set for charters (type EXPLORATORY), which have a mission instead of steps. */
     charter: Charter | null;
     personaId: string | null;
+    /** Test data (ver_138): the table the case runs once per row of, or null. */
+    testData?: TestData | null;
   };
   personas: { id: string; name: string; emoji: string }[];
   folderOptions: { id: string; label: string }[];
@@ -124,6 +128,11 @@ export function CaseEditor(props: CaseEditorProps) {
       : [{ kind: "step", action: "", expected: "", uid: "s0" }],
   );
   const [changeNote, setChangeNote] = useState("");
+  const [testData, setTestDataRaw] = useState<TestData | null>(initial.testData ?? null);
+  const setTestData = (d: TestData | null) => {
+    setTestDataRaw(d);
+    touch();
+  };
   const isCharter = type === "EXPLORATORY";
   const [charter, setCharter] = useState<Charter>(
     initial.charter ?? BLANK_CHARTER,
@@ -192,6 +201,11 @@ export function CaseEditor(props: CaseEditorProps) {
 
   const save = useCallback((andNew = false) => {
     setError(null);
+    const tableProblem = isCharter ? null : testDataProblem(testData);
+    if (tableProblem) {
+      setError(tableProblem);
+      return;
+    }
     start(async () => {
       // Leaving for another page after this save (ver_120): that page is drawn once, fresh.
       const leaving = !(andNew && !caseId) && !props.linkTo;
@@ -206,6 +220,7 @@ export function CaseEditor(props: CaseEditorProps) {
         steps: isCharter ? [] : items.map(stripUid),
         charter: isCharter ? charter : null,
         personaId: personaId || null,
+        testData: isCharter ? null : testData,
         changeNote,
       }, { leaving });
       if (!res.ok) return setError(res.error);
@@ -226,6 +241,7 @@ export function CaseEditor(props: CaseEditorProps) {
         setPreconditions("");
         setAutomationId("");
         setItems([blankStep()]);
+        setTestDataRaw(null);
         setCharter((c) => ({ ...BLANK_CHARTER, minutes: c.minutes }));
         setSelected(new Set());
         document.getElementById("title")?.focus();
@@ -252,6 +268,7 @@ export function CaseEditor(props: CaseEditorProps) {
     isCharter,
     charter,
     personaId,
+    testData,
     props.linkTo,
     props.queue,
   ]);
@@ -850,6 +867,7 @@ export function CaseEditor(props: CaseEditorProps) {
                         )
                       }
                       projectKey={projectKey}
+                      columns={testData?.columns ?? []}
                     />
                   )}
                 </div>
@@ -906,6 +924,12 @@ export function CaseEditor(props: CaseEditorProps) {
               + Insert shared step
             </Button>
           </div>
+          <TestDataBox
+            value={testData}
+            onChange={setTestData}
+            plainTexts={items.flatMap((it, i) => (it.kind === "step" ? [{ step: i + 1, text: `${it.action}\n${it.expected}` }] : []))}
+            sharedBlanks={[...new Set(items.flatMap((it) => (it.kind === "shared" ? (defs.get(it.sharedStepId)?.parameters.map((p) => p.name) ?? []) : [])))]}
+          />
         </>
       )}
 
@@ -1042,11 +1066,14 @@ function SharedItem({
   params,
   onParam,
   projectKey,
+  columns = [],
 }: {
   def: SharedStepDef | undefined;
   params: Record<string, string>;
   onParam: (name: string, value: string) => void;
   projectKey: string;
+  /** Test data columns (ver_138): a blank with the same name fills in from each row instead. */
+  columns?: string[];
 }) {
   if (!def)
     return (
@@ -1073,7 +1100,16 @@ function SharedItem({
       </div>
       {def.parameters.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
-          {def.parameters.map((p) => (
+          {def.parameters.map((p) =>
+            columns.includes(p.name) ? (
+              <span
+                key={p.name}
+                title="Each row of Test data gives this a different value."
+                className="inline-flex items-center gap-1 rounded border border-violet-200 px-1.5 text-xs text-violet-700"
+              >
+                <span className="font-mono">{p.name}</span>: comes from Test data
+              </span>
+            ) : (
             <label
               key={p.name}
               className="flex items-center gap-1.5 text-xs text-slate-600"
@@ -1086,7 +1122,8 @@ function SharedItem({
                 onChange={(e) => onParam(p.name, e.target.value)}
               />
             </label>
-          ))}
+            ),
+          )}
         </div>
       )}
       <ol className="mt-2 space-y-1 border-l-2 border-violet-200 pl-3 text-sm">

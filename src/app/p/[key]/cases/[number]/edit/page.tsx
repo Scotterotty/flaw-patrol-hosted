@@ -1,3 +1,4 @@
+import { parseTestData } from "@/lib/test-data";
 import { platformNamesFor, tagColorsFor } from "@/lib/tag-data";
 import { notFound } from "next/navigation";
 import { CaseEditor } from "@/components/case-editor";
@@ -62,6 +63,7 @@ export default async function EditCasePage({ params, searchParams }: { params: P
         steps,
         charter: c.type === "EXPLORATORY" ? parseCharter(c.versions[0]?.charter) : null,
         personaId: c.personaId,
+        testData: parseTestData(c.versions[0]?.testData),
       }}
       personas={ctx.personas}
       folderOptions={ctx.folderOptions}

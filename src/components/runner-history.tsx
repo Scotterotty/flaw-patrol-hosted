@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { SHOW_HISTORY_EVENT, STILL_OCCURS_EVENT, type HistoryRun } from "@/lib/run-history";
 import { STATUS_LABEL, STATUS_STYLE } from "@/lib/status";
 import { StatusChip } from "./status";
+import { rowsTip } from "@/lib/test-data-history";
 import { Button, cx } from "./ui";
 
 const OPEN_KEY = "fp-history-open";
@@ -76,6 +77,7 @@ export function RunnerHistory({
   }, [runs]);
   const selected = runs.find((r) => r.id === selectedId) ?? null;
   const pips = [...runs].reverse().slice(-30);
+  const split = (r: HistoryRun) => (r.rows && r.rows.length > 1 && new Set(r.rows).size > 1 ? r.rows : null);
 
   const stillOccurs = (r: HistoryRun) => window.dispatchEvent(new CustomEvent<HistoryRun>(STILL_OCCURS_EVENT, { detail: r }));
 
@@ -99,17 +101,20 @@ export function RunnerHistory({
                   type="button"
                   aria-pressed={open && r.id === selectedId}
                   aria-label={`R${r.runNumber} ${STATUS_LABEL[r.status].toLowerCase()}, ${r.ago}`}
-                  title={`R${r.runNumber} ${r.runName}: ${STATUS_LABEL[r.status]}, ${r.ago}`}
+                  title={`R${r.runNumber} ${r.runName}: ${STATUS_LABEL[r.status]}, ${r.ago}${r.rows ? `. ${rowsTip(r.rows)}` : ""}`}
                   onClick={() => {
                     toggle(true);
                     setSelectedId(r.id === selectedId && open ? null : r.id);
                   }}
                   className={cx(
                     "st-pip h-4 w-2.5 rounded-[3px] transition hover:scale-y-125",
-                    STATUS_STYLE[r.status].bar,
+                    split(r) ? "flex flex-col overflow-hidden" : STATUS_STYLE[r.status].bar,
                     open && r.id === selectedId && "ring-2 ring-accent-500 ring-offset-1 ring-offset-surface",
                   )}
-                />
+                >
+                  {/* Test data (ver_138): a stripe per row when the rows didn't all end the same. */}
+                  {split(r)?.map((x, j) => <span key={j} data-row-stripe className={cx("min-h-px flex-1", STATUS_STYLE[x].bar)} />)}
+                </button>
               ))}
             </div>
             <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500">

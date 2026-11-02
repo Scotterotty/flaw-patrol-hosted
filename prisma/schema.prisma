@@ -547,6 +547,8 @@ model TestCase {
   flaggedAt      DateTime?
   flagRunNumber  Int?
   currentVersion Int              @default(1)
+  /// Rows of test data in the current version (ver_138), 0 for none. For the "3 rows" tag.
+  dataRows       Int              @default(0)
   archived       Boolean          @default(false)
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
@@ -579,6 +581,8 @@ model CaseVersion {
   steps         Json
   // Exploratory charters only: { explore, with, discover, minutes } (src/lib/charter.ts).
   charter       Json?
+  /// Test data (ver_138): { columns, rows } (src/lib/test-data.ts). The case runs once per row.
+  testData      Json?
   personaName   String   @default("")
   changeNote    String   @default("")
   authorId      String?
@@ -779,6 +783,8 @@ model RunEntry {
   // Charters are run as timed exploratory sessions instead of steps.
   kind            CaseType     @default(MANUAL)
   charter         Json?
+  /// Test data the case had when the run started (ver_138). Steps already hold one copy per row.
+  testData        Json?
   // { name, emoji, description } of the persona when the run started.
   persona         Json?
   assigneeId      String?

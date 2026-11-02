@@ -12,6 +12,7 @@ import { pathOf } from "@/lib/folders";
 import { normalizeTags } from "@/lib/format";
 import { requireProjectAction } from "@/lib/session";
 import { caseStepItemSchema, cleanSteps, sharedStepIdsIn, type CaseStepItem } from "@/lib/steps";
+import { cleanTestData, parseTestData, testDataSchema } from "@/lib/test-data";
 import { attempt, UserError } from "./result";
 
 const caseInputSchema = z.object({
@@ -27,6 +28,8 @@ const caseInputSchema = z.object({
   charter: charterSchema.nullable().default(null),
   personaId: z.string().nullable().default(null),
   changeNote: z.string().trim().max(500).default(""),
+  // Test data (ver_138). Left out (bulk edit, import) keeps what the case has; null removes it.
+  testData: testDataSchema.nullable().optional(),
 });
 export type CaseInput = z.input<typeof caseInputSchema>;
 
@@ -87,6 +90,9 @@ export async function saveCase(projectId: string, caseId: string | null, input: 
         charter: charter ?? Prisma.DbNull,
         personaName: persona?.name ?? "",
       };
+      // Charters have no steps, so no test data either.
+      const tableFor = (kept: unknown) => (isCharter ? null : data.testData === undefined ? parseTestData(kept) : cleanTestData(data.testData));
+      const json = (t: ReturnType<typeof tableFor>) => (t ? (t as unknown as Prisma.InputJsonValue) : Prisma.DbNull);
       const fields = {
         title: data.title,
         preconditions: data.preconditions,
@@ -106,7 +112,8 @@ export async function saveCase(projectId: string, caseId: string | null, input: 
             projectId,
             number: caseSeq,
             currentVersion: 1,
-            versions: { create: { ...snapshot, ...author, version: 1, changeNote: data.changeNote || "Created" } },
+            dataRows: tableFor(null)?.rows.length ?? 0,
+            versions: { create: { ...snapshot, testData: json(tableFor(null)), ...author, version: 1, changeNote: data.changeNote || "Created" } },
             sharedUsages: { create: sharedStepIdsIn(steps).map((sharedStepId) => ({ sharedStepId })) },
           },
         });
@@ -119,6 +126,7 @@ export async function saveCase(projectId: string, caseId: string | null, input: 
       });
       if (!existing) throw new UserError("Case not found.");
       const latest = existing.versions[0];
+      const table = tableFor(latest?.testData);
       const unchanged =
         latest &&
         latest.title === snapshot.title &&
@@ -129,6 +137,7 @@ export async function saveCase(projectId: string, caseId: string | null, input: 
         JSON.stringify(latest.tags) === JSON.stringify(tags) &&
         JSON.stringify(latest.steps) === JSON.stringify(steps) &&
         JSON.stringify(latest.charter ?? null) === JSON.stringify(charter) &&
+        JSON.stringify(parseTestData(latest.testData)) === JSON.stringify(table) &&
         latest.personaName === snapshot.personaName;
 
       if (unchanged) {
@@ -138,8 +147,8 @@ export async function saveCase(projectId: string, caseId: string | null, input: 
       }
 
       const version = existing.currentVersion + 1;
-      await tx.caseVersion.create({ data: { ...snapshot, ...author, caseId, version, changeNote: data.changeNote } });
-      await tx.testCase.update({ where: { id: caseId }, data: { ...fields, currentVersion: version } });
+      await tx.caseVersion.create({ data: { ...snapshot, testData: json(table), ...author, caseId, version, changeNote: data.changeNote } });
+      await tx.testCase.update({ where: { id: caseId }, data: { ...fields, currentVersion: version, dataRows: table?.rows.length ?? 0 } });
       await tx.caseSharedStep.deleteMany({ where: { caseId } });
       await tx.caseSharedStep.createMany({ data: sharedStepIdsIn(steps).map((sharedStepId) => ({ caseId, sharedStepId })) });
       return { number: existing.number, version, changed: true, caseId: existing.id };
@@ -169,6 +178,7 @@ export async function restoreCaseVersion(projectId: string, caseId: string, vers
       steps: old.steps as CaseStepItem[],
       charter: old.charter ? parseCharter(old.charter) : null,
       personaId: testCase.personaId,
+      testData: parseTestData(old.testData),
       changeNote: `Restored version ${version}`,
     });
     if (!res.ok) throw new UserError(res.error);
@@ -218,6 +228,7 @@ export async function duplicateCase(projectId: string, caseId: string) {
       steps: (c.versions[0]?.steps ?? []) as CaseStepItem[],
       charter: c.versions[0]?.charter ? parseCharter(c.versions[0].charter) : null,
       personaId: c.personaId,
+      testData: parseTestData(c.versions[0]?.testData),
     });
     if (!res.ok) throw new UserError(res.error);
     return { number: res.number };
@@ -285,6 +296,7 @@ export async function editCaseFields(projectId: string, caseIds: string[], input
             folderPath: latest.folderPath,
             steps: latest.steps as Prisma.InputJsonValue,
             charter: latest.charter ?? Prisma.DbNull,
+            testData: latest.testData ?? Prisma.DbNull,
             priority: next.priority,
             type: next.type,
             tags,

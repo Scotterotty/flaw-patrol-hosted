@@ -9,6 +9,7 @@ import type { BugContext } from "@/lib/jira-format";
 import { pickValues } from "@/lib/run-fields";
 import { runFieldsFor } from "@/lib/run-fields-server";
 import type { ExpandedStep } from "@/lib/steps";
+import { parseTestData, rowLabel, rowSummary } from "@/lib/test-data";
 import { parsePlatforms } from "@/lib/umbrella";
 import { UserError } from "@/server/result";
 
@@ -28,7 +29,13 @@ export async function bugContext(projectId: string, entryId: string, stepIndex: 
   const titleTags = entry.testCase.tags.filter((t) => platformNames.includes(t.toLowerCase()) || (/[A-Z]/.test(t) && t === t.toUpperCase()));
   const steps = (Array.isArray(entry.steps) ? entry.steps : []) as unknown as ExpandedStep[];
   if (stepIndex !== null && !steps[stepIndex]) throw new UserError("That step no longer exists.");
-  const failedIndex = stepIndex ?? (focus !== null && steps[focus] ? focus : null);
+  const at = stepIndex ?? (focus !== null && steps[focus] ? focus : null);
+  // Test data (ver_138): the bug shows only the failing row's steps, and names that row's values.
+  const data = parseTestData(entry.testData);
+  const row = data && steps.some((s) => s.row !== undefined) ? (at !== null ? (steps[at]?.row ?? 0) : 0) : null;
+  const shown = row === null ? steps : steps.filter((s) => s.row === row);
+  const failedIndex = at === null ? null : row === null ? at : shown.indexOf(steps[at]);
+  const testRow = data && row !== null ? `Test data row ${row + 1} of ${data.rows.length}: ${rowSummary(data, row)}` : undefined;
   const h = await headers();
   const origin = h.get("origin") ?? (h.get("host") ? `https://${h.get("host")}` : null);
   const key = entry.run.project.key;
@@ -44,8 +51,10 @@ export async function bugContext(projectId: string, entryId: string, stepIndex: 
     // A session's bug carries the charter, since there are no steps to point at.
     preconditions:
       entry.kind === "EXPLORATORY" ? [`Charter: ${missionLine(parseCharter(entry.charter))}`, entry.preconditions].filter(Boolean).join("\n") : entry.preconditions,
-    steps: steps.map((s) => ({ number: s.number, action: s.action, expected: s.expected })),
-    failedIndex,
+    steps: shown.map((s) => ({ number: s.number, action: s.action, expected: s.expected })),
+    failedIndex: failedIndex !== null && failedIndex >= 0 ? failedIndex : null,
+    testRow,
+    rowName: data && row !== null ? rowLabel(data, row) : undefined,
     actual,
     link: origin ? `${origin}/p/${key}/runs/${entry.run.number}/execute?entry=${entry.id}` : null,
     titleTags,

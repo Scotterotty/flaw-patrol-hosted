@@ -18,6 +18,8 @@ import { projectMembers } from "@/lib/suite-data";
 import { CaseFlagButton, FlagIcon } from "@/components/case-flag";
 import { CaseHistory } from "@/components/case-history";
 import { StepsView } from "@/components/steps-view";
+import { TestDataView } from "@/components/test-data-view";
+import { parseTestData } from "@/lib/test-data";
 import { CharterView, PersonaChip } from "@/components/charter-view";
 import { parseCharter } from "@/lib/charter";
 import { Badge, Card, LinkButton } from "@/components/ui";
@@ -69,7 +71,8 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
     others,
   ]);
   const authors = new Map(authorRows.map((u) => [u.id, u]));
-  const steps = expandSteps(items, new Map(defs.map((d) => [d.id, d])));
+  const testData = isCharter ? null : parseTestData(latest?.testData);
+  const steps = expandSteps(items, new Map(defs.map((d) => [d.id, d])), testData?.columns);
   const folderPath = pathOf(folders, c.folderId);
   const flips = flaky.get(c.id);
 
@@ -212,9 +215,12 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
               <CharterView charter={parseCharter(latest?.charter)} persona={c.persona} />
             </Card>
           ) : (
-            <Card className="overflow-hidden">
-              <StepsView steps={steps} projectKey={project.key} />
-            </Card>
+            <>
+              <Card className="overflow-hidden">
+                <StepsView steps={steps} projectKey={project.key} />
+              </Card>
+              {testData && <TestDataView data={testData} />}
+            </>
           )}
           <CaseHistory caseId={c.id} projectKey={project.key} charter={isCharter} canRun={can(who, "run:create")} />
         </div>

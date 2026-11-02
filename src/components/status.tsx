@@ -97,18 +97,25 @@ export function StatusLegend({ counts }: { counts: StatusCounts }) {
 }
 
 /** Tiny history strip: one square per execution, oldest first. */
-export function HistoryStrip({ statuses, max = 20 }: { statuses: { status: ResultStatus; title?: string; href?: string }[]; max?: number }) {
+export function HistoryStrip({ statuses, max = 20 }: { statuses: { status: ResultStatus; title?: string; href?: string; rows?: ResultStatus[] | null }[]; max?: number }) {
   const shown = statuses.slice(-max);
   return (
     <span className="inline-flex gap-0.5 align-middle">
       {shown.map((s, i) => {
-        const cls = cx("st-pip h-3 w-2 rounded-[2px]", STATUS_STYLE[s.status].bar);
+        // Test data (ver_138): a run whose rows didn't all end the same shows a stripe per row.
+        const split = s.rows && s.rows.length > 1 && new Set(s.rows).size > 1 ? s.rows : null;
+        const cls = cx("st-pip h-3 w-2 rounded-[2px]", split ? "flex flex-col overflow-hidden" : STATUS_STYLE[s.status].bar);
         const title = s.title ?? STATUS_LABEL[s.status];
+        const stripes = split?.map((r, j) => <span key={j} data-row-stripe className={cx("min-h-px flex-1", STATUS_STYLE[r].bar)} />);
         // A pip with a run behind it opens that run (ver_89).
         return s.href ? (
-          <Link key={i} href={s.href} className={cx(cls, "transition hover:scale-y-125 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500")} title={title} aria-label={`${title}. Open the run`} />
+          <Link key={i} href={s.href} className={cx(cls, "transition hover:scale-y-125 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500")} title={title} aria-label={`${title}. Open the run`}>
+            {stripes}
+          </Link>
         ) : (
-          <span key={i} className={cls} title={title} />
+          <span key={i} className={cls} title={title}>
+            {stripes}
+          </span>
         );
       })}
     </span>

@@ -228,10 +228,10 @@ export async function saveAutomationRun(
           const { id: _id, createdAt: _at, ...was } = v;
           void _id;
           void _at;
-          await tx.caseVersion.create({ data: { ...was, charter: was.charter ?? undefined, version: v.version + 1, steps: stepItems(t), authorId: actor.id, authorName: by, changeNote: "Steps updated from automation results" } });
+          await tx.caseVersion.create({ data: { ...was, charter: was.charter ?? undefined, testData: was.testData ?? undefined, version: v.version + 1, steps: stepItems(t), authorId: actor.id, authorName: by, changeNote: "Steps updated from automation results" } });
           await tx.testCase.update({ where: { id: c.id }, data: { currentVersion: v.version + 1 } });
         }
-        const entries = await buildEntries(tx, library, caseIds, null);
+        const entries = await buildEntries(tx, library, caseIds, null, { wholeCase: true });
         const { runSeq } = await tx.project.update({ where: { id: cycleId }, data: { runSeq: { increment: 1 } } });
         const run = await tx.testRun.create({
           data: {
