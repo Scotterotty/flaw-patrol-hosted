@@ -32,6 +32,7 @@ export function JiraSettings({
   template,
   stories = null,
   connectionOnly = false,
+  noTemplate = false,
   shared,
   severity = null,
   foundIn = null,
@@ -42,6 +43,8 @@ export function JiraSettings({
   stories?: StoriesConfig | null;
   /** The umbrella's Settings show the bug template and stories in rows of their own. */
   connectionOnly?: boolean;
+  /** The bug layout is changed from Settings → Bug templates instead (a test cycle outside an umbrella). */
+  noTemplate?: boolean;
   /** Company bug templates this person may pick, and the one in use. */
   shared?: SharedView;
   /** Settings → Jira → Severity field. */
@@ -126,6 +129,7 @@ export function JiraSettings({
         {current?.tokenReadable && <ReporterCheck key={checked} projectId={projectId} />}
         {current?.tokenReadable && <SeveritySettings key={`sev-${checked}`} projectId={projectId} saved={severity} />}
         {current?.tokenReadable && <FoundInSettings key={`found-${checked}`} projectId={projectId} saved={foundIn} />}
+        {current?.tokenReadable && <PrioritySettings key={`priority-${checked}`} projectId={projectId} />}
         <div className="flex gap-2">
           <Button type="submit" variant="primary" disabled={pending}>
             {pending ? "Checking…" : current ? "Save and test" : "Connect Jira"}
@@ -147,15 +151,15 @@ export function JiraSettings({
           )}
         </div>
       </form>
-      {!connectionOnly && (current?.tokenReadable ? <BugTemplateSettings key={checked} projectId={projectId} saved={template} jiraProjectKey={current.jiraProjectKey} shared={shared} /> : <BugTemplateLocked />)}
+      {!connectionOnly && !noTemplate && (current?.tokenReadable ? <BugTemplateSettings key={checked} projectId={projectId} saved={template} jiraProjectKey={current.jiraProjectKey} shared={shared} /> : <BugTemplateLocked />)}
       {!connectionOnly && current && <StoriesSettings projectId={projectId} saved={stories ?? DEFAULT_STORIES} bugProject={current.jiraProjectKey} />}
     </Card>
   );
 }
 
-/** The umbrella's Settings → Bug template row, on its own. */
+/** Settings → Bug templates → Change layout…: the first template's layout, under its row. */
 export function BugTemplatePanel({ projectId, template, jiraProjectKey, tokenReadable, shared }: { projectId: string; template: TemplateSettings; jiraProjectKey: string; tokenReadable: boolean; shared?: SharedView }) {
-  return <Card className="p-5">{tokenReadable ? <BugTemplateSettings projectId={projectId} saved={template} jiraProjectKey={jiraProjectKey} shared={shared} standalone /> : <BugTemplateLocked standalone />}</Card>;
+  return tokenReadable ? <BugTemplateSettings projectId={projectId} saved={template} jiraProjectKey={jiraProjectKey} shared={shared} standalone /> : <BugTemplateLocked standalone />;
 }
 
 /** The umbrella's Settings → Requirements row, on its own. */
@@ -194,7 +198,7 @@ const STEPS = [
 const titleShape = (t: { tag: boolean; feature: boolean }) => [t.tag && "[Tag]", t.feature && "Feature", "Summary"].filter(Boolean).join(" - ");
 
 /**
- * Settings → Jira → Bug template: the plain layout, or a template imported by
+ * Settings → Bug templates → Change layout… (or Jira → Bug template in a test cycle with its own Jira): the plain layout, or a template imported by
  * pasting one example Jira bug (read, checked, saved). A detailed template set
  * up before imports shows as a saved one too, with its own defaults.
  */
@@ -294,7 +298,7 @@ function BugTemplateSettings({ projectId, saved, jiraProjectKey, standalone = fa
     });
   return (
     <div id={IMPORT_HASH} className={`${standalone ? "" : "mt-5 border-t border-slate-100 pt-4"} scroll-mt-20 space-y-3 text-sm`} data-testid="bug-template-settings">
-      <BugTemplateHeading tip="Paste a Jira bug that already uses your layout, and Flaw Patrol copies its sections and fields." />
+      <BugTemplateHeading standalone={standalone} tip="Paste a Jira bug that already uses your layout, and Flaw Patrol copies its sections and fields." />
       <div className="grid gap-2">
         {option("plain", "Plain layout", "Steps, expected and actual result, attachments. The tester writes the title.")}
         {/* The built-in OKO layout only where it's already in use; company templates replace it. */}
@@ -537,7 +541,6 @@ function BugTemplateSettings({ projectId, saved, jiraProjectKey, standalone = fa
           )}
         </div>
       )}
-      <PrioritySettings projectId={projectId} />
     </div>
   );
 }
@@ -551,13 +554,13 @@ const OKO_TITLE = (
   </span>
 );
 
-function BugTemplateHeading({ tip }: { tip: string }) {
+function BugTemplateHeading({ tip, standalone = false }: { tip: string; standalone?: boolean }) {
   return (
     <div>
       <h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
-        Bug template <InfoTip text={tip} />
+        {standalone ? "This template's layout" : "Bug template"} <InfoTip text={tip} />
       </h3>
-      <p className="text-xs text-slate-500">How bugs filed from this test cycle are laid out in Jira.</p>
+      <p className="text-xs text-slate-500">{standalone ? "How bugs filed with it are laid out in Jira." : "How bugs filed from this test cycle are laid out in Jira."}</p>
     </div>
   );
 }
@@ -566,7 +569,7 @@ function BugTemplateHeading({ tip }: { tip: string }) {
 function BugTemplateLocked({ standalone = false }: { standalone?: boolean }) {
   return (
     <div id={IMPORT_HASH} className={`${standalone ? "" : "mt-5 border-t border-slate-100 pt-4"} scroll-mt-20 space-y-3 text-sm opacity-60`} data-testid="bug-template-locked">
-      <BugTemplateHeading tip={standalone ? "Paste the API token again in Jira connection first. Then you can pick or import a template." : "Connect Jira above first. Then you can import a template from an example bug."} />
+      <BugTemplateHeading standalone={standalone} tip={standalone ? "Paste the API token again in Jira connection first. Then you can pick or import a template." : "Connect Jira above first. Then you can import a template from an example bug."} />
       <div className="grid gap-2">
         {[
           ["Plain layout", "Steps, expected and actual result, attachments. The tester writes the title."],

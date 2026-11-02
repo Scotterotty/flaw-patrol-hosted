@@ -53,13 +53,14 @@ test("umbrella settings rows open in place, one at a time, and the field list re
   await expect(page.getByLabel("Jira site")).toHaveCount(0);
   await expect(page).toHaveURL(/#members$/);
 
-  // Bug template opens in its own row, with Import already picked while the layout is plain.
-  await page.reload();
-  await row("template").getByRole("button", { name: "Import…" }).click();
-  await expect(page).toHaveURL(/#import-template$/);
-  const tpl = row("template").getByTestId("bug-template-settings");
+  // The layout opens under the first template in Bug templates (ver_144), and an old
+  // #import-template link still lands there with Import already picked.
+  await page.goto(`${settings}#import-template`);
+  await expect(row("bug-templates").getByRole("button", { name: "Hide" })).toBeVisible();
+  const tpl = row("bug-templates").getByTestId("bug-template-settings");
   await expect(tpl.getByLabel("Import a template from Jira")).toBeChecked();
   await expect(row("members").getByRole("button", { name: "Manage" })).toBeVisible();
+  await expect(row("template")).toHaveCount(0);
 
   // The OKO layout's field list: ticks for what Jira fills, gray chips for the rest.
   await tpl.getByLabel(/OKO bug layout/).check();

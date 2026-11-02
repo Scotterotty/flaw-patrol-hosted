@@ -185,7 +185,8 @@ test("an umbrella keeps its bug templates in its Settings, and a Tester can make
   const section = page.getByTestId("bug-templates");
   await expect(section).toBeVisible();
   await expect(section.getByTestId("bug-template-row")).toHaveCount(2);
-  await expect(page.getByRole("listitem").filter({ hasText: "Jira bug layout" }).first()).toBeVisible();
+  // ver_144: no separate Jira bug layout row; the first template has the layout itself.
+  await expect(page.getByRole("listitem").filter({ hasText: "Jira bug layout" })).toHaveCount(0);
 
   const ctx = await browser.newContext({ baseURL: test.info().project.use.baseURL });
   const tp = await ctx.newPage();

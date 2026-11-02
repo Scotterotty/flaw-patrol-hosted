@@ -36,6 +36,8 @@ test("bugs follow the team template", async ({ page }) => {
   await page.getByRole("button", { name: "Connect Jira" }).click();
   await expect(page.getByText("Connected as QA Bot.")).toBeVisible();
   // The OKO bug layout is a company template shared by email ending (ver_96): pick it, then set its defaults.
+  // ver_144: the layout is changed from Bug templates → Change layout… on the first template.
+  await page.locator("#bug-templates").getByRole("button", { name: "Change layout…" }).click();
   const settings = page.getByTestId("bug-template-settings");
   await expect(settings.getByLabel("Plain layout")).toBeChecked();
   await settings.getByLabel(/OKO bug layout/).check();
@@ -48,7 +50,8 @@ test("bugs follow the team template", async ({ page }) => {
   // Priority is set to Not Prioritized on every bug (ver_143), so Jira's required Priority isn't a warning anymore.
   await expect(fields.getByTestId("fields-filled")).toContainText("Not Prioritized");
   await expect(settings.getByTestId("fields-required")).toHaveCount(0);
-  await expect(settings.getByLabel("Jira Priority on new bugs")).toHaveValue("Not Prioritized");
+  // ver_144: Jira Priority sits in the Jira connection, next to Severity.
+  await expect(page.getByLabel("Jira Priority on new bugs")).toHaveValue("Not Prioritized");
   // Severity is only on this Jira's Edit screen: it's filled just after the bug is created.
   await expect(fields.getByTestId("fields-filled").getByRole("listitem").filter({ hasText: "Severity" })).toContainText("just after");
   await expect(fields.getByTestId("fields-later")).toBeVisible();
@@ -62,6 +65,7 @@ test("bugs follow the team template", async ({ page }) => {
   await settings.getByRole("button", { name: /^(Save defaults|Use the OKO bug layout)$/ }).click();
   await expect(settings.getByText("Saved. New bugs from here use these defaults.")).toBeVisible();
   await page.reload();
+  await page.locator("#bug-templates").getByRole("button", { name: "Change layout…" }).click();
   await expect(settings.getByLabel(/OKO bug layout/)).toBeChecked();
   await expect(settings.getByTestId("template-saved")).toContainText("[UNREAL] - Feature - Brief summary");
 

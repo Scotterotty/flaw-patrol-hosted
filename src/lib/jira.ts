@@ -89,7 +89,7 @@ export type JiraCreds = {
   severity?: unknown;
   /** Settings → Jira → Found-in version. */
   foundIn?: unknown;
-  /** Settings → Jira → Bug template, for its Jira Priority. */
+  /** Settings → Jira connection → Jira Priority. */
   bugTemplate?: unknown;
 };
 

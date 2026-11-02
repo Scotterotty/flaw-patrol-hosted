@@ -8,7 +8,7 @@ import { DEFAULT_STORIES, parseStoriesConfig } from "@/lib/stories-config";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { EditGroupButton, type GroupChoice } from "@/components/group-dialogs";
-import { buttonClass, Card, PageHeader } from "@/components/ui";
+import { Card, PageHeader } from "@/components/ui";
 import { AddUmbrellaProject } from "@/components/umbrella-add-project";
 import { ArchiveCard } from "@/components/archive-project";
 import { RolesCard } from "@/components/roles-card";
@@ -183,15 +183,6 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
   const kindLabel = (k: "plain" | "imported" | "detailed") => (k === "imported" ? "Imported" : k === "detailed" ? "OKO layout" : "Plain layout");
   const whose = name.endsWith("s") ? `${name}'` : `${name}'s`;
   const site = jira?.siteUrl.replace(/^https?:\/\//, "");
-  const templateText = !jira
-    ? "Plain layout. Connect Jira first to import a template."
-    : shared.current
-      ? `${shared.current.name} (shared)${template.clientTag ? ` · tag [${template.clientTag}]` : ""}`
-      : hubKind === "imported"
-      ? `Imported from ${template.imported!.from} · ${template.imported!.sections.filter((x) => x.source !== "empty").length} sections, ${template.imported!.fields.filter((f) => f.source !== "empty").length} fields`
-      : hubKind === "detailed"
-        ? `OKO bug layout (from OB-5292)${template.clientTag ? ` · tag [${template.clientTag}]` : ""}`
-        : "Plain layout";
   const storiesText = !jira
     ? "Connect Jira first to link cases to Jira requirements."
     : (() => {
@@ -377,7 +368,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                 action={jira ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">✓ Connected</span> : null}
               />
             )}
-            <ExpandRow id="bug-templates" hashes={["bug-templates"]} title="Bug templates" text={templatesText} label={canTemplates ? "Change" : "Open"}>
+            <ExpandRow id="bug-templates" hashes={["bug-templates", "template", "import-template"]} title="Bug templates" text={templatesText} label={canTemplates ? "Change" : "Open"}>
               <BugTemplatesSettings
                 projectId={u.hub.id}
                 current={bugTemplates.current}
@@ -386,48 +377,9 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                 canEdit={canTemplates}
                 canDelete={can(u.who, "bugtemplate:delete")}
                 jiraConnected={!!jira}
-                currentHref={manage && jira ? "#template" : null}
+                currentPanel={manage && jira ? <BugTemplatePanel projectId={u.hub.id} template={template} jiraProjectKey={jira.jiraProjectKey} tokenReadable={canOpen(jira.tokenEncrypted)} shared={shared} /> : null}
               />
             </ExpandRow>
-            {manage && jira ? (
-              <ExpandRow
-                id="template"
-                hashes={["template", "import-template"]}
-                title="Jira bug layout"
-                text={templateText}
-                label={hubKind === "plain" ? "Import…" : "Change"}
-                openHash={hubKind === "plain" ? "import-template" : "template"}
-                buttonVariant={hubKind === "plain" ? "primary" : undefined}
-                buttonTitle={
-                  hubKind === "plain"
-                    ? `Opens ${whose} bug template with Import a template from Jira already picked.`
-                    : hubKind === "imported"
-                      ? `Opens ${whose} bug template to import a different bug, edit the fields, or go back to the plain layout.`
-                      : `Opens ${whose} bug template to pick a different layout or import one from Jira.`
-                }
-              >
-                <BugTemplatePanel projectId={u.hub.id} template={template} jiraProjectKey={jira.jiraProjectKey} tokenReadable={canOpen(jira.tokenEncrypted)} shared={shared} />
-              </ExpandRow>
-            ) : (
-              <Row
-                title="Jira bug layout"
-                text={templateText}
-                action={
-                  !manage ? (
-                    <span className="text-sm text-slate-500">{kindLabel(hubKind)}</span>
-                  ) : (
-                    <span
-                      tabIndex={0}
-                      aria-disabled="true"
-                      title={`Import reads the layout from an example bug in Jira, so ${name} needs Jira connected first. Connect it on the row above.`}
-                      className={`${buttonClass(undefined, "sm")} cursor-help opacity-55`}
-                    >
-                      Import…
-                    </span>
-                  )
-                }
-              />
-            )}
             {!on("stories") ? null : manage && jira ? (
               <ExpandRow id="stories" hashes={["stories"]} title="Requirements" text={storiesText} label="Change">
                 <StoriesPanel projectId={u.hub.id} stories={parseStoriesConfig(jira.stories)} bugProject={jira.jiraProjectKey} />

@@ -2,7 +2,7 @@ import { badgeOf } from "@/lib/game";
 import { ArchiveCard } from "@/components/archive-project";
 import { archiveCardData } from "@/lib/archive-card";
 import { parseFoundIn } from "@/lib/found-in";
-import { JiraSettings } from "@/components/jira-settings";
+import { BugTemplatePanel, JiraSettings } from "@/components/jira-settings";
 import { parseSeverityConfig } from "@/lib/severity";
 import { CycleSlack, SlackCard } from "@/components/slack-card";
 import { slackChannelsOf } from "@/lib/slack";
@@ -144,7 +144,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
                 This test cycle files bugs into its own Jira project, {jiraRow.jiraProjectKey}. Disconnect it below to use {umbrella.name}&apos;s instead.
               </p>
             )}
-            <JiraSettings projectId={project.id} current={jira} template={templateView.template} shared={templateView.shared} stories={parseStoriesConfig(jiraRow?.stories)} severity={parseSeverityConfig(jiraRow?.severity)} foundIn={parseFoundIn(jiraRow?.foundIn)} />
+            <JiraSettings projectId={project.id} current={jira} noTemplate={!!bugTemplates} template={templateView.template} shared={templateView.shared} stories={parseStoriesConfig(jiraRow?.stories)} severity={parseSeverityConfig(jiraRow?.severity)} foundIn={parseFoundIn(jiraRow?.foundIn)} />
           </>
         )
       )}
@@ -159,7 +159,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
             canEdit={can(who, "bugtemplate:edit")}
             canDelete={can(who, "bugtemplate:delete")}
             jiraConnected={!!jiraRow}
-            currentHref={canJira && jiraRow ? "#jira" : null}
+            currentPanel={canJira && jira ? <BugTemplatePanel projectId={project.id} template={templateView.template} jiraProjectKey={jira.jiraProjectKey} tokenReadable={jira.tokenReadable} shared={templateView.shared} /> : null}
           />
         </Card>
       )}

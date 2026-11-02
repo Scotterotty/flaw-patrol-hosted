@@ -115,7 +115,7 @@ async function ensureSeverity(projectId: string, client: JiraClient, meta: MetaF
   return true;
 }
 
-/** Settings → Jira → Bug template → Jira Priority: the priorities Jira lists, what's saved, and what new bugs get. */
+/** Settings → Jira connection → Jira Priority: the priorities Jira lists, what's saved, and what new bugs get. */
 export async function jiraPriorities(projectId: string) {
   return wrap(async () => {
     await requireProjectAction(projectId, "jira:manage");

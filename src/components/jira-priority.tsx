@@ -16,7 +16,7 @@ export function PriorityLine({ priority }: { priority: string | null }) {
 }
 
 /**
- * Settings → Jira → Bug template → Jira Priority: the priority every new bug
+ * Settings → Jira connection → Jira Priority: the priority every new bug
  * gets, "Not Prioritized" unless changed, so whoever triages sets the real one.
  */
 export function PrioritySettings({ projectId }: { projectId: string }) {

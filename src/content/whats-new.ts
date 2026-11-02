@@ -22,6 +22,19 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 144,
+    date: "2026-11-02",
+    items: [
+      {
+        kind: "better",
+        title: "Bug templates and Jira bug layout are one section",
+        text: "Settings → Bug templates now holds everything. Change layout… on the first template picks the plain layout, a shared one, or a copy of a Jira bug. The separate Jira bug layout row is gone, and Jira Priority moved to the Jira connection, next to Severity.",
+        who: "lead",
+        link: "/g/{umbrella}/settings#bug-templates",
+      },
+    ],
+  },
+  {
     version: 143,
     date: "2026-11-02",
     items: [

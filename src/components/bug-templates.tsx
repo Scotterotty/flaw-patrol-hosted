@@ -3,7 +3,7 @@
 // Settings → Bug templates: the list, New template, and the editor with a live preview.
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import {
   blankLayout,
   blankSection,
@@ -31,13 +31,23 @@ type Props = {
   canEdit: boolean;
   canDelete: boolean;
   jiraConnected: boolean;
-  /** Where the current layout is changed (Settings → Jira bug layout). */
-  currentHref: string | null;
+  /** The layout choices for the first template (plain, shared, copied from a Jira bug), shown under it by Change layout…; null when this person can't change it. */
+  currentPanel?: ReactNode;
+};
+
+/** Old links to the separate "Jira bug layout" row (search, bookmarks) open the first template's layout instead. */
+const LAYOUT_HASHES = ["template", "import-template"];
+
+const currentSub: Record<CurrentLayout["kind"], string> = {
+  plain: "Summary and Severity, with the steps filled in for you",
+  shared: "Shared by a workspace admin",
+  imported: "Copied from a Jira bug",
+  detailed: "The ready-made detailed layout",
 };
 
 const item = "block w-full rounded-md px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50";
 
-export function BugTemplatesSettings({ projectId, current, templates, defaultId, canEdit, canDelete, jiraConnected, currentHref }: Props) {
+export function BugTemplatesSettings({ projectId, current, templates, defaultId, canEdit, canDelete, jiraConnected, currentPanel }: Props) {
   const router = useRouter();
   const [menu, setMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLSpanElement>(null);
@@ -47,6 +57,28 @@ export function BugTemplatesSettings({ projectId, current, templates, defaultId,
   const [deleting, setDeleting] = useState<TemplateRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [layoutOpen, setLayoutOpen] = useState(false);
+
+  useEffect(() => {
+    if (!currentPanel) return;
+    const check = () => {
+      const h = window.location.hash.slice(1);
+      if (!LAYOUT_HASHES.includes(h)) return;
+      setLayoutOpen(true);
+      requestAnimationFrame(() => (document.getElementById(h) ?? document.getElementById("template"))?.scrollIntoView({ block: "start" }));
+    };
+    check();
+    window.addEventListener("hashchange", check);
+    return () => window.removeEventListener("hashchange", check);
+  }, [currentPanel]);
+
+  const toggleLayout = () => {
+    const next = !layoutOpen;
+    // Keep the address in step, without jumping the page.
+    const url = window.location.pathname + window.location.search;
+    window.history.replaceState(window.history.state, "", `${url}#${next ? "template" : "bug-templates"}`);
+    setLayoutOpen(next);
+  };
 
   useEffect(() => {
     if (!menu) return;
@@ -69,7 +101,7 @@ export function BugTemplatesSettings({ projectId, current, templates, defaultId,
       else router.refresh();
     });
 
-  const rows = [{ id: "", name: current.name, hint: "", sub: current.kind === "plain" ? "Summary and Severity, with the steps filled in for you" : "Set in the Jira bug layout row" }, ...templates.map((t) => ({ id: t.id, name: t.name, hint: t.hint, sub: summaryOf(t.layout) }))];
+  const rows = [{ id: "", name: current.name, hint: "", sub: currentSub[current.kind] }, ...templates.map((t) => ({ id: t.id, name: t.name, hint: t.hint, sub: summaryOf(t.layout) }))];
 
   return (
     <div className="space-y-3" data-testid="bug-templates">
@@ -88,72 +120,79 @@ export function BugTemplatesSettings({ projectId, current, templates, defaultId,
         {rows.map((r) => {
           const t = templates.find((x) => x.id === r.id);
           return (
-            <li key={r.id || "current"} className="flex flex-wrap items-center gap-2 px-3 py-2.5" data-testid="bug-template-row">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-slate-900">
-                  {r.name}{" "}
-                  {r.id === defaultId && <span className="ml-1 rounded-full bg-accent-50 px-2 py-0.5 text-xs font-medium text-accent-700">Default</span>}
-                  {!r.id && <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">Current layout</span>}
-                </p>
-                <p className="text-xs text-slate-500">{[r.hint, r.sub].filter(Boolean).join(" · ")}</p>
-              </div>
-              {t && canEdit && (
-                <Button size="sm" onClick={() => setEditing({ id: t.id, name: t.name, hint: t.hint, layout: t.layout })}>
-                  Edit…
-                </Button>
-              )}
-              {(canEdit || (!r.id && currentHref)) && (
-                <span className="relative inline-block" ref={menu === (r.id || "current") ? menuRef : undefined}>
-                  <Button size="sm" aria-haspopup="menu" aria-expanded={menu === (r.id || "current")} aria-label={`More for ${r.name}`} onClick={() => setMenu(menu === (r.id || "current") ? null : r.id || "current")}>
-                    ⋯
+            <li key={r.id || "current"} data-testid="bug-template-row">
+              <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-900">
+                    {r.name}{" "}
+                    {r.id === defaultId && <span className="ml-1 rounded-full bg-accent-50 px-2 py-0.5 text-xs font-medium text-accent-700">Default</span>}
+                    {!r.id && current.kind === "shared" && <span className="ml-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800">Shared</span>}
+                  </p>
+                  <p className="text-xs text-slate-500">{[r.hint, r.sub].filter(Boolean).join(" · ")}</p>
+                </div>
+                {t && canEdit && (
+                  <Button size="sm" onClick={() => setEditing({ id: t.id, name: t.name, hint: t.hint, layout: t.layout })}>
+                    Edit…
                   </Button>
-                  {menu === (r.id || "current") && (
-                    <div role="menu" className="absolute top-full right-0 z-30 mt-1 w-48 rounded-lg border border-slate-200 bg-surface p-1 text-left shadow-lg">
-                      {canEdit && r.id !== defaultId && (
-                        <button type="button" role="menuitem" className={item} disabled={pending} onClick={() => run(() => setDefaultBugTemplate(projectId, r.id))}>
-                          Make default
-                        </button>
-                      )}
-                      {!r.id && currentHref && (
-                        <a role="menuitem" className={item} href={currentHref} onClick={() => setMenu(null)}>
-                          Change the Jira bug layout
-                        </a>
-                      )}
-                      {t && canEdit && (
-                        <>
-                          <button type="button" role="menuitem" className={item} disabled={pending} onClick={() => run(() => duplicateBugTemplate(projectId, t.id))}>
-                            Duplicate
+                )}
+                {!r.id && currentPanel && (
+                  <Button size="sm" aria-expanded={layoutOpen} aria-controls="template" onClick={toggleLayout}>
+                    Change layout…
+                  </Button>
+                )}
+                {canEdit && (!!r.id || r.id !== defaultId) && (
+                  <span className="relative inline-block" ref={menu === (r.id || "current") ? menuRef : undefined}>
+                    <Button size="sm" aria-haspopup="menu" aria-expanded={menu === (r.id || "current")} aria-label={`More for ${r.name}`} onClick={() => setMenu(menu === (r.id || "current") ? null : r.id || "current")}>
+                      ⋯
+                    </Button>
+                    {menu === (r.id || "current") && (
+                      <div role="menu" className="absolute top-full right-0 z-30 mt-1 w-48 rounded-lg border border-slate-200 bg-surface p-1 text-left shadow-lg">
+                        {canEdit && r.id !== defaultId && (
+                          <button type="button" role="menuitem" className={item} disabled={pending} onClick={() => run(() => setDefaultBugTemplate(projectId, r.id))}>
+                            Make default
                           </button>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            className={item}
-                            onClick={() => {
-                              setMenu(null);
-                              setRenaming(t);
-                            }}
-                          >
-                            Rename…
-                          </button>
-                          <div className="my-1 h-px bg-slate-100" />
-                          <button
-                            type="button"
-                            role="menuitem"
-                            className={item}
-                            disabled={!canDelete}
-                            title={canDelete ? undefined : "Only Admins can delete a template. Bugs already reported keep their layout."}
-                            onClick={() => {
-                              setMenu(null);
-                              setDeleting(t);
-                            }}
-                          >
-                            Delete…
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </span>
+                        )}
+                        {t && canEdit && (
+                          <>
+                            <button type="button" role="menuitem" className={item} disabled={pending} onClick={() => run(() => duplicateBugTemplate(projectId, t.id))}>
+                              Duplicate
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className={item}
+                              onClick={() => {
+                                setMenu(null);
+                                setRenaming(t);
+                              }}
+                            >
+                              Rename…
+                            </button>
+                            <div className="my-1 h-px bg-slate-100" />
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className={item}
+                              disabled={!canDelete}
+                              title={canDelete ? undefined : "Only Admins can delete a template. Bugs already reported keep their layout."}
+                              onClick={() => {
+                                setMenu(null);
+                                setDeleting(t);
+                              }}
+                            >
+                              Delete…
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </span>
+                )}
+              </div>
+              {!r.id && currentPanel && layoutOpen && (
+                <div id="template" className="scroll-mt-20 border-t border-dashed border-slate-200 bg-slate-50/60 px-3 py-3" data-testid="current-layout">
+                  {currentPanel}
+                </div>
               )}
             </li>
           );

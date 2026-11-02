@@ -24,6 +24,8 @@ test("import a bug template from an example Jira bug", async ({ page }) => {
   await page.getByRole("button", { name: "Connect Jira" }).click();
   await expect(page.getByText("Connected as QA Bot.")).toBeVisible();
 
+  // ver_144: the layout is changed from Bug templates → Change layout… on the first template.
+  await page.locator("#bug-templates").getByRole("button", { name: "Change layout…" }).click();
   const settings = page.getByTestId("bug-template-settings");
   await expect(settings.getByLabel("Plain layout")).toBeChecked();
   await settings.getByLabel("Import a template from Jira").check();

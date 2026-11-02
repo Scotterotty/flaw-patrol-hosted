@@ -104,11 +104,13 @@ test("the umbrella's Bug template row leads to the import", async ({ page }) => 
   const pre = new PrismaClient();
   await pre.projectGroup.update({ where: { id: page.url().split("/g/")[1].split(/[/?#]/)[0] }, data: { okoLayout: true } }).finally(() => pre.$disconnect());
 
-  // Before Jira: a grayed Import… that says why, and the hub shows the grayed choices.
-  await page.goto(settingsUrl);
-  const row = page.getByRole("listitem").filter({ hasText: "Jira bug layout" });
-  await expect(row).toContainText("Plain layout. Connect Jira first to import a template.");
-  await expect(row.getByText("Import…")).toHaveAttribute("aria-disabled", "true");
+  // Before Jira: the first bug template is the plain one, with nothing to change yet (ver_144:
+  // no separate Jira bug layout row), and the Jira row shows no grayed choices.
+  await page.goto(`${settingsUrl}#bug-templates`);
+  const row = page.getByTestId("bug-templates").getByTestId("bug-template-row").first();
+  await expect(row).toContainText("Plain bug");
+  await expect(row.getByRole("button", { name: "Change layout…" })).toHaveCount(0);
+  await expect(page.getByRole("listitem").filter({ hasText: "Jira bug layout" })).toHaveCount(0);
   await page.goto(`${settingsUrl}#jira`);
   await expect(page.getByTestId("bug-template-locked")).toHaveCount(0);
 
@@ -119,9 +121,10 @@ test("the umbrella's Bug template row leads to the import", async ({ page }) => 
   await page.getByLabel("API token").fill("secret-token");
   await page.getByRole("button", { name: "Connect Jira" }).click();
   await expect(page.getByText("Connected as QA Bot.")).toBeVisible();
-  await page.goto(settingsUrl);
-  await row.getByRole("button", { name: "Import…" }).click();
-  await expect(page).toHaveURL(/#import-template$/);
+  await page.goto(`${settingsUrl}#bug-templates`);
+  await row.getByRole("button", { name: "Change layout…" }).click();
+  await expect(page).toHaveURL(/#template$/);
+  await page.goto(`${settingsUrl}#import-template`);
   const settings = page.getByTestId("bug-template-settings");
   await expect(settings.getByLabel("Import a template from Jira")).toBeChecked();
   await expect(settings.getByLabel("Example bug")).toBeFocused();
@@ -130,9 +133,10 @@ test("the umbrella's Bug template row leads to the import", async ({ page }) => 
   await settings.getByLabel(/OKO bug layout/).check();
   await settings.getByRole("button", { name: "Use OKO bug layout" }).click();
   await expect(settings.getByText(/Saved\. New bugs from here use OKO bug layout\./)).toBeVisible();
-  await page.goto(settingsUrl);
-  await expect(row).toContainText("OKO bug layout (shared)");
-  await expect(row.getByRole("button", { name: "Change", exact: true })).toBeVisible();
+  await page.goto(`${settingsUrl}#bug-templates`);
+  await expect(row).toContainText("OKO bug layout");
+  await expect(row).toContainText("Shared by a workspace admin");
+  await expect(row.getByRole("button", { name: "Change layout…" })).toBeVisible();
   // ver_117: the Test cycles table's Jira chip says the test cycle uses the umbrella's Jira and bug template.
   await expect(page.getByTestId("cycle-settings").getByTitle(/Jira connection and bug template, set above/)).toHaveCount(1);
 
