@@ -10,7 +10,8 @@ const withCurrent = (list: string[], cur: string | undefined) => (cur && !list.i
 /**
  * Priority, Folder and Tag on every Reports tab (ver_139). Session findings shows Tag only
  * (`tagsOnly`, the charters' tags) and Regression none (`hideAll`); a pick a tab doesn't show is
- * kept in a hidden field, so it is still there when you go back to another tab.
+ * kept in a hidden field, so it is still there when you go back to another tab. Each box is keyed
+ * on its value: it stays on screen between tabs now, and a saved view or Reset must show the new pick.
  */
 export function CaseFilters({ f, options, tagsOnly, hideAll }: { f: ReportFilters; options: { tags: string[]; folders: string[] } | null; tagsOnly?: string[]; hideAll?: boolean }) {
   const keep = (name: string, v: string | undefined) => (v ? <input key={name} type="hidden" name={name} value={v} /> : null);
@@ -29,7 +30,7 @@ export function CaseFilters({ f, options, tagsOnly, hideAll }: { f: ReportFilter
   const tags = withCurrent(options!.tags, f.tag);
   return (
     <>
-      <Select name="priority" defaultValue={f.priority ?? ""} className="w-auto" aria-label="Priority">
+      <Select key={`priority-${f.priority ?? ""}`} name="priority" defaultValue={f.priority ?? ""} className="w-auto" aria-label="Priority">
         <option value="">Any priority</option>
         {PRIORITIES.map((p) => (
           <option key={p} value={p}>
@@ -38,7 +39,7 @@ export function CaseFilters({ f, options, tagsOnly, hideAll }: { f: ReportFilter
         ))}
       </Select>
       {folders.length > 0 && (
-        <Select name="folder" defaultValue={f.folder ?? ""} className="w-auto max-w-56" aria-label="Folder">
+        <Select key={`folder-${f.folder ?? ""}`} name="folder" defaultValue={f.folder ?? ""} className="w-auto max-w-56" aria-label="Folder">
           <option value="">Any folder</option>
           {folders.map((x) => (
             <option key={x} value={x}>
@@ -54,7 +55,7 @@ export function CaseFilters({ f, options, tagsOnly, hideAll }: { f: ReportFilter
 
 function TagSelect({ tags, value }: { tags: string[]; value?: string }) {
   return (
-    <Select name="tag" defaultValue={value ?? ""} className="w-auto" aria-label="Tag">
+    <Select key={`tag-${value ?? ""}`} name="tag" defaultValue={value ?? ""} className="w-auto" aria-label="Tag">
       <option value="">Any tag</option>
       {tags.map((x) => (
         <option key={x} value={x}>
