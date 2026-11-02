@@ -251,6 +251,8 @@ model Project {
   carryOver            Json?
   /// Archived along with its umbrella, so restoring the umbrella brings it back.
   archivedWithUmbrella Boolean           @default(false)
+  /// In an umbrella: Keep in Current. Stays in Current even when a newer test cycle for its platform comes along.
+  keepCurrent          Boolean           @default(false)
   /// Roles card for a test cycle that isn't in an umbrella; see src/lib/permissions.ts.
   roleRules            Json?
   /// When an admin last saved "What can they do" or pressed Keep everyone open; null shows the before-invite nudge.

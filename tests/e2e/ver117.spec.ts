@@ -60,7 +60,7 @@ test("one Settings page holds every test cycle's settings", async ({ page }) => 
   await expect(page).toHaveURL(new RegExp(`#cycle-${web.toLowerCase()}$`));
   await expect(table.getByRole("heading", { name: `Web 5.0: what's different from ${NAME}` })).toBeVisible();
   await expect(table.getByLabel("Name")).toHaveValue(`${NAME} Web 5.0`);
-  await table.getByRole("switch").check();
+  await table.getByRole("switch", { name: /Keep members separate/ }).check();
   await expect(table.getByText(/Its own · \d+ (person|people)/)).toBeVisible();
   await table.getByRole("button", { name: "Hide Web 5.0" }).click();
   await expect(table.getByRole("heading", { name: /what's different/ })).toHaveCount(0);

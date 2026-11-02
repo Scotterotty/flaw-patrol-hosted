@@ -85,6 +85,8 @@ test("automated results go in a new test cycle with no release, and show By buil
     const made = await db.project.findFirstOrThrow({ where: { groupId, name: "Build health" }, include: { runs: true } });
     expect(made.key).toBe(`${HUB}BH`.slice(0, 10));
     expect(made.rcName).toBe("");
+    // Made for automation, so it starts pinned with Keep in Current.
+    expect(made.keepCurrent).toBe(true);
     expect(made.runs.map((r) => r.release)).toEqual([""]);
   } finally {
     await db.$disconnect();

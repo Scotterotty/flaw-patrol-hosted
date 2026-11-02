@@ -1,3 +1,4 @@
+import { splitCycles } from "@/lib/current-cycles";
 import { cycleHash } from "@/lib/cycle-hash";
 import { NOT_BASH_CASE, NOT_BASH_RUN } from "./bash-cases";
 import { effectiveTemplate } from "./bug-template";
@@ -184,25 +185,11 @@ const loadUmbrellaOnce = cache(async (groupId: string, userId: string, isAdmin: 
   if (!role) return null;
   const who: Who = { role, rules: parseRoleRules(group.roleRules) };
   const platforms = parsePlatforms(group.platforms);
-  // The newest live project for each platform is "current"; projects without a platform always are.
+  // The newest live project for each platform is "current"; projects without a platform always are,
+  // and so are ones pinned with Keep in Current. See splitCycles.
   // In an archived umbrella, the projects archived with it still count as live.
   const live = (p: (typeof projects)[number]) => !p.archivedAt || (!!group.archivedAt && p.archivedWithUmbrella);
-  const seen = new Set<string>();
-  const current: typeof projects = [];
-  const older: typeof projects = [];
-  for (const p of projects) {
-    const k = p.platform.toLowerCase();
-    if (!live(p) || (k && seen.has(k))) older.push(p);
-    else {
-      if (k) seen.add(k);
-      current.push(p);
-    }
-  }
-  const order = (p: (typeof projects)[number]) => {
-    const i = platforms.findIndex((x) => x.name.toLowerCase() === p.platform.toLowerCase());
-    return i < 0 ? 99 : i;
-  };
-  current.sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name));
+  const { current, older } = splitCycles(projects, live, platforms.map((p) => p.name));
   const ids = [hub.id, ...projects.map((p) => p.id)];
   const [cases, charters, suites, shared, personas, activeRuns, openBugs, repos, liveBash] = await Promise.all([
     // Charters have their own page since ver_93, so the Case library counts only cases.

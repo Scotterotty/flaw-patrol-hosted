@@ -313,13 +313,27 @@ export async function addAutomationCycle(groupId: string, input: { name: string;
     const key = tries.find((k) => !taken.has(k));
     if (!key) throw new UserError("Couldn't find a free key for that name. Try another name.");
     const made = await db.$transaction(async (tx) => {
-      const p = await tx.project.create({ data: { key, name, groupId: group.id, platform, rcName, members: { create: { userId: user.id, role } } } });
+      const p = await tx.project.create({ data: { key, name, groupId: group.id, platform, rcName, keepCurrent: true, members: { create: { userId: user.id, role } } } });
       await syncUmbrellaMembers(group.id, tx);
       return p;
     });
     await logActivity({ actor: user, kind: "settings", action: `Made test cycle ${name} for automated runs`, project: made });
     refresh(group.id, hub.key);
     return { cycle: { id: made.id, key: made.key, name: made.name, color: platformColor(platforms, platform), rcName: made.rcName, current: true } };
+  });
+}
+
+/** Keep in Current: a pinned test cycle stays in Current when a newer one for its platform comes along. */
+export async function setKeepCurrent(projectId: string, on: boolean) {
+  return attempt(async () => {
+    const { project, user } = await requireProjectAction(projectId, "cycle:archive");
+    if (!project.groupId) throw new UserError("This test cycle isn't in an umbrella.");
+    const keep = z.boolean().parse(on);
+    await db.project.update({ where: { id: projectId }, data: { keepCurrent: keep } });
+    await logActivity({ actor: user, kind: "settings", action: `${keep ? "Pinned" : "Unpinned"} test cycle ${project.name} ${keep ? "to" : "from"} Current`, project });
+    revalidatePath("/g", "layout");
+    revalidatePath(`/p/${project.key}`, "layout");
+    return {};
   });
 }
 

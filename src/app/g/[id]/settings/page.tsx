@@ -248,6 +248,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
         restore={archivedAlone && can(cw, "cycle:archive") ? <ArchiveCard data={{ current: { id: p.id, name: p.name, archived: true }, umbrella: null }} /> : null}
         anchor={cycleHash(p.key)}
         umbrella={name}
+        pin={p.archivedAt ? null : { projectId: p.id, on: p.keepCurrent, platform: p.platform, canChange: can(cw, "cycle:archive") }}
         details={can(cw, "project:manage") ? { projectId: p.id, name: p.name, description: p.description } : null}
         team={{
           projectId: p.id,

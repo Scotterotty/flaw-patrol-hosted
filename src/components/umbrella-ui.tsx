@@ -7,7 +7,7 @@ import { LiveBashPill } from "./bash";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import type { Shortcut, ShortcutIcon as IconName } from "@/lib/umbrella";
-import { createUmbrella, makeUmbrella, moveCasesIntoUmbrella, setKeepMembersSeparate, setShortcuts, setUmbrellaArchived } from "@/server/umbrella";
+import { createUmbrella, makeUmbrella, moveCasesIntoUmbrella, setKeepCurrent, setKeepMembersSeparate, setShortcuts, setUmbrellaArchived } from "@/server/umbrella";
 import { setProjectGroup } from "@/server/groups";
 import { ToolPicker } from "./tools";
 import { TOOL_IDS, type ToolId } from "@/lib/tools";
@@ -671,6 +671,48 @@ export function KeepSeparateSwitch({
             {shown
               ? `Only the people listed below can see this test cycle. ${umbrella}'s team isn't added.`
               : `Everyone on ${umbrella}'s team can see and test this test cycle. Turn on for a private test cycle.`}
+          </span>
+        </span>
+      </label>
+      <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+    </div>
+  );
+}
+
+/** 📌 Keep in Current: the test cycle stays in Current when a newer one for its platform comes along. */
+export function KeepCurrentSwitch({ projectId, on, platform, disabled }: { projectId: string; on: boolean; platform: string; disabled?: boolean }) {
+  const { pending, error, setError, run } = useAction();
+  // Flips at once; goes back if the server refuses.
+  const [shown, setShown] = useState(on);
+  useEffect(() => setShown(on), [on]);
+  return (
+    <div>
+      <label className="flex cursor-pointer items-start gap-3">
+        <input
+          type="checkbox"
+          role="switch"
+          className="mt-0.5 size-4 accent-accent-600"
+          checked={shown}
+          disabled={pending || disabled}
+          data-testid="keep-current"
+          onChange={(e) => {
+            const next = e.target.checked;
+            setShown(next);
+            run(async () => {
+              const r = await setKeepCurrent(projectId, next);
+              if (!r.ok) setShown(!next);
+              return r;
+            });
+          }}
+        />
+        <span>
+          <span className="block text-sm font-medium text-slate-900">
+            <span aria-hidden>📌</span> Keep in Current
+          </span>
+          <span className="block text-xs text-slate-500">
+            {shown
+              ? `Stays in Current, even after a newer ${platform ? `${platform} ` : ""}test cycle is made.`
+              : `Moves to Older test cycles when a newer ${platform ? `${platform} ` : ""}test cycle is made.`}
           </span>
         </span>
       </label>

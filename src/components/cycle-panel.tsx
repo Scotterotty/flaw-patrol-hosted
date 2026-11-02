@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { ProjectDetailsForm } from "./members";
 import { CycleDigest } from "./digest-card";
 import { CycleSlack } from "./slack-card";
-import { KeepSeparateSwitch } from "./umbrella-ui";
+import { KeepCurrentSwitch, KeepSeparateSwitch } from "./umbrella-ui";
 import { Card } from "./ui";
 
 /**
@@ -19,8 +19,11 @@ export function CyclePanel({
   slack,
   digest,
   restore,
+  pin,
 }: {
   restore?: ReactNode;
+  /** 📌 Keep in Current; null for archived test cycles. */
+  pin?: { projectId: string; on: boolean; platform: string; canChange: boolean } | null;
   anchor: string;
   umbrella: string;
   details: { projectId: string; name: string; description: string } | null;
@@ -36,6 +39,12 @@ export function CyclePanel({
         <div id={`details-${anchor}`} tabIndex={-1} className="outline-none">
           <ProjectDetailsForm projectId={details.projectId} name={details.name} description={details.description} />
         </div>
+      )}
+      {pin && (
+        <Card className="space-y-3 p-5">
+          <h2 className="text-sm font-semibold text-slate-800">Current</h2>
+          <KeepCurrentSwitch projectId={pin.projectId} on={pin.on} platform={pin.platform} disabled={!pin.canChange} />
+        </Card>
       )}
       <Card className="space-y-3 p-5">
         <h2 className="text-sm font-semibold text-slate-800">Team</h2>

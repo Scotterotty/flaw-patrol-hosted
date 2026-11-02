@@ -107,6 +107,9 @@ export function ArchiveCard({ data }: { data: ArchiveCardData }) {
       requestAnimationFrame(() => document.getElementById("archive")?.scrollIntoView({ block: "start", behavior: "smooth" }));
     };
     window.addEventListener(ARCHIVE_CYCLE_EVENT, pick);
+    // Archive… from ⋯ on the umbrella's Test cycles page comes here as ?archive=<id>.
+    const asked = new URLSearchParams(window.location.search).get("archive");
+    if (asked) pick(new CustomEvent(ARCHIVE_CYCLE_EVENT, { detail: asked }));
     return () => window.removeEventListener(ARCHIVE_CYCLE_EVENT, pick);
   }, []);
   const act = (fn: () => Promise<{ ok: true } | { ok: false; error: string }>) =>
