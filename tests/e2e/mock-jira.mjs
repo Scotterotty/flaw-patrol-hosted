@@ -8,13 +8,16 @@ const SEVERITY = "customfield_10050";
 const issues = new Map([["QA-7", { summary: "Checkout button unresponsive on Safari", status: "In Progress", category: "indeterminate", attachments: 0, severity: "B - Critical", priority: "Blocker" }]]);
 const seq = { QA: 100, RP: 100, OB: 5000 };
 // Project OB has the team's bug template fields, like OB-5292. Bug Workaround is
-// left off its create screen so the description has to carry it.
+// on neither screen so the description has to carry it. Like the team's real site
+// (ver_143), Severity is only on the Edit screen and Priority is required.
 const opt = (...values) => values.map((value, i) => ({ id: String(10000 + i), value }));
+const PRIORITIES = ["Highest", "High", "Medium", "Low", "Not Prioritized"].map((name, i) => ({ id: String(i + 1), name }));
+const SEVERITY_FIELD = { fieldId: SEVERITY, name: "Severity", required: false, schema: { type: "option", custom: "x:select" }, allowedValues: opt("A - Showstopper", "B - Critical", "C - Problematic", "D - Minor", "E - Enhancement") };
 const OB_FIELDS = [
   { fieldId: "summary", name: "Summary", required: true, schema: { type: "string", system: "summary" } },
   { fieldId: "description", name: "Description", required: false, schema: { type: "string", system: "description" } },
   { fieldId: "reporter", name: "Reporter", required: true, schema: { type: "user", system: "reporter" } },
-  { fieldId: SEVERITY, name: "Severity", required: false, schema: { type: "option", custom: "x:select" }, allowedValues: opt("A - Showstopper", "B - Critical", "C - Problematic", "D - Minor", "E - Enhancement") },
+  { fieldId: "priority", name: "Priority", required: true, schema: { type: "priority", system: "priority" }, allowedValues: PRIORITIES },
   { fieldId: "customfield_11427", name: "Client/SKUs", required: true, schema: { type: "array", items: "option", custom: "x:multicheckboxes" }, allowedValues: opt("CHS", "CSP", "Unity", "Unreal", "Web", "Windows") },
   { fieldId: "customfield_11461", name: "Team", required: true, schema: { type: "option", custom: "x:radiobuttons" }, allowedValues: opt("Web", "CHS", "CSP", "Solutions", "Unity", "Unreal", "Nodey") },
   { fieldId: "customfield_11490", name: "Repro Rate", required: false, schema: { type: "string", custom: "x:textfield" } },
@@ -25,8 +28,18 @@ const OB_FIELDS = [
   { fieldId: "customfield_11494", name: "Bug Impact", required: false, schema: { type: "string", custom: "x:textarea" } },
   { fieldId: "customfield_11512", name: "Last Reproduced", required: false, schema: { type: "date", custom: "x:datepicker" } },
 ];
+// More of OB-5292's fields, also only on the Edit screen.
+const OB_EDIT = [
+  ...OB_FIELDS,
+  SEVERITY_FIELD,
+  { fieldId: "customfield_11600", name: "Stakeholder Priority", required: false, schema: { type: "option", custom: "x:select" }, allowedValues: opt("P1", "P2", "P3", "Not Prioritized") },
+  { fieldId: "customfield_11601", name: "To Be Automated?", required: false, schema: { type: "option", custom: "x:select" }, allowedValues: opt("Yes", "No", "Maybe") },
+  { fieldId: "customfield_11602", name: "Status update", required: false, schema: { type: "option", custom: "x:select" }, allowedValues: opt("Not Started", "In Progress", "Done") },
+];
 const BASIC_FIELDS = [
-  ...OB_FIELDS.slice(0, 4).map((f) => ({ ...f, required: f.fieldId === "summary" })),
+  ...OB_FIELDS.slice(0, 3).map((f) => ({ ...f, required: f.fieldId === "summary" })),
+  SEVERITY_FIELD,
+  { fieldId: "priority", name: "Priority", required: false, schema: { type: "priority", system: "priority" }, allowedValues: PRIORITIES },
   // A plain team layout, for importing a bug template from an example bug (QA-418).
   { fieldId: "components", name: "Component", required: false, schema: { type: "array", items: "component", system: "components" }, allowedValues: [{ id: "1", name: "Mobile app" }, { id: "2", name: "Web app" }] },
   { fieldId: "customfield_12001", name: "Reproducibility", required: false, schema: { type: "option", custom: "x:select" }, allowedValues: opt("Always", "Sometimes", "Once") },
@@ -65,6 +78,8 @@ issues.set("QA-418", {
     ],
   },
 });
+// An old bug like OB-5292 (numbered below new ones), so Jira can say what OB's Edit screen has.
+issues.set("OB-4292", { summary: "[CLIENT(S)] - Feature - Brief Summary of Issue...", status: "Closed", category: "done", attachments: 0, severity: "B - Critical", priority: "Not Prioritized" });
 // Stories for story links (ver_82): Story and Task issues in QA, with Jira releases (fixVersions).
 const story = (summary, status, category, type, fixVersions) => ({ summary, status, category, attachments: 0, type, fixVersions });
 issues.set("QA-201", story("Join a space from an invite link", "Done", "done", "Story", ["RC 22"]));
@@ -223,7 +238,7 @@ http
           if (["project", "issuetype", "summary", "description", "reporter"].includes(id)) continue;
           const f = OB_FIELDS.find((x) => x.fieldId === id);
           if (!f) errors[id] = `Field '${id}' cannot be set. It is not on the appropriate screen, or unknown.`;
-          else if (f.allowedValues && ![v].flat().every((o) => f.allowedValues.some((a) => a.value === o?.value))) errors[id] = `Specify a valid value for ${f.name}`;
+          else if (f.allowedValues && ![v].flat().every((o) => f.allowedValues.some((a) => (a.value ?? a.name) === (o?.value ?? o?.name)))) errors[id] = `Specify a valid value for ${f.name}`;
         }
         for (const f of OB_FIELDS) if (f.required && f.fieldId !== "reporter" && !fields[f.fieldId]) errors[f.fieldId] = `${f.name} is required.`;
         if (Object.keys(errors).length) return send(res, 400, { errorMessages: [], errors });
@@ -241,13 +256,34 @@ http
       i.files = [...(i.files ?? []), ...added.map((a) => a.filename)];
       return send(res, 200, added);
     }
+    const edit = /^\/rest\/api\/3\/issue\/([^/]+)\/editmeta$/.exec(p);
+    if (edit) {
+      if (!issues.has(edit[1])) return send(res, 404, { errorMessages: ["Issue does not exist"] });
+      const list = edit[1].startsWith("OB-") ? OB_EDIT : BASIC_FIELDS;
+      return send(res, 200, { fields: Object.fromEntries(list.filter((f) => f.fieldId !== "reporter").map(({ fieldId, ...f }) => [fieldId, { ...f, key: fieldId }])) });
+    }
     const one = /^\/rest\/api\/3\/issue\/([^/]+)$/.exec(p);
     if (one && req.method === "PUT") {
       if (!issues.has(one[1])) return send(res, 404, { errorMessages: ["Issue does not exist"] });
       // Like Jira for anyone but an admin: turning off the update email is refused.
       if (url.searchParams.get("notifyUsers") === "false") return send(res, 400, { errorMessages: ["To discard the user notification either admin or project admin permissions are required."] });
       const { fields } = JSON.parse(body.toString());
-      if (fields.description) issues.get(one[1]).description = fields.description;
+      const i = issues.get(one[1]);
+      // Like Jira: only fields on the Edit screen, with a value it lists.
+      if (one[1].startsWith("OB-")) {
+        const errors = {};
+        for (const [id, v] of Object.entries(fields)) {
+          const f = OB_EDIT.find((x) => x.fieldId === id);
+          if (!f) errors[id] = `Field '${id}' cannot be set. It is not on the appropriate screen, or unknown.`;
+          else if (f.allowedValues && ![v].flat().every((o) => f.allowedValues.some((a) => (a.value ?? a.name) === (o?.value ?? o?.name)))) errors[id] = `Specify a valid value for ${f.name}`;
+        }
+        if (Object.keys(errors).length) return send(res, 400, { errorMessages: [], errors });
+      }
+      if (fields.description) i.description = fields.description;
+      if (fields[SEVERITY]) i.severity = fields[SEVERITY].value;
+      if (fields.priority) i.priority = fields.priority.name;
+      const rest = Object.fromEntries(Object.entries(fields).filter(([id]) => id !== "description"));
+      if (Object.keys(rest).length) i.fields = { ...(i.fields ?? {}), ...rest };
       return send(res, 204);
     }
     if (one && url.searchParams.get("expand") === "names") {

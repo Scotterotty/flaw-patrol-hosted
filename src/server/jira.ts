@@ -14,6 +14,8 @@ import {
   exampleValue,
   featureOf,
   FIELD,
+  FIXED_FIELDS,
+  QUIET_FIELDS,
   FIELD_SOURCES,
   guessField,
   guessSection,
@@ -89,12 +91,58 @@ export async function saveJiraConfig(projectId: string, input: z.input<typeof co
 }
 
 /** The bug screen's Severity field and its values, or null when there isn't one with a list. */
-async function detectSeverity(client: JiraClient): Promise<SeverityConfig | null> {
-  const meta = await client.createMeta(true).catch(() => null);
+async function detectSeverity(client: JiraClient, known?: MetaField[]): Promise<SeverityConfig | null> {
+  const meta = known ?? (await client.fieldMeta(true).catch(() => null));
   const f = meta?.find((x) => x.name.trim().toLowerCase() === "severity" && x.options.length > 0);
   if (!f) return null;
   const values = f.options.slice(0, SEVERITIES.length);
   return { fieldId: f.id, fieldName: f.name, values, critical: values.slice(0, Math.min(2, values.length - 1)) };
+}
+
+/**
+ * A connection that never found a Severity field (it was only on Jira's Edit
+ * screen, before ver_143) picks it up now, so bugs use Jira's own severity names.
+ * True when it was just saved.
+ */
+async function ensureSeverity(projectId: string, client: JiraClient, meta: MetaField[]) {
+  const cfg = await jiraConfigFor(projectId);
+  if (!cfg || cfg.severity) return false;
+  const severity = await detectSeverity(client, meta);
+  if (!severity) return false;
+  await db.jiraConfig.update({ where: { projectId: cfg.projectId }, data: { severity } });
+  revalidatePath("/p", "layout");
+  revalidatePath("/g", "layout");
+  return true;
+}
+
+/** Settings → Jira → Bug template → Jira Priority: the priorities Jira lists, what's saved, and what new bugs get. */
+export async function jiraPriorities(projectId: string) {
+  return wrap(async () => {
+    await requireProjectAction(projectId, "jira:manage");
+    const client = await jiraFor(projectId);
+    if (!client) throw new UserError("Jira isn't connected for this test cycle.");
+    const meta = await client.fieldMeta();
+    const f = meta.find((m) => m.id === "priority");
+    const setting = parseTemplateSettings((await jiraConfigFor(projectId))?.bugTemplate).priority;
+    return { options: f?.options ?? [], onScreen: !!f, required: !!f?.required, setting, current: await client.priorityName(meta) };
+  });
+}
+
+const prioritySchema = z.string().trim().max(100);
+
+/** Save the Jira Priority new bugs get; "" leaves it to Jira. */
+export async function saveJiraPriority(projectId: string, input: string) {
+  return wrap(async () => {
+    const { project, user } = await requireProjectAction(projectId, "jira:manage");
+    const priority = prioritySchema.parse(input);
+    const row = await db.jiraConfig.findUnique({ where: { projectId }, select: { bugTemplate: true } });
+    if (!row) throw new UserError("This test cycle uses its umbrella's Jira. Change the priority in the umbrella's settings.");
+    await db.jiraConfig.update({ where: { projectId }, data: { bugTemplate: { ...parseTemplateSettings(row.bugTemplate), priority } } });
+    revalidatePath(`/p/${project.key}/settings`);
+    revalidatePath("/g", "layout");
+    await logActivity({ actor: user, kind: "settings", action: "Changed the Jira priority for new bugs", project, detail: priority || "Left to Jira" });
+    return {};
+  });
 }
 
 /** Settings → Jira → Severity field: the bug screen's fields that have a list of values. */
@@ -103,7 +151,7 @@ export async function jiraSeverityFields(projectId: string) {
     await requireProjectAction(projectId, "jira:manage");
     const client = await jiraFor(projectId);
     if (!client) throw new UserError("Jira isn't connected for this test cycle.");
-    const meta = await client.createMeta(true);
+    const meta = await client.fieldMeta(true);
     const fields = meta.filter((f) => f.options.length > 1 && !["priority", "issuetype", "project"].includes(f.id)).map((f) => ({ id: f.id, name: f.name, values: f.options }));
     return { fields };
   });
@@ -122,7 +170,7 @@ export async function saveSeverityField(projectId: string, input: z.input<typeof
     let severity: SeverityConfig | null = null;
     if (data.fieldId) {
       const client = (await jiraFor(projectId))!;
-      const f = (await client.createMeta(true)).find((x) => x.id === data.fieldId);
+      const f = (await client.fieldMeta(true)).find((x) => x.id === data.fieldId);
       if (!f || !f.options.length) throw new UserError("That field isn't on the bug screen anymore, or has no values.");
       const values = f.options.slice(0, SEVERITIES.length);
       severity = { fieldId: f.id, fieldName: f.name, values, critical: data.critical.filter((c) => values.includes(c)) };
@@ -156,7 +204,7 @@ async function entryRelease(entry: { run: { id: string; release: string; project
 async function foundInFor(client: JiraClient, entry: Entry): Promise<FoundInDraft | null> {
   const cfg = parseFoundIn(client.creds.foundIn);
   if (!cfg) return null;
-  const [versions, meta, release] = await Promise.all([client.versionList().catch(() => []), client.createMeta().catch(() => null), entryRelease(entry)]);
+  const [versions, meta, release] = await Promise.all([client.versionList().catch(() => []), client.fieldMeta().catch(() => null), entryRelease(entry)]);
   const f = meta?.find((x) => x.id === cfg.field);
   return foundInDraft(cfg, versions, release, { onScreen: !meta || !!f, label: f?.name });
 }
@@ -198,7 +246,7 @@ export async function checkFoundIn(projectId: string, field: "versions" | "fixVe
     const client = await jiraFor(projectId);
     if (!client) throw new UserError("Jira isn't connected for this test cycle.");
     const picked = foundInSchema.parse({ field }).field ?? "versions";
-    const [meta, versions] = await Promise.all([client.createMeta(true), client.versionList().catch(() => null)]);
+    const [meta, versions] = await Promise.all([client.fieldMeta(true), client.versionList().catch(() => null)]);
     const f = meta.find((x) => x.id === picked);
     return { onScreen: !!f, label: f?.name ?? FOUND_IN_FIELDS[picked].label, project: client.creds.jiraProjectKey, versions: versions?.map((v) => v.name) ?? null };
   });
@@ -449,6 +497,8 @@ function templateValues(b: TemplateBug): [string, FieldValue][] {
     [FIELD.impact, b.impact],
     [FIELD.workaround, b.workaround],
     [FIELD.lastReproduced, date ? `${date[1]}-${date[2]}-${date[3]}` : new Date().toISOString().slice(0, 10)],
+    [FIELD.toBeAutomated, FIXED_FIELDS.toBeAutomated!],
+    [FIELD.statusUpdate, FIXED_FIELDS.statusUpdate!],
   ];
 }
 
@@ -461,7 +511,7 @@ const asText = (v: FieldValue) => (Array.isArray(v) ? v.join(", ") : v);
  * Jira gives their media ids, otherwise as links.
  */
 async function fileTemplateBug(client: JiraClient, b: TemplateBug, severity: Severity, account: JiraUser | null, tester: string, files: { fileName: string; contentType: string; data: Uint8Array }[], trace: { label: string; link: string | null }) {
-  const meta = await client.createMeta().catch(() => null);
+  const meta = await client.fieldMeta().catch(() => null);
   const fields: Record<string, { name: string; value: unknown }> = {};
   const extra: { name: string; text: string }[] = [];
   for (const [name, value] of templateValues(b)) {
@@ -471,7 +521,7 @@ async function fileTemplateBug(client: JiraClient, b: TemplateBug, severity: Sev
     const known = !f?.options.length || list.every((x) => f.options.includes(x));
     const jira = f && known ? jiraValue(f, value) : undefined;
     if (f && jira !== undefined) fields[f.id] = { name, value: jira };
-    else if (name !== FIELD.lastReproduced && asText(value).trim()) extra.push({ name, text: asText(value) });
+    else if (!QUIET_FIELDS.has(name) && asText(value).trim()) extra.push({ name, text: asText(value) });
   }
   const valueOf = new Map(templateValues(b).map(([n, v]) => [n, asText(v)]));
   const sorted = friendlyNames([...orderFiles(files).media, ...orderFiles(files).logs], b);
@@ -479,7 +529,7 @@ async function fileTemplateBug(client: JiraClient, b: TemplateBug, severity: Sev
     templateAdf(b, {
       reportedBy: account && reporterSet ? null : tester,
       files: refs,
-      extra: [...extra, ...dropped.filter((n) => valueOf.has(n) && n !== FIELD.lastReproduced).map((n) => ({ name: n, text: valueOf.get(n)! }))],
+      extra: [...extra, ...dropped.filter((n) => valueOf.has(n) && !QUIET_FIELDS.has(n)).map((n) => ({ name: n, text: valueOf.get(n)! }))],
       trace,
     });
   const names = sorted.map((f) => ({ fileName: f.fileName, contentType: f.contentType }));
@@ -553,7 +603,7 @@ export async function fileJiraBug(projectId: string, entryId: string, input: z.i
       const typed = data.imported;
       summary = importedTitle(imported.title, typed);
       // Only the template's own fields, converted by their type on Jira's create screen.
-      const meta = await client.createMeta().catch(() => null);
+      const meta = await client.fieldMeta().catch(() => null);
       const fields: Record<string, { name: string; value: unknown }> = {};
       const extra: { name: string; text: string }[] = [];
       for (const f of imported.fields) {
@@ -719,16 +769,18 @@ export async function previewJiraBug(projectId: string, entryId: string, stepInd
   return wrap(async () => {
     const { user } = await requireProjectAction(projectId, "run:execute");
     const { ctx, entry } = await bugContext(projectId, entryId, stepIndex, actual, focus);
-    const client = await jiraFor(projectId);
+    let client = await jiraFor(projectId);
+    // A Severity field found since the connection was made (on Jira's Edit screen) gives the bug Jira's own names.
+    if (client && !client.creds.severity && (await ensureSeverity(projectId, client, await client.fieldMeta().catch(() => [])).catch(() => false))) client = await jiraFor(projectId);
     const reporter = client ? await reporterInfo(client, user) : null;
     const { bugText } = await import("@/lib/jira-format");
     const t = client ? await templateOf(projectId) : null;
-    const template = t && client ? templateDefaults(t, entry, ctx, await client.createMeta().catch(() => null), user.bugProfile) : null;
+    const template = t && client ? templateDefaults(t, entry, ctx, await client.fieldMeta().catch(() => null), user.bugProfile) : null;
     const imp = client ? await importedOf(projectId) : null;
-    const imported = imp && client ? importedDraft(imp, entry, ctx, await client.createMeta().catch(() => null)) : null;
+    const imported = imp && client ? importedDraft(imp, entry, ctx, await client.fieldMeta().catch(() => null)) : null;
     // Nothing failed and nothing written: an empty summary with a hint, never just the case's title.
     const blank = ctx.failedIndex === null && !actual.trim();
-    return { summary: blank ? "" : defaultSummary(ctx), body: bugText(reporter?.found === false ? { ...ctx, reportedBy: user.name ?? user.email } : ctx), reporter, template, imported, scale: client?.scale ?? PLAIN_SCALE };
+    return { summary: blank ? "" : defaultSummary(ctx), body: bugText(reporter?.found === false ? { ...ctx, reportedBy: user.name ?? user.email } : ctx), reporter, template, imported, scale: client?.scale ?? PLAIN_SCALE, priority: client ? await client.priorityName().catch(() => null) : null };
   });
 }
 
@@ -798,7 +850,7 @@ export async function saveBugTemplate(projectId: string, input: z.input<typeof s
     const old = parseTemplateSettings((await db.jiraConfig.findUnique({ where: { projectId }, select: { bugTemplate: true } }))?.bugTemplate);
     const clientTag = data.clientTag.replace(/^\[|\]$/g, "").toUpperCase();
     // With a company template picked, only this place's defaults change; the layout stays shared.
-    const bugTemplate = opts.keepShared ? { ...old, clientTag, team: data.team, clients: data.clients, olyEnv: data.olyEnv } : { ...data, imported: data.on ? null : old.imported, clientTag };
+    const bugTemplate = opts.keepShared ? { ...old, clientTag, team: data.team, clients: data.clients, olyEnv: data.olyEnv } : { ...data, imported: data.on ? null : old.imported, clientTag, priority: old.priority };
     const done = await db.jiraConfig.updateMany({ where: { projectId }, data: { bugTemplate, ...(!opts.keepShared && { sharedTemplateId: null }) } });
     if (!done.count) throw new UserError("Connect Jira first.");
     revalidatePath(`/p/${project.key}/settings`);
@@ -816,17 +868,29 @@ export async function checkBugTemplate(projectId: string) {
     const { project } = await requireProjectAction(projectId, "jira:manage");
     const client = await jiraFor(projectId);
     if (!client) throw new UserError("Jira isn't connected for this test cycle.");
-    const meta = await client.createMeta(true);
-    const fields = ["Severity", ...Object.values(FIELD)].map((name) => {
-      const f = findField(meta, name);
-      return { name, found: !!f, required: !!f?.required, options: f?.options ?? [], kind: f ? (f.options.length ? "options" : f.schema.type === "date" ? "date" : f.schema.custom?.endsWith(":textarea") ? "rich text" : "text") : "" };
-    });
+    const meta = await client.fieldMeta(true);
+    const severitySet = await ensureSeverity(projectId, client, meta);
+    const fixed = new Map<string, string>(Object.entries(FIXED_FIELDS).map(([k, v]) => [FIELD[k as keyof typeof FIELD] as string, v ?? ""]));
+    const fields: { name: string; found: boolean; required: boolean; options: string[]; kind: string; later: boolean; value?: string }[] = ["Severity", ...Object.values(FIELD)]
+      .map((name) => {
+        const f = findField(meta, name);
+        const kind = f ? (f.options.length ? "options" : f.schema.type === "date" ? "date" : f.schema.custom?.endsWith(":textarea") ? "rich text" : "text") : "";
+        return { name, found: !!f, required: !!f?.required, options: f?.options ?? [], kind, later: !!f?.later, ...(f && fixed.has(name) && { value: fixed.get(name) }) };
+      })
+      // Fields this Jira doesn't have that are simply left out, not written into the description.
+      .filter((f) => f.found || !QUIET_FIELDS.has(f.name));
+    // The Priority from Settings → Jira fills Jira's own Priority field, and Stakeholder Priority where there is one.
+    const priority = await client.priorityName(meta);
+    const pf = meta.find((f) => f.id === "priority");
+    if (priority && pf) fields.splice(1, 0, { name: "Priority", found: true, required: pf.required, options: pf.options, kind: "options", later: !!pf.later, value: priority });
+    const stake = client.stakeholderPriority(meta);
+    if (stake) fields.splice(priority && pf ? 2 : 1, 0, { name: stake.field.name, found: true, required: stake.field.required, options: stake.field.options, kind: "options", later: !!stake.field.later, value: stake.value });
     // Required fields the template doesn't fill would get every bug refused.
-    const covered = new Set(["summary", "description", "project", "issuetype", "reporter", "severity", ...Object.values(FIELD).map((n) => n.toLowerCase())]);
+    const covered = new Set(["summary", "description", "project", "issuetype", "reporter", "severity", ...(priority ? ["priority"] : []), ...Object.values(FIELD).map((n) => n.toLowerCase())]);
     const uncovered = meta.filter((f) => f.required && !covered.has(f.id.toLowerCase()) && !covered.has(f.name.trim().toLowerCase())).map((f) => f.name);
     const word = clientIn(project.name);
     const opt = (n: string, w: string) => optionLike(findField(meta, n)?.options ?? [], w);
-    return { fields, uncovered, guess: { clientTag: word.toUpperCase(), team: opt(FIELD.team, word), clients: [opt(FIELD.clients, word)].filter(Boolean) } };
+    return { fields, uncovered, severitySet, guess: { clientTag: word.toUpperCase(), team: opt(FIELD.team, word), clients: [opt(FIELD.clients, word)].filter(Boolean) } };
   });
 }
 
@@ -868,7 +932,7 @@ async function exampleTemplate(projectId: string, input: string) {
     });
     if (ex.project.toUpperCase() !== client.creds.jiraProjectKey.toUpperCase())
       throw new UserError(`${key} is in Jira project ${ex.project}. Pick a bug from ${client.creds.jiraProjectKey}, the Jira project set above.`);
-    const meta = await client.createMeta(true);
+    const meta = await client.fieldMeta(true);
     const sev = await client.severityField();
     const fields: ImportedTemplate["fields"] = [];
     for (const m of meta) {
@@ -971,7 +1035,7 @@ export async function startTemplatedBug(projectId: string, entryId: string, step
     };
     const run = entry.run;
     const client = layout.fields.length ? await jiraFor(projectId).catch(() => null) : null;
-    const draft = client ? importedDraft({ from: layout.from, title: { tag: false, feature: false }, sections: [], fields: layout.fields }, entry, ctx, await client.createMeta().catch(() => null)) : null;
+    const draft = client ? importedDraft({ from: layout.from, title: { tag: false, feature: false }, sections: [], fields: layout.fields }, entry, ctx, await client.fieldMeta().catch(() => null)) : null;
     return {
       fill,
       auto: { build: [run.build, ctx.fields?.find((f) => /csp/i.test(f.name))?.value].filter(Boolean).join(" · ") || run.release || "", env: run.environment, who: user.name ?? user.email },
@@ -1080,7 +1144,7 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
     const tester = user.name ?? user.email;
     const foundIn = await applyFoundIn(client, entryId, projectId, data.foundIn);
     // Jira fields copied from an example bug, filled as an imported template fills them.
-    const meta = layout.fields.length ? await client.createMeta().catch(() => null) : null;
+    const meta = layout.fields.length ? await client.fieldMeta().catch(() => null) : null;
     const fields: Record<string, { name: string; value: unknown }> = {};
     const extra: { name: string; text: string }[] = [];
     for (const f of layout.fields) {

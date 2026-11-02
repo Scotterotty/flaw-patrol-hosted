@@ -6,6 +6,7 @@ import { richText } from "./jira-format";
 import { parseSeverity, parseSeverityConfig, scaleOf } from "./severity";
 import { foundInLine, parseFoundIn, type FoundInField, type JiraVersion } from "./found-in";
 import { jiraConfigFor } from "./umbrella";
+import { parseTemplateSettings, pickPriority } from "./bug-template";
 
 // Minimal Jira Cloud REST v3 client using an API token (basic auth).
 
@@ -41,7 +42,19 @@ export type MetaField = {
   required: boolean;
   schema: { type?: string; items?: string; custom?: string };
   options: string[];
+  /** Only on Jira's Edit screen: filled just after the bug is created, not while creating it. */
+  later?: boolean;
 };
+
+type RawMeta = { fieldId?: string; key?: string; name: string; required?: boolean; schema?: MetaField["schema"]; allowedValues?: { value?: string; name?: string; disabled?: boolean }[] };
+
+const toMeta = (f: RawMeta, id = f.fieldId ?? f.key ?? ""): MetaField => ({
+  id,
+  name: f.name,
+  required: !!f.required,
+  schema: f.schema ?? {},
+  options: (f.allowedValues ?? []).filter((o) => !o.disabled).map((o) => o.value ?? o.name ?? "").filter(Boolean),
+});
 
 /** A value for a create-screen field, converted to Jira's shape by its type. */
 export type FieldValue = string | string[];
@@ -66,7 +79,19 @@ export function jiraValue(f: MetaField, v: FieldValue): unknown {
 export const UNREADABLE_TOKEN =
   "The saved Jira API token can't be read here. It was saved with a different AUTH_SECRET (from another copy of Flaw Patrol, or an older .env). Paste the API token again in Settings → Jira, and give every copy that shares this database the same AUTH_SECRET.";
 
-export type JiraCreds = { siteUrl: string; email: string; token: string; jiraProjectKey: string; issueType: string; /** Settings → Jira → Severity field. */ severity?: unknown; /** Settings → Jira → Found-in version. */ foundIn?: unknown };
+export type JiraCreds = {
+  siteUrl: string;
+  email: string;
+  token: string;
+  jiraProjectKey: string;
+  issueType: string;
+  /** Settings → Jira → Severity field. */
+  severity?: unknown;
+  /** Settings → Jira → Found-in version. */
+  foundIn?: unknown;
+  /** Settings → Jira → Bug template, for its Jira Priority. */
+  bugTemplate?: unknown;
+};
 
 export async function jiraFor(projectId: string): Promise<JiraClient | null> {
   // A project in an umbrella uses the umbrella's Jira unless it has its own.
@@ -112,6 +137,8 @@ const pointsFields = new Map<string, Promise<string | null>>();
 
 // Create-screen fields per site, project and issue type, kept a few minutes.
 const createMetas = new Map<string, { fields: MetaField[]; at: number }>();
+// Edit-screen fields per site, project and issue type, read from the newest bug, kept a few minutes.
+const editMetas = new Map<string, { fields: MetaField[]; at: number }>();
 const META_TTL = 5 * 60_000;
 
 export class JiraClient {
@@ -311,24 +338,68 @@ export class JiraClient {
     );
     const type = (types.issueTypes ?? types.values ?? []).find((t) => t.name.toLowerCase() === this.creds.issueType.toLowerCase());
     if (!type) throw new JiraError(`The Jira project has no "${this.creds.issueType}" issue type.`);
-    type Raw = { fieldId?: string; key?: string; name: string; required?: boolean; schema?: MetaField["schema"]; allowedValues?: { value?: string; name?: string; disabled?: boolean }[] };
-    const raw: Raw[] = [];
+    const raw: RawMeta[] = [];
     for (let at = 0; at < 1000; ) {
-      const page = await this.call<{ fields?: Raw[]; values?: Raw[]; total?: number }>(`/rest/api/3/issue/createmeta/${project}/issuetypes/${type.id}?startAt=${at}&maxResults=200`);
+      const page = await this.call<{ fields?: RawMeta[]; values?: RawMeta[]; total?: number }>(`/rest/api/3/issue/createmeta/${project}/issuetypes/${type.id}?startAt=${at}&maxResults=200`);
       const got = page.fields ?? page.values ?? [];
       raw.push(...got);
       at += got.length;
       if (!got.length || at >= (page.total ?? at)) break;
     }
-    const fields = raw.map((f) => ({
-      id: f.fieldId ?? f.key ?? "",
-      name: f.name,
-      required: !!f.required,
-      schema: f.schema ?? {},
-      options: (f.allowedValues ?? []).filter((o) => !o.disabled).map((o) => o.value ?? o.name ?? "").filter(Boolean),
-    }));
+    const fields = raw.map((f) => toMeta(f));
     createMetas.set(cacheKey, { fields, at: Date.now() });
     return fields;
+  }
+
+  /**
+   * The fields on the Edit screen, read from the newest bug of this type in the
+   * project (Jira only says per issue). Empty when the project has no bug yet.
+   */
+  async editMeta(fresh = false): Promise<MetaField[]> {
+    const cacheKey = `${normalizeSite(this.creds.siteUrl)}|${this.creds.jiraProjectKey}|${this.creds.issueType}`;
+    const hit = editMetas.get(cacheKey);
+    if (!fresh && hit && Date.now() - hit.at < META_TTL) return hit.fields;
+    const q = (v: string) => v.replace(/["\\]/g, " ");
+    const found = await this.call<{ issues?: { key: string }[] }>("/rest/api/3/search/jql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jql: `project = "${q(this.creds.jiraProjectKey)}" AND issuetype = "${q(this.creds.issueType)}" ORDER BY created DESC`, maxResults: 1, fields: ["summary"] }),
+    });
+    const key = found.issues?.[0]?.key;
+    const raw = key ? await this.call<{ fields?: Record<string, RawMeta> }>(`/rest/api/3/issue/${encodeURIComponent(key)}/editmeta`) : {};
+    const fields = Object.entries(raw.fields ?? {}).map(([id, f]) => toMeta(f, f.fieldId ?? f.key ?? id));
+    editMetas.set(cacheKey, { fields, at: Date.now() });
+    return fields;
+  }
+
+  /**
+   * Every field Flaw Patrol can fill on a new bug: the Create screen's, plus the
+   * Edit screen's other fields, marked `later` (set just after the bug is created).
+   */
+  async fieldMeta(fresh = false): Promise<MetaField[]> {
+    const [create, edit] = await Promise.all([this.createMeta(fresh), this.editMeta(fresh).catch(() => [] as MetaField[])]);
+    const ids = new Set(create.map((f) => f.id));
+    return [...create, ...edit.filter((f) => f.id && !ids.has(f.id)).map((f) => ({ ...f, required: false, later: true }))];
+  }
+
+  /**
+   * A "Stakeholder Priority" field (like OB-5292's) gets the same pick as Priority, from its own
+   * list of choices; null when Jira has no such field or the pick isn't one of them.
+   */
+  stakeholderPriority(meta: MetaField[] | null) {
+    const setting = parseTemplateSettings(this.creds.bugTemplate).priority;
+    const field = meta?.find((m) => m.name.trim().toLowerCase() === "stakeholder priority" && m.options.length);
+    const value = field && setting !== "" ? pickPriority(setting, field.options) : null;
+    return field && value ? { field, value } : null;
+  }
+
+  /** The Jira priority every new bug gets (Settings → Jira), or null to leave it to Jira. */
+  async priorityName(meta?: MetaField[] | null): Promise<string | null> {
+    const setting = parseTemplateSettings(this.creds.bugTemplate).priority;
+    if (setting === "") return null;
+    const fields = meta ?? (await this.fieldMeta().catch(() => null));
+    const f = fields?.find((m) => m.id === "priority");
+    return f ? pickPriority(setting, f.options) : null;
   }
 
   /**
@@ -436,9 +507,12 @@ export class JiraClient {
    * "Modify Reporter", a field missing from the create screen, an option that
    * doesn't exist), so a refused field is dropped and the bug filed again, with
    * `description` told what was dropped so it can carry those values instead.
-   * Priority is left to producers, so it is never set. When the tester is the
-   * token owner, Jira makes them the Reporter anyway, so the field isn't sent
-   * (it needs "Modify Reporter" even for yourself).
+   * Priority is the one picked in Settings → Jira ("Not Prioritized" unless
+   * changed), so whoever triages sets the real one. Fields that are only on
+   * Jira's Edit screen (Severity on some sites) are set just after the bug is
+   * created; any Jira still refuses go into the description. When the tester is
+   * the token owner, Jira makes them the Reporter anyway, so the field isn't
+   * sent (it needs "Modify Reporter" even for yourself).
    */
   async createIssue(input: {
     summary: string;
@@ -450,21 +524,32 @@ export class JiraClient {
   }) {
     const sev = await this.severityField();
     const found = this.foundIn?.value ? this.foundIn : null;
+    const meta = await this.fieldMeta().catch(() => null);
+    const priority = await this.priorityName(meta);
+    const severityLabel = this.scale.labels[input.severity];
+    const stake = this.stakeholderPriority(meta);
+    const stakeValue = stake ? jiraValue(stake.field, stake.value) : undefined;
     const optional: Record<string, { name: string; value: unknown }> = {
-      ...(sev ? { [sev]: { name: "Severity", value: { value: this.scale.labels[input.severity] } } } : {}),
+      ...(priority ? { priority: { name: "Priority", value: { name: priority } } } : {}),
+      ...(stake && stakeValue !== undefined ? { [stake.field.id]: { name: stake.field.name, value: stakeValue } } : {}),
+      ...(sev ? { [sev]: { name: "Severity", value: { value: severityLabel } } } : {}),
       ...(this.labels.length ? { labels: { name: "Labels", value: this.labels } } : {}),
       // Found-in version, unless the bug's own layout fills the same field.
       ...(found?.known ? { [found.field]: { name: found.label, value: [{ name: found.value }] } } : {}),
       ...input.fields,
     };
-    // A version Jira doesn't have, or one it refused, is said first in the description instead.
-    const foundLead = (gone: Set<string>) =>
-      !found || input.fields?.[found.field] ? [] : !found.known ? [foundInLine(found.label, found.value, "missing")] : gone.has(found.field) ? [foundInLine(found.label, found.value, "refused")] : [];
+    // Fields only on the Edit screen wait until the bug exists.
+    const later = new Set(Object.keys(optional).filter((id) => meta?.find((m) => m.id === id)?.later));
+    // A version Jira doesn't have, or one it refused, is said first in the description instead; so is a refused severity.
+    const foundLead = (gone: Set<string>) => [
+      ...(!found || input.fields?.[found.field] ? [] : !found.known ? [foundInLine(found.label, found.value, "missing")] : gone.has(found.field) ? [foundInLine(found.label, found.value, "refused")] : []),
+      ...(sev && !input.fields?.[sev] && gone.has(sev) ? [`Severity: ${severityLabel}`] : []),
+    ];
     let reporterSet = !!input.reporterId;
     const self = reporterSet && input.reporterId === (await this.me().catch(() => null))?.accountId;
     const dropped = new Set<string>();
     for (let round = 0; round < 8; round++) {
-      const extra = Object.fromEntries(Object.entries(optional).filter(([id]) => !dropped.has(id)).map(([id, f]) => [id, f.value]));
+      const extra = Object.fromEntries(Object.entries(optional).filter(([id]) => !dropped.has(id) && !later.has(id)).map(([id, f]) => [id, f.value]));
       const names = [...dropped].map((id) => optional[id].name);
       const fields = {
         project: { key: this.creds.jiraProjectKey },
@@ -476,6 +561,20 @@ export class JiraClient {
       };
       try {
         const { key } = await this.call<{ key: string }>("/rest/api/3/issue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fields }) });
+        const late = [...later].filter((id) => !dropped.has(id));
+        if (late.length) {
+          const gone = await this.setLater(key, Object.fromEntries(late.map((id) => [id, optional[id].value])));
+          if (gone.length) {
+            // What Jira wouldn't take even now goes into the description, as a refused field would have.
+            for (const id of gone) dropped.add(id);
+            names.push(...gone.map((id) => optional[id].name));
+            await this.call(`/rest/api/3/issue/${encodeURIComponent(key)}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ fields: { description: this.withLead(input.description({ reporterSet, dropped: names }), foundLead(dropped)) } }),
+            }).catch(() => {});
+          }
+        }
         const foundSet = !!found?.known && !input.fields?.[found.field] && !dropped.has(found.field);
         return { key, reporterSet, dropped: names, foundSet };
       } catch (e) {
@@ -492,6 +591,29 @@ export class JiraClient {
       }
     }
     throw new JiraError("Couldn't file the bug.");
+  }
+
+  /**
+   * Set fields on a bug that was just created, the way someone editing it in Jira
+   * would. A field Jira refuses is left out and the rest sent again. Returns the
+   * ids Jira wouldn't take.
+   */
+  private async setLater(key: string, fields: Record<string, unknown>): Promise<string[]> {
+    const gone = new Set<string>();
+    for (let round = 0; round < 8; round++) {
+      const left = Object.fromEntries(Object.entries(fields).filter(([id]) => !gone.has(id)));
+      if (!Object.keys(left).length) break;
+      try {
+        await this.call(`/rest/api/3/issue/${encodeURIComponent(key)}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fields: left }) });
+        break;
+      } catch (e) {
+        if (!(e instanceof JiraError)) throw e;
+        const blamed = Object.keys(e.fields).filter((id) => id in left);
+        // Jira didn't say which: give them all up rather than guess.
+        for (const id of blamed.length ? blamed : Object.keys(left)) gone.add(id);
+      }
+    }
+    return [...gone];
   }
 
   /**

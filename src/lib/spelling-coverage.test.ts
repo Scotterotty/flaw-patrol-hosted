@@ -9,8 +9,9 @@ import { spell } from "./spelling";
 // upload files hold the HTTP "Authorization" header, which must stay as it is; the role summary
 // in permissions.ts is shown through useSpell in roles-card.tsx, and the color vision choices in
 // vision.ts through <Sp> in accessibility.tsx. Sentry's own words (Organization, its token scopes)
-// stay as Sentry writes them.
+// stay as Sentry writes them. bug-template.ts names Jira's own "Not Prioritized" priority.
 const NOT_APP_TEXT = [
+  "src/lib/bug-template.ts",
   "src/components/bug-template-form.tsx",
   "src/server/sheet-sync.ts",
   "src/server/account.ts",

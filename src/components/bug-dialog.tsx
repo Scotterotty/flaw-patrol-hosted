@@ -19,6 +19,7 @@ import { missingLine, TemplatedForm, TemplatePicker, type TemplateChoice, type T
 import { uploadAttachment } from "@/server/results";
 import { BugFiles, type BugCapture, type BugFile } from "./bug-files";
 import { BugTemplateForm, type TemplateOptions } from "./bug-template-form";
+import { PriorityLine } from "./jira-priority";
 import { RecordingBar, takeScreenshot, useCaptureSupport, useScreenRecorder } from "./screen-capture";
 import { Modal } from "./modal";
 import { Button, cx, ErrorText, Field, InfoTip, Input, Select, Textarea } from "./ui";
@@ -113,6 +114,7 @@ export function BugDialog({
   const [severity, setSeverity] = useState<Severity>(DEFAULT_SEVERITY);
   // The team's severity names, from its Jira.
   const [scale, setScale] = useState<SeverityScale>(PLAIN_SCALE);
+  const [jiraPriority, setJiraPriority] = useState<string | null>(null);
   // An imported template's Severity starts on "Choose…": the tester picks it.
   const [sevPicked, setSevPicked] = useState(true);
   const [include, setInclude] = useState<Set<string>>(new Set());
@@ -221,6 +223,7 @@ export function BugDialog({
       if (res.ok) {
         setSummary(fromDefect?.title ?? prefill?.title ?? res.summary);
         setScale(res.scale);
+        setJiraPriority(res.priority);
         setSeverity(fromDefect?.severity ?? prefill?.severity ?? defaultSeverityOf(res.scale));
         setBody(res.body);
         setReporter(res.reporter);
@@ -475,6 +478,7 @@ export function BugDialog({
                   <>
                     {reporter && jiraConnected && <ReporterLine reporter={reporter} />}
                     <TemplatedForm projectId={projectId} draft={draft} setDraft={(fn) => setDraft((d) => (d ? fn(d) : d))} severity={severity} setSeverity={setSeverity} scale={scale} setError={setError} />
+                    <PriorityLine priority={jiraConnected ? jiraPriority : null} />
                     {foundBox}
                     <BugFiles files={files} include={include} setInclude={setInclude} candidates={candidates} onPick={pick} onUpload={upload} capture={capture} uploading={uploading} />
                   </>
@@ -493,6 +497,7 @@ export function BugDialog({
                     severity={severity}
                     setSeverity={setSeverity}
                     scale={scale}
+                    priority={jiraPriority}
                     files={files}
                     include={include}
                     setInclude={setInclude}
@@ -517,6 +522,7 @@ export function BugDialog({
                       setSevPicked(true);
                     }}
                   />
+                  <PriorityLine priority={jiraConnected ? jiraPriority : null} />
                   {foundBox}
                   <BugFiles
                     files={files}
@@ -548,6 +554,7 @@ export function BugDialog({
                       ))}
                     </Select>
                   </Field>
+                  <PriorityLine priority={jiraConnected ? jiraPriority : null} />
                   {foundBox}
                   {jiraConnected ? (
                     <>

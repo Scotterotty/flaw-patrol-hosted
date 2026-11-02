@@ -45,6 +45,16 @@ test("bugs follow the team template", async ({ page }) => {
   await expect(fields.getByText("Client/SKUs")).toBeVisible();
   await expect(fields.getByTestId("fields-written")).toContainText("Bug Workaround");
   await expect(fields.getByTestId("fields-filled")).toContainText("Team");
+  // Priority is set to Not Prioritized on every bug (ver_143), so Jira's required Priority isn't a warning anymore.
+  await expect(fields.getByTestId("fields-filled")).toContainText("Not Prioritized");
+  await expect(settings.getByTestId("fields-required")).toHaveCount(0);
+  await expect(settings.getByLabel("Jira Priority on new bugs")).toHaveValue("Not Prioritized");
+  // Severity is only on this Jira's Edit screen: it's filled just after the bug is created.
+  await expect(fields.getByTestId("fields-filled").getByRole("listitem").filter({ hasText: "Severity" })).toContainText("just after");
+  await expect(fields.getByTestId("fields-later")).toBeVisible();
+  await expect(fields.getByTestId("fields-filled").getByRole("listitem").filter({ hasText: "Stakeholder Priority" })).toContainText("Not Prioritized");
+  await expect(fields.getByTestId("fields-filled").getByRole("listitem").filter({ hasText: "To Be Automated?" })).toContainText("Maybe");
+  await expect(fields.getByTestId("fields-written")).not.toContainText("Last Reproduced");
   await expect(settings.getByLabel("Title client tag")).toHaveValue("UNREAL");
   await expect(settings.getByLabel("Team", { exact: true })).toHaveValue("Unreal");
   await expect(settings.getByRole("group", { name: "Default Client/SKUs" }).getByRole("button", { name: "Unreal" })).toHaveAttribute("aria-pressed", "true");
@@ -128,6 +138,9 @@ test("bugs follow the team template", async ({ page }) => {
   await expect(form.getByRole("checkbox", { name: "delete-after.png" })).toBeChecked();
   await expect(form.getByRole("checkbox", { name: /DxDiag\.txt/ })).toBeChecked();
   await expect(form.getByText("3 files, linked")).toBeVisible();
+  await expect(dialog.getByTestId("bug-priority")).toContainText("Not Prioritized");
+  // Jira's own five severity names.
+  await expect(dialog.getByLabel("Severity").locator("option")).toHaveText(["A - Showstopper", "B - Critical", "C - Problematic", "D - Minor", "E - Enhancement"]);
 
   await dialog.getByRole("button", { name: "File bug in Jira" }).click();
   await expect(dialog).toBeHidden();
@@ -141,7 +154,13 @@ test("bugs follow the team template", async ({ page }) => {
   expect(issue.fields.customfield_11428).toEqual([{ value: "o2QA" }]);
   expect(JSON.stringify(issue.fields.customfield_11323)).toContain("Delete the asset");
   expect(issue.fields.customfield_10050).toEqual({ value: "C - Problematic" });
-  expect(issue.fields).not.toHaveProperty("priority");
+  expect(issue.fields.priority).toEqual({ name: "Not Prioritized" });
+  // The rest of OB-5292's fields, set the same way on every bug.
+  expect(issue.fields.customfield_11600).toEqual({ value: "Not Prioritized" });
+  expect(issue.fields.customfield_11601).toEqual({ value: "Maybe" });
+  expect(issue.fields.customfield_11602).toEqual({ value: "Not Started" });
+  // Severity went in just after the bug was created, not into the description.
+  expect(JSON.stringify(issue.description)).not.toContain("Severity: ");
   // Screenshots go up first, then logs.
   expect(issue.files).toEqual(["delete-after.png", "UNREAL_Assets-Panel_video-1.mp4", "UnrealClient.log", "DxDiag.txt"]);
 

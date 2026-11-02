@@ -24,6 +24,7 @@ import { loadIssueTypes, saveStoriesConfig } from "@/server/stories";
 import { DEFAULT_STORIES, STORY_TYPES, type StoriesConfig } from "@/lib/stories-config";
 import { FOUND_IN_FIELDS, type FoundInConfig, type FoundInField } from "@/lib/found-in";
 import { Button, Card, cx, ErrorText, Field, InfoTip, Input, Select } from "./ui";
+import { PrioritySettings } from "./jira-priority";
 
 export function JiraSettings({
   projectId,
@@ -167,8 +168,10 @@ export function StoriesPanel({ projectId, stories, bugProject }: { projectId: st
 }
 
 type TemplateCheck = {
-  fields: { name: string; found: boolean; required: boolean; options: string[]; kind: string }[];
+  /** later: only on Jira's Edit screen, filled just after the bug is created. value: what every bug gets (Priority). */
+  fields: { name: string; found: boolean; required: boolean; options: string[]; kind: string; later: boolean; value?: string }[];
   uncovered: string[];
+  severitySet: boolean;
   guess: { clientTag: string; team: string; clients: string[] };
 };
 
@@ -534,6 +537,7 @@ function BugTemplateSettings({ projectId, saved, jiraProjectKey, standalone = fa
           )}
         </div>
       )}
+      <PrioritySettings projectId={projectId} />
     </div>
   );
 }
@@ -629,6 +633,8 @@ function DetailedTemplate({ projectId, saved, jiraProjectKey, onCancel, keepShar
       if (!live) return;
       if (!res.ok) return setError(res.error);
       setCheck(res);
+      // Jira's own severity names were just picked up: show them everywhere.
+      if (res.severitySet) router.refresh();
       // Nothing saved yet: start from what the project name suggests.
       if (blank) {
         setClientTag((v) => v || res.guess.clientTag);
@@ -639,7 +645,7 @@ function DetailedTemplate({ projectId, saved, jiraProjectKey, onCancel, keepShar
     return () => {
       live = false;
     };
-  }, [on, run, projectId, blank]);
+  }, [on, run, projectId, blank, router]);
   const opts = (name: string) => check?.fields.find((f) => f.name === name)?.options ?? [];
   const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const chips = (label: string, options: string[], value: string[], set: (v: string[]) => void) => (
@@ -696,11 +702,16 @@ function DetailedTemplate({ projectId, saved, jiraProjectKey, onCancel, keepShar
                                 <Tick />
                                 <span>{f.name}</span>
                                 <span className="col-start-2 truncate text-slate-500 sm:col-start-auto">
-                                  {[f.required && "required", f.options.length ? `${f.options.length} options` : f.kind].filter(Boolean).join(" · ")}
+                                  {[f.required && "required", f.value ?? (f.options.length ? `${f.options.length} options` : f.kind), f.later && "just after"].filter(Boolean).join(" · ")}
                                 </span>
                               </li>
                             ))}
                           </ul>
+                          {filled.some((f) => f.later) && (
+                            <p className="mt-1 text-xs text-slate-500" data-testid="fields-later">
+                              Fields marked &quot;just after&quot; aren&apos;t on Jira&apos;s Create screen, so Flaw Patrol adds them a moment after the bug is created.
+                            </p>
+                          )}
                         </div>
                       )}
                       {written.length > 0 && (
@@ -708,7 +719,7 @@ function DetailedTemplate({ projectId, saved, jiraProjectKey, onCancel, keepShar
                           <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
                             Written into the description ({written.length})
                             <InfoTip
-                              text={`These fields aren't on the Create screen in Jira project ${jiraProjectKey}, so Flaw Patrol can't fill them directly. It writes them into the bug description instead, so nothing is lost. A Jira admin can add them to the Create screen, then press Check again.`}
+                              text={`These fields aren't on the Create or Edit screen in Jira project ${jiraProjectKey}, so Flaw Patrol can't fill them directly. It writes them into the bug description instead, so nothing is lost. A Jira admin can add them to either screen, then press Check again.`}
                             />
                           </p>
                           <ul className="flex flex-wrap gap-1.5" data-testid="fields-written">

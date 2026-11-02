@@ -120,9 +120,9 @@ test("suites, runs, Jira bugs and reports", async ({ page }) => {
   const created = await (await fetch(`${JIRA}/__issues`)).json();
   expect(created["QA-101"].summary).toMatch(/Checkout with saved card/);
   expect(JSON.stringify(created["QA-101"].description)).toContain("Spinner never stops");
-  // Severity goes in Jira's Severity field; Priority is left for producers.
+  // Severity goes in Jira's Severity field; Priority starts as Not Prioritized for whoever triages (ver_143).
   expect(created["QA-101"].severity).toBe("A - Showstopper");
-  expect(created["QA-101"].priority).toBeUndefined();
+  expect(created["QA-101"].priority).toBe("Not Prioritized");
 
   // Defects show Jira's severity and priority for a linked bug.
   await page.goto(`/p/${KEY}/bugs`);

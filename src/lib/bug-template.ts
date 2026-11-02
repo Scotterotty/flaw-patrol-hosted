@@ -7,9 +7,31 @@
  * `imported` set, bugs follow a layout copied from an example Jira bug; without
  * it, `on` means the detailed layout with a Reproduction History table.
  */
-export type TemplateSettings = { on: boolean; clientTag: string; team: string; clients: string[]; olyEnv: string[]; imported: ImportedTemplate | null };
+export type TemplateSettings = {
+  on: boolean;
+  clientTag: string;
+  team: string;
+  clients: string[];
+  olyEnv: string[];
+  imported: ImportedTemplate | null;
+  /**
+   * Jira Priority on every new bug, whatever the layout: null (never picked) means
+   * "Not Prioritized" when Jira has it, "" means leave it to Jira, else a priority's name.
+   */
+  priority: string | null;
+};
 
-export const TEMPLATE_OFF: TemplateSettings = { on: false, clientTag: "", team: "", clients: [], olyEnv: [], imported: null };
+export const TEMPLATE_OFF: TemplateSettings = { on: false, clientTag: "", team: "", clients: [], olyEnv: [], imported: null, priority: null };
+
+/** The priority new bugs get when nobody has picked one. */
+export const DEFAULT_PRIORITY = "Not Prioritized";
+
+/** The Jira priority for a setting, out of the priorities Jira lists; null leaves it to Jira. */
+export function pickPriority(setting: string | null, options: string[]): string | null {
+  const find = (name: string) => options.find((o) => o.trim().toLowerCase() === name.trim().toLowerCase()) ?? null;
+  if (setting === "") return null;
+  return find(setting ?? DEFAULT_PRIORITY);
+}
 
 /** Where a description section's text comes from on each new bug. */
 export const SECTION_SOURCES = {
@@ -65,7 +87,15 @@ const strs = (v: unknown) => (Array.isArray(v) ? v.map((x) => str(x, 100)).filte
 export function parseTemplateSettings(v: unknown): TemplateSettings {
   if (!v || typeof v !== "object") return TEMPLATE_OFF;
   const o = v as Record<string, unknown>;
-  return { on: o.on === true, clientTag: str(o.clientTag, 40), team: str(o.team, 100), clients: strs(o.clients), olyEnv: strs(o.olyEnv), imported: parseImported(o.imported) };
+  return {
+    on: o.on === true,
+    clientTag: str(o.clientTag, 40),
+    team: str(o.team, 100),
+    clients: strs(o.clients),
+    olyEnv: strs(o.olyEnv),
+    imported: parseImported(o.imported),
+    priority: typeof o.priority === "string" ? str(o.priority, 100) : null,
+  };
 }
 
 /**
@@ -76,7 +106,7 @@ export function effectiveTemplate(own: unknown, shared: unknown | null | undefin
   const mine = parseTemplateSettings(own);
   if (!shared) return mine;
   const t = parseTemplateSettings(shared);
-  return { ...t, on: true, clientTag: t.clientTag || mine.clientTag, team: t.team || mine.team, clients: t.clients.length ? t.clients : mine.clients, olyEnv: t.olyEnv.length ? t.olyEnv : mine.olyEnv };
+  return { ...t, on: true, priority: mine.priority, clientTag: t.clientTag || mine.clientTag, team: t.team || mine.team, clients: t.clients.length ? t.clients : mine.clients, olyEnv: t.olyEnv.length ? t.olyEnv : mine.olyEnv };
 }
 
 /** Whether an email may use a template shared with these endings ("magnopus.com"). */
@@ -177,7 +207,15 @@ export const FIELD = {
   impact: "Bug Impact",
   workaround: "Bug Workaround",
   lastReproduced: "Last Reproduced",
+  toBeAutomated: "To Be Automated?",
+  statusUpdate: "Status update",
 } as const;
+
+/** Fields OB-5292 always has the same way. Filled when Jira has them, never written into the description. */
+export const FIXED_FIELDS: Partial<Record<keyof typeof FIELD, string>> = { toBeAutomated: "Maybe", statusUpdate: "Not Started" };
+
+/** Template fields left out quietly when Jira doesn't have them. */
+export const QUIET_FIELDS = new Set<string>([FIELD.lastReproduced, FIELD.toBeAutomated, FIELD.statusUpdate]);
 
 export type History = { dateTime: string; client: string; csp: string; context: string; user: string; envTenant: string; repros: string };
 

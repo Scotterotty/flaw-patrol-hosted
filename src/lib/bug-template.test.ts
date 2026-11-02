@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adfHeadings, browserContext, clientIn, exampleValue, friendlyNames, featureOf, guessField, guessSection, importedTitle, isDxdiag, orderFiles, parseTemplateSettings, tagOf, templateKind, templateTitle, tenantOf, titlePattern, type TemplateBug } from "./bug-template";
+import { adfHeadings, browserContext, clientIn, effectiveTemplate, exampleValue, pickPriority, friendlyNames, featureOf, guessField, guessSection, importedTitle, isDxdiag, orderFiles, parseTemplateSettings, tagOf, templateKind, templateTitle, tenantOf, titlePattern, type TemplateBug } from "./bug-template";
 import { HISTORY_HEADERS, templateAdf } from "./jira-format";
 
 const bug: TemplateBug = {
@@ -153,5 +153,27 @@ describe("importing a template from an example bug", () => {
     expect(t.imported?.fields[0].value).toEqual(["Mobile app"]);
     expect(templateKind(parseTemplateSettings({ on: true }))).toBe("detailed");
     expect(templateKind(parseTemplateSettings({ on: false, imported: { from: "QA-1" } }))).toBe("plain");
+  });
+});
+
+describe("Jira Priority on new bugs", () => {
+  const options = ["Highest", "High", "Medium", "Low", "Not Prioritized"];
+  it("starts on Not Prioritized when Jira has it, matched however it's written", () => {
+    expect(pickPriority(null, options)).toBe("Not Prioritized");
+    expect(pickPriority(null, ["High", "not prioritized"])).toBe("not prioritized");
+  });
+  it("leaves it to Jira when Jira has no Not Prioritized, or when asked to", () => {
+    expect(pickPriority(null, ["High", "Low"])).toBeNull();
+    expect(pickPriority("", options)).toBeNull();
+  });
+  it("uses a picked priority only while Jira still lists it", () => {
+    expect(pickPriority("High", options)).toBe("High");
+    expect(pickPriority("Urgent", options)).toBeNull();
+  });
+  it("is kept with the settings, and stays this place's own under a shared template", () => {
+    expect(parseTemplateSettings(null).priority).toBeNull();
+    expect(parseTemplateSettings({ on: false, priority: "" }).priority).toBe("");
+    expect(parseTemplateSettings({ on: true, priority: "Low" }).priority).toBe("Low");
+    expect(effectiveTemplate({ priority: "High" }, { on: true, priority: "Low" }).priority).toBe("High");
   });
 });

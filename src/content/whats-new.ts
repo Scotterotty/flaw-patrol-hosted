@@ -22,6 +22,23 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 143,
+    date: "2026-11-02",
+    items: [
+      {
+        kind: "new",
+        title: "Jira Priority on every new bug",
+        text: "Pick it once in Settings → Jira, under the bug layout. It starts on the priority your Jira uses for bugs nobody has triaged yet, so whoever triages sets the real one. The bug box shows which one Jira will get.",
+        who: "admin",
+      },
+      {
+        kind: "better",
+        title: "Severity lands in Jira's Severity field",
+        text: "When your Jira only lets Severity (or another field) be set after a bug exists, Flaw Patrol now fills it a moment after creating the bug, instead of writing it into the description. The Severity list also uses your Jira's own names.",
+      },
+    ],
+  },
+  {
     version: 142,
     date: "2026-11-02",
     items: [

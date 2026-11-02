@@ -94,7 +94,7 @@ export async function stopSharing(id: string) {
     await db.$transaction([
       ...tpl.configs.map((c) => {
         const own = parseTemplateSettings(c.bugTemplate);
-        const copy = { ...shared, clientTag: shared.clientTag || own.clientTag, team: shared.team || own.team, clients: shared.clients.length ? shared.clients : own.clients, olyEnv: shared.olyEnv.length ? shared.olyEnv : own.olyEnv };
+        const copy = { ...shared, priority: own.priority, clientTag: shared.clientTag || own.clientTag, team: shared.team || own.team, clients: shared.clients.length ? shared.clients : own.clients, olyEnv: shared.olyEnv.length ? shared.olyEnv : own.olyEnv };
         return db.jiraConfig.update({ where: { projectId: c.projectId }, data: { bugTemplate: copy as unknown as Prisma.InputJsonValue, sharedTemplateId: null } });
       }),
       db.sharedBugTemplate.delete({ where: { id } }),

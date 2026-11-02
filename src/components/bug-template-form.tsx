@@ -110,6 +110,7 @@ export function BugTemplateForm({
   severity,
   setSeverity,
   scale = AE_SCALE,
+  priority = null,
   files,
   include,
   setInclude,
@@ -126,6 +127,8 @@ export function BugTemplateForm({
   setSeverity: (s: Severity) => void;
   /** The team's severity names. */
   scale?: SeverityScale;
+  /** The Jira Priority this bug gets (Settings → Jira), or null when Jira picks it. */
+  priority?: string | null;
   files: File_[];
   include: Set<string>;
   setInclude: (fn: (s: Set<string>) => Set<string>) => void;
@@ -195,10 +198,12 @@ export function BugTemplateForm({
             ))}
           </Select>
         </div>
-        <div>
-          <p className="mb-1 text-xs font-semibold text-slate-600">Priority</p>
-          <p className="py-2 text-sm text-slate-600">Not Prioritized · producers set this in Jira</p>
-        </div>
+        {priority && (
+          <div data-testid="bug-priority">
+            <p className="mb-1 text-xs font-semibold text-slate-600">Jira Priority</p>
+            <p className="py-2 text-sm text-slate-600">{priority} (set in Settings → Jira)</p>
+          </div>
+        )}
       </div>
 
       <div className="space-y-3">
