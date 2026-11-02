@@ -21,7 +21,7 @@ type Crown = { holder: string | null; holderCount: number; mine: number; toTake:
 const day = (iso: string, zone?: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: zone });
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 
-/** The Glossary page (ver_113): search, filters, A to Z, and every term with who added it. */
+/** The Glossary page: search, filters, A to Z, and every term with who added it. */
 export function GlossaryPage({
   rows,
   groups,

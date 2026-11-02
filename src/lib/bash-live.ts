@@ -3,7 +3,7 @@ import { ITEM_KINDS, parseAreas, parseLinks, phaseOf, plusOnesOf } from "./bash"
 import { findTemplate } from "./bash-template";
 import { db } from "./db";
 
-// Live finds (ver_96): what the Log a bug page's panel polls every 2 seconds, apart from the
+// Live finds: what the Log a bug page's panel polls every 2 seconds, apart from the
 // page itself, so it keeps filling in while someone types.
 
 export async function bashFinds(bashId: string) {
@@ -48,7 +48,7 @@ export async function bashFinds(bashId: string) {
         plusOnes: plusOnesOf(i.plusOnes),
         at: i.createdAt.toISOString(),
         attachments: i.attachments,
-        // Its bug template (ver_125): what it still needs, so anyone can add it.
+        // Its bug template: what it still needs, so anyone can add it.
         template: findTemplate(i, i.attachments),
         bug: i.defectId ? (keyOf.get(i.defectId) ?? null) : null,
         adds: adds

@@ -7,7 +7,7 @@ const statusEnum = z.enum(["UNTESTED", "PASSED", "FAILED", "BLOCKED", "RETEST", 
 // What the runner autosaves while a case is being tested: everything on screen
 // that isn't a saved result yet. Defects are kept as shown so chips come back as they were.
 export const draftSchema = z.object({
-  // checks: one result per check inside a shared step (ver_97, src/lib/step-checks.ts).
+  // checks: one result per check inside a shared step (src/lib/step-checks.ts).
   stepResults: z.array(z.object({ status: statusEnum, actual: z.string().max(10000).default(""), checks: z.array(statusEnum).max(500).optional() })).max(1000),
   override: statusEnum.exclude(["UNTESTED"]).nullable().default(null),
   comment: z.string().max(10000).default(""),

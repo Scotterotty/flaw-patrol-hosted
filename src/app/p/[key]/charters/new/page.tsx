@@ -9,7 +9,7 @@ import { projectAccess } from "@/lib/session";
 
 export const metadata = { title: "Start from a tour or checklist" };
 
-/** New charter → From a tour or checklist… (ver_93). */
+/** New charter → From a tour or checklist…. */
 export default async function CharterGalleryPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ story?: string }> }) {
   const { story } = await searchParams;
   const { project, who } = await projectAccess((await params).key);

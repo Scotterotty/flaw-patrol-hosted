@@ -2,11 +2,11 @@ import type { Severity } from "@prisma/client";
 import { z } from "zod";
 import { clockTime, type Spelling } from "./spelling";
 
-// Bug bashes (ver_93): a short, timed session where anyone picks an area and logs bugs.
+// Bug bashes: a short, timed session where anyone picks an area and logs bugs.
 // Client-safe rules and words; the saving lives in src/server/bashes.ts.
 
 /**
- * What a bash area (or the whole bash) is testing (ver_96): a Jira issue, a GitHub PR or any
+ * What a bash area (or the whole bash) is testing: a Jira issue, a GitHub PR or any
  * web page. `key` is what shows first: PRJ-12, #418, or a page's name.
  */
 export type BashLink = { kind: "jira" | "pr" | "web"; key: string; title: string; url: string; state?: string };
@@ -74,7 +74,7 @@ export const startSchema = z.object({
   collectFirst: z.boolean().default(true),
   slack: z.boolean().default(true),
   funExtras: z.boolean().default(false),
-  /** The bug template bugs use (ver_125); null is the plain one-line bug. */
+  /** The bug template bugs use; null is the plain one-line bug. */
   bugTemplateId: z.string().max(40).nullable().default(null),
 });
 export type StartInput = z.input<typeof startSchema>;
@@ -93,7 +93,7 @@ export const sevRank = (s: Severity) => ["SHOWSTOPPER", "CRITICAL", "PROBLEMATIC
 export const ITEM_KINDS = ["bug", "question", "note", "idea"] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number] | "covered";
 
-/** What was typed under a template's headings, by heading id (ver_125). */
+/** What was typed under a template's headings, by heading id. */
 export const valuesSchema = z
   .record(z.string().max(40), z.object({ text: z.string().max(20000).default(""), files: z.array(z.object({ id: z.string().max(40), fileName: z.string().max(200) })).max(10).default([]) }))
   .refine((v) => Object.keys(v).length <= 40, "Too many headings.");
@@ -107,7 +107,7 @@ export const logSchema = z.object({
   details: z.string().trim().max(5000).default(""),
   severity: z.enum(["SHOWSTOPPER", "CRITICAL", "PROBLEMATIC", "MINOR"]).default("PROBLEMATIC"),
   attachmentIds: z.array(z.string()).max(10).default([]),
-  /** A bug logged with a bug template (ver_125): which one, and what was typed under its headings. */
+  /** A bug logged with a bug template: which one, and what was typed under its headings. */
   templateId: z.string().max(40).nullable().default(null),
   values: valuesSchema.default({}),
   seen: seenSchema.optional(),
@@ -135,7 +135,7 @@ const words = (s: string) =>
   );
 
 /**
- * Bugs that sound like this one, best first, for "+1, I see it too" (ver_93).
+ * Bugs that sound like this one, best first, for "+1, I see it too".
  * Two lines match when most of their words are the same.
  */
 export function similarBugs<T extends { text: string }>(text: string, items: T[], min = 0.5) {

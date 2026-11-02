@@ -10,7 +10,7 @@ import { loadUmbrella } from "@/lib/umbrella";
 
 export const metadata = { title: "Custom report" };
 
-/** One custom report of an umbrella (ver_101), across its test cycles, narrowed by platform. */
+/** One custom report of an umbrella, across its test cycles, narrowed by platform. */
 export default async function UmbrellaCustomReport({ params, searchParams }: { params: Promise<{ id: string; rid: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const user = await requireUser();
   const { id, rid } = await params;

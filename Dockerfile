@@ -15,12 +15,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
 FROM base AS deps
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
+COPY scripts/copy-trace-viewer.mjs ./scripts/
 RUN npm ci --no-audit --no-fund
 
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npx prisma generate && npx next build
+RUN npx prisma generate && node scripts/copy-trace-viewer.mjs && npx next build
 
 # Only the Prisma command line, to apply migrations at start (same version as the app's).
 FROM base AS migrator

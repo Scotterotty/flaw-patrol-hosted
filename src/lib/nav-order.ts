@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Arrange menu order (ver_93): each person's own order for the left menu links, saved on
+ * Arrange menu order: each person's own order for the left menu links, saved on
  * User.navOrder. `sections` holds link ids per section ("Library", "Testing"...), and
  * `cycles` the order of the test cycle rows under Test runs, by platform. Empty means the
  * default order. Links stay inside their own section, and Overview is always first.

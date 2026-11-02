@@ -5,7 +5,9 @@ import { HomeTrends, HomeTrendsLoading } from "@/components/home-trends";
 import { Card, cx, EmptyState, InfoTip, LinkButton } from "@/components/ui";
 import { StartBashButton } from "@/components/bash-start";
 import { StartRunBox } from "@/components/start-run-box";
-import { AddUmbrellaProject, MoveCasesButton, ShortcutIcon, StartRcButton } from "@/components/umbrella-ui";
+import { AddUmbrellaProject } from "@/components/umbrella-add-project";
+import { StartRcButton } from "@/components/umbrella-rc";
+import { MoveCasesButton, ShortcutIcon } from "@/components/umbrella-ui";
 import { db } from "@/lib/db";
 import { can } from "@/lib/permissions";
 import { jiraConfigFor, looseProjects, platformColor, type Umbrella } from "@/lib/umbrella";
@@ -19,8 +21,8 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
   const hub = `/p/${u.hub.key}`;
   // An archived umbrella takes no new projects or RCs until it's restored.
   const archived = !!u.group.archivedAt;
-  // The Start next release and Start a bug bash boxes get their own data when they open (ver_120).
-  // Tools (ver_128): what the umbrella doesn't use leaves its Overview.
+  // The Start next release and Start a bug bash boxes get their own data when they open.
+  // Tools: what the umbrella doesn't use leaves its Overview.
   const on = (t: ToolId) => u.tools.includes(t);
   const runsOn = on("runs");
   const canBash = !archived && can(u.who, "run:create") && on("bashes");
@@ -46,19 +48,19 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
   const [slackCount, memberCount, firstRun, bashCount, ratings] = await Promise.all([
     db.slackChannel.count({ where: { groupId: u.group.id } }),
     db.projectMember.count({ where: { projectId: u.hub.id } }),
-    // Any run that isn't a bug bash, in any test cycle (ver_95): the newest one names the setup step.
+    // Any run that isn't a bug bash, in any test cycle: the newest one names the setup step.
     db.testRun.findFirst({ where: { projectId: { in: u.projects.map((p) => p.id) }, bugBash: { is: null } }, orderBy: { createdAt: "desc" }, select: { project: { select: { id: true, name: true } } } }),
-    // Without Test runs (ver_128) the list asks for a bug bash and a look at the risk board instead.
+    // Without Test runs the list asks for a bug bash and a look at the risk board instead.
     runsOn ? 0 : db.bugBash.count({ where: { projectId: u.hub.id } }),
     runsOn ? 0 : db.riskRating.count({ where: { projectId: u.hub.id } }),
   ]);
   const firstOpen = firstRun ? await db.testRun.count({ where: { projectId: firstRun.project.id, state: "ACTIVE", bugBash: { is: null } } }) : 0;
-  // One Start a run button (ver_95): it asks the kind of run and can make the test cycle too.
+  // One Start a run button: it asks the kind of run and can make the test cycle too.
   const canRun = can(u.who, "run:create") && !archived && runsOn && (u.current.length > 0 || canAddCycle);
   // What a new umbrella still needs. Jira is optional, so it never holds the list open on its own.
   const allSetup = [
     { done: u.counts.cases > 0, tool: "cases" as ToolId, label: "Add your test cases (import a file or write them)", note: plural(u.counts.cases, "case"), href: `${hub}/import`, action: "Import cases" },
-    // Optional (ver_118): runs work without a suite, so it never keeps the list open. A team that already ran tests has it ticked.
+    // Optional: runs work without a suite, so it never keeps the list open. A team that already ran tests has it ticked.
     { done: u.counts.suites > 0 || !!firstRun, tool: "cases" as ToolId, label: "Make a suite (optional)", note: u.counts.suites ? plural(u.counts.suites, "suite") : "", href: `${hub}/suites/new`, action: "Make a suite", tip: "A saved list of cases you run together, like Smoke or Full regression. You can also run the whole Case library or pick cases." },
     {
       done: !!firstRun,
@@ -74,7 +76,7 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
           { done: bashCount > 0, tool: "bashes" as ToolId, label: "Start your first bug bash", note: plural(bashCount, "bug bash").replace("bashs", "bashes"), href: `${hub}/bashes?bash=start`, action: "Start a bug bash" },
           { done: ratings > 0, tool: "risk" as ToolId, label: "Look over the risk board", note: "", href: `${hub}/risk`, action: "Open it", tip: "Rate which requirements in a release are most likely to break, and how much it would hurt." },
         ]),
-    // Admins choose what roles can do before inviting (ver_96); saving it once, or Keep everyone open, ticks it.
+    // Admins choose what roles can do before inviting; saving it once, or Keep everyone open, ticks it.
     ...(can(u.who, "members:manage")
       ? [{ done: !!u.group.rolesChosenAt, label: "Choose what roles can do", note: "", href: `${g}/settings#roles`, action: "Review", tip: "Everyone can use everything except archive, delete and connections. Tighten it before you invite." }]
       : []),
@@ -83,24 +85,24 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
     { done: slackCount > 0, label: "Send alerts to Slack (optional)", note: plural(slackCount, "channel"), href: `${g}/settings#slack`, action: "Add channels", tip: "Post regressions, serious bugs and finished runs to Slack channels. Every test cycle follows them." },
   ];
   const setup = allSetup.filter((s) => !("tool" in s) || !s.tool || on(s.tool));
-  // A second release means the first one happened, so the list hides then too (ver_91).
+  // A second release means the first one happened, so the list hides then too.
   const rcs = new Set(u.projects.map((p) => p.rcName.trim().toLowerCase()).filter(Boolean));
   const ready = runsOn ? rcs.size > 1 || (u.counts.cases > 0 && !!firstRun && (!!jira || u.older.length > 0)) : setup.every((s) => s.done || s.label.includes("optional"));
 
   const allShortcuts: { label: string; href: string; icon: IconName; count?: number; external?: boolean; tool?: ToolId }[] = [
     { label: "Release status", href: `${g}/rc`, icon: "chart", tool: "runs" },
     { label: "My assigned cases", href: `${g}/runs?mine=1`, icon: "play", count: counts.mine, tool: "runs" },
-    // Bugs are filed from the runner, with the template and case link; this only opens Jira (ver_85).
+    // Bugs are filed from the runner, with the template and case link; this only opens Jira.
     ...(jira ? [{ label: "Open Jira", href: `${jira.siteUrl}/browse/${jira.jiraProjectKey}`, icon: "link" as const, external: true }] : []),
     { label: "Critical bugs", href: `${g}/bugs?sev=critical`, icon: "bug", count: counts.critical },
     { label: "Flagged cases", href: `${hub}/cases?flagged=1`, icon: "folder", count: counts.flagged, tool: "cases" },
-    // Viewers can't import (ver_137): the shortcut opened "Not found".
+    // Viewers can't import: the shortcut opened "Not found".
     ...(can(u.who, "import") ? [{ label: "Import cases", href: `${hub}/import`, icon: "down" as const, tool: "cases" as ToolId }] : []),
     { label: "Reports", href: `${g}/reports`, icon: "chart" },
   ];
   const shortcuts = allShortcuts.filter((s) => !s.tool || on(s.tool));
   const allCards: { label: string; href: string; icon: IconName; count: string; text: string; tool?: ToolId }[] = [
-    // Without Test runs (ver_128) the tools that are left get their own cards, first.
+    // Without Test runs the tools that are left get their own cards, first.
     ...(runsOn
       ? []
       : [
@@ -128,9 +130,9 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
           <p className="mt-1 text-sm text-slate-500">{u.group.description || (runsOn ? `Every ${u.group.name} test case, run, bug and setting, in one place` : `Everything ${u.group.name} finds, in one place`)}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {/* One button (ver_95): Start a run asks the kind first. Release candidate and Bug bash open these boxes. */}
+          {/* One button: Start a run asks the kind first. Release candidate and Bug bash open these boxes. */}
           {canRun && <StartRunBox scope={{ groupId: u.group.id }} label="▶ Start a run" openParam="run" />}
-          {/* Without Test runs, Start a bug bash is the button (ver_128). */}
+          {/* Without Test runs, Start a bug bash is the button. */}
           {canBash && <StartBashButton projectId={u.hub.id} hideButton={runsOn} />}
           {canRc && <StartRcButton groupId={u.group.id} umbrella={u.group.name} hasRelease={u.projects.length > 0} canManage={canManage} canSuites={can(u.who, "suite:manage")} canCases={can(u.who, "case:edit")} canImport={can(u.who, "import")} hideButton />}
         </div>
@@ -142,7 +144,7 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
             <h2 className="font-semibold text-slate-900">Get {u.group.name} set up</h2>
             <span className="text-xs text-slate-500">{setup.filter((s) => s.done).length} of {setup.length} done · hides when finished</span>
           </div>
-          {/* The first-time welcome on a new umbrella (ver_96), for admins until roles are chosen. */}
+          {/* The first-time welcome on a new umbrella, for admins until roles are chosen. */}
           {can(u.who, "members:manage") && !u.group.rolesChosenAt && memberCount <= 1 && (
             <p className="mb-2 text-sm text-slate-600" data-testid="umbrella-welcome">
               Your umbrella is ready. Everyone you invite can use every feature, and only admins can archive, delete or change connections.{" "}
@@ -200,7 +202,7 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
         ))}
       </ul>
 
-      {/* How testing is going (ver_131): pass rates by release or week, Flaky and Keeps failing. Streams in last. */}
+      {/* How testing is going: pass rates by release or week, Flaky and Keeps failing. Streams in last. */}
       {runsOn && (
         <Suspense fallback={<HomeTrendsLoading />}>
           <HomeTrends u={u} userId={user.id} startHref={canRun ? `${g}?start=run` : null} />

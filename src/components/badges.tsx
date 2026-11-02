@@ -11,7 +11,7 @@ export function PriorityBadge({ priority }: { priority: Priority }) {
 }
 
 export function TypeBadge({ type }: { type: CaseType }) {
-  // Automated in the same quiet gray as Manual (ver_95), so automation's cases look like the rest.
+  // Automated in the same quiet gray as Manual, so automation's cases look like the rest.
   return <Badge tone={type === "EXPLORATORY" ? "blue" : "gray"}>{type === "EXPLORATORY" && <span aria-hidden>🧭&nbsp;</span>}{TYPE_LABEL[type]}</Badge>;
 }
 
@@ -48,7 +48,7 @@ export function FlakyBadge({ flips, compact = false }: { flips: number; compact?
   );
 }
 
-/** Pink Regression mark (ver_93): passed last release on this platform, fails now. `tip` says where it passed. */
+/** Pink Regression mark: passed last release on this platform, fails now. `tip` says where it passed. */
 export function RegressionBadge({ tip, compact = false }: { tip: string; compact?: boolean }) {
   if (compact)
     return (

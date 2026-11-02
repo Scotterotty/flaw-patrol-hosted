@@ -3,7 +3,7 @@ import { db } from "./db";
 import { digestSummary, parseDigestSettings, type DigestSettings } from "./digest-settings";
 import { mailOn } from "./mail";
 
-// What the Email digests card and the Email groups list show (ver_132).
+// What the Email digests card and the Email groups list show.
 
 export type GroupView = { id: string; name: string; people: { id: string; name: string; email: string }[]; addresses: string[]; usedBy: string[]; createdBy: string };
 export type PersonView = { id: string; name: string; email: string };

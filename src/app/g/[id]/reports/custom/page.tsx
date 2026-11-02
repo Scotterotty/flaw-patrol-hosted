@@ -10,7 +10,7 @@ import { loadUmbrella } from "@/lib/umbrella";
 
 export const metadata = { title: "Custom reports" };
 
-/** An umbrella's Reports → Custom reports (ver_101), kept on its hub like Saved views. */
+/** An umbrella's Reports → Custom reports, kept on its hub like Saved views. */
 export default async function UmbrellaCustomReports({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
   const u = await loadUmbrella((await params).id, user);

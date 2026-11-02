@@ -17,7 +17,7 @@ import { alertRunStarted } from "@/lib/slack";
 import { attempt, UserError } from "./result";
 import { buildEntries } from "./snapshot";
 
-// Start exploring (ver_96): a small box made only for running a charter. No "What kind of
+// Start exploring: a small box made only for running a charter. No "What kind of
 // run?" (it's always 🧭 Exploratory) and no "What to run" (it's this charter). Each person
 // picked gets their own copy, so everyone has their own timer and notes.
 

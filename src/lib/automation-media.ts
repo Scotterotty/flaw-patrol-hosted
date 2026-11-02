@@ -3,7 +3,7 @@ import { isPlaywrightReport, type AutoTest } from "./automation";
 import type { FileSettings, MediaCounts } from "./automation-files";
 import { openZip, readEntry, ZIP_LIMITS, zipBudget, type ZipBudget } from "./zip-limits";
 
-// Screenshots, videos and step-by-step replays from automation (ver_93). An upload can be
+// Screenshots, videos and step-by-step replays from automation. An upload can be
 // the results file plus Playwright's test-results folder, or one zip of both (a GitHub
 // artifact is one too). This sorts the results files from the media, and finds each
 // file's test: by the path the results file lists, else by Playwright's folder names.
@@ -66,7 +66,7 @@ export async function expandUpload(files: { name: string; bytes: Uint8Array }[],
   return out;
 }
 
-/** Which attempt made the file: Playwright puts a retry's files in a folder ending -retry1, -retry2 (ver_95). */
+/** Which attempt made the file: Playwright puts a retry's files in a folder ending -retry1, -retry2. */
 export function attemptOf(path: string) {
   const m = norm(path).match(/-retry(\d+)(\/|$)/i);
   return m ? Number(m[1]) + 1 : 1;

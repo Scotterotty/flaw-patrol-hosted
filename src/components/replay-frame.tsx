@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-/** Playwright's trace viewer in a frame, pointed at the replay file on this server (ver_93). */
+/** Playwright's trace viewer in a frame, pointed at the replay file on this server. */
 export function ReplayFrame({ fileId }: { fileId: string }) {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => setSrc(`/trace-viewer/index.html?trace=${encodeURIComponent(`${window.location.origin}/api/attachments/${fileId}`)}`), [fileId]);

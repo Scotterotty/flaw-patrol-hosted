@@ -16,7 +16,7 @@ import { libraryProjectIds, OPEN_BUG, umbrellaOf } from "@/lib/umbrella";
 import { UserError } from "@/server/result";
 import { buildEntries } from "@/server/snapshot";
 
-// The save behind Upload automation results (ver_82), shared by the upload box and,
+// The save behind Upload automation results, shared by the upload box and,
 // since ver_91, the CI endpoint /api/ci/results. Not a server action: callers check access.
 
 export const filesSchema = z
@@ -96,16 +96,16 @@ export const saveSchema = z.object({
   links: z.record(z.string(), z.string()).default({}),
   makeCases: z.boolean().default(true),
   allowDuplicate: z.boolean().default(false),
-  /** Pull from GitHub (ver_85): the connected repo and the workflow run the files came from. */
+  /** Pull from GitHub: the connected repo and the workflow run the files came from. */
   github: z.object({ repoId: z.string(), runId: z.string().regex(/^\d+$/) }).optional(),
-  /** Screenshots, videos and replays waiting on the server (ver_93), from a zip or a GitHub artifact. */
+  /** Screenshots, videos and replays waiting on the server, from a zip or a GitHub artifact. */
   stageId: z.string().max(40).optional(),
 });
 
-/** A test's own steps as case steps (ver_95). JUnit and NUnit have none. */
+/** A test's own steps as case steps. JUnit and NUnit have none. */
 const stepItems = (t: AutoTest) => (t.caseSteps ?? []).map((action) => ({ kind: "step", action, expected: "" }));
 
-/** Save each test's screenshots, videos and replays on its result, under the umbrella's rules (ver_93). */
+/** Save each test's screenshots, videos and replays on its result, under the umbrella's rules. */
 async function saveMedia(cycle: { id: string; groupId: string | null }, tests: AutoTest[], media: Media[], resultOf: Map<string, string>, actorId: string | null) {
   if (!media.length) return 0;
   const group = cycle.groupId ? await db.projectGroup.findUnique({ where: { id: cycle.groupId }, select: { automationFiles: true } }) : null;
@@ -152,7 +152,7 @@ export async function saveAutomationRun(
     }
     const library = [...new Set([...cases.map((c) => c.projectId), home.id, cycle.id])];
     const matches = matchAll(tests, cases, keys, meta.links);
-    // CI uploads (ver_91) have no one to press Undo, so they take the same-title matches the upload box links.
+    // CI uploads have no one to press Undo, so they take the same-title matches the upload box links.
     if (opts.linkSameTitle)
       for (const t of tests) {
         if (matches.has(t.id)) continue;
@@ -219,7 +219,7 @@ export async function saveAutomationRun(
         const testsOf = new Map<string, AutoTest[]>();
         for (const t of ordered) testsOf.set(matches.get(t.id)!.caseId, [...(testsOf.get(matches.get(t.id)!.caseId) ?? []), t]);
         const caseIds = [...new Set(ordered.map((t) => matches.get(t.id)!.caseId))];
-        // Automated cases take the test's own steps (ver_95), kept up to date on every upload.
+        // Automated cases take the test's own steps, kept up to date on every upload.
         const autoCases = await tx.testCase.findMany({ where: { id: { in: caseIds }, type: "AUTOMATED" }, select: { id: true, currentVersion: true, versions: { orderBy: { version: "desc" }, take: 1 } } });
         for (const c of autoCases) {
           const t = testOf.get(c.id);
@@ -264,7 +264,7 @@ export async function saveAutomationRun(
           const t = testOf.get(e.caseId)!;
           const steps = Array.isArray(e.steps) ? e.steps : [];
           const stepStatus = t.status === "FAILED" ? "UNTESTED" : t.status;
-          // Retried and passed (ver_93): says so, since that's what makes it flaky.
+          // Retried and passed: says so, since that's what makes it flaky.
           const retried = t.status === "PASSED" && t.retried ? `Flaky: failed ${t.retried === 1 ? "once" : `${t.retried} times`}, passed on try ${t.retried + 1}.${t.message ? `\n${t.message}` : ""}` : "";
           const message = retried || (t.crashed ? `Crashed: ${t.message}`.trim() : t.message);
           const result = await tx.testResult.create({
@@ -274,7 +274,7 @@ export async function saveAutomationRun(
               caseId: e.caseId,
               caseVersion: e.caseVersion,
               status: t.status,
-              // Each step's own outcome when the steps came from the test (ver_95).
+              // Each step's own outcome when the steps came from the test.
               stepResults: steps.map((_, i) => ({ status: t.caseSteps?.length === steps.length && t.steps?.length === steps.length ? (t.steps[i].ok ? "PASSED" : "FAILED") : stepStatus, actual: "" })) as Prisma.InputJsonValue,
               comment: message.slice(0, 2000),
               testerName: "Automation",

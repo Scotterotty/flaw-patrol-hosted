@@ -1,6 +1,6 @@
 import { PAWNS } from "./quest-gear";
 
-// Loading spinners (ver_108): everyone ticks the ones they like in Account → Appearance, and
+// Loading spinners: everyone ticks the ones they like in Account → Appearance, and
 // the long waits (starting a run, opening a run) play one of them at random. Looks only,
 // nothing to unlock. Every one fits the same 48 px circle (src/app/globals.css, .fp-spin).
 
@@ -43,10 +43,10 @@ export function pickSpinner(ids: readonly string[] | null | undefined, roll: num
   return list[Math.min(list.length - 1, Math.floor(roll * list.length))];
 }
 
-/** The open-state id of the folding Loading spinners section (ver_123), also in Your account's Open all. */
+/** The open-state id of the folding Loading spinners section, also in Your account's Open all. */
 export const SPINNER_FOLD = "acct:spinners";
 
-/** The folded Loading spinners line (ver_123): one name, or "3 ticked: Patrol radar, Bug crawl, Stopwatch". */
+/** The folded Loading spinners line: one name, or "3 ticked: Patrol radar, Bug crawl, Stopwatch". */
 export function spinnerLine(ids: readonly string[] | null | undefined) {
   const mine = cleanSpinners(ids);
   const names = SPINNERS.filter((s) => mine.includes(s.id)).map((s) => s.label);

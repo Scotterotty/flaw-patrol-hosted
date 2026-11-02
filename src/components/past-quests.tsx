@@ -11,7 +11,7 @@ export type PastQuestRow = { number: number; name: string; release: string; from
 /** Older finished quests as a compact list, collapsed until opened, with a search box. */
 export function PastQuests({ projectKey, rows }: { projectKey: string; rows: PastQuestRow[] }) {
   const [query, setQuery] = useState("");
-  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  // Forgiving search: exact matches, then close ones under their own label.
   const found = forgivingFilter(rows, query, (r) => `r${r.number} ${r.name} ${r.release} ${r.from} ${r.to}`);
   const shown = [...found.exact, ...found.close];
   const closeStart = found.close.length ? found.exact.length : -1;

@@ -1,4 +1,4 @@
-// Forgiving search (ver_96): every search box finds what you typed exactly, then "close
+// Forgiving search: every search box finds what you typed exactly, then "close
 // matches" spelled a bit differently ("wb" finds web, "loign" finds login) under their
 // own label. One matcher for every box, so they all behave the same.
 

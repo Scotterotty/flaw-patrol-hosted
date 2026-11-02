@@ -10,7 +10,7 @@ export function middleware(req: NextRequest) {
     url.searchParams.set("callbackUrl", req.nextUrl.pathname + req.nextUrl.search);
     return NextResponse.redirect(url);
   }
-  // Pages read the path they were opened at (ver_115), so a shared link someone can't open
+  // Pages read the path they were opened at, so a shared link someone can't open
   // yet can say what it is and offer Ask to join instead of Not found.
   const headers = new Headers(req.headers);
   headers.set("x-fp-path", req.nextUrl.pathname + req.nextUrl.search);

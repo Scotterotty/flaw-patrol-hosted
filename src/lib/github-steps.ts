@@ -1,4 +1,4 @@
-// GitHub build steps (ver_89): which of a workflow run's own steps passed, failed or
+// GitHub build steps: which of a workflow run's own steps passed, failed or
 // didn't run, and one plain sentence saying what happened. Pure, so it's unit tested.
 
 export type StepState = "pass" | "fail" | "skip" | "running";

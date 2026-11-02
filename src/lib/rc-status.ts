@@ -32,10 +32,10 @@ export type RcColumn = {
   runIds: string[];
   /** The runs' names, listed small under the column when there's more than one. */
   runs: { name: string; href: string }[];
-  /** The kind and number of each run, such as "Smoke test R1" (ver_137), so nobody mistakes a smoke check for release testing. */
+  /** The kind and number of each run, such as "Smoke test R1", so nobody mistakes a smoke check for release testing. */
   kinds?: string;
   build: string;
-  /** Run fields shown on Release status cards, ready to print: "CSP 0.22.1 · Region EU" (ver_89). */
+  /** Run fields shown on Release status cards, ready to print: "CSP 0.22.1 · Region EU". */
   extra: string;
   completed: boolean;
   total: number;
@@ -44,13 +44,13 @@ export type RcColumn = {
   /** When each run case was last tested, to count today's progress in the viewer's own time zone. */
   testedAt: number[];
   severities: Partial<Record<Severity, number>>;
-  /** The latest automation upload for this client and release (ver_82), shown as its own line. */
+  /** The latest automation upload for this client and release, shown as its own line. */
   automation?: { passed: number; total: number; build: string; href: string } | null;
-  /** Regressions in this release that are still broken (ver_93), with their case keys. */
+  /** Regressions in this release that are still broken, with their case keys. */
   regressions?: { count: number; keys: string[] } | null;
-  /** A platform of the umbrella with no manual run yet (ver_94). */
+  /** A platform of the umbrella with no manual run yet. */
   platform?: string;
-  /** The Bug bash column, shown only with Include bug bashes on (ver_94). */
+  /** The Bug bash column, shown only with Include bug bashes on. */
   bash?: boolean;
 };
 
@@ -74,14 +74,14 @@ export type RcBug = {
   clients: string[];
   /** Run cases the bug is linked to. */
   cases: string[];
-  /** Logged in a bug bash (ver_94): tagged "from bug bash". */
+  /** Logged in a bug bash: tagged "from bug bash". */
   fromBash?: boolean;
 };
 
 export type RcRunChoice = { id: string; name: string; project: string; projectKey: string; number: number; release: string; on: boolean };
 
 /** Runs someone unticked from a release, and runs from elsewhere they added to it. */
-export type RcPick = { hide: string[]; add: string[]; /** Include bug bashes (ver_94), off unless switched on. */ bashes?: boolean };
+export type RcPick = { hide: string[]; add: string[]; /** Include bug bashes, off unless switched on. */ bashes?: boolean };
 export type RcPrefs = { release?: string; picks?: Record<string, RcPick> };
 
 export function readPrefs(value: unknown): RcPrefs {
@@ -120,8 +120,8 @@ export function resultLine(c: RcColumn) {
 }
 
 export function bugLine(c: RcColumn, scale: SeverityScale = AE_SCALE) {
-  // Enhancements aren't bugs worth counting in a status report. Names are the team's own (ver_91).
-  // ver_94: the severity exactly as everywhere else ("1 bug: C - Problematic"), not a lowercased short name.
+  // Enhancements aren't bugs worth counting in a status report. Names are the team's own.
+  // The severity exactly as everywhere else ("1 bug: C - Problematic"), not a lowercased short name.
   const parts = SEVERITIES.filter((s) => s !== "ENHANCEMENT" && c.severities[s]).map((s) => `${c.severities[s]} ${c.severities[s] === 1 ? "bug" : "bugs"}: ${scale.labels[s]}`);
   return parts.length ? parts.join(" · ") : "No bugs filed";
 }
@@ -192,7 +192,7 @@ export function plainText(release: string, columns: RcColumn[], bugs: RcBug[], n
   return lines.join("\n");
 }
 
-/** "Regression: 2 (OKO-158, OKO-77 🤖)" for Release status copies (ver_93). */
+/** "Regression: 2 (OKO-158, OKO-77 🤖)" for Release status copies. */
 export function regressionLine(c: RcColumn) {
   return c.regressions ? `Regression: ${c.regressions.count} (${c.regressions.keys.join(", ")})` : "";
 }

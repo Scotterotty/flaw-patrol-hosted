@@ -8,7 +8,7 @@ import { findInviteLink } from "@/server/passwords";
 
 export const metadata = { title: "Accept invite" };
 
-/** Where an invite email's Accept invite button lands (ver_92): a company sign-in button, or choose a password. */
+/** Where an invite email's Accept invite button lands: a company sign-in button, or choose a password. */
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const invite = await findInviteLink(token);

@@ -3,8 +3,8 @@ import { changeSummary, stepChanges, type CaseNews } from "./case-news";
 import { db } from "./db";
 import type { ExpandedStep } from "./steps";
 
-// New and Updated cases in a run (ver_96). New: the case never had a result saved in an
-// earlier run, and wasn't marked as run before Flaw Patrol (ver_107). Updated: its steps or preconditions differ from the copy its last earlier run used.
+// New and Updated cases in a run. New: the case never had a result saved in an
+// earlier run, and wasn't marked as run before Flaw Patrol. Updated: its steps or preconditions differ from the copy its last earlier run used.
 
 const asSteps = (v: unknown) => (Array.isArray(v) ? v : []) as ExpandedStep[];
 

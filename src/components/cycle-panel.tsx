@@ -6,7 +6,7 @@ import { KeepSeparateSwitch } from "./umbrella-ui";
 import { Card } from "./ui";
 
 /**
- * What opens under a test cycle's row in umbrella Settings → Test cycles (ver_117):
+ * What opens under a test cycle's row in umbrella Settings → Test cycles:
  * the few things a test cycle can set for itself. Everything else is the umbrella's.
  * Each part is the same form the old test cycle settings page had.
  */

@@ -19,7 +19,7 @@ import type { PlanData } from "@/components/risk-board";
 
 export const metadata = { title: "Risk board" };
 
-/** Risk board (ver_93): a release's requirements on a grid of how likely to break by how much it would hurt. */
+/** Risk board: a release's requirements on a grid of how likely to break by how much it would hurt. */
 export default async function RiskPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ release?: string; fresh?: string }> }) {
   const { key } = await params;
   const sp = await searchParams;
@@ -37,7 +37,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
   const releases = await storyReleases(project.id);
   const rcNames = await newestRcNames(cycles);
   const release = releases.find((r) => r === sp.release) ?? testedRelease(releases, rcNames);
-  // Tools (ver_128): without Test cases the guess leaves out "No tests yet"; without Test runs, Plan this release
+  // Tools: without Test cases the guess leaves out "No tests yet"; without Test runs, Plan this release
   // becomes Start a bug bash on these; without Bug bashes there's no bash button.
   const tools = full?.tools;
   const withCases = !tools || tools.includes("cases");
@@ -49,7 +49,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
   const team = canPlan ? await teamTemplates(project.id) : [];
   const bashed = canRun && withBashes ? await bashedRequirements(project.id) : {};
   const runCycles = full?.current.length ? full.current.map((c) => ({ id: c.id, name: c.name })) : [{ id: project.id, name: project.name }];
-  // Plan this release (ver_96): run kinds, test personas and open runs to add to.
+  // Plan this release: run kinds, test personas and open runs to add to.
   const kinds = parseRunKinds(full?.group.runKinds).filter((k) => !k.hidden && k.id !== "bash");
   const planData: PlanData | undefined = canPlan && release
     ? await (async () => {

@@ -32,7 +32,7 @@ export type CaseRow = {
   tags: string[];
   version: number;
   usesShared: boolean;
-  /** Rows of test data (ver_138): the case runs once per row. */
+  /** Rows of test data: the case runs once per row. */
   dataRows?: number;
   folder: string;
   /** The folder the case is in, for dragging it to another one. */
@@ -46,7 +46,7 @@ export type CaseRow = {
   platforms?: { name: string; color: string; status: ResultStatus | null }[];
   /** Jira stories it tests, by key. */
   stories?: string[];
-  /** Automation runs it (ver_95): its latest automated result, if any yet. */
+  /** Automation runs it: its latest automated result, if any yet. */
   auto?: { status: ResultStatus | null; at: string | null };
 };
 
@@ -81,10 +81,10 @@ export function CaseTable({
   bulk?: { personas: BulkPersona[]; tags: string[] };
   /** Jira is connected: offer Link to story… on ticked cases. */
   storyLinks?: boolean;
-  /** Tag pill colors (ver_96); tags a search matched get an outline. */
+  /** Tag pill colors; tags a search matched get an outline. */
   tagColors?: TagColors;
   tagHits?: string[];
-  /** Rows from here on are close matches for the search (ver_96), under their own label. */
+  /** Rows from here on are close matches for the search, under their own label. */
   closeStart?: number;
 }) {
   const spelling = useSpelling();

@@ -77,7 +77,7 @@ export async function saveStoriesConfig(projectId: string, input: z.input<typeof
   });
 }
 
-/** Settings › Jira › Requirements: the issue types the requirement project has in Jira (ver_89). */
+/** Settings › Jira › Requirements: the issue types the requirement project has in Jira. */
 export async function loadIssueTypes(projectId: string, project: string) {
   return attempt(async () => {
     await requireProjectAction(projectId, "jira:manage");

@@ -71,7 +71,7 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
     }
   }
   // Last result: each case's latest result from any run in the test cycle's umbrella (or the
-  // test cycle itself), not just this suite's runs, named small underneath (ver_86).
+  // test cycle itself), not just this suite's runs, named small underneath.
   const scope = project.groupId ? { project: { groupId: project.groupId } } : { projectId: project.id };
   const lastAnywhere = await db.runEntry.findMany({
     where: { caseId: { in: suite.cases.map((c) => c.caseId) }, status: { notIn: STATUSES.filter(isOpen) }, lastTestedAt: { not: null }, run: scope },

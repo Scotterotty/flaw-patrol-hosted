@@ -51,7 +51,7 @@ function columnLabel(run: { name: string; environment: string; project: { name: 
 }
 
 /**
- * The umbrella card's release line, such as "RC 22 · 1 of 3 done" (ver_100). The same columns
+ * The umbrella card's release line, such as "RC 22 · 1 of 3 done". The same columns
  * as the umbrella's Release status report with nothing ticked or unticked, but only counted:
  * no bugs, automation or regressions, so the Umbrellas page doesn't run the whole report.
  */
@@ -101,7 +101,7 @@ export async function rcStatus(
 ): Promise<{ columns: RcColumn[]; bugs: RcBug[]; choices: RcRunChoice[]; others: RcRunChoice[]; scale: SeverityScale; bashCount: number }> {
   const key = releaseKey(release);
   const fetched = await db.testRun.findMany({
-    // Automation uploads aren't columns: they're each client's Automation line (ver_82).
+    // Automation uploads aren't columns: they're each client's Automation line.
     where: { automated: false, ...projectScope(user), ...(scope && !scope.addAnywhere && { projectId: { in: scope.projectIds } }) },
     select: { id: true, number: true, name: true, release: true, createdAt: true, projectId: true, kind: true, project: { select: { key: true, name: true } } },
     orderBy: { createdAt: "desc" },
@@ -119,11 +119,11 @@ export async function rcStatus(
     release: r.release.trim(),
     on: r.release && releaseKey(r.release) === key && countsForRelease(r.kind) ? !pick.hide.includes(r.id) : pick.add.includes(r.id),
   });
-  // Bug bashes stay out of releases (ver_94). A bash counts toward this release when its run is
+  // Bug bashes stay out of releases. A bash counts toward this release when its run is
   // marked with it, or when it wasn't attached to a test cycle and ran while this release was on.
   const bashIds = new Set((await db.bugBash.findMany({ where: { runId: { in: fetched.map((r) => r.id) } }, select: { runId: true } })).map((b) => b.runId!));
   const plain = all.filter((r) => !bashIds.has(r.id));
-  // Every run marked with this release counts, whatever its kind (ver_137); the Runs picker still hides one per person.
+  // Every run marked with this release counts, whatever its kind; the Runs picker still hides one per person.
   const mine = plain.filter((r) => r.release && releaseKey(r.release) === key && countsForRelease(r.kind));
   const from = Math.min(...mine.map((r) => r.createdAt.getTime()));
   const until = Math.min(...plain.filter((r) => r.release && releaseKey(r.release) !== key && r.createdAt.getTime() > from).map((r) => r.createdAt.getTime()));
@@ -133,9 +133,9 @@ export async function rcStatus(
   const others = [...plain, ...extra.filter((r) => !bashIds.has(r.id))].filter((r) => !choices.some((c) => c.id === r.id)).map(choice);
   const ids = [...choices.filter((c) => c.on).map((c) => c.id), ...(pick.bashes ? bashRuns.map((r) => r.id) : [])];
   const bashCount = bashRuns.length;
-  // The team's severity names (ver_91): the scope's Jira, or the first run's.
-  // Every current platform of the umbrella gets a column (ver_94), even before anyone tests it.
-  // Only an umbrella's own report (its scope holds the hub), not one test cycle's. Fetched together (ver_120).
+  // The team's severity names: the scope's Jira, or the first run's.
+  // Every current platform of the umbrella gets a column, even before anyone tests it.
+  // Only an umbrella's own report (its scope holds the hub), not one test cycle's. Fetched together.
   const [scale, hub] = await Promise.all([
     severityScaleFor(scope?.projectIds[0] ?? all.find((r) => ids.includes(r.id))?.projectId),
     scope ? db.project.findFirst({ where: { id: { in: scope.projectIds }, hubOf: { isNot: null } }, select: { hubOf: { select: { platforms: true } } } }) : null,
@@ -162,7 +162,7 @@ export async function rcStatus(
       },
     }),
   ]);
-  // Run fields, automation uploads and still-broken regressions don't depend on each other (ver_120).
+  // Run fields, automation uploads and still-broken regressions don't depend on each other.
   const groups = [...new Set(runs.map((r) => r.project.groupId).filter((g): g is string => !!g))];
   const wideIds = groups.length ? db.project.findMany({ where: { groupId: { in: groups } }, select: { id: true } }).then((ps) => ps.map((p) => p.id)) : Promise.resolve([...new Set(runs.map((r) => r.projectId))]);
   const [defsList, uploads, broken] = await Promise.all([
@@ -177,10 +177,10 @@ export async function rcStatus(
   ]);
 
   // One column per client: two runs on the same client (a suite run and an exploratory
-  // session, say) add up in one column, with their names listed under it (ver_86).
+  // session, say) add up in one column, with their names listed under it.
   const perRun = runs.map((run) => ({ run, label: bashIds.has(run.id) ? "Bug bash" : columnLabel(run, platforms) }));
   const labels = [...new Set([...perRun.map((r) => r.label), ...platforms])];
-  // Run fields ticked "Show on Release status cards" (ver_89), per test cycle.
+  // Run fields ticked "Show on Release status cards", per test cycle.
   const defsOf = new Map(defsList);
   const columns: RcColumn[] = labels.map((label) => {
     const mine = perRun.filter((r) => r.label === label).map((r) => r.run);
@@ -226,7 +226,7 @@ export async function rcStatus(
     col.automation = up ? { passed: up.entries.filter((e) => e.status === "PASSED").length, total: up.entries.length, build: up.build, href: `/p/${up.project.key}/runs/${up.number}` } : null;
   }
 
-  // Regression flag (ver_93): regressions in this release still broken, per platform.
+  // Regression flag: regressions in this release still broken, per platform.
   for (const col of columns) {
     const plats = new Set([...runs.filter((r) => col.runIds.includes(r.id)).map((r) => r.project.platform.trim().toLowerCase()), ...(col.platform ? [col.platform.toLowerCase()] : [])]);
     const rows = [...plats].flatMap((p) => broken.get(p) ?? []);

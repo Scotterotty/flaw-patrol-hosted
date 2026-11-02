@@ -6,7 +6,7 @@ export function keyFromName(name: string) {
 }
 
 /**
- * Keys to try for a test cycle made without asking for one (ver_133, + New test cycle in
+ * Keys to try for a test cycle made without asking for one (+ New test cycle in
  * Pull from GitHub): the umbrella's key and the name's letters, like OKOBH, then OKOBH2, OKOBH3…
  */
 export function keyCandidates(umbrellaKey: string, name: string, count = 30): string[] {

@@ -39,7 +39,7 @@ export function CopyCoverage({ html, csv, fileName }: { html: string; csv: strin
   );
 }
 
-/** Requirements → Export (ver_91): the same menu as every Reports page. */
+/** Requirements → Export: the same menu as every Reports page. */
 export function CoverageExport({ html, csv, fileName, exportTo }: { html: string; csv: string; fileName: string; exportTo: { url: string; cycle: boolean; preparedBy: string; scopeLine: string } }) {
   const plain = csv.replace(/"/g, "").replace(/,/g, "\t");
   return (

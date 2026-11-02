@@ -8,7 +8,7 @@ import { newestRcNames } from "@/lib/story-coverage";
 import { libraryProjectIds } from "@/lib/umbrella";
 import { dateRange } from "@/lib/spelling";
 
-/** A test cycle's Reports → Export (ver_91): this tab as CSV or JSON, or the whole report as Excel or PDF. */
+/** A test cycle's Reports → Export: this tab as CSV or JSON, or the whole report as Excel or PDF. */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ key: string }> }) {
   const { key } = await params;
   const { project, user } = await projectAccess(key);
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ key:
       coverage: { libraryIds: await libraryProjectIds(project), columns: [{ id: project.id, key: project.key, name: project.name }], rcNames: await newestRcNames([project]) },
       projectKey: project.key,
       query: sp,
-      // Attached wrap-ups (ver_96): Release status's for its release, else the Run reports'.
+      // Attached wrap-ups: Release status's for its release, else the Run reports'.
       wrapUps: await exportWrapUps(user.rcReport, [project.id], sp.view === "rc" && f.release ? rcWrapKey(`/p/${project.key}/reports/rc`, f.release) : reportsWrapKey(`/p/${project.key}/reports`), f),
     },
     f,

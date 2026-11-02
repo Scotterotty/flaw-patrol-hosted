@@ -43,7 +43,7 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
   return (
     <Card id="members" className="scroll-mt-20 p-5">
       <h2 className="text-sm font-semibold text-slate-800">Members</h2>
-      {/* The Roles row is the one place that says what each role can do, so it stays right when presets change (ver_89). */}
+      {/* The Roles row is the one place that says what each role can do, so it stays right when presets change. */}
       {canManage && (
         <p className="mt-1 mb-4 text-xs">
           <a href="#roles" className="font-medium text-accent-700 hover:underline">
@@ -52,7 +52,7 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
         </p>
       )}
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
-      {/* Ask to join (ver_115): people who opened a link here and asked, on top for admins. */}
+      {/* Ask to join: people who opened a link here and asked, on top for admins. */}
       {canManage && <JoinRequests requests={requests} team={team} />}
       <ul className="mt-2 divide-y divide-slate-100">
         {members.map((m) => (
@@ -68,7 +68,7 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
                 {[
                   m.name && m.email,
                   !m.signedIn ? (m.inviteSentAt ? `invited · email sent ${relativeTime(new Date(m.inviteSentAt))}` : "invited, hasn't signed in yet") : !m.hasPassword && "no password yet (send a password link)",
-                  // When their invite link runs out (ver_114), so you know when to copy a new one.
+                  // When their invite link runs out, so you know when to copy a new one.
                   !m.signedIn && !m.hasPassword && m.inviteUntil && (new Date(m.inviteUntil) > new Date() ? `link works until ${linkUntil(new Date(m.inviteUntil), zone)}` : "link ran out, copy a new one"),
                 ]
                   .filter(Boolean)
@@ -236,8 +236,8 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
           <Button type="submit" variant="primary" disabled={pending}>
             Add
           </Button>
-          {/* The hint sits under the whole row so the role and Add line up with the email box (ver_94). */}
-          {/* ver_114: the old "choose a password the first time" hint wasn't true; new people need their invite link. */}
+          {/* The hint sits under the whole row so the role and Add line up with the email box. */}
+          {/* The old "choose a password the first time" hint wasn't true; new people need their invite link. */}
           {canEmail ? (
             <div className="w-full">
               <label className="flex items-center gap-2 text-sm text-slate-700">
@@ -265,7 +265,7 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
 export function InviteNote({ email, role, hasPassword, name, failed = false, message: invite = null, onClose }: { email: string; role: Role; hasPassword: boolean; name: string | null; failed?: boolean; message?: string | null; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
   const signIn = typeof window === "undefined" ? "/signin" : `${window.location.origin}/signin`;
-  // Someone new gets their one-time invite link (ver_114); someone who already uses Flaw Patrol signs in as usual.
+  // Someone new gets their one-time invite link; someone who already uses Flaw Patrol signs in as usual.
   const message =
     invite ?? `You've been added to a team in Flaw Patrol. Sign in at ${signIn} with ${email}${hasPassword ? " and your usual password" : ""}.`;
   const who = name ?? email;

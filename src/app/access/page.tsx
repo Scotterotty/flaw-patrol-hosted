@@ -10,7 +10,7 @@ import { requireUser } from "@/lib/session";
 export const metadata = { title: "You're not on this team yet" };
 
 /**
- * Shared links for people outside the team (ver_115). Someone signed in opened a link to a
+ * Shared links for people outside the team. Someone signed in opened a link to a
  * team they aren't on: say what it is and who the admins are, and offer Ask to join. A link
  * that doesn't point at anything real still says Not found.
  */

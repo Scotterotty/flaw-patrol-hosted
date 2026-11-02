@@ -12,7 +12,7 @@ import { atLeast } from "./slack-alerts";
 import { severityScaleFor } from "./severity-server";
 import { OPEN } from "./status";
 
-// Email digests (ver_132): who gets a summary when a run finishes, a bug bash ends or a
+// Email digests: who gets a summary when a run finishes, a bug bash ends or a
 // release's testing is done, the numbers that go in it, and sending it. Sending never holds
 // up a save: it runs after the response, like Slack alerts.
 

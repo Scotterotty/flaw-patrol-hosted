@@ -5,7 +5,7 @@ import { acceptInvite } from "@/server/passwords";
 import { Button, ErrorText, Field, Input } from "./ui";
 
 /**
- * The invite page's password form (ver_137): your name, if Flaw Patrol doesn't have it yet,
+ * The invite page's password form: your name, if Flaw Patrol doesn't have it yet,
  * and a password. Pressing the button signs you straight in and opens your home page.
  */
 export function AcceptInviteForm({ token, askName }: { token: string; askName: boolean }) {

@@ -45,7 +45,7 @@ export async function toolHoldings(u: Umbrella, which: readonly ToolId[]): Promi
 }
 
 /**
- * For each tool that's off (ver_128), what it still holds, like "The 14 runs from before are safe."
+ * For each tool that's off, what it still holds, like "The 14 runs from before are safe."
  * Only asked for when a tool is off, so umbrellas with every tool pay nothing.
  */
 export async function keptLines(u: Umbrella): Promise<Partial<Record<ToolId, string>>> {
@@ -58,7 +58,7 @@ export async function keptLines(u: Umbrella): Promise<Partial<Record<ToolId, str
   );
 }
 
-/** What the old-link note needs (ver_128). */
+/** What the old-link note needs. */
 export async function gateInfo(u: Umbrella) {
   return { g: u.group.id, hub: u.hub.key, cycles: u.projects.map((p) => p.key), name: u.group.name, tools: u.tools, canTurnOn: u.role === "ADMIN" && !u.group.archivedAt, kept: await keptLines(u) };
 }

@@ -5,7 +5,7 @@ import { parsePlatforms } from "./umbrella";
 import { countsForXp } from "./glossary";
 import { glossaryWork } from "./glossary-data";
 
-// Mini game crowns (ver_96): titles held by whoever did the most of something in an
+// Mini game crowns: titles held by whoever did the most of something in an
 // umbrella over the last 30 days, like Foursquare mayors. Real work only, same as XP:
 // no imported sheet results, automation, linked Jira issues or Won't fix bugs, and a
 // case counts once per run. Only mini game players take part. Crowns give no XP.
@@ -17,7 +17,7 @@ const FOLDER_MIN_CASES = 5;
 /** Keeper of Words: Glossary terms needed before anyone can hold it. */
 export const WORDS_NEED = 3;
 /**
- * ver_140: the Glossary is one list for everyone, so Keeper of Words is one crown for the
+ * The Glossary is one list for everyone, so Keeper of Words is one crown for the
  * whole team, kept under this stand-in umbrella id instead of once in every umbrella.
  */
 export const TEAM_GROUP = "team";
@@ -40,7 +40,7 @@ type Counted = { defs: CrownDef[]; counts: Map<string, Map<string, Count>> };
 
 /**
  * Every crown in each of these umbrellas, with each player's count over the last 30 days.
- * ver_129: all umbrellas are counted together, one set of lookups for the lot, instead of
+ * All umbrellas are counted together, one set of lookups for the lot, instead of
  * the same lookups again for every umbrella. Umbrellas without a hub or archived are left out.
  */
 async function countCrownsMany(groupIds: string[]): Promise<Map<string, Counted>> {
@@ -209,7 +209,7 @@ const sameCounts = (a: unknown, b: Record<string, number>) => {
  * an empty crown goes to whoever got there first. Someone who loses the crown they wear
  * gets their earlier title back. Runs after results, bugs, bash finds and sessions are
  * saved, and when the Account page opens (so quiet holders lose crowns as days pass).
- * ver_129: only crowns whose holder, name or counts changed are saved, all at once.
+ * Only crowns whose holder, name or counts changed are saved, all at once.
  * Hands back the umbrella's crowns as they are now.
  */
 async function settleCrowns(groupId: string, counted: Counted, existing: CrownRow[]): Promise<CrownRow[]> {
@@ -291,7 +291,7 @@ export type CrownView = {
 
 /**
  * Every crown in the umbrellas this person is in, counted fresh, for the Account page.
- * ver_129: counts every umbrella once, together, and reuses that count for the page.
+ * Counts every umbrella once, together, and reuses that count for the page.
  */
 export async function crownsFor(userId: string): Promise<CrownView[]> {
   const groups = await db.projectGroup.findMany({
@@ -362,7 +362,7 @@ export async function crownsFor(userId: string): Promise<CrownView[]> {
 export const toTake = (c: Pick<CrownView, "mine" | "top" | "need" | "holderId">) => Math.max(c.need - c.mine, c.holderId ? c.top + 1 - c.mine : 0, 1);
 
 /**
- * What changed since this person was last told (ver_96): crowns they took and crowns
+ * What changed since this person was last told: crowns they took and crowns
  * someone took from them. ver_140: each change says where it may show (`paths`, the pages
  * of its umbrella; null for the team's Keeper of Words, which shows in any umbrella), and
  * only the ones that showed are marked seen, so the rest wait for their umbrella.

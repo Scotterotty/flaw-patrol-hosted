@@ -7,7 +7,7 @@ import { loadBugTemplates } from "./bug-templates-data";
 import { db } from "./db";
 import { severityScaleFor } from "./severity-server";
 
-// What a bug bash found (ver_93): the board while it's on, and the one-page report after.
+// What a bug bash found: the board while it's on, and the one-page report after.
 
 export async function loadBashFull(bashId: string) {
   const bash = await db.bugBash.findUnique({
@@ -25,10 +25,10 @@ export async function loadBashFull(bashId: string) {
   const charterOf = new Map(charters.map((c) => [c.id, { ...parseCharter(c.versions[0]?.charter), key: c.project.key, number: c.number }]));
   const defects = await db.defect.findMany({ where: { id: { in: bash.items.map((i) => i.defectId).filter((x): x is string => !!x) } }, select: { id: true, number: true, externalKey: true, externalUrl: true } });
   const defectOf = new Map(defects.map((d) => [d.id, d]));
-  // Each area's run entry, so "File this bug…" can file against the area's charter (ver_94).
+  // Each area's run entry, so "File this bug…" can file against the area's charter.
   const entries = bash.run ? await db.runEntry.findMany({ where: { runId: bash.run.id, caseId: { in: areas.map((a) => a.caseId) } }, select: { id: true, caseId: true } }) : [];
   const entryOf = Object.fromEntries(areas.flatMap((a) => { const e = entries.find((x) => x.caseId === a.caseId); return e ? [[a.id, e.id] as const] : []; }));
-  // Additions and answers (ver_96) hang off the find they add to.
+  // Additions and answers hang off the find they add to.
   const addsOf = (id: string) => bash.items.filter((a) => a.kind === "add" && a.replyToId === id).reverse().map((a) => ({ id: a.id, byId: a.byId, byName: a.byName, text: a.text, at: a.createdAt }));
   const items = bash.items.filter((i) => i.kind !== "add").map((i) => ({
     id: i.id,
@@ -49,7 +49,7 @@ export async function loadBashFull(bashId: string) {
     bug: i.defectId ? (defectOf.get(i.defectId) ?? null) : null,
     adds: addsOf(i.id),
   }));
-  // Bug templates (ver_125): the team's list, for the log box and for switching the bash's template.
+  // Bug templates: the team's list, for the log box and for switching the bash's template.
   const runProject = bash.run ? await db.project.findUnique({ where: { id: bash.run.projectId }, select: { id: true, key: true, groupId: true } }) : null;
   const choices = runProject ? (await loadBugTemplates(runProject)).templates.map(({ id, name, hint, layout }) => ({ id, name, hint, layout })) : [];
   return {
@@ -61,7 +61,7 @@ export async function loadBashFull(bashId: string) {
     items,
     entryOf,
     links: parseLinks(bash.links),
-    // The team's own severity names (ver_94), so bash levels show what they file as.
+    // The team's own severity names, so bash levels show what they file as.
     sevNames: (await severityScaleFor(bash.run?.projectId ?? bash.projectId)).labels,
   };
 }
@@ -73,7 +73,7 @@ export async function bashReport(bashId: string, clock: { spelling?: Spelling; z
   if (!full) return null;
   const { bash, areas, items } = full;
   const bugs = items.filter((i) => i.kind === "bug" && !i.mergedIntoId);
-  // Every bug logged counts as found (ver_94), filed or not: the report used to drop unfiled ones and say 0.
+  // Every bug logged counts as found, filed or not: the report used to drop unfiled ones and say 0.
   const counted = bugs;
   const previous = await db.bugBash.findFirst({
     where: { projectId: bash.projectId, wrappedAt: { not: null }, createdAt: { lt: bash.createdAt } },
@@ -92,14 +92,14 @@ export async function bashReport(bashId: string, clock: { spelling?: Spelling; z
   const end = bash.endedAt && bash.endedAt < bash.endsAt ? bash.endedAt : bash.endsAt;
   return {
     ...full,
-    // On the viewer's clock and Language setting when the page passes them (ver_137).
+    // On the viewer's clock and Language setting when the page passes them.
     when: `${dayName(bash.startsAt, clock.spelling ?? "us", clock.zone)} ${timeRange(bash.startsAt, end, clock)}`,
     people,
     bugs: counted,
     notFiled: bash.wrappedAt ? counted.filter((b) => !b.bug).length : 0,
     high: counted.filter((b) => b.severity === "CRITICAL" || b.severity === "SHOWSTOPPER").length,
     questions: items.filter((i) => i.kind === "question").length,
-    // Everything found (ver_96): every kind, with what people added.
+    // Everything found: every kind, with what people added.
     unanswered: items.filter((i) => i.kind === "question" && !i.adds.length).length,
     notes: items.filter((i) => i.kind === "note").length,
     ideas: items.filter((i) => i.kind === "idea").length,

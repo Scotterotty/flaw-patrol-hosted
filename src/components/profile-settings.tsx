@@ -62,7 +62,7 @@ const label = <T extends { id: string; label: string }>(list: readonly T[], id: 
 
 /**
  * Your picture, name, theme, language and password, on /account. Every card folds to one
- * line that says what you have set (ver_96); what you leave open is saved on your account.
+ * line that says what you have set; what you leave open is saved on your account.
  */
 export async function ProfileSettings({ user }: { user: Me }) {
   const spelling = spellingFor(user.spelling);

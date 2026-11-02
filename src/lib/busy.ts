@@ -1,5 +1,5 @@
 /**
- * The corner spinner (ver_116): pure helpers for deciding what counts as "Flaw Patrol is
+ * The corner spinner: pure helpers for deciding what counts as "Flaw Patrol is
  * working for you" and what to call it. The component lives in components/busy-corner.tsx.
  */
 
@@ -7,7 +7,7 @@
 export const SHOW_AFTER_MS = 333;
 /**
  * Things you do on a page (a result, Save, a tick, a filter) only get the thin top line, and
- * sooner, so even quick saves give a hint (ver_130, Scott: keep loading signs out of the way).
+ * sooner, so even quick saves give a hint (Scott: keep loading signs out of the way).
  */
 export const LINE_AFTER_MS = 150;
 /** After this, a page move adds "Still working, hang tight" and a save shows "Still saving, hang tight". */

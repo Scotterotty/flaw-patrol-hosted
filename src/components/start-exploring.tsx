@@ -7,7 +7,7 @@ import { Modal } from "./modal";
 import { Button, cx, ErrorText, Input } from "./ui";
 
 /**
- * Start exploring (ver_96): the charter's mission, a time limit, who explores and where
+ * Start exploring: the charter's mission, a time limit, who explores and where
  * it goes. Always a 🧭 Exploratory run named "Explore: <charter>"; it opens the timer.
  */
 export function StartExploringButton({ caseId, label = "▶ Start exploring", size, variant = "primary", className }: { caseId: string; label?: string; size?: "sm"; variant?: "primary" | "secondary"; className?: string }) {

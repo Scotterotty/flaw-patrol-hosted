@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { CopyText } from "./copy-text";
 
 /**
- * After a lead starts a run with every case assigned to someone else (ver_85):
+ * After a lead starts a run with every case assigned to someone else:
  * say it worked and give them the run's link to send that tester.
  */
 export function HandOffNote({ runLabel, cases, name }: { runLabel: string; cases: number; name: string }) {

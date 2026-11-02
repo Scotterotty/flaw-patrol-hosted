@@ -1,5 +1,17 @@
+import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import type { NextConfig } from "next";
 import pkg from "./package.json";
+
+// Step-by-step replays open in Playwright's trace viewer, which isn't kept in git: make sure
+// public/trace-viewer is there for every dev server and build, even right after a git pull.
+const copyScript = join(process.cwd(), "scripts", "copy-trace-viewer.mjs");
+if (existsSync(copyScript)) {
+  try {
+    execFileSync(process.execPath, [copyScript], { stdio: "inherit" });
+  } catch {}
+}
 
 const nextConfig: NextConfig = {
   // `npm run release` packs this self-contained server into the ready-to-run build.

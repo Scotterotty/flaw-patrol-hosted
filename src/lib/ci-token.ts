@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 
-// CI upload tokens (ver_91): fp_ci_ plus 40 random characters. Only the sha256 is stored.
+// CI upload tokens: fp_ci_ plus 40 random characters. Only the sha256 is stored.
 
 export const CI_PREFIX = "fp_ci_";
 

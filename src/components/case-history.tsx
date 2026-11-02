@@ -43,7 +43,7 @@ export async function CaseHistory({ caseId, charter, canRun = true }: { caseId: 
   const t = totals(counts);
   const lastPass = results.find((r) => r.status === "PASSED");
   const flaky = isFlaky(results.map((r) => r.status));
-  // Regression flag (ver_93): kept on the result where it broke, with "Fixed again" on the pass after.
+  // Regression flag: kept on the result where it broke, with "Fixed again" on the pass after.
   const home = await db.testCase.findUnique({ where: { id: caseId }, select: { project: { select: { id: true, groupId: true } } } });
   const reg = home ? await regressionSettingsFor(home.project) : null;
   const marks = reg?.on

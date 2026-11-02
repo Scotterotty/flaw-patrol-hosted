@@ -18,7 +18,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!a) return new NextResponse("Not found", { status: 404 });
   const user = await db.user.findUnique({ where: { id: userId } });
   const member = await db.projectMember.findUnique({ where: { projectId_userId: { projectId: a.projectId, userId } } });
-  // Screenshots in a bug bash are for people outside the team who may be in it too (ver_115).
+  // Screenshots in a bug bash are for people outside the team who may be in it too.
   const guest = !member && !user?.isAdmin && (a.uploadedById === userId || (a.bashItemId && (await bashItemGuest(a.bashItemId, userId))));
   if (!user?.isAdmin && !member && !guest) return new NextResponse("Not found", { status: 404 });
   const inline = /^(image\/(png|jpeg|gif|webp)|application\/pdf|text\/plain|video\/(mp4|webm))$/.test(a.contentType);

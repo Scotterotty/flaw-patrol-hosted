@@ -1,7 +1,7 @@
 import { pawnOf } from "@/lib/quest-gear";
 
 /**
- * What's inside a pawn's colored circle: its emoji, or for "My picture" (ver_95) the
+ * What's inside a pawn's colored circle: its emoji, or for "My picture" the
  * profile picture with the pawn color showing as a ring. No picture falls back to Classic.
  */
 export function PawnFace({ pawn, photo }: { pawn: string; photo?: string | null }) {

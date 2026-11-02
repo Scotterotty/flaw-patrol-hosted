@@ -9,7 +9,7 @@ const URL_RE = /(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]])/g;
 /** Step text with its web addresses as links, each with a one-click Copy. */
 const escape = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Text with test data values (ver_138) picked out in blue, so it's clear what changes from row to row. */
+/** Text with test data values picked out in blue, so it's clear what changes from row to row. */
 function Marked({ text, marks }: { text: string; marks: string[] }) {
   const re = new RegExp(`(${[...marks].sort((a, b) => b.length - a.length).map(escape).join("|")})`, "g");
   return (
@@ -29,7 +29,7 @@ function Marked({ text, marks }: { text: string; marks: string[] }) {
 
 export function StepText({ text, className, marks }: { text: string; className?: string; marks?: string[] }) {
   const parts = text.split(URL_RE);
-  // Glossary terms (ver_113) are underlined once per step, links never.
+  // Glossary terms are underlined once per step, links never.
   const terms = useTermParts(parts.map((p, i) => (i % 2 === 1 ? "" : p)));
   return (
     <span className={className}>

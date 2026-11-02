@@ -7,7 +7,7 @@ import { setRunKinds } from "@/server/start-run";
 import { Badge, Button, ErrorText, Field, Input, Select } from "./ui";
 
 /**
- * Umbrella Settings → Run kinds (ver_95): what Start a run asks first. Smoke test and
+ * Umbrella Settings → Run kinds: what Start a run asks first. Smoke test and
  * Release candidate can be renamed or hidden; Bug bash is always there. Each kind can
  * have a usual suite, which fills in "What to run". Saves on each change.
  */
@@ -53,7 +53,7 @@ export function RunKindsPanel({ groupId, umbrella, kinds: initial, suites, canEd
             ))}
           </Select>
         ) : (
-          // No suites yet (ver_118): a plain line instead of a list with only None.
+          // No suites yet: a plain line instead of a list with only None.
           <p id="rk-suite" className="flex min-h-9 flex-wrap items-center gap-x-2 text-sm text-slate-500" data-testid="no-suites-optional">
             No suites yet. That&apos;s fine, it&apos;s optional.
             {newSuiteHref && (

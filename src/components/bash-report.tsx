@@ -20,7 +20,7 @@ export type ReportBug = {
   seen: number;
   key: string;
   url: string | null;
-  /** Not in Jira (ver_94): the filing failed, or someone left it out at wrap-up. */
+  /** Not in Jira: the filing failed, or someone left it out at wrap-up. */
   unfiled: "not-filed" | "left" | null;
   why: string;
   attachments: { id: string; fileName: string; contentType: string }[];
@@ -47,7 +47,7 @@ export type ReportData = {
   createdBy: string;
   people: number;
   areas: { id: string; name: string; links: BashLink[] }[];
-  /** Links for the whole bash (ver_96). */
+  /** Links for the whole bash. */
   links: BashLink[];
   wrapped: boolean;
   bugs: ReportBug[];
@@ -62,7 +62,7 @@ export type ReportData = {
   notes: number;
   ideas: number;
   plusOnes: number;
-  /** Everything found (ver_96): every bug, question, note and idea, with what people added. */
+  /** Everything found: every bug, question, note and idea, with what people added. */
   finds: ReportFind[];
   vsLast: { name: string; diff: number } | null;
   byArea: { id: string; name: string; bugs: number }[];
@@ -70,7 +70,7 @@ export type ReportData = {
   coverage: { id: string; name: string; prompts: number; covered: number; untouched: string[]; notes: number }[];
 };
 
-/** Share ▾ (ver_93): a link for anyone in Flaw Patrol, a Slack post, or a paste for Confluence. */
+/** Share ▾: a link for anyone in Flaw Patrol, a Slack post, or a paste for Confluence. */
 function ShareMenu({ r, onSay }: { r: ReportData; onSay: (s: string) => void }) {
   const exportUrl = `/p/${r.homeKey}/bashes/${r.id}/export`;
   const item = "flex w-full flex-col items-start gap-0 rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-slate-50";
@@ -165,7 +165,7 @@ function ExportBash({ r, onSay }: { r: ReportData; onSay: (s: string) => void })
   );
 }
 
-/** The one-page report (ver_93): numbers, bugs by area, worst bugs, and what got covered. */
+/** The one-page report: numbers, bugs by area, worst bugs, and what got covered. */
 export function BashReportView({ r }: { r: ReportData }) {
   const [note, setNote] = useState<string | null>(null);
   const say = (s: string) => {
@@ -304,7 +304,7 @@ export function BashReportView({ r }: { r: ReportData }) {
   );
 }
 
-/** Everything found (ver_96): every kind of find, by area or by time, with +1s, additions and answers. */
+/** Everything found: every kind of find, by area or by time, with +1s, additions and answers. */
 function EverythingFound({ r }: { r: ReportData }) {
   const [kind, setKind] = useState<"all" | FindKind>("all");
   const [view, setView] = useState<"area" | "time">("area");

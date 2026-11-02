@@ -8,7 +8,7 @@ import { INVITE_LINK_DAYS } from "./invite-message";
 import { ROLE_LABEL } from "./permissions";
 import { signInButtons } from "./sign-in-config";
 
-// Invite links (ver_92): one-time, 7 days, so a new person lands on a page made
+// Invite links: one-time, 7 days, so a new person lands on a page made
 // for them. Emailed when Workspace settings → Email is set up, else copied by hand.
 
 export const INVITE_DAYS = INVITE_LINK_DAYS;
@@ -79,7 +79,7 @@ export async function inviteEmails(userIds: string[]) {
 }
 
 /**
- * When each person's latest invite link runs out (ver_114), for "link works until Nov 7".
+ * When each person's latest invite link runs out, for "link works until Nov 7".
  * A used link doesn't count; an expired one still shows, so admins know to copy a new one.
  */
 export async function inviteLinkEnds(userIds: string[]) {

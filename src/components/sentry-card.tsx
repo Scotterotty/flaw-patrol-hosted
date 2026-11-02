@@ -7,7 +7,7 @@ import { Card } from "./ui";
 type Stats = { release: string | null; build: string; crashFree: number | null; fresh: number | null; found: number; inBugs: number; newUrl: string | null; releaseUrl: string | null; at: string };
 
 /**
- * How the build is doing in Sentry (ver_96), on a run page and Reports → RC status:
+ * How the build is doing in Sentry, on a run page and Reports → RC status:
  * crash-free sessions, new errors in this build, errors found during the run(s) and
  * how many of those are already in bugs. Loads after the page, so a slow Sentry never
  * holds the page up.

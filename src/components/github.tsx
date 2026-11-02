@@ -11,7 +11,7 @@ import { Modal } from "./modal";
 import { useCloseRow } from "./settings-row";
 import { Button, cx, ErrorText, Field, InfoTip, Input, Select } from "./ui";
 
-// Connect to GitHub and Pull from GitHub (ver_85): see src/server/github.ts.
+// Connect to GitHub and Pull from GitHub: see src/server/github.ts.
 
 export type RepoInfo = { id: string; fullName: string; workflowId: string | null; workflowName: string; glob: string; bringFiles?: boolean };
 
@@ -75,7 +75,7 @@ function RepoForm({ groupId, repo, onCancel, onSaved }: { groupId: string; repo?
       setWorkflows(res.workflows);
       setWorkflowId(res.workflowId);
       setGlob(res.glob);
-      // The picked workflow is saved with the connection (ver_88).
+      // The picked workflow is saved with the connection.
       setSaved(true);
       runCheck(res.repoId, res.workflowId, res.glob);
       router.refresh();
@@ -212,7 +212,7 @@ function RepoForm({ groupId, repo, onCancel, onSaved }: { groupId: string; repo?
   );
 }
 
-/** Settings → GitHub (ver_93): screenshots, videos and replays come from the same artifact. Saves on tick. */
+/** Settings → GitHub: screenshots, videos and replays come from the same artifact. Saves on tick. */
 function BringFiles({ repoId, on }: { repoId: string; on: boolean }) {
   const router = useRouter();
   const [v, setV] = useState(on);

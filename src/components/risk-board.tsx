@@ -21,7 +21,7 @@ export function RiskChip({ level }: { level: RiskLevel }) {
   return <span className={cx("rounded px-1.5 py-0.5 text-[11px] font-semibold", CHIP[level])}>{level}</span>;
 }
 
-/** The 3×3 board (ver_93): likelihood up the side, impact along the bottom. Drag or click a card to move it. */
+/** The 3×3 board: likelihood up the side, impact along the bottom. Drag or click a card to move it. */
 export function RiskBoard({
   homeId,
   release,
@@ -35,7 +35,7 @@ export function RiskBoard({
   withCases = true,
   planData,
 }: {
-  /** Plan this release's names, kinds, personas and open runs (ver_96). */
+  /** Plan this release's names, kinds, personas and open runs. */
   planData?: PlanData;
   homeId: string;
   release: string;
@@ -44,12 +44,12 @@ export function RiskBoard({
   cycles: { id: string; name: string }[];
   templates: CharterTemplateInfo[];
   canPlan: boolean;
-  /** Start a bug bash from the board (ver_96), for people who can start runs. */
-  /** The project to start it in; the box gets its own data when it opens (ver_120). */
+  /** Start a bug bash from the board, for people who can start runs. */
+  /** The project to start it in; the box gets its own data when it opens. */
   bash?: string;
   /** When each requirement was last bashed, and what its area found. */
   bashed?: Record<string, { at: string; bugs: number }>;
-  /** False when the umbrella doesn't use Test cases (ver_128): no "No tests" counts or tags. */
+  /** False when the umbrella doesn't use Test cases: no "No tests" counts or tags. */
   withCases?: boolean;
 }) {
   const router = useRouter();
@@ -131,7 +131,7 @@ export function RiskBoard({
               label={canPlan ? "Start a bug bash" : "Start a bug bash on these"}
               preset={{
                 name: `${release} risk bash`,
-                // Without Test runs (ver_128) this stands in for Plan this release, with the high-risk cards as its areas.
+                // Without Test runs this stands in for Plan this release, with the high-risk cards as its areas.
                 picks: [...cards]
                   .filter((c) => canPlan || c.level === "High" || !cards.some((x) => x.level === "High"))
                   .sort((a, b) => riskScore(b.likelihood, b.impact) - riskScore(a.likelihood, a.impact))
@@ -275,7 +275,7 @@ function CardDetail({ c, withCases, canMove, onMove, onReset }: { c: RiskCard; w
 
 type Pick = { action: PlanAction; minutes: number; template: string; persona: string };
 
-/** What Plan this release needs besides the cards (ver_96). */
+/** What Plan this release needs besides the cards. */
 export type PlanData = {
   homeKey: string;
   kinds: { id: string; name: string }[];

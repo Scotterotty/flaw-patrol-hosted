@@ -1,4 +1,4 @@
-// Bug templates (ver_119): the list a test cycle's bug form offers, and Settings → Bug templates.
+// Bug templates: the list a test cycle's bug form offers, and Settings → Bug templates.
 // Server only.
 
 import { db } from "@/lib/db";

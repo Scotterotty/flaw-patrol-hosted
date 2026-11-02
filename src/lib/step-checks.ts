@@ -1,7 +1,7 @@
 import type { ResultStatus } from "@prisma/client";
 import type { ExpandedStep } from "./steps";
 
-// Results for each check inside a shared step (ver_97). Imported shared steps often pack several
+// Results for each check inside a shared step. Imported shared steps often pack several
 // checks into one step: a name on the first line, then one check per line. The runner gives each
 // check its own result and the step's result rolls up from them. Nothing is stored on the shared
 // step itself; the lines are read as they are, every time.
@@ -107,7 +107,7 @@ export const firstOfShared = (steps: Pick<ExpandedStep, "number" | "shared">[], 
 
 /**
  * Which rows of a case's steps (a run entry's saved copy) are headings. They take no result, so
- * the runner skips them and nothing that counts steps should count them (ver_110).
+ * the runner skips them and nothing that counts steps should count them.
  */
 export function headingRows(steps: unknown): Set<number> {
   const out = new Set<number>();

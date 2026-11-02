@@ -8,7 +8,7 @@ import { requireProjectAction, requireUser } from "@/lib/session";
 import { attempt, UserError } from "./result";
 
 /**
- * Turn the Regression flag off (or back on) for one case in one run (ver_93). Anyone on the
+ * Turn the Regression flag off (or back on) for one case in one run. Anyone on the
  * test cycle can, because it's for when the flag is plainly wrong; their name is kept with it.
  */
 export async function setRegressionOff(projectId: string, entryId: string, off: boolean) {

@@ -9,7 +9,7 @@ import { isPartId, itemsSchema, newItemId, parseItems, type PartId, type ReportI
 import { requireProjectAction } from "@/lib/session";
 import { attempt, UserError } from "./result";
 
-// Custom reports (ver_101). Anyone who can record results can make one (Viewers read the
+// Custom reports. Anyone who can record results can make one (Viewers read the
 // shared ones). Whoever made a report, or anyone allowed to close runs, can change it;
 // deleting a shared one stays with whoever made it or an admin, like Saved views.
 

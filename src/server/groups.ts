@@ -40,7 +40,7 @@ export async function updateGroup(groupId: string, input: z.input<typeof groupSc
   return attempt(async () => {
     const group = await db.projectGroup.findUnique({ where: { id: groupId }, select: { hubProjectId: true } });
     if (!group) throw new UserError("That group isn't here anymore.");
-    // An umbrella is changed by people its own Roles card allows (ver_126), not by anyone on any team.
+    // An umbrella is changed by people its own Roles card allows, not by anyone on any team.
     const user = group.hubProjectId ? (await requireProjectAction(group.hubProjectId, "umbrella:manage")).user : await requireManager();
     const data = groupSchema.parse(input);
     await nameFree(data.name, groupId);
@@ -86,7 +86,7 @@ export async function setProjectGroup(projectId: string, groupId: string | null)
       const group = await db.projectGroup.findUniqueOrThrow({ where: { id: target } });
       if (group.archivedAt) throw new UserError(`${group.name} is archived. Restore it before moving test cycles in.`);
       // Moving a test cycle into an umbrella adds a test cycle there, so it needs the
-      // same right as Add test cycle on that umbrella (ver_127). Plain groups stay as they were.
+      // same right as Add test cycle on that umbrella. Plain groups stay as they were.
       if (group.hubProjectId && group.id !== project.groupId) {
         const allowed = await requireProjectAction(group.hubProjectId, "cycle:create").then(
           () => true,
@@ -109,7 +109,7 @@ export async function setProjectGroup(projectId: string, groupId: string | null)
 }
 
 /** Star or unstar a group card for yourself. */
-/** Hide umbrellas from your own Umbrellas page, or show them again (ver_94). Only you are affected. */
+/** Hide umbrellas from your own Umbrellas page, or show them again. Only you are affected. */
 export async function setGroupsHidden(groupIds: string[], hidden: boolean) {
   return attempt(async () => {
     const user = await requireUser();

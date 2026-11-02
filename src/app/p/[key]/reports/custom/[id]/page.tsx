@@ -7,7 +7,7 @@ import { projectAccess } from "@/lib/session";
 
 export const metadata = { title: "Custom report" };
 
-/** One custom report of a test cycle (ver_101): read it, or edit it with ?edit=1. */
+/** One custom report of a test cycle: read it, or edit it with ?edit=1. */
 export default async function CycleCustomReport({ params, searchParams }: { params: Promise<{ key: string; id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const { key, id } = await params;
   const sp = await searchParams;

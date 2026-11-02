@@ -19,12 +19,12 @@ function closeOnes<T>(q: string, list: T[], name: (x: T) => string, skip: (x: T)
   return found.slice(0, CLOSE_MAX);
 }
 
-// Ctrl+K search (ver_82): find and open cases, runs, bugs, umbrellas and test cycles,
+// Ctrl+K search: find and open cases, runs, bugs, umbrellas and test cycles,
 // suites and shared steps, and pages. Find only: it never creates or changes anything.
 
 export type SearchKind = "cases" | "runs" | "bugs" | "cycles" | "suites" | "pages";
 export type SearchHit = { href: string; label: string; key?: string; sub: string; archived?: boolean; best?: boolean; off?: { groupId: string; tool: ToolId; canTurnOn: boolean } };
-/** `close`: spelled a bit differently (ver_96), shown under their own label after the exact hits. */
+/** `close`: spelled a bit differently, shown under their own label after the exact hits. */
 export type SearchGroup = { kind: SearchKind; total: number; hits: SearchHit[]; close: SearchHit[]; seeAll?: string };
 export type RecentItem = { href: string; label: string; kind: SearchKind; sub: string };
 
@@ -41,7 +41,7 @@ async function scopeOf(user: { id: string; isAdmin: boolean }, groupId: string |
     },
     select: { id: true, key: true, name: true, archivedAt: true, groupId: true, rcName: true, platform: true, hubOf: { select: { id: true, name: true, tools: true } }, group: { select: { id: true, name: true, hubProjectId: true, archivedAt: true, tools: true } } },
   });
-  // Tools (ver_128): what each project's umbrella has turned off, so its cases, runs and pages stay out of the results.
+  // Tools: what each project's umbrella has turned off, so its cases, runs and pages stay out of the results.
   const offIn = new Map<string, Set<ToolId>>();
   for (const p of projects) {
     const tools = p.hubOf?.tools ?? (p.group?.hubProjectId ? p.group.tools : null);
@@ -97,9 +97,9 @@ const UMBRELLA_PAGES: { label: string; path: (g: string, hub: string) => string;
   { label: "Repositories", path: (g) => `/g/${g}/repos`, words: "repositories repos github health pass rate ci", tool: "auto" },
 ];
 
-/** `umbrella`: the one you're in. `everywhere`: on the Umbrellas page, every umbrella you can see (ver_89). */
+/** `umbrella`: the one you're in. `everywhere`: on the Umbrellas page, every umbrella you can see. */
 type PageScope = { id: string; name: string; hubKey: string; off: Set<ToolId>; admin: boolean };
-/** A page whose tool is off (ver_128) still comes up, saying so, with Turn on for Admins. */
+/** A page whose tool is off still comes up, saying so, with Turn on for Admins. */
 function pageHit(p: (typeof UMBRELLA_PAGES)[number], u: PageScope, label: string): SearchHit {
   const href = p.path(u.id, u.hubKey);
   if (p.tool && u.off.has(p.tool)) {
@@ -157,7 +157,7 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
   return attempt(async () => {
     const user = await requireUser();
     const { q: raw, groupId, archived } = searchSchema.parse(input);
-    // [WEB] looks for the tag WEB (ver_96).
+    // [WEB] looks for the tag WEB.
     const q = raw.replace(/[[\]]/g, " ").replace(/\s+/g, " ").trim();
     const { group, projects, usingTool, adminOf } = await scopeOf(user, groupId, archived);
     const hub = group ? projects.find((p) => p.id === group.hubProjectId) : null;
@@ -166,7 +166,7 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
     if (!q) return { groups, umbrella };
     const offOf = (tools: unknown) => new Set((Object.keys(toolById) as ToolId[]).filter((t) => !toolsOn(tools).includes(t)));
     const pageScope = umbrella && group && hub ? { ...umbrella, off: offOf(group.tools), admin: adminOf.has(hub.id) } : null;
-    // Each kind only looks in umbrellas that use its tool (ver_128).
+    // Each kind only looks in umbrellas that use its tool.
     const ids = usingTool("cases");
     const runIds_ = usingTool("runs");
     const byId = new Map(projects.map((p) => [p.id, p]));
@@ -243,7 +243,7 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
     }
 
     // Test runs: name, RC, build.
-    // "R1" finds every test cycle's R1, each named with its test cycle (ver_89).
+    // "R1" finds every test cycle's R1, each named with its test cycle.
     const runNumber = /^R(\d+)$/i.exec(q);
     const runWhere: Prisma.TestRunWhereInput = {
       projectId: { in: runIds_ },

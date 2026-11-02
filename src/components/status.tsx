@@ -26,7 +26,7 @@ const ICON: Record<ResultStatus, ReactNode> = {
       <path d="M8 2.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor" stroke="none" />
     </>
   ),
-  // A compass needle, for exploring (ver_96).
+  // A compass needle, for exploring.
   EXPLORED: (
     <>
       <circle cx="8" cy="8" r="5.6" />
@@ -37,7 +37,7 @@ const ICON: Record<ResultStatus, ReactNode> = {
 };
 
 /**
- * The status's shape (ver_96): check, X, circle-slash, arrow, double chevron, half circle,
+ * The status's shape: check, X, circle-slash, arrow, double chevron, half circle,
  * dashed circle. Hidden unless the person turned on Shapes and patterns (or `always`).
  */
 export function StatusIcon({ status, className, always = false }: { status: ResultStatus; className?: string; always?: boolean }) {
@@ -102,12 +102,12 @@ export function HistoryStrip({ statuses, max = 20 }: { statuses: { status: Resul
   return (
     <span className="inline-flex gap-0.5 align-middle">
       {shown.map((s, i) => {
-        // Test data (ver_138): a run whose rows didn't all end the same shows a stripe per row.
+        // Test data: a run whose rows didn't all end the same shows a stripe per row.
         const split = s.rows && s.rows.length > 1 && new Set(s.rows).size > 1 ? s.rows : null;
         const cls = cx("st-pip h-3 w-2 rounded-[2px]", split ? "flex flex-col overflow-hidden" : STATUS_STYLE[s.status].bar);
         const title = s.title ?? STATUS_LABEL[s.status];
         const stripes = split?.map((r, j) => <span key={j} data-row-stripe className={cx("min-h-px flex-1", STATUS_STYLE[r].bar)} />);
-        // A pip with a run behind it opens that run (ver_89).
+        // A pip with a run behind it opens that run.
         return s.href ? (
           <Link key={i} href={s.href} className={cx(cls, "transition hover:scale-y-125 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500")} title={title} aria-label={`${title}. Open the run`}>
             {stripes}

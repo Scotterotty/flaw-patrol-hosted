@@ -10,7 +10,7 @@ import type { ReportRow } from "@/lib/custom-report-scope";
 import { layoutRows, partOf, partsFor, PART_TABS, tabLabel } from "@/lib/report-parts";
 import type { Platform } from "@/lib/umbrella";
 
-// Reports → Custom reports (ver_101): the list, and one report to read or edit.
+// Reports → Custom reports: the list, and one report to read or edit.
 
 /** The list of reports, newest change first, with a card to start a new one. */
 export function CustomReportsList({ cs, reports, canCreate }: { cs: CustomScope; reports: ReportRow[]; canCreate: boolean }) {

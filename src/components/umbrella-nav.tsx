@@ -16,7 +16,7 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
   const hub = `/p/${u.hubKey}`;
   const c = u.cycle;
   const cb = c ? `/p/${c.key}` : "";
-  // The current test cycles get their own label so they don't read as runs (ver_87). When they all test
+  // The current test cycles get their own label so they don't read as runs. When they all test
   // the same RC on different platforms, the label names the RC once and each row just names its platform.
   const rcs = new Set(u.current.map((p) => p.rc));
   const sameRc = u.current.length > 1 && rcs.size === 1 && !rcs.has("") && u.current.every((p) => p.platform);
@@ -35,7 +35,7 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
         ...(c.ownCases ? [{ href: `${cb}/cases`, label: "Cases left here", count: c.ownCases, inner: true }] : []),
       ]
     : [];
-  // Tools (ver_128): a tool the umbrella doesn't use leaves the menu, with + Add tools at the bottom for Admins.
+  // Tools: a tool the umbrella doesn't use leaves the menu, with + Add tools at the bottom for Admins.
   const on = (t: ToolId) => u.tools.includes(t);
   const runsOn = on("runs");
   const all: MenuGroup[] = [
@@ -73,13 +73,13 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
       items: [
         { href: `${g}/bugs`, id: "bugs", label: "Bugs", count: u.counts.openBugs || undefined },
         { href: reportsHome({ g: u.id, tools: u.tools }), id: "reports", label: "Reports" },
-        // Once a GitHub repo is connected (ver_85).
+        // Once a GitHub repo is connected.
         ...(u.counts.repos ? [{ href: `${g}/repos`, id: "repos", tool: "auto" as const, label: "Repositories", count: u.counts.repos, tip: "Test health of each connected GitHub repo" }] : []),
       ],
     },
     {
       label: "Settings",
-      // One link (ver_117): the umbrella's Settings, where each test cycle has its own row under Test cycles.
+      // One link: the umbrella's Settings, where each test cycle has its own row under Test cycles.
       items: [
         { href: `${g}/settings`, id: "settings", label: "Settings", tip: runsOn ? `${u.name} and its test cycles` : `${u.name}'s settings` },
         ...(u.canTools && !everything(u.tools) ? [{ href: `${g}/settings#tools`, label: "+ Add tools", sub: true, tip: "Turn on tools this umbrella doesn't use yet" }] : []),

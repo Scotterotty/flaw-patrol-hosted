@@ -1,4 +1,4 @@
-/** The tabs Export → PDF report offers (ver_91), and which start ticked. Client-safe. */
+/** The tabs Export → PDF report offers, and which start ticked. Client-safe. */
 export function exportTabs(cycle: boolean) {
   return [
     { id: "rc", label: "Release status summary", on: true },

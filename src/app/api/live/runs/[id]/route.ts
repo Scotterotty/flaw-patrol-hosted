@@ -5,7 +5,7 @@ import { currentUser } from "@/lib/session";
 
 // A short fingerprint of a run's assignments, statuses and step progress. Open run pages poll
 // it and refresh when it changes, so everyone sees who's on what. Pass ?rows=<fingerprint you
-// have> to also get every row's status and step pips when it's changed (ver_112), so the page
+// have> to also get every row's status and step pips when it's changed, so the page
 // can update its list straight away instead of waiting for a reload.
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await currentUser();

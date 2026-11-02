@@ -20,7 +20,7 @@ import { fieldsOrFail } from "./run-field-input";
 import { buildEntries } from "./snapshot";
 
 // Umbrellas: a project group with a hub project holding the shared library, Jira
-// and team. Anyone but a Viewer makes them (ver_97); the hub's leads and admins run them.
+// and team. Anyone but a Viewer makes them; the hub's leads and admins run them.
 
 const keySchema = z
   .string()
@@ -73,7 +73,7 @@ const newProjectSchema = z.object({
 /**
  * A new umbrella. It can make its first projects on the spot (one per platform,
  * named "<umbrella> <platform> <RC>" unless renamed) and take in projects that
- * already exist, whose libraries can come along. Everyone except Viewers (ver_97); the maker becomes its Admin.
+ * already exist, whose libraries can come along. Everyone except Viewers; the maker becomes its Admin.
  */
 export async function createUmbrella(input: {
   name: string;
@@ -83,7 +83,7 @@ export async function createUmbrella(input: {
   moveCases?: boolean;
   release?: string;
   newProjects?: z.input<typeof newProjectSchema>[];
-  /** What will you use? (ver_128): the tools that are on; left out means every tool. */
+  /** What will you use?: the tools that are on; left out means every tool. */
   tools?: ToolId[];
 }) {
   return attempt(async () => {
@@ -209,7 +209,7 @@ export async function setPlatforms(groupId: string, input: { name: string; suite
     }
     const suites = await db.testSuite.findMany({ where: { projectId: hub.id }, select: { id: true } });
     const ok = new Set(suites.map((s) => s.id));
-    // Cases picked from folders (ver_91) stay with their platform.
+    // Cases picked from folders stay with their platform.
     const before = parsePlatforms(group.platforms);
     await db.projectGroup.update({
       where: { id: group.id },
@@ -226,7 +226,7 @@ export async function setPlatforms(groupId: string, input: { name: string; suite
   });
 }
 
-/** Mini game crowns (ver_96): each platform's optional crown name, e.g. "Ruler of the Web". */
+/** Mini game crowns: each platform's optional crown name, e.g. "Ruler of the Web". */
 export async function setCrownNames(groupId: string, names: Record<string, string>) {
   return attempt(async () => {
     const { group, hub } = await requireUmbrella(groupId, "umbrella:manage");
@@ -275,7 +275,7 @@ export async function addUmbrellaProject(groupId: string, input: { name: string;
     const typed = z.string().trim().max(30, "Keep platform names under 30 characters.").parse(input.platform);
     if (await db.project.findUnique({ where: { key } })) throw new UserError(`Key ${key} is already used.`);
     // A platform typed here that the umbrella doesn't list yet joins its platforms,
-    // so it shows in Start next release and the platform filters (ver_86). A known one keeps its spelling.
+    // so it shows in Start next release and the platform filters. A known one keeps its spelling.
     const platforms = parsePlatforms(group.platforms);
     const known = platforms.find((p) => p.name.toLowerCase() === typed.toLowerCase());
     const platform = known?.name ?? typed;
@@ -294,7 +294,7 @@ export async function addUmbrellaProject(groupId: string, input: { name: string;
 }
 
 /**
- * + New test cycle in Pull from GitHub and Upload automation results (ver_133): a place for
+ * + New test cycle in Pull from GitHub and Upload automation results: a place for
  * automated runs, made right in the box. No key is asked for, so one is picked, and it has no
  * release unless one is typed (then its runs count toward that release).
  */
@@ -370,7 +370,7 @@ export async function rcPlan(groupId: string) {
     select: { id: true, name: true, cases: { where: { testCase: { archived: false } }, select: { caseId: true } } },
   });
   const projects = await db.project.findMany({ where: { groupId, archivedAt: null }, orderBy: { createdAt: "desc" }, select: { id: true, name: true, platform: true, rcName: true } });
-  // The library as a folder tree, for Choose from folders… (ver_91).
+  // The library as a folder tree, for Choose from folders….
   const [folders, cases, hubMembers] = await Promise.all([
     db.folder.findMany({ where: { projectId: hub.id }, select: { id: true, parentId: true, name: true } }),
     db.testCase.findMany({ where: { projectId: hub.id, archived: false }, orderBy: { number: "asc" }, select: { id: true, number: true, title: true, folderId: true } }),
@@ -387,15 +387,15 @@ export async function rcPlan(groupId: string) {
         : [];
       const names = testers.length ? await db.user.findMany({ where: { id: { in: testers.map((t) => t.assigneeId!) } }, select: { name: true, email: true } }) : [];
       const bugs = prev ? await openBugCaseIds([prev.id]) : { keys: [], caseIds: [] };
-      // Runs still open in the last release, which Start next release can close (ver_85).
+      // Runs still open in the last release, which Start next release can close.
       const openRuns = prev ? await db.testRun.count({ where: { projectId: prev.id, state: "ACTIVE" } }) : 0;
       // Every library case the last release ran on this platform, and who had each one (latest wins), case by case.
       const entries = prev
-        ? // Bug bash runs are kept out of releases (ver_94), so "Same cases as" never counts their charters.
+        ? // Bug bash runs are kept out of releases, so "Same cases as" never counts their charters.
           await db.runEntry.findMany({ where: { run: { projectId: prev.id, automated: false, bugBash: { is: null } } }, orderBy: [{ run: { createdAt: "asc" } }, { position: "asc" }], select: { caseId: true, assigneeId: true } })
         : [];
       const lastCaseIds = [...new Set(entries.map((e) => e.caseId))].filter((id) => inLibrary.has(id));
-      // The suites the last test cycle's runs actually used (ver_95), by the run's suite or,
+      // The suites the last test cycle's runs actually used, by the run's suite or,
       // for a run of picked cases, the suite with exactly those cases.
       const prevRuns = prev ? await db.testRun.findMany({ where: { projectId: prev.id, automated: false, bugBash: { is: null } }, select: { suiteId: true, entries: { select: { caseId: true } } } }) : [];
       const sets = suites.map((s) => ({ id: s.id, caseIds: s.cases.map((c) => c.caseId) }));
@@ -417,7 +417,7 @@ export async function rcPlan(groupId: string) {
         suites: mine.map((s) => s.name),
         runs: mine.length,
         cases: new Set(mine.flatMap((s) => s.cases.map((c) => c.caseId))).size,
-        // Test cycles made with Add test cycle have no release name, so they go by their own name (ver_95).
+        // Test cycles made with Add test cycle have no release name, so they go by their own name.
         prev: prev ? { name: prev.name, rc: prev.rcName || prev.name } : null,
         testers: names.map((n) => n.name ?? n.email.split("@")[0]),
         openBugs: bugs.keys,
@@ -435,9 +435,9 @@ export async function rcPlan(groupId: string) {
     allSuites: suites.map((s) => ({ id: s.id, name: s.name, cases: s.cases.length, caseIds: s.cases.map((c) => c.caseId) })),
     library: { folders, cases: cases.map((c) => ({ id: c.id, key: `${hub.key}-${c.number}`, title: c.title, folderId: c.folderId })) },
     lastRc,
-    // Releases that already have test cycles (ver_137): typing one shows "Start a run instead".
+    // Releases that already have test cycles: typing one shows "Start a run instead".
     releases: projects.filter((p) => p.rcName.trim()).map((p) => ({ rc: p.rcName.trim(), platform: p.platform.trim() })),
-    // Offered as "Use Demo RC 2" next to the empty Release box, never filled in (ver_99).
+    // Offered as "Use Demo RC 2" next to the empty Release box, never filled in.
     suggested: (lastRc && nextRc(lastRc)) || "",
     runFields: parseRunFields(group.runFields),
   };
@@ -455,15 +455,15 @@ async function openBugCaseIds(projectIds: string[]) {
 const rcSchema = z.object({
   rc: z.string().trim().min(1, "Name the release you're testing").max(30),
   platforms: z.array(z.string()).min(1, "Pick at least one platform."),
-  // Nothing carries over unless it's ticked (ver_99).
+  // Nothing carries over unless it's ticked.
   carryAssignments: z.boolean().default(false),
   recheckBugs: z.boolean().default(false),
-  /** The umbrella's run fields for every run made (ver_99), by field id. "csp" fills cspVersion. */
+  /** The umbrella's run fields for every run made, by field id. "csp" fills cspVersion. */
   fields: z.record(z.string(), z.string().max(200)).default({}),
-  /** Close the last release's open runs on these platforms (ver_85). */
+  /** Close the last release's open runs on these platforms. */
   closeOld: z.boolean().default(false),
   /**
-   * What each platform runs this release (ver_89): suites from the library, nothing yet (a test cycle with no
+   * What each platform runs this release: suites from the library, nothing yet (a test cycle with no
    * runs), or a new empty suite made now. A platform left out runs the suites it's set to.
    */
   choices: z
@@ -472,7 +472,7 @@ const rcSchema = z.object({
       z.discriminatedUnion("kind", [
         z.object({ kind: z.literal("suites"), ids: z.array(z.string()).min(1, "Pick at least one suite.") }),
         z.object({ kind: z.literal("empty") }),
-        /** Cases picked from folders, or the same cases as last release (ver_91). */
+        /** Cases picked from folders, or the same cases as last release. */
         z.object({ kind: z.literal("cases"), ids: z.array(z.string()).min(1, "Pick at least one case.").max(5000) }),
         z.object({ kind: z.literal("newsuite"), name: z.string().trim().min(1, "Name the new suite.").max(100) }),
       ]),
@@ -496,7 +496,7 @@ export async function startNextRc(groupId: string, input: z.input<typeof rcSchem
     if (!chosen.length) throw new UserError("Pick at least one platform.");
     const unset = chosen.find((p) => !data.choices[p.name] && p.suiteIds.length === 0);
     if (unset) throw new UserError(`Pick test cases for ${unset.name}.`);
-    // New suites are made empty in the library; their cases are added there, then a run started (ver_89).
+    // New suites are made empty in the library; their cases are added there, then a run started.
     const hubSuites = new Set((await db.testSuite.findMany({ where: { projectId: hub.id, archived: false }, select: { id: true } })).map((x) => x.id));
     const platforms: { name: string; suiteIds: string[]; caseIds?: string[] }[] = [];
     for (const p of chosen) {
@@ -561,7 +561,7 @@ export async function startNextRc(groupId: string, input: z.input<typeof rcSchem
       const order = new Map(p.suiteIds.map((id, i) => [id, i]));
       suites.sort((a, b) => order.get(a.id)! - order.get(b.id)!);
 
-      // A test cycle made with no runs keeps the carry-over for its first run (ver_91).
+      // A test cycle made with no runs keeps the carry-over for its first run.
       const later = !p.suiteIds.length && !p.caseIds;
       const carry: CarryOver | null = later && prev && (assigned.size || recheck.size) ? { from: prev.rcName, assigned: Object.fromEntries(assigned), recheck: [...recheck] } : null;
       const project = await db.$transaction(
@@ -573,7 +573,7 @@ export async function startNextRc(groupId: string, input: z.input<typeof rcSchem
           await syncUmbrellaMembers(groupId, tx);
           if (!user.isAdmin && !hubMembers.has(user.id)) await tx.projectMember.create({ data: { projectId: proj.id, userId: user.id, role: "ADMIN" } });
           let runs = 0;
-          // Cases picked from folders (or the same as last release) make one run (ver_91).
+          // Cases picked from folders (or the same as last release) make one run.
           const sets: { suiteId: string | null; suiteVersion: number | null; name: string; ids: string[] }[] = p.caseIds
             ? [{ suiteId: null, suiteVersion: null, name: `${p.name} ${data.rc}`, ids: p.caseIds }]
             : suites.map((s) => ({ suiteId: s.id, suiteVersion: s.currentVersion, name: s.name, ids: s.cases.map((c) => c.caseId) }));
@@ -728,7 +728,7 @@ const runFieldSchema = z.object({
 });
 const BUILT_IN = ["release", "release candidate", "rc", "build", "environment", "name", "notes"];
 
-/** Run fields (ver_89): save the umbrella's whole list. Old runs keep the values they have. */
+/** Run fields: save the umbrella's whole list. Old runs keep the values they have. */
 export async function setRunFields(groupId: string, input: z.input<typeof runFieldSchema>[]) {
   return attempt(async () => {
     const { group, hub, user } = await requireUmbrella(groupId, "umbrella:fields");

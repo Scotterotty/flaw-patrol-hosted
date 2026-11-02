@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Custom reports (ver_101): the parts people can pick from the Reports tabs, and what a
+// Custom reports: the parts people can pick from the Reports tabs, and what a
 // report keeps for each one. Shared by the pages, the editor and the export.
 
 export type PartTab = "status" | "trends" | "steps" | "failing" | "regression" | "defects" | "cases" | "other";
@@ -84,7 +84,7 @@ export function parseItems(v: unknown): ReportItem[] {
   });
 }
 
-/** The People part was taken out (ver_139): reports never compare people. True if a stored report still lists it. */
+/** The People part was taken out: reports never compare people. True if a stored report still lists it. */
 export const hadPeoplePart = (v: unknown) => Array.isArray(v) && v.some((x) => x && typeof x === "object" && (x as { part?: unknown }).part === "testers");
 
 export const newItemId = () => Math.random().toString(36).slice(2, 10);

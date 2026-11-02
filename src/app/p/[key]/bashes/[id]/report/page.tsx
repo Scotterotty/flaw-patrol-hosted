@@ -9,16 +9,16 @@ import { jiraConfigFor } from "@/lib/umbrella";
 
 export const metadata = { title: "Bug bash report" };
 
-/** The one-page bug bash report (ver_93), also listed on Reports → Bug bashes. */
+/** The one-page bug bash report, also listed on Reports → Bug bashes. */
 export default async function BashReportPage({ params }: { params: Promise<{ key: string; id: string }> }) {
   const { key, id } = await params;
   const { project, user, who, guest } = await projectAccessOrGuest(key);
-  // People outside the team who took part (ver_115) see this bash's report only.
+  // People outside the team who took part see this bash's report only.
   if (guest && guest.bashId !== id) notFound();
-  // The header on the viewer's clock and Language setting (ver_137).
+  // The header on the viewer's clock and Language setting.
   const r = await bashReport(id, { spelling: await mySpelling(), zone: await viewerZone() });
   if (!r || r.bash.projectId !== project.id) notFound();
-  // File this bug… (ver_94) is for whoever started it, or a lead.
+  // File this bug… is for whoever started it, or a lead.
   const runProjectId = r.bash.run?.projectId ?? r.bash.projectId;
   const file = !guest && (r.bash.createdById === user.id || can(who, "run:manage")) ? { projectId: runProjectId, jiraConnected: !!(await jiraConfigFor(runProjectId)) } : undefined;
   return (

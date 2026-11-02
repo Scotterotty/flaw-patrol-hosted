@@ -1,5 +1,5 @@
 /**
- * Run fields (ver_89): the extra details an umbrella's runs ask for, beyond the
+ * Run fields: the extra details an umbrella's runs ask for, beyond the
  * built-in Release, Build and Environment. Umbrellas made before ver_89 start with
  * CSP version (id "csp", stored in TestRun.cspVersion); new umbrellas start with none.
  * Test cycles outside any umbrella keep CSP version.
@@ -78,7 +78,7 @@ export function readFieldInput(defs: RunField[], input: Record<string, string>, 
   for (const d of defs) {
     const value = (input[d.id] ?? "").trim().slice(0, 200);
     if (opts.strict !== false && d.required && !value) throw new Error(`Fill in ${d.name}.`);
-    // Pick-list fields take a typed value too (ver_99), for a version nobody has added yet.
+    // Pick-list fields take a typed value too, for a version nobody has added yet.
     if (d.id === CSP_FIELD.id) cspVersion = value;
     else fields.push({ id: d.id, name: d.name, value });
   }

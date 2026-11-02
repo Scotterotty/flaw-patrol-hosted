@@ -1,4 +1,4 @@
-// Tours and checklists (ver_93): ready-made charters for testing without test cases.
+// Tours and checklists: ready-made charters for testing without test cases.
 // A template fills in everything but the area; its prompts become a card in the session.
 // The gallery shows the built-in ones through useSpell (charters.tsx), so UK readers see UK spelling.
 

@@ -14,7 +14,7 @@ import type { Action } from "@/lib/permissions";
 import { requireProjectAction } from "@/lib/session";
 import { attempt, UserError } from "./result";
 
-// Connect to GitHub and Pull from GitHub (ver_85). Admins connect a repo on the
+// Connect to GitHub and Pull from GitHub. Admins connect a repo on the
 // umbrella's Settings (like Jira); leads and admins pull a workflow run's results,
 // which then go through the same check-and-save steps as Upload automation results.
 
@@ -86,7 +86,7 @@ export async function connectGitHub(groupId: string, input: z.input<typeof conne
     refresh(groupId, hub.key);
     // Offer the workflow already picked, else one that sounds like tests.
     const pick = workflows.find((w) => w.id === repo.workflowId) ?? workflows.find((w) => /test/i.test(w.name)) ?? workflows[0];
-    // Save and test saves that pick too (ver_88), so the repo is ready to pull without a second Save.
+    // Save and test saves that pick too, so the repo is ready to pull without a second Save.
     if (repo.workflowId !== pick.id) await db.gitHubRepo.update({ where: { id: repo.id }, data: { workflowId: pick.id, workflowName: pick.name } });
     return { repoId: repo.id, fullName: repo.fullName, workflows, workflowId: pick.id, glob: repo.resultsGlob };
   });
@@ -156,7 +156,7 @@ export type PullRun = {
   pulled: { key: string; number: number } | null;
   /** No results file left: GitHub deleted the artifacts, or the run never made any. */
   gone: boolean;
-  /** The workflow's own steps and what broke (ver_89); null when GitHub couldn't say. */
+  /** The workflow's own steps and what broke; null when GitHub couldn't say. */
   steps: BuildSteps | null;
 };
 
@@ -211,7 +211,7 @@ export async function githubFetchResults(repoId: string, runId: string) {
       throw new UserError(e instanceof Error ? e.message : "The results file couldn't be read.");
     }
     if (!read.tests.length) throw new UserError("That run's results file has no tests in it.");
-    // Screenshots, videos and replays wait on the server until Save (ver_93).
+    // Screenshots, videos and replays wait on the server until Save.
     const stageId = await stageMedia(media, user.id);
     return {
       files,
@@ -227,7 +227,7 @@ export async function githubFetchResults(repoId: string, runId: string) {
   });
 }
 
-/** Settings → GitHub: also bring in screenshots, videos and replays from the same artifact (ver_93). */
+/** Settings → GitHub: also bring in screenshots, videos and replays from the same artifact. */
 export async function setGitHubBringFiles(repoId: string, on: boolean) {
   return attempt(async () => {
     const { repo, hub, user, group } = await requireRepo(repoId, "jira:manage");

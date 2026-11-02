@@ -12,8 +12,8 @@ import { areaContextFor, knownTagNamesFor } from "@/lib/tag-data";
 import { parseTagColors, splitBracketTitle, TAG_COLORS } from "@/lib/tags";
 import { attempt, UserError } from "./result";
 
-// Bracket tags (ver_96): tag colors, renaming a tag everywhere, and turning existing
-// "[WEB] - …" titles into tags (with Undo), and area words after the platform (ver_102).
+// Bracket tags: tag colors, renaming a tag everywhere, and turning existing
+// "[WEB] - …" titles into tags (with Undo), and area words after the platform.
 
 type Author = { authorId: string; authorName: string };
 
@@ -146,7 +146,7 @@ export async function undoBracketTitles(projectId: string, undo: { id: string; t
   });
 }
 
-// Area tags (ver_102): the word after the platform ("Unity · Hub - Space List").
+// Area tags: the word after the platform ("Unity · Hub - Space List").
 
 const areaCases = (projectId: string) => db.testCase.findMany({ where: { projectId, archived: false }, select: { id: true, title: true, tags: true }, orderBy: { number: "asc" } });
 

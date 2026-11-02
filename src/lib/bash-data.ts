@@ -7,7 +7,7 @@ import { db } from "./db";
 import { storyInfo } from "./stories";
 import { umbrellaOf } from "./umbrella";
 
-// What the Start a bug bash box and the Bug bashes page need (ver_93).
+// What the Start a bug bash box and the Bug bashes page need.
 
 export type StartBoxData = {
   homeId: string;
@@ -19,7 +19,7 @@ export type StartBoxData = {
   last: { name: string; areas: string[] } | null;
   templates: { id: string; name: string; group: string }[];
   slackChannels: number;
-  /** Bug templates (ver_125): the team's list and the default one; null is the plain one-line bug. */
+  /** Bug templates: the team's list and the default one; null is the plain one-line bug. */
   bugTemplates: { id: string; name: string; hint: string }[];
   bugTemplateDefault: string | null;
 };
@@ -28,7 +28,7 @@ export type StartBoxData = {
 export const bashHome = charterHome;
 
 export async function startBoxData(project: { id: string; key: string; name: string; groupId: string | null }): Promise<StartBoxData> {
-  // In two rounds instead of ten one after another (ver_120).
+  // In two rounds instead of ten one after another.
   const [home, u] = await Promise.all([bashHome(project), umbrellaOf(project)]);
   const [homeRow, cycles, last, stories, folders, charters, team] = await Promise.all([
     db.project.findUniqueOrThrow({ where: { id: home.id }, select: { id: true, key: true, name: true } }),
@@ -55,7 +55,7 @@ export async function startBoxData(project: { id: string; key: string; name: str
     seen.add(n.toLowerCase());
     suggestions.push({ name: n, hot, why, ...(link && { link }) });
   };
-  // A risky requirement carries its Jira link into the area (ver_96).
+  // A risky requirement carries its Jira link into the area.
   for (const s of stories) add(s.title, true, `High on the Risk board (${s.key})`, { kind: "jira", key: s.key, title: s.title, url: s.url ?? "" });
   for (const f of folders) add(f.name, false, "A Case library folder");
   for (const c of charters) add(c.title, false, "An existing charter");
@@ -63,7 +63,7 @@ export async function startBoxData(project: { id: string; key: string; name: str
     homeId: homeRow.id,
     homeKey: homeRow.key,
     homeName: u?.group.name ?? homeRow.name,
-    // Kept apart from releases unless someone picks a test cycle (ver_94): the hub is "Don't attach".
+    // Kept apart from releases unless someone picks a test cycle: the hub is "Don't attach".
     cycles: [{ id: homeRow.id, name: "" }, ...cycles.map((c) => ({ id: c.id, name: [c.name, c.platform && !c.name.includes(c.platform) ? c.platform : ""].filter(Boolean).join(" · ") }))],
     defaultCycleId: homeRow.id,
     suggestions: suggestions.slice(0, 10),
@@ -98,7 +98,7 @@ export async function bashList(homeId: string) {
   }));
 }
 
-/** Risk board (ver_96): when each requirement was last bashed, and the bugs its area found. */
+/** Risk board: when each requirement was last bashed, and the bugs its area found. */
 export async function bashedRequirements(homeId: string) {
   const bashes = await db.bugBash.findMany({ where: { projectId: homeId }, orderBy: { startsAt: "asc" }, select: { startsAt: true, areas: true, items: { where: { kind: "bug", mergedIntoId: null }, select: { areaId: true } } } });
   const out = new Map<string, { at: string; bugs: number }>();

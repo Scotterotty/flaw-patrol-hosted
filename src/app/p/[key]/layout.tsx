@@ -13,7 +13,7 @@ import { gateInfo } from "@/lib/tools-data";
 export default async function ProjectLayout({ children, params }: { children: React.ReactNode; params: Promise<{ key: string }> }) {
   const { key } = await params;
   const { user, project, role, guest, frame } = await projectAccessOrGuest(key);
-  // Someone outside the team in a bug bash (ver_115): just the bash, without the team's menu.
+  // Someone outside the team in a bug bash: just the bash, without the team's menu.
   if (guest)
     return (
       <>
@@ -21,12 +21,12 @@ export default async function ProjectLayout({ children, params }: { children: Re
         <main className="min-w-0 px-4 pt-6 pb-16 sm:px-6 md:pb-6">{children}</main>
       </>
     );
-  // Recent on the Projects page is noted after the page is sent, so nobody waits for it (ver_120).
+  // Recent on the Projects page is noted after the page is sent, so nobody waits for it.
   after(() => recordVisit(user.id, project.id));
-  // A Viewer is told so, with who can change it (ver_124, persona audit #6).
+  // A Viewer is told so, with who can change it (persona audit #6).
   const viewer = role === "VIEWER" && !user.isAdmin;
   // An umbrella's hub project is shown as the umbrella itself, with the umbrella's menu.
-  // Which umbrella, and the group's name, came with the project itself (ver_129): no extra lookups here.
+  // Which umbrella, and the group's name, came with the project itself: no extra lookups here.
   const { hubOf, group } = frame;
   const umbrella = hubOf ? await loadUmbrella(hubOf, user) : null;
   if (umbrella) {
@@ -46,7 +46,7 @@ export default async function ProjectLayout({ children, params }: { children: Re
   }
   // Archived with its umbrella: the umbrella's banner says how to bring it back.
   const umbrellaArchived = !!group?.hubProjectId && !!group.archivedAt;
-  // A test cycle's pages follow its umbrella's tools (ver_128).
+  // A test cycle's pages follow its umbrella's tools.
   const parent = group?.hubProjectId ? await loadUmbrella(group.id, user) : null;
   return (
     <>

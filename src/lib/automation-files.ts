@@ -1,4 +1,4 @@
-// Client-safe settings and words for automation files (ver_93); the reading lives in automation-media.ts.
+// Client-safe settings and words for automation files; the reading lives in automation-media.ts.
 
 export type MediaCounts = { screenshots: number; videos: number; replays: number; bytes: number };
 

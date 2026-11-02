@@ -61,15 +61,15 @@ export function BugDialog({
   sentryErrors = [],
   focus = null,
 }: {
-  /** A whole-case bug's first failed step (ver_124, persona audit #4): the bug starts from what failed there. */
+  /** A whole-case bug's first failed step (persona audit #4): the bug starts from what failed there. */
   focus?: number | null;
-  /** Sentry is connected (ver_96): + Add offers "Sentry error…". */
+  /** Sentry is connected: + Add offers "Sentry error…". */
   sentryOn?: boolean;
   /** Errors ticked under the step, put on the bug. */
   sentryErrors?: SentryRef[];
   /** A bug already written elsewhere (a bug bash line, ver_94): its title and severity start filled in. */
   prefill?: { title: string; severity: Severity };
-  /** Regression flag (ver_93): the case passed in an earlier release, so the box to mark it in Jira starts ticked. */
+  /** Regression flag: the case passed in an earlier release, so the box to mark it in Jira starts ticked. */
   regression?: { label: string; against: string } | null;
   open: boolean;
   onClose: () => void;
@@ -90,30 +90,30 @@ export function BugDialog({
   recent: LinkedDefect[];
   /** A title made from the screen, used when Jira isn't connected (Jira's preview makes its own). */
   suggested?: string;
-  /** Known bugs on this step (ver_96): "It's this one" marks it Still happens instead of filing. */
+  /** Known bugs on this step: "It's this one" marks it Still happens instead of filing. */
   known?: KnownBug[];
   onKnownStill?: (b: KnownBug) => void;
   /** The case's Jira stories: each gets a "Link to story" tick. */
   stories?: { key: string; title: string }[];
   /** Whether those ticks start ticked (Settings → Jira → Stories). */
   linkStories?: boolean;
-  /** Send to Jira (ver_91): a bug saved before Jira was connected becomes this Jira issue. */
+  /** Send to Jira: a bug saved before Jira was connected becomes this Jira issue. */
   fromDefect?: { id: string; label: string; title: string; severity: Severity };
 }) {
   const [linkTo, setLinkTo] = useState<Set<string>>(new Set());
-  // Known bugs the tester said this isn't (ver_96): the new bug links to them as related instead.
+  // Known bugs the tester said this isn't: the new bug links to them as related instead.
   const [notThis, setNotThis] = useState<string[]>([]);
   const [markReg, setMarkReg] = useState(true);
   const [tab, setTab] = useState<"new" | "link">("new");
   const [summary, setSummary] = useState("");
   const [body, setBody] = useState("");
-  // What happened (ver_124): without Jira, the bug's own description, filled in and editable.
+  // What happened: without Jira, the bug's own description, filled in and editable.
   const [happened, setHappened] = useState("");
   const [reporter, setReporter] = useState<ReporterInfo | null>(null);
   const [severity, setSeverity] = useState<Severity>(DEFAULT_SEVERITY);
-  // The team's severity names, from its Jira (ver_91).
+  // The team's severity names, from its Jira.
   const [scale, setScale] = useState<SeverityScale>(PLAIN_SCALE);
-  // An imported template's Severity starts on "Choose…" (ver_85): the tester picks it.
+  // An imported template's Severity starts on "Choose…": the tester picks it.
   const [sevPicked, setSevPicked] = useState(true);
   const [include, setInclude] = useState<Set<string>>(new Set());
   // The team template, when the project uses it.
@@ -132,25 +132,25 @@ export function BugDialog({
   const [filed, setFiled] = useState<{ key: string; notes: string[] } | null>(null);
   const [pending, start] = useTransition();
   const [searching, startSearch] = useTransition();
-  // Bug templates (ver_119): the team's list, which one is picked, and the bug being filled in with it.
+  // Bug templates: the team's list, which one is picked, and the bug being filled in with it.
   const [choices, setChoices] = useState<{ current: CurrentLayout; templates: TemplateChoice[] } | null>(null);
   const [chosen, setChosen] = useState("");
   const [draft, setDraft] = useState<TemplatedDraft | null>(null);
   const [loadingTemplate, startTemplate] = useTransition();
-  // Found-in version (ver_141): the Jira version picked for you, and what the person picked.
+  // Found-in version: the Jira version picked for you, and what the person picked.
   const [foundDraft, setFoundDraft] = useState<FoundInDraft | null>(null);
   const [foundIn, setFoundIn] = useState("");
   // Where a file made in the box came from, as the chips say it: "Step 3", "Whole case".
   const here = stepLabel.charAt(0).toUpperCase() + stepLabel.slice(1);
   const files = [...attachments, ...added.filter((a) => !attachments.some((b) => b.id === a.id))];
   const candidates = others.filter((o) => !files.some((f) => f.id === o.id));
-  // Screenshots and videos ticked for the bug, for a template that needs one (ver_119).
+  // Screenshots and videos ticked for the bug, for a template that needs one.
   const shots = files.filter((f) => include.has(f.id) && /^(image|video)\//.test(f.contentType)).length;
   const pick = (picked: Attached[]) => {
     setAdded((x) => [...x, ...picked]);
     setInclude((s) => new Set([...s, ...picked.map((p) => p.id)]));
   };
-  // Take screenshot / Record screen right in the box (ver_88): the new file goes on the step too.
+  // Take screenshot / Record screen right in the box: the new file goes on the step too.
   const support = useCaptureSupport();
   const recorder = useScreenRecorder(
     (f) => void upload([f.file]),
@@ -688,7 +688,7 @@ export function BugDialog({
 }
 
 /**
- * Who Jira will show as the bug's Reporter: one quiet line (ver_85). When your Jira
+ * Who Jira will show as the bug's Reporter: one quiet line. When your Jira
  * account isn't found, the connected account files it and your name goes in the description.
  */
 function ReporterLine({ reporter }: { reporter: ReporterInfo }) {
@@ -715,7 +715,7 @@ function ReporterLine({ reporter }: { reporter: ReporterInfo }) {
 }
 
 /**
- * Values Jira won't take in a picker field, like a version Jira doesn't have yet (ver_85):
+ * Values Jira won't take in a picker field, like a version Jira doesn't have yet:
  * said in words, since they go in the description instead.
  */
 function NotInJira({ field: f, onRemove }: { field: ImportedBug["fields"][number]; onRemove: (v: string) => void }) {

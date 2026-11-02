@@ -10,7 +10,7 @@ import { requireProjectAction, requireUser } from "@/lib/session";
 import { readBugTemplate } from "./jira";
 import { attempt, UserError } from "./result";
 
-// Company bug templates (ver_96). A workspace admin shares a bug layout with everyone whose
+// Company bug templates. A workspace admin shares a bug layout with everyone whose
 // email ends a certain way; their umbrellas and test cycles can then pick it. A shared
 // template is one saved copy, so an admin's edit reaches every place that uses it.
 

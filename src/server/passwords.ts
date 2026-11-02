@@ -97,7 +97,7 @@ export async function createPasswordLink(projectId: string, userId: string) {
   });
 }
 
-/** Password link → Email it to them (ver_92), when Workspace settings → Email is set up. */
+/** Password link → Email it to them, when Workspace settings → Email is set up. */
 export async function emailPasswordLink(projectId: string, userId: string) {
   return attempt(async () => {
     const { admin, project, member } = await memberFor(projectId, userId);
@@ -141,7 +141,7 @@ export async function copyInviteLink(projectId: string, userId: string) {
     const { admin } = await memberFor(projectId, userId);
     const link = await newLink(userId, "invite", admin.id);
     const place = await placeName(projectId);
-    // Same words as the message after Add (ver_114).
+    // Same words as the message after Add.
     return { url: link.url, message: inviteMessage(place, link.url) };
   });
 }
@@ -150,7 +150,7 @@ export async function copyInviteLink(projectId: string, userId: string) {
 export async function findInviteLink(token: string) {
   const link = await db.passwordLink.findUnique({ where: { tokenHash: hashLinkToken(token) }, include: { user: { select: { id: true, email: true, name: true, passwordSetAt: true } } } });
   if (!link || link.kind !== "invite" || link.usedAt || link.expiresAt < new Date()) return null;
-  // Who sent it and where to (ver_137), so the page reads "Demo Admin invited you to Mobile App".
+  // Who sent it and where to, so the page reads "Demo Admin invited you to Mobile App".
   const [by, places] = await Promise.all([
     link.createdById ? db.user.findUnique({ where: { id: link.createdById }, select: { name: true, email: true } }) : null,
     db.projectMember.findMany({
@@ -164,7 +164,7 @@ export async function findInviteLink(token: string) {
 }
 
 /**
- * Accept invite (ver_137): choose a password, give the name the team sees, and sign straight
+ * Accept invite: choose a password, give the name the team sees, and sign straight
  * in, instead of typing the password again on the sign-in page. Success redirects home.
  */
 export async function acceptInvite(token: string, input: { name: string; next: string; confirm: string }) {

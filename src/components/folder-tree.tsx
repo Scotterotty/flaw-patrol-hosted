@@ -27,7 +27,7 @@ export function FolderTree({
   projectKey: string;
   tree: FolderNode[];
   counts: Record<string, number>;
-  /** Cases automation runs, per folder (ver_95): shown as 🤖 next to the count. */
+  /** Cases automation runs, per folder: shown as 🤖 next to the count. */
   robots?: Record<string, number>;
   selected: string | null;
   canManage: boolean;

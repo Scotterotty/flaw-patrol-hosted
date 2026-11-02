@@ -10,7 +10,7 @@ const DONE = { notIn: ["UNTESTED", "IN_PROGRESS"] as ("UNTESTED" | "IN_PROGRESS"
 async function completions(runIds: string[]) {
   const byRun = new Map<string, (Completion & { caseNumber: number; caseKey: string })[]>();
   if (!runIds.length) return byRun;
-  // Each case's first result in one query with its case key (ver_120). Loading every result with
+  // Each case's first result in one query with its case key. Loading every result with
   // its case through Prisma took about 2 seconds for someone who had tested in a hundred runs.
   const rows = await db.$queryRaw<{ runId: string; entryId: string; createdAt: Date; testerId: string | null; testerName: string; status: Completion["status"]; questGear: unknown; number: number; key: string }[]>`
     select r."runId", r."entryId", r."createdAt", r."testerId", r."testerName", r.status::text as status, r."questGear", c.number, p.key
@@ -57,7 +57,7 @@ export type QuestSummary = Awaited<ReturnType<typeof questsFor>>[number];
 
 const RUN_SELECT = { id: true, number: true, name: true, state: true, release: true, automated: true, questCatalog: true, createdAt: true, _count: { select: { entries: true } } } as const;
 
-/** Quests for a project's runs, newest first, with progress and the rewards found so far (unfound ones never leave the server). Automated runs never go on a quest (ver_94). */
+/** Quests for a project's runs, newest first, with progress and the rewards found so far (unfound ones never leave the server). Automated runs never go on a quest. */
 export async function questsFor(projectId: string, take = 60) {
   const runs = await db.testRun.findMany({ where: { projectId, automated: false }, orderBy: { number: "desc" }, take, select: RUN_SELECT });
   const done = await completions(runs.map((r) => r.id));
@@ -110,7 +110,7 @@ export async function questRecordFor(userId: string) {
 }
 
 /**
- * Quest records for several people at once (ver_129, the Workspace Game admin card): every run
+ * Quest records for several people at once (the Workspace Game admin card): every run
  * anyone tested is loaded and its map built once for everyone, instead of once per person.
  * Each record matches questRecordFor for that person.
  */

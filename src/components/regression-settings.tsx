@@ -7,7 +7,7 @@ import { saveRegressionSettings } from "@/server/regression";
 import { useCloseRow } from "./settings-row";
 import { Button, ErrorText, Field, Input, Select } from "./ui";
 
-/** Umbrella Settings → Regression flag (ver_93): on or off, what counts as "used to pass", and the Jira label. */
+/** Umbrella Settings → Regression flag: on or off, what counts as "used to pass", and the Jira label. */
 export function RegressionPanel({ groupId, settings, canEdit }: { groupId: string; settings: RegressionSettings; canEdit: boolean }) {
   const router = useRouter();
   const close = useCloseRow();

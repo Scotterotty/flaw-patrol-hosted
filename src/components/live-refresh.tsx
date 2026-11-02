@@ -16,7 +16,7 @@ const REFRESH_GAP_MS = 5000;
  * and refreshes the page's data when it changes. Pauses while the tab is
  * hidden and while a form on the page has unsaved input (holdLive).
  * With `rows`, a change also brings the run's rows, so run lists update straight
- * away, even while the refresh is held (ver_112).
+ * away, even while the refresh is held.
  * `renderedAt` (server time the page was drawn) skips a reload the page doesn't need: after
  * Save and next, say, the new case was drawn after your own save already.
  */

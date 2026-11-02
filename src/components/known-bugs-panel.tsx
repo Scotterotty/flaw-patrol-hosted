@@ -4,7 +4,7 @@ import type { Spelling } from "@/lib/spelling";
 import { KnownStatus } from "./known-bugs";
 import { Card } from "./ui";
 
-// Known bugs on the run page (ver_96): a heads-up line and the list with this run's checks.
+// Known bugs on the run page: a heads-up line and the list with this run's checks.
 
 export type RunKnown = { bug: KnownBug; caseKey: string };
 

@@ -15,7 +15,7 @@ import { Button, cx, ErrorText, Field, InfoTip, Input, Select } from "./ui";
 
 type Files = { name: string; text: string }[];
 
-// Where they go (ver_133): every part of step 2 sits on the same inset (a 1px border, seen or
+// Where they go: every part of step 2 sits on the same inset (a 1px border, seen or
 // not, plus 12px), and every pair of fields on the same two columns, so they all line up.
 const INSET = "border border-transparent px-3";
 const BOX = "grid gap-3 rounded-md border p-3";
@@ -57,7 +57,7 @@ use: {
   trace: 'retain-on-failure',
 },`;
 
-/** Under the drop box: the playwright.config lines that make screenshots, videos and replays (ver_93). */
+/** Under the drop box: the playwright.config lines that make screenshots, videos and replays. */
 function PlaywrightSetup() {
   return (
     <details className="text-xs text-slate-600">
@@ -84,7 +84,7 @@ export function MediaLine({ media }: { media: (MediaCounts & { unmatched: number
 }
 
 /**
- * Upload automation results (ver_82): drop the JUnit or NUnit XML your automated tests
+ * Upload automation results: drop the JUnit or NUnit XML your automated tests
  * make, pick the test cycle, check how each test matches a case, and save one closed,
  * automated run. Leads and admins, like Import a run.
  */
@@ -103,7 +103,7 @@ export function UploadAutomationButton({ scope }: { scope: { groupId: string } |
 }
 
 /**
- * Test runs → Bring in results (ver_124, persona audit #8): Import a run and Upload
+ * Test runs → Bring in results (persona audit #8): Import a run and Upload
  * automation results used to be two equal buttons that sounded the same. One menu now
  * holds both, each saying what kind of file it takes, so Start a run stands out.
  * The two choices stay in a fixed order.
@@ -143,7 +143,7 @@ export function BringInResults({ scope, importHref, auto = true }: { scope: { gr
   );
 }
 
-/** Results already downloaded from a GitHub workflow run (ver_85), going through the same steps. */
+/** Results already downloaded from a GitHub workflow run, going through the same steps. */
 export type Pulled = {
   files: Files;
   tests: number;
@@ -151,7 +151,7 @@ export type Pulled = {
   groupId: string;
   repoId: string;
   run: { id: string; number: number; url: string };
-  /** The workflow's name, for the run's name: "Browser tests · GitHub run 16" (ver_94). */
+  /** The workflow's name, for the run's name: "Browser tests · GitHub run 16". */
   workflow?: string;
   /** Already in Flaw Patrol as this run. */
   already: { key: string; number: number } | null;
@@ -166,7 +166,7 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
   const [cycles, setCycles] = useState<UploadCycle[] | null>(null);
   const [where, setWhere] = useState<WhereInfo>({ newCycle: null, remembered: null });
   const [cycleId, setCycleId] = useState("");
-  // Where they go (ver_133): + New test cycle, and whether the run counts toward the release.
+  // Where they go: + New test cycle, and whether the run counts toward the release.
   const [makeNew, setMakeNew] = useState(false);
   const [newName, setNewName] = useState("Build health");
   const [newPlatform, setNewPlatform] = useState("");
@@ -201,8 +201,8 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
   }, []);
 
   /**
-   * What's picked for you: the last pick for this repo (ver_133), the test cycle the box was
-   * opened from (ver_85), the only one there is, or + New test cycle when there are none.
+   * What's picked for you: the last pick for this repo, the test cycle the box was
+   * opened from, the only one there is, or + New test cycle when there are none.
    */
   const pickFirst = (info: WhereInfo, list: UploadCycle[]) => {
     if (cycleId || makeNew) return;
@@ -247,7 +247,7 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
         if (!res.ok) return setError(res.error);
         return opened(read, res, { stageId: null, media: null });
       }
-      // A zip or a folder: the server opens it and keeps the pictures until Save (ver_93).
+      // A zip or a folder: the server opens it and keeps the pictures until Save.
       const form = new FormData();
       for (const p of picked) {
         form.append("file", p.file);
@@ -262,7 +262,7 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
 
   const cycle = makeNew ? undefined : cycles?.find((c) => c.id === cycleId);
   const autoName = pulled ? githubRunName(pulled.workflow ?? "", pulled.run.number) : ["Automation", makeNew ? newName.trim() : cycle?.name, build && `build ${build}`].filter(Boolean).join(" · ");
-  // The run counts toward the test cycle's release only when that's ticked (ver_133).
+  // The run counts toward the test cycle's release only when that's ticked.
   const counts = !!cycle?.rcName && countRelease;
   const ready = makeNew ? !!newName.trim() && (!newCounts || !!newRelease.trim()) : !!cycleId;
 
@@ -564,7 +564,7 @@ function Check({
   const [linking, setLinking] = useState<string | null>(null);
   // Same-title suggestions someone turned down with Make new case.
   const [declined, setDeclined] = useState<Set<string>>(() => new Set());
-  // Strong name matches are linked for you (ver_91), so a first upload can't make duplicates.
+  // Strong name matches are linked for you, so a first upload can't make duplicates.
   const [auto, setAuto] = useState<Set<string>>(() => new Set());
   useEffect(() => {
     const strong = preview.rows.filter((r) => !r.match && r.suggest);
@@ -730,7 +730,7 @@ function Check({
 function CasePicker({ library, onPick, onCancel }: { library: { id: string; key: string; title: string }[]; onPick: (id: string) => void; onCancel: () => void }) {
   const [q, setQ] = useState("");
   const s = q.trim().toLowerCase();
-  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  // Forgiving search: exact matches, then close ones under their own label.
   const found = s ? forgivingFilter(library, q, (c) => `${c.key} ${c.title}`) : { exact: [], close: [] };
   const exact = found.exact.slice(0, 8);
   const hits = [...exact, ...found.close.slice(0, Math.max(0, 8 - exact.length))];

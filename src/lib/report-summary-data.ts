@@ -1,4 +1,4 @@
-// Server side of the Reports summary line (ver_124): open bugs in the range and the folder
+// Server side of the Reports summary line: open bugs in the range and the folder
 // with the most failures. See report-summary.ts for the sentence itself.
 import { db } from "./db";
 import { reportSummary, topFailFolder } from "./report-summary";

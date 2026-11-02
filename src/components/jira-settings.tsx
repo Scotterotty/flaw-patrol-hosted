@@ -41,11 +41,11 @@ export function JiraSettings({
   stories?: StoriesConfig | null;
   /** The umbrella's Settings show the bug template and stories in rows of their own. */
   connectionOnly?: boolean;
-  /** Company bug templates this person may pick, and the one in use (ver_96). */
+  /** Company bug templates this person may pick, and the one in use. */
   shared?: SharedView;
-  /** Settings → Jira → Severity field (ver_91). */
+  /** Settings → Jira → Severity field. */
   severity?: SeverityConfig | null;
-  /** Settings → Jira → Found-in version (ver_141). */
+  /** Settings → Jira → Found-in version. */
   foundIn?: FoundInConfig | null;
 }) {
   const router = useRouter();
@@ -294,7 +294,7 @@ function BugTemplateSettings({ projectId, saved, jiraProjectKey, standalone = fa
       <BugTemplateHeading tip="Paste a Jira bug that already uses your layout, and Flaw Patrol copies its sections and fields." />
       <div className="grid gap-2">
         {option("plain", "Plain layout", "Steps, expected and actual result, attachments. The tester writes the title.")}
-        {/* The built-in OKO layout only where it's already in use; company templates replace it (ver_96). */}
+        {/* The built-in OKO layout only where it's already in use; company templates replace it. */}
         {kind === "detailed" && option("oko", OKO_TITLE, "A ready-made layout with a Reproduction History table and a client tag in the title.")}
         {sharedList.length > 0 && (
           <div className="space-y-2 rounded-lg border border-dashed border-accent-200 p-2" data-testid="shared-templates">
@@ -880,7 +880,7 @@ function StoriesSettings({ projectId, saved, bugProject, standalone = false }: {
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
   const [pending, start] = useTransition();
-  // The type list comes from the Jira project itself (ver_89), so custom types like Requirement show up.
+  // The type list comes from the Jira project itself, so custom types like Requirement show up.
   const project = mode === "any" ? "*" : mode === "other" ? other.trim() : bugProject;
   const [jiraTypes, setJiraTypes] = useState<{ project: string; types: string[] } | null>(null);
   const [typesError, setTypesError] = useState<string | null>(null);
@@ -977,7 +977,7 @@ function StoriesSettings({ projectId, saved, bugProject, standalone = false }: {
 }
 
 /**
- * Settings → Jira → Severity field (ver_91): which Jira field holds severity, and which of its
+ * Settings → Jira → Severity field: which Jira field holds severity, and which of its
  * values count as critical (they feed Critical bugs and Release status). None: the plain list.
  */
 function SeveritySettings({ projectId, saved }: { projectId: string; saved: SeverityConfig | null }) {
@@ -1095,7 +1095,7 @@ function SeveritySettings({ projectId, saved }: { projectId: string; saved: Seve
 type FoundInCheck = { onScreen: boolean; label: string; project: string; versions: string[] | null };
 
 /**
- * Found-in version (ver_141): put the release being tested into a Jira version field on new bugs.
+ * Found-in version: put the release being tested into a Jira version field on new bugs.
  * One switch and one field pick; the check says whether Jira's create screen has the field.
  */
 function FoundInSettings({ projectId, saved }: { projectId: string; saved: FoundInConfig | null }) {

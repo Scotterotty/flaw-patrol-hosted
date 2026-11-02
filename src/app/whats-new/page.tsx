@@ -9,7 +9,7 @@ import { viewerOf } from "@/lib/whats-new-viewer";
 
 export const metadata = { title: "What's new" };
 
-/** Every version's changes, newest first: the same list as the window after sign-in (ver_88). */
+/** Every version's changes, newest first: the same list as the window after sign-in. */
 export default async function WhatsNewPage() {
   const user = await requireUser();
   const spelling = await mySpelling();

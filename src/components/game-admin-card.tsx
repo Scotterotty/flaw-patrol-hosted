@@ -12,7 +12,7 @@ export async function GameAdminCard() {
     }),
     db.workspace.findUnique({ where: { id: 1 } }),
   ]);
-  // Everyone counted together, sharing run and quest lookups (ver_129).
+  // Everyone counted together, sharing run and quest lookups.
   const stats = await gameStatsMany(users.map((u) => u.id));
   const people = await Promise.all(
     users.map(async (u) => {

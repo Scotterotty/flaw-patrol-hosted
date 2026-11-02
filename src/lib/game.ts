@@ -64,7 +64,7 @@ export const XP_RULES = {
     label: "Streak days",
     hint: "each working day you tested, following one you also tested",
   },
-  // Glossary (ver_113): explaining the team's words. Editing and asking earn nothing.
+  // Glossary: explaining the team's words. Editing and asking earn nothing.
   glossaryTerm: {
     xp: 5,
     label: "Glossary terms added",
@@ -180,7 +180,7 @@ export function isUnlocked(u: Unlock, stats: GameStats, level: number) {
   return stats[u.stat!] >= u.atLeast!;
 }
 
-/** A title's words; a crown (ver_96, "crown|group|key|label|umbrella") reads "👑 Ruler of the Web". */
+/** A title's words; a crown ("crown|group|key|label|umbrella") reads "👑 Ruler of the Web". */
 export const titleLabel = (id: string | null | undefined) => (id?.startsWith("crown|") ? `👑 ${id.split("|")[3] ?? "Crown"}` : (TITLES.find((t) => t.id === id)?.label ?? null));
 export const isFrame = (id: string | null | undefined): id is FrameId => FRAMES.some((f) => f.id === id);
 

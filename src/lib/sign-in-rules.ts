@@ -1,4 +1,4 @@
-// Pure rules for company sign-in (ver_92), kept apart from the database so they can be tested.
+// Pure rules for company sign-in, kept apart from the database so they can be tested.
 
 export const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

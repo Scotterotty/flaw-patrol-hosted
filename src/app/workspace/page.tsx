@@ -21,7 +21,7 @@ import { COMPANY_PROVIDERS, domainList, envProviders, PROVIDER_NAME } from "@/li
 
 export const metadata = { title: "Workspace settings" };
 
-/** Workspace admins only (ver_92): company sign-in, email, the activity log and the game admin. */
+/** Workspace admins only: company sign-in, email, the activity log and the game admin. */
 export default async function WorkspacePage({ searchParams }: { searchParams: Promise<ActivityFilters & { tested?: string }> }) {
   const user = await requireUser();
   if (!user.isAdmin) notFound();

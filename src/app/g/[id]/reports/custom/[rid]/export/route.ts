@@ -5,7 +5,7 @@ import { customExport } from "@/lib/custom-report-route";
 import { requireUser } from "@/lib/session";
 import { loadUmbrella } from "@/lib/umbrella";
 
-/** An umbrella's custom report as a PDF or Excel workbook (ver_101). */
+/** An umbrella's custom report as a PDF or Excel workbook. */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string; rid: string }> }) {
   const user = await requireUser();
   const { id, rid } = await params;

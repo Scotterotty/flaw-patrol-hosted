@@ -13,7 +13,7 @@ type Viewer = Parameters<typeof loadUmbrella>[1];
 type Row = { id: string; pins: { starred: boolean; position: number | null; hidden: boolean }[] };
 
 /**
- * The Umbrellas page's cards, all umbrellas at once (ver_100), with one last-activity
+ * The Umbrellas page's cards, all umbrellas at once, with one last-activity
  * lookup for them and for the page's other test cycles (`activityIds`), returned as `activity`.
  */
 export async function umbrellaCards(user: Viewer, rows: Row[], activityIds: string[], spelling: Spelling, now: Date, t: Timing) {
@@ -36,7 +36,7 @@ function card(u: Umbrella, row: Row, choices: Awaited<ReturnType<typeof shortcut
     .filter((d): d is Date => !!d)
     .reduce<number | null>((m, d) => Math.max(m ?? 0, d.getTime()), null);
   const fresh = new Map(choices.flatMap((c) => c.items).map((i) => [i.href, i]));
-  // Shortcuts to a tool the umbrella turned off (ver_128) stay saved but aren't shown or offered.
+  // Shortcuts to a tool the umbrella turned off stay saved but aren't shown or offered.
   const at_ = { g: u.group.id, hub: u.hub.key, cycles: u.projects.map((p) => p.key) };
   const usable = (href: string) => {
     const t = toolOfPath(href.split(/[?#]/)[0], at_);
@@ -57,14 +57,14 @@ function card(u: Umbrella, row: Row, choices: Awaited<ReturnType<typeof shortcut
     })),
     choices: can(u.who, "umbrella:shortcuts") ? choices.map((c) => ({ ...c, items: c.items.filter((i) => usable(i.href)) })).filter((c) => c.items.length) : null,
     archived: !!u.group.archivedAt,
-    // A bug bash on now (ver_93): the card says so, with Join.
+    // A bug bash on now: the card says so, with Join.
     live: u.live ? { href: `/p/${u.hub.key}/bashes/${u.live.id}?join=1`, endsAt: u.live.endsAt } : null,
     restore: u.group.archivedAt && can(u.who, "umbrella:archive") ? u.current.filter((p) => p.archivedWithUmbrella).map((p) => p.name) : null,
     starred: row.pins[0]?.starred ?? false,
     position: row.pins[0]?.position ?? null,
     hidden: row.pins[0]?.hidden ?? false,
     canArchive: can(u.who, "umbrella:archive"),
-    // Move into an umbrella… only offers umbrellas where you may add a test cycle (ver_127).
+    // Move into an umbrella… only offers umbrellas where you may add a test cycle.
     canAddCycle: can(u.who, "cycle:create"),
     activity: at,
     cycles: u.projects.map((p) => ({

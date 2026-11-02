@@ -1,4 +1,4 @@
-// Tools (ver_128): each umbrella picks which tools it uses. A tool that's off is gone from the
+// Tools: each umbrella picks which tools it uses. A tool that's off is gone from the
 // umbrella's menu, Overview, Reports, Settings and Ctrl+K, but nothing in it is deleted: turning it
 // back on brings everything back. Saved on ProjectGroup.tools as { off: [...] }, so umbrellas made
 // before ver_128 (and any tool added later) start on. Overview, Bugs, Reports, Settings and Members
@@ -167,7 +167,7 @@ export function toolOfPath(path: string, at: { g: string; hub: string; cycles: s
   return null;
 }
 
-/** The umbrella's Reports tabs (ver_128): one per tool that's on, Custom reports always. */
+/** The umbrella's Reports tabs: one per tool that's on, Custom reports always. */
 export function reportTabs(at: { g: string; hub: string; tools: readonly ToolId[] }, current: "runs" | "rc" | "stories" | "custom", release?: string) {
   const g = `/g/${at.g}`;
   const on = (t: ToolId) => at.tools.includes(t);

@@ -30,7 +30,7 @@ export async function sessionFindings(projectId: string, f: ReportFilters, ff: F
   const results = await db.testResult.findMany({
     where: {
       run: runWhere(projectId, f),
-      // Tag is the one case filter charters get (ver_139).
+      // Tag is the one case filter charters get.
       entry: { kind: "EXPLORATORY", testCase: { ...(ff.personaId ? { personaId: ff.personaId } : {}), ...(f.tag ? { tags: { has: f.tag } } : {}) } },
       ...(ff.caseId ? { caseId: ff.caseId } : {}),
       sessionLog: { not: Prisma.DbNull },
@@ -68,7 +68,7 @@ export async function sessionFindings(projectId: string, f: ReportFilters, ff: F
     };
     g.sessions++;
     for (const note of log) {
-      // Ticked prompts (ver_93) are coverage, not findings.
+      // Ticked prompts are coverage, not findings.
       if (note.kind === "covered") continue;
       const answer = answers.get(note.id) ?? null;
       if (note.kind === "bug") totals.bugs++;

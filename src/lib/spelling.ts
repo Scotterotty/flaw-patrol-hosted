@@ -62,7 +62,7 @@ export function spell(text: string, spelling: Spelling): string {
 }
 
 const locale = (s: Spelling) => (s === "uk" ? "en-GB" : "en-US");
-// An optional time zone (ver_137): the viewer's, so server-drawn times aren't in the server's UTC.
+// An optional time zone: the viewer's, so server-drawn times aren't in the server's UTC.
 const tz = (zone?: string) => (zone ? { timeZone: zone } : {});
 
 /** Oct 24, 2026 or 24 Oct 2026. */

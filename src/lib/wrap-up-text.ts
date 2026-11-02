@@ -1,6 +1,6 @@
 import type { WrapUp } from "./wrap-ups";
 
-// Wrap-ups as text for Copy for Confluence and spreadsheet exports (ver_96). Kept apart from
+// Wrap-ups as text for Copy for Confluence and spreadsheet exports. Kept apart from
 // wrap-ups.ts, which reads the database, so the browser can use it.
 
 export const WRAP_HEADING = "Exploring and bug bashes";

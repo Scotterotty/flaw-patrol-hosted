@@ -9,7 +9,7 @@ import { addGlossaryTerm, askGlossaryTerm, glossaryForPage, glossaryLookedUp, se
 import { Modal } from "./modal";
 import { Button, cx, Field, Input, Select, Textarea } from "./ui";
 
-// Glossary (ver_113): the team's words, explained once and found everywhere. This file holds
+// Glossary: the team's words, explained once and found everywhere. This file holds
 // what every page shares: the dotted underlines, the meaning card, Look it up on selected text
 // and the Add to Glossary box. The Glossary page itself is glossary-page.tsx.
 

@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { requireProjectAction } from "@/lib/session";
 import { attempt, UserError } from "./result";
 
-// Your team's charter templates (ver_93): Save as template on any charter, for leads and
+// Your team's charter templates: Save as template on any charter, for leads and
 // admins (shared:manage, like shared steps). They show in the gallery under "Your team's".
 
 const templateSchema = z.object({

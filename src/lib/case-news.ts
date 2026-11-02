@@ -1,6 +1,6 @@
 import { diffLists } from "./diff";
 
-// New and Updated cases in a run (ver_96): pure helpers, shared by the server and the runner.
+// New and Updated cases in a run: pure helpers, shared by the server and the runner.
 
 /** How one step of the case differs from the copy its last run used. */
 export type StepChange = { kind: "new" } | { kind: "reworded"; action: string; expected: string };

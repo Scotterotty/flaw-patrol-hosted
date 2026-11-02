@@ -2,7 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "./db";
 
-// How much room automation's screenshots, videos and replays take (ver_93), and which
+// How much room automation's screenshots, videos and replays take, and which
 // can go. Files on a result that has a bug are never deleted, so a bug keeps its proof.
 
 export const MEDIA_KINDS = ["screenshot", "video", "trace"];

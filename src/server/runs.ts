@@ -22,10 +22,10 @@ const runSchema = z.object({
   cspVersion: z.string().trim().max(200).default(""),
   environment: z.string().trim().max(200).default(""),
   release: z.string().trim().max(200).default(""),
-  /** The run kind (ver_95), see src/lib/run-kinds.ts. A rerun keeps the run's own. */
+  /** The run kind, see src/lib/run-kinds.ts. A rerun keeps the run's own. */
   runKind: z.string().trim().max(40).default(""),
   assigneeId: z.string().nullable().default(null),
-  /** The umbrella's run fields, by field id (ver_89). "csp" fills cspVersion. */
+  /** The umbrella's run fields, by field id. "csp" fills cspVersion. */
   fields: z.record(z.string(), z.string().max(200)).default({}),
 });
 export type RunInput = z.input<typeof runSchema>;
@@ -78,7 +78,7 @@ export async function createRun(projectId: string, from: z.input<typeof source>,
           caseIds = src.caseIds;
         }
         // The first run in a test cycle started with "No runs yet" gets the last release's
-        // testers (where nobody was picked) and its open-bug cases first (ver_91).
+        // testers (where nobody was picked) and its open-bug cases first.
         const carry = src.kind !== "rerun" ? parseCarryOver(project.carryOver) : null;
         if (carry?.recheck.length) {
           const first = new Set(carry.recheck);
@@ -170,7 +170,7 @@ export async function setRunState(projectId: string, runId: string, state: "ACTI
   });
 }
 
-/** Before Close run (ver_137): how many cases still need a result, and who they're assigned to. */
+/** Before Close run: how many cases still need a result, and who they're assigned to. */
 export async function closeRunCheck(projectId: string, runId: string) {
   return attempt(async () => {
     await requireProjectAction(projectId, "run:manage");
@@ -238,7 +238,7 @@ export async function assignEntries(projectId: string, runId: string, entryIds: 
 }
 
 /**
- * "Not new? Mark them as run before" on a run's New banner (ver_107): the run's new cases were
+ * "Not new? Mark them as run before" on a run's New banner: the run's new cases were
  * already run in another tool, so runs stop tagging them New. `runBefore: false` is the Undo.
  */
 export async function markRunCasesRunBefore(projectId: string, runId: string, entryIds: string[], runBefore: boolean) {

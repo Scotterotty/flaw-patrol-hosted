@@ -133,7 +133,7 @@ export function findRows(rows: FindRow[], query: string, scope: FindScope) {
     .sort((a, b) => Number(a.archived) - Number(b.archived) || a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 }
 
-/** findRows plus close matches spelled a bit differently (ver_96), for the Umbrellas page search. */
+/** findRows plus close matches spelled a bit differently, for the Umbrellas page search. */
 export function findRowsForgiving(rows: FindRow[], query: string, scope: FindScope) {
   const exact = findRows(rows, query, scope);
   const seen = new Set(exact.map((r) => r.id));

@@ -34,7 +34,7 @@ export default async function BashPage({ params, searchParams }: { params: Promi
           </Link>
         )}
       </div>
-      {/* People outside the team (ver_115) land here from the link now (ver_121): say what they'll see. */}
+      {/* People outside the team land here from the link now: say what they'll see. */}
       {guest && !view.me.areaId && view.phase !== "ended" && (
         <BashGuestNote
           team={(await teamOf(project)).name}

@@ -8,7 +8,7 @@ import { renameTag, setTagColor } from "@/server/tags";
 import { Button, cx, ErrorText, Input } from "./ui";
 import { useSpell } from "./spelling";
 
-/** A colored case tag (ver_96), shown before case titles. `hit` outlines it when a search matched it. */
+/** A colored case tag, shown before case titles. `hit` outlines it when a search matched it. */
 export function TagPill({ tag, color, hit = false, className, children }: { tag: string; color?: string; hit?: boolean; className?: string; children?: ReactNode }) {
   const c = color ?? autoTagColor(tag);
   return (
@@ -37,7 +37,7 @@ export function TagPills({ tags, colors, hits }: { tags: string[]; colors?: TagC
 }
 
 /**
- * The Tags row above the Case library table (ver_96): every tag with how many cases have
+ * The Tags row above the Case library table: every tag with how many cases have
  * it. Click to show only those cases (click more to narrow it). Right-click, or press
  * and hold on a phone, to change a tag's color or rename it everywhere.
  */

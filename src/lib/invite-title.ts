@@ -1,4 +1,4 @@
-// The invite page's title (ver_137): who invited you, and to what, so a new person
+// The invite page's title: who invited you, and to what, so a new person
 // knows the link is real. "Demo Admin invited you to Mobile App", "… Mobile App and 2 more".
 
 /** The umbrellas (or test cycles outside one) someone was invited to, once each, in order. */

@@ -11,7 +11,7 @@ import { notify } from "@/lib/slack";
 import { TOOL_IDS, toolById, toolsOn, toolsValue, turnOn, type ToolId } from "@/lib/tools";
 import { attempt, UserError } from "./result";
 
-// Settings → Tools (ver_128): which tools an umbrella uses. Admins change it; turning a tool
+// Settings → Tools: which tools an umbrella uses. Admins change it; turning a tool
 // off only hides it, so nothing made with it is ever deleted.
 
 const toolsSchema = z.array(z.enum(TOOL_IDS)).max(TOOL_IDS.length);

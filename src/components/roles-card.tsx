@@ -115,7 +115,7 @@ export function RolesCard({ target, rules, appliesTo }: { target: { groupId: str
           </button>
         ))}
       </div>
-      {/* Written from the grid below (ver_91), so the two always agree. */}
+      {/* Written from the grid below, so the two always agree. */}
       <p className="text-sm text-slate-600" data-testid="role-summary">
         {sp(preset === "custom" ? roleSummary({ preset, allow: table }) : PRESET_TIP[preset])}
       </p>

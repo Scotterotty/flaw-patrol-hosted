@@ -10,7 +10,7 @@ import { manualLine, splitProgress } from "./progress-split";
 import { countStatuses, pct, STATUS_LABEL, STATUSES, totals, type StatusCounts } from "./status";
 import { wrapLine } from "./wrap-up-text";
 
-// Custom reports (ver_101) as a PDF and an Excel workbook. Each part becomes a few blocks
+// Custom reports as a PDF and an Excel workbook. Each part becomes a few blocks
 // (numbers, bars, a chart, a table), measured before drawing so the PDF never cuts one in half.
 
 type Point = { label: string; value: number | null };

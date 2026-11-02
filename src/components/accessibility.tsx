@@ -47,7 +47,7 @@ export function AccessibilitySettings({ initial }: { initial: Settings }) {
     start(async () => {
       const res = await updateMyAccessibility(next);
       setError(res.ok ? null : res.error);
-      // The folded card's one-line summary follows (ver_96).
+      // The folded card's one-line summary follows.
       if (res.ok) router.refresh();
     });
   };

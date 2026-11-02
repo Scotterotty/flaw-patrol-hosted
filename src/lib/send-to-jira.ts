@@ -4,7 +4,7 @@ import type { SendToJiraData } from "@/components/defect-controls";
 import { db } from "./db";
 
 /**
- * Send to Jira (ver_91): for bugs saved before Jira was connected, what the bug box needs
+ * Send to Jira: for bugs saved before Jira was connected, what the bug box needs
  * to file each one: the result it came from, the step, what happened, and its files.
  * Bugs not linked to any result can't be sent, so they're left out.
  */

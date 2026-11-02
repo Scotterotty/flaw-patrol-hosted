@@ -58,7 +58,7 @@ export default async function UmbrellaReportsPage({ params, searchParams }: { pa
   const sp = await searchParams;
   const u = await loadUmbrella(id, user);
   if (!u) notFound();
-  // Without Test runs (ver_128) there are no run reports: Reports opens on its first tab that's left.
+  // Without Test runs there are no run reports: Reports opens on its first tab that's left.
   if (!u.tools.includes("runs")) redirect(reportsHome({ g: u.group.id, tools: u.tools }));
   const view: View = (VIEWS.find((v) => v.id === sp.view)?.id ?? "status") as View;
   // Run numbers repeat between test cycles, so there is no run filter here.
@@ -81,7 +81,7 @@ export default async function UmbrellaReportsPage({ params, searchParams }: { pa
   const where = platform ? platforms.find((p) => p.toLowerCase() === platform) : "every platform";
   const when = f.release ? `Release ${f.release}` : f.allTime ? "All time" : await reportRange(f.from, f.to, sp, await mySpelling());
 
-  // Attach wrap-ups (ver_96): bug bashes and exploring carried on this report, outside its pass rates.
+  // Attach wrap-ups: bug bashes and exploring carried on this report, outside its pass rates.
   const wrapKey = reportsWrapKey(`/g/${u.group.id}/reports`);
   const wrapPick = wrapPickOf(user.rcReport, wrapKey);
   const wrapUps = await attachedWrapUps(all, wrapPick, wrapPick.auto ? (f.release ? await releaseStart(all, f.release) : f.from) : null);
@@ -108,7 +108,7 @@ export default async function UmbrellaReportsPage({ params, searchParams }: { pa
         tabs={reportTabs({ g: u.group.id, hub: u.hub.key, tools: u.tools }, "runs", f.release)}
       />
 
-      {/* Copy link and Save this view… (ver_91), kept with the umbrella's hub. */}
+      {/* Copy link and Save this view…, kept with the umbrella's hub. */}
       <SavedViews
         projectId={u.hub.id}
         current={cleanReportQuery({ ...sp, view })}
@@ -155,7 +155,7 @@ export default async function UmbrellaReportsPage({ params, searchParams }: { pa
             )}
           </>
         )}
-        {/* Priority, Folder and Tag, as on a test cycle's Reports (ver_139). */}
+        {/* Priority, Folder and Tag, as on a test cycle's Reports. */}
         <CaseFilters f={f} options={view === "regression" ? null : await caseFilterOptions(scope)} hideAll={view === "regression"} />
         <RunKindFilter current={f.kind} href={(k) => `?${qs({ runs: k })}`} />
         <KindSelect kinds={parseRunKinds(u.group.runKinds)} value={sp.kind} />
@@ -166,7 +166,7 @@ export default async function UmbrellaReportsPage({ params, searchParams }: { pa
         )}
       </AutoFilterForm>
 
-      {/* The one-line answer (ver_124, persona audit #10), following the dates and filters. */}
+      {/* The one-line answer (persona audit #10), following the dates and filters. */}
       {view !== "regression" && runs.length > 0 && <ReportSummaryBar summary={await summaryFor(scope, f, runs, caseFilterWords(when, f))} />}
 
       <ScrollTabs label="Report views" className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200">

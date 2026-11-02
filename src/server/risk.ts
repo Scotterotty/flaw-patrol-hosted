@@ -13,7 +13,7 @@ import { requireProjectAction } from "@/lib/session";
 import { attempt, UserError } from "./result";
 import { buildEntries } from "./snapshot";
 
-// Risk board (ver_93): moving cards, and Plan this release (a run of the riskiest requirements'
+// Risk board: moving cards, and Plan this release (a run of the riskiest requirements'
 // cases, plus a new charter for each risky one that has none).
 
 const nameOf = (u: { name: string | null; email: string }) => u.name ?? u.email;
@@ -66,7 +66,7 @@ const planSchema = z.object({
       }),
     )
     .max(300),
-  // ver_96: the new run's name and kind, or a run in progress to add to instead.
+  // The new run's name and kind, or a run in progress to add to instead.
   name: z.string().trim().max(200).optional(),
   kind: z.string().max(40).optional(),
   runId: z.string().max(40).nullable().optional(),
@@ -78,7 +78,7 @@ const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 /**
  * Plan this release: the cases of every requirement marked "run", and a new charter (linked
  * to the requirement) for each one marked "charter", in one new test run in the picked test
- * cycle, or added to a run in progress (ver_96) without repeating cases it already has.
+ * cycle, or added to a run in progress without repeating cases it already has.
  */
 export async function planRc(homeId: string, input: PlanInput) {
   return attempt(async () => {

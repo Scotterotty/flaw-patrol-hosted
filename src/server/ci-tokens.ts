@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { requireProjectAction } from "@/lib/session";
 import { attempt, UserError } from "./result";
 
-// CI uploads (ver_91): admins make and revoke the tokens a pipeline uses to send results
+// CI uploads: admins make and revoke the tokens a pipeline uses to send results
 // to /api/ci/results. Same permission as connecting Jira and GitHub.
 
 async function requireGroup(groupId: string) {

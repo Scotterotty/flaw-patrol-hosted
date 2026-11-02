@@ -28,7 +28,7 @@ const caseInputSchema = z.object({
   charter: charterSchema.nullable().default(null),
   personaId: z.string().nullable().default(null),
   changeNote: z.string().trim().max(500).default(""),
-  // Test data (ver_138). Left out (bulk edit, import) keeps what the case has; null removes it.
+  // Test data. Left out (bulk edit, import) keeps what the case has; null removes it.
   testData: testDataSchema.nullable().optional(),
 });
 export type CaseInput = z.input<typeof caseInputSchema>;
@@ -52,14 +52,14 @@ async function folderPathString(tx: Tx, projectId: string, folderId: string | nu
 
 /** Create a case, or save a new version of an existing one. */
 /**
- * leaving: the editor opens another page straight after saving (ver_120), so the page being left
+ * leaving: the editor opens another page straight after saving, so the page being left
  * isn't drawn again for nothing; the editor refreshes the page it opens instead.
  */
 export async function saveCase(projectId: string, caseId: string | null, input: CaseInput, opts?: { leaving?: boolean }) {
   return attempt(async () => {
     const { project, user } = await requireProjectAction(projectId, "case:edit");
     const data = caseInputSchema.parse(input);
-    // Bracket tags (ver_96): a title typed as "[WEB] - Sign in" saves as the tag Web and "Sign in".
+    // Bracket tags: a title typed as "[WEB] - Sign in" saves as the tag Web and "Sign in".
     const split = splitBracketTitle(data.title, { platforms: await knownTagNamesFor(projectId) });
     if (split.tags.length) {
       data.title = split.title;
@@ -154,7 +154,7 @@ export async function saveCase(projectId: string, caseId: string | null, input: 
       return { number: existing.number, version, changed: true, caseId: existing.id };
     });
 
-    // Needs steps (ver_96) clears itself once the case has a step.
+    // Needs steps clears itself once the case has a step.
     if (caseId && steps.length) await db.testCase.updateMany({ where: { id: caseId, flag: "NEEDS_STEPS" }, data: { flag: null, flagNote: "", flaggedBy: "", flaggedAt: null, flagRunNumber: null } });
     if (opts?.leaving !== true) revalidatePath(`/p/${project.key}`, "layout");
     return result;

@@ -42,7 +42,7 @@ export function RunnerHistory({
   canApply,
   olderNote,
 }: {
-  /** Updated cases (ver_96): "Runs before Oct 25 used the older steps." */
+  /** Updated cases: "Runs before Oct 25 used the older steps." */
   olderNote?: string;
   runs: HistoryRun[];
   summary: { passRate: string; lastPassed: string | null; flaky: boolean };
@@ -63,7 +63,7 @@ export function RunnerHistory({
       localStorage.setItem(OPEN_KEY, next ? "1" : "0");
     } catch {}
   };
-  // The Regression note's "See what RC 21 looked like" (ver_93).
+  // The Regression note's "See what RC 21 looked like".
   useEffect(() => {
     const show = (e: Event) => {
       const id = (e as CustomEvent<string>).detail;
@@ -112,7 +112,7 @@ export function RunnerHistory({
                     open && r.id === selectedId && "ring-2 ring-accent-500 ring-offset-1 ring-offset-surface",
                   )}
                 >
-                  {/* Test data (ver_138): a stripe per row when the rows didn't all end the same. */}
+                  {/* Test data: a stripe per row when the rows didn't all end the same. */}
                   {split(r)?.map((x, j) => <span key={j} data-row-stripe className={cx("min-h-px flex-1", STATUS_STYLE[x].bar)} />)}
                 </button>
               ))}

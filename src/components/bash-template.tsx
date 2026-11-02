@@ -1,6 +1,6 @@
 "use client";
 
-// Bug templates in bug bashes (ver_125): the template's headings in Log a bug, the missing ones
+// Bug templates in bug bashes: the template's headings in Log a bug, the missing ones
 // in Live finds and at wrap-up, and the tables a template keeps. Logging never waits on a
 // must-have; the bug is filed once it has them.
 

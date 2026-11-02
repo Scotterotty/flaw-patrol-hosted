@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { ZONE_COOKIE } from "@/lib/zone";
 
 /**
- * Saves the browser's time zone in a cookie (ver_137) so pages show times on your own clock.
+ * Saves the browser's time zone in a cookie so pages show times on your own clock.
  * When the page was drawn with another zone (first visit, or you traveled), it redraws once.
  */
 export function ZoneCookie({ zone }: { zone: string }) {

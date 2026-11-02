@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { cx } from "./ui";
 
-/** This build's version, set in next.config.ts from package.json (ver_122). */
+/** This build's version, set in next.config.ts from package.json. */
 export const CLIENT_VERSION = process.env.APP_VERSION ?? "";
 
 /**
- * "Version 0.3.0-alpha.122" in small gray text (ver_122): under Arrange menu order and at the
+ * "Version 0.3.0-alpha.122" in small gray text: under Arrange menu order and at the
  * bottom of the name menu. Clicking copies the number for a bug report.
  */
 export function VersionLine({ className }: { className?: string }) {

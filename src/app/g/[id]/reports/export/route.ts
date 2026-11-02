@@ -8,7 +8,7 @@ import { dateRange } from "@/lib/spelling";
 import { newestRcNames } from "@/lib/story-coverage";
 import { loadUmbrella } from "@/lib/umbrella";
 
-/** An umbrella's Reports → Export (ver_91): same as a test cycle's, across its test cycles, by platform. */
+/** An umbrella's Reports → Export: same as a test cycle's, across its test cycles, by platform. */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
   const u = await loadUmbrella((await params).id, user);
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       viewer: { id: user.id, isAdmin: user.isAdmin },
       coverage: { libraryIds: [u.hub.id], columns: u.current.map((p) => ({ id: p.id, key: p.key, name: p.name })), rcNames: await newestRcNames(u.current) },
       query: sp,
-      // Attached wrap-ups (ver_96): Release status's for its release, else the Run reports'.
+      // Attached wrap-ups: Release status's for its release, else the Run reports'.
       wrapUps: await exportWrapUps(user.rcReport, all, sp.view === "rc" && f.release ? rcWrapKey(`/g/${u.group.id}/rc`, f.release) : reportsWrapKey(`/g/${u.group.id}/reports`), f),
     },
     f,

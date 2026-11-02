@@ -50,7 +50,7 @@ export async function addMember(projectId: string, input: { email: string; role:
       update: { role, fromUmbrella: false },
     });
     await syncIfHub(projectId);
-    // Email them when Workspace settings → Email is set up and the box was ticked (ver_92).
+    // Email them when Workspace settings → Email is set up and the box was ticked.
     // If sending fails they are still added; the form offers Copy invite link instead.
     let emailed = false;
     let emailError: string | null = null;
@@ -70,7 +70,7 @@ export async function addMember(projectId: string, input: { email: string; role:
       detail: emailed ? "Invite emailed" : emailError ? "Invite email failed" : "",
     });
     // Not emailed (email off, unticked, or it failed): someone new gets their one-time invite link
-    // in the message to copy (ver_114). The sign-in page alone can't let them in.
+    // in the message to copy. The sign-in page alone can't let them in.
     let inviteUrl: string | null = null;
     let message: string | null = null;
     if (!emailed && !user.lastLoginAt && !user.passwordSetAt) {
@@ -88,7 +88,7 @@ export async function addMember(projectId: string, input: { email: string; role:
 async function assertAnotherAdmin(projectId: string, userId: string) {
   const admins = await db.projectMember.count({ where: { projectId, role: "ADMIN", userId: { not: userId } } });
   if (admins > 0) return;
-  // Name the umbrella when this is its team (ver_91), so the message says where the team lives.
+  // Name the umbrella when this is its team, so the message says where the team lives.
   const group = await db.projectGroup.findUnique({ where: { hubProjectId: projectId }, select: { name: true } });
   throw new UserError(group ? `${group.name} needs at least one admin.` : "A test cycle needs at least one admin.");
 }

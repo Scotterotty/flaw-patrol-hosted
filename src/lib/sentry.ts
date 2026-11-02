@@ -1,6 +1,6 @@
 import "server-only";
 
-// Sentry for testers (ver_96): Flaw Patrol only reads from Sentry with a read-only token
+// Sentry for testers: Flaw Patrol only reads from Sentry with a read-only token
 // (Project, Issue & Event and Organization read), so it works before Flaw Patrol is hosted.
 // Nothing here writes to Sentry.
 

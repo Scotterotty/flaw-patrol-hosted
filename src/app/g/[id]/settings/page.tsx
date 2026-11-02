@@ -9,7 +9,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { EditGroupButton, type GroupChoice } from "@/components/group-dialogs";
 import { buttonClass, Card, PageHeader } from "@/components/ui";
-import { AddUmbrellaProject } from "@/components/umbrella-ui";
+import { AddUmbrellaProject } from "@/components/umbrella-add-project";
 import { ArchiveCard } from "@/components/archive-project";
 import { RolesCard } from "@/components/roles-card";
 import { SentryPanel } from "@/components/sentry-settings";
@@ -69,10 +69,10 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
   if (!u) notFound();
   const name = u.group.name;
   // Jira, bug template, stories and members live on the umbrella's hidden library project; they open in place here.
-  // Asked for together (ver_120): one round trip's wait instead of twenty in a row.
+  // Asked for together: one round trip's wait instead of twenty in a row.
   const cycles = [...u.current, ...u.older];
   const ids = cycles.map((p) => p.id);
-  // ver_129: lookups that wait on another one (invites for the members found, each test cycle's
+  // Lookups that wait on another one (invites for the members found, each test cycle's
   // bug template, join requests and Slack channels, the Name and test cycles choices) start as soon
   // as what they need arrives, inside the same batch, instead of in rounds after it.
   const cycleWho = (role: Role | null) => ({ role: user.isAdmin ? ("ADMIN" as const) : role, rules: u.who.rules });
@@ -85,7 +85,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
     })
     .then((x) => x);
   const myRolesP = db.projectMember.findMany({ where: { userId: user.id, projectId: { in: ids } }, select: { projectId: true, role: true } }).then((x) => x);
-  // Renaming and moving test cycles follow the umbrella's own Roles card (ver_126), not a role on any team.
+  // Renaming and moving test cycles follow the umbrella's own Roles card, not a role on any team.
   const groupManagerP = Promise.resolve(can(u.who, "umbrella:manage"));
   const [
     [jira, members, ownJira, { template, shared }, sentry, requests, bugTemplates, archive, kindSuites, slack, usage, spelling, repos, ciTokens, groupManager, myRoles, cycleMembers],
@@ -98,23 +98,23 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
       bugTemplateView(u.hub.id, user.email),
       db.sentryConfig.findUnique({ where: { projectId: u.hub.id } }),
       can(u.who, "members:manage") ? joinRequestRows(u.hub.id) : Promise.resolve([]),
-      // Bug templates (ver_119): a list on the umbrella, used by every test cycle in it.
+      // Bug templates: a list on the umbrella, used by every test cycle in it.
       loadBugTemplates({ id: u.hub.id, key: u.hub.key, groupId: null }),
       archiveCardData(user, u.group.id, null),
       db.testSuite.findMany({ where: { projectId: u.hub.id, archived: false }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
       slackChannelsOf({ groupId: u.group.id }),
       storageUsage(u.group.id),
       mySpelling(),
-      // GitHub (ver_85): connected repos, and the newest run pulled from each.
+      // GitHub: connected repos, and the newest run pulled from each.
       db.gitHubRepo.findMany({
         where: { groupId: u.group.id },
         orderBy: { createdAt: "asc" },
         include: { runs: { orderBy: { createdAt: "desc" }, take: 1, select: { githubRunNo: true, createdAt: true } } },
       }),
-      // CI uploads (ver_91): tokens a pipeline sends with its results file.
+      // CI uploads: tokens a pipeline sends with its results file.
       db.ciToken.findMany({ where: { groupId: u.group.id }, orderBy: { createdAt: "asc" } }),
       groupManagerP,
-      // Test cycles (ver_117): who's on each, for its row in the table.
+      // Test cycles: who's on each, for its row in the table.
       myRolesP,
       cycleMembersP,
     ]),
@@ -144,11 +144,11 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
       ),
       can(u.who, "cycle:create") && !u.group.archivedAt ? looseProjects(user) : Promise.resolve([]),
       toolHoldings(u, TOOL_IDS),
-      // Email digests (ver_132): the umbrella's choice, the email groups and who can be picked.
+      // Email digests: the umbrella's choice, the email groups and who can be picked.
       digestCardData(u.group.emailDigest, [u.hub.id, ...ids]),
     ]),
   ]);
-  // Tools (ver_128): off tools' rows leave Settings, like they leave the menu.
+  // Tools: off tools' rows leave Settings, like they leave the menu.
   const on = (t: ToolId) => u.tools.includes(t);
   const leads = members.filter((m) => m.role === "LEAD" || m.role === "ADMIN").length;
   const manage = can(u.who, "jira:manage");
@@ -168,7 +168,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
         )
         .join("; ")
     : "Bring in test results from a GitHub repo's workflow runs.";
-  // Only once a repo is connected and set up (ver_94): before that there is nothing to pull.
+  // Only once a repo is connected and set up: before that there is nothing to pull.
   const pullButton = canPull && pullable.length > 0 ? <PullFromGitHubButton groupId={u.group.id} repos={pullable} size="sm" variant="primary" /> : null;
   const githubStatus = (
     <>
@@ -212,7 +212,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
     }));
   }
 
-  // Test cycles (ver_117): each one's row in the table, with what it can set for itself opening below.
+  // Test cycles: each one's row in the table, with what it can set for itself opening below.
   const umbrellaChannelIds = slack.map((c) => c.id);
   const roleIn = new Map(myRoles.map((m) => [m.projectId, m.role]));
   const jiraOf = new Map(ownJira.map((j) => [j.projectId, j]));

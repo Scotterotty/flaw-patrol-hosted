@@ -33,7 +33,7 @@ async function summaryOf(client: GitHubClient, run: GitHubRun, glob: string) {
 }
 
 /**
- * Repositories (ver_85): the test health of each connected GitHub repo, from its
+ * Repositories: the test health of each connected GitHub repo, from its
  * workflow runs and the results pulled into Flaw Patrol. Code stats stay in GitHub.
  */
 export default async function ReposPage({ params }: { params: Promise<{ id: string }> }) {

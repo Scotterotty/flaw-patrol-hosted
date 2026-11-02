@@ -10,7 +10,7 @@ import { requireProjectAction } from "@/lib/session";
 import { SentryClient, SentryError, sentryBase, type SentryRef } from "@/lib/sentry";
 import { attempt, UserError } from "./result";
 
-// Sentry for testers (ver_96). Read-only: Flaw Patrol never writes to Sentry.
+// Sentry for testers. Read-only: Flaw Patrol never writes to Sentry.
 
 /** The Sentry connection a test cycle uses: its own, else its umbrella's. */
 async function configFor(projectId: string) {

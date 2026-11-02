@@ -1,6 +1,6 @@
 import { cx } from "./ui";
 
-// New and Updated cases in a run (ver_96): the small tag by a case's title.
+// New and Updated cases in a run: the small tag by a case's title.
 
 export function NewsTag({ kind, title, className }: { kind: "new" | "updated"; title?: string; className?: string }) {
   return (

@@ -8,7 +8,7 @@ import { isOpen } from "./status";
 import { isEpic, rememberStories, storiesConfigFor, storyInfo, type StoryInfo } from "./stories";
 import { OPEN_BUG } from "./umbrella";
 
-// Requirement coverage (ver_82, "stories" until ver_89): for each Jira requirement, the cases that
+// Requirement coverage ("stories" until ver_89): for each Jira requirement, the cases that
 // test it and how they did in each test cycle. Used by the Requirements page and the Reports tab.
 
 export type CoverageColumn = { id: string; key: string; name: string };
@@ -23,7 +23,7 @@ export type CoverageRow = {
   overall: CoverageCell;
   state: CoverageState;
   bugs: { key: string; url: string | null; title: string }[];
-  /** An Epic with the roll-up on: its child issues, whose cases it also counts (ver_89). */
+  /** An Epic with the roll-up on: its child issues, whose cases it also counts. */
   children?: CoverageRow[];
 };
 
@@ -117,7 +117,7 @@ export async function storyCoverage(opts: { projectId: string; libraryIds: strin
     return { story: info.get(key) ?? { key, title: "", status: "", category: "", url: null }, cases: list, cells, overall, state, bugs };
   };
 
-  // Epic roll-up (ver_89): an Epic also counts its child issues' cases, one level down, and lists them under it.
+  // Epic roll-up: an Epic also counts its child issues' cases, one level down, and lists them under it.
   const childrenByEpic = new Map<string, string[]>();
   if (setup?.config.rollUp) {
     const epics = keys.filter((k) => isEpic(info.get(k)?.type));
@@ -166,7 +166,7 @@ export async function storyReleases(projectId: string) {
  * The RC names the newest test cycles are testing: each cycle's RC name, or failing that the
  * release on its newest run. The Stories report opens on the Jira release with one of these names.
  */
-/** The Jira release the current test cycles are testing (ver_94), matched loosely ("RC 22" = "rc22"), else Jira's newest. */
+/** The Jira release the current test cycles are testing, matched loosely ("RC 22" = "rc22"), else Jira's newest. */
 export function testedRelease(releases: string[], rcNames: string[]) {
   const key = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
   return releases.find((r) => rcNames.some((n) => key(n) === key(r))) ?? releases[0] ?? null;

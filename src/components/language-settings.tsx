@@ -12,7 +12,7 @@ const option = (selected: boolean) =>
 
 /** US or UK English for the app's own words and dates. Saves to your account and redraws the app. */
 export function LanguageSettings({ mine }: { mine: Spelling | null }) {
-  // Today on your own clock (ver_137), so the sample date doesn't change as the page loads.
+  // Today on your own clock, so the sample date doesn't change as the page loads.
   const zone = useZone();
   const router = useRouter();
   const [pick, setPick] = useState<Spelling>(mine ?? "us");

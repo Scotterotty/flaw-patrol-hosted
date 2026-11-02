@@ -28,7 +28,7 @@ function describe(item: CaseStepItem, defs: Map<string, SharedStepDef>) {
 
 export default async function CaseVersionPage({ params, searchParams }: { params: Promise<{ key: string; number: string; version: string }>; searchParams: Promise<{ from?: string }> }) {
   const { key, number, version } = await params;
-  // ?from=N (ver_96): compare with the copy a run used, from a case's What was updated link.
+  // ?from=N: compare with the copy a run used, from a case's What was updated link.
   const { from } = await searchParams;
   const { project, who } = await projectAccess(key);
   const c = await loadCase(project.id, number);
@@ -66,7 +66,7 @@ export default async function CaseVersionPage({ params, searchParams }: { params
     }
   }
   const stepsChanged = diff.some((d) => d.op !== "same");
-  // Test data (ver_138): what changed in the table, in words, and the table this version had.
+  // Test data: what changed in the table, in words, and the table this version had.
   const table = parseTestData(v.testData);
   const tableChanges = prev ? testDataChanges(parseTestData(prev.testData), table) : [];
   if (tableChanges.length) fieldChanges.push({ label: "Test data", from: "", to: tableChanges.join(" ") });

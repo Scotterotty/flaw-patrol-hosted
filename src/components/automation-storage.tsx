@@ -22,7 +22,7 @@ function PreviewLine({ p }: { p: Preview }) {
 }
 
 /**
- * Umbrella Settings → Screenshots, videos and replays (ver_93). Files are kept for good:
+ * Umbrella Settings → Screenshots, videos and replays. Files are kept for good:
  * nothing is deleted unless someone deletes it, and files on a bug can't be.
  */
 export function AutomationFilesPanel({ groupId, settings, usage, canEdit }: { groupId: string; settings: FileSettings; usage: { bytes: number; runs: number; perDay: number }; canEdit: boolean }) {
@@ -155,7 +155,7 @@ function DeleteOlder({ groupId, onDone }: { groupId: string; onDone: () => void 
   );
 }
 
-/** A run's ⋯ → Delete files (ver_93): previews first, files on a bug stay. */
+/** A run's ⋯ → Delete files: previews first, files on a bug stay. */
 export function DeleteRunFiles({ runId }: { runId: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);

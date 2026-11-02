@@ -1,4 +1,4 @@
-// Bug bashes (ver_124, persona audit #7): a bash makes a behind-the-scenes charter per area in a
+// Bug bashes (persona audit #7): a bash makes a behind-the-scenes charter per area in a
 // top-level "Bug bashes" folder, and a run in a test cycle. They stay with the bash (its results and
 // report don't change), but they don't count as the team's test cases or as runs in progress.
 import type { Prisma } from "@prisma/client";

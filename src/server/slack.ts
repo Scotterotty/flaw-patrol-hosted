@@ -11,7 +11,7 @@ import { postToSlack } from "@/lib/slack";
 import { channelName, webhookProblem, type Alerts } from "@/lib/slack-alerts";
 import { attempt, UserError } from "./result";
 
-// Slack alerts (ver_82): channels belong to an umbrella (or a test cycle outside one,
+// Slack alerts: channels belong to an umbrella (or a test cycle outside one,
 // or a test cycle that adds its own). The people who manage Jira manage them.
 
 export type SlackTarget = { groupId: string } | { projectId: string };

@@ -16,7 +16,7 @@ export type AutoFileKind = "screenshot" | "video" | "trace";
 export type AutoFileRow = { id: string; kind: AutoFileKind; fileName: string; contentType: string; size: number; attempt?: number | null };
 
 /**
- * Each file's attempt (ver_95). Playwright retries a failed test and keeps a screenshot,
+ * Each file's attempt. Playwright retries a failed test and keeps a screenshot,
  * video and replay per try. Files saved before ver_95 have no attempt, so they're
  * guessed from their order: Playwright saves the attempts in order.
  */
@@ -45,11 +45,11 @@ export type AutoRow = {
   output: string;
   durationMs: number | null;
   flaky: number;
-  /** New or Updated since its last run (ver_96). */
+  /** New or Updated since its last run. */
   news?: "new" | "updated";
   before: { status: string; run: number } | null;
   bugs: LinkedDefect[];
-  /** Screenshots, videos and replays (ver_93). */
+  /** Screenshots, videos and replays. */
   files: AutoFileRow[];
   steps: AutoStepRow[];
 };
@@ -79,7 +79,7 @@ export function AutomatedResults({
   const skipped = rows.filter((r) => r.status === "SKIPPED").length;
   const [filter, setFilter] = useState<"FAILED" | "SKIPPED" | "ALL">(failed ? "FAILED" : "ALL");
   const [bugFor, setBugFor] = useState<AutoRow | null>(null);
-  // The attempt each test is showing (ver_95); File bug attaches only that attempt's files.
+  // The attempt each test is showing; File bug attaches only that attempt's files.
   const [picked, setPicked] = useState<Record<string, number>>({});
   const shownFiles = (r: AutoRow) => {
     const all = withAttempts(r.files);
@@ -220,9 +220,9 @@ function FileIcons({ files }: { files: AutoFileRow[] }) {
 
 const ms = (n: number | null) => (n == null ? "" : n < 1000 ? `${n} ms` : `${(n / 1000).toFixed(1)} s`);
 
-/** The screenshot, video and replay, and what the test did (ver_93). */
+/** The screenshot, video and replay, and what the test did. */
 function Media({ row, projectKey, runNumber, picked, onPick }: { row: AutoRow; projectKey: string; runNumber: number; picked?: number; onPick: (n: number) => void }) {
-  // One attempt at a time (ver_95), the last one first; the switch only shows when a test was retried.
+  // One attempt at a time, the last one first; the switch only shows when a test was retried.
   const tries = attemptsIn(row.files);
   const last = tries.at(-1);
   const at = picked && tries.includes(picked) ? picked : last;

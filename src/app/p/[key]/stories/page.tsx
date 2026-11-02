@@ -40,16 +40,16 @@ export default async function StoriesPage({ params, searchParams }: { params: Pr
   const cycles = full ? (latestAnywhere ? full.projects : full.current) : [project];
   const columns = cycles.map((c) => ({ id: c.id, key: c.key, name: c.name }));
   const releases = await storyReleases(project.id);
-  // Starts on the release the current test cycles test (ver_94), not Jira's newest.
+  // Starts on the release the current test cycles test, not Jira's newest.
   const release = sp.release === "any" ? null : (releases.find((r) => r === sp.release) ?? testedRelease(releases, await newestRcNames(full ? full.current : [project])));
   const cov = await storyCoverage({ projectId: project.id, libraryIds: [project.id], columns, release, latestAnywhere });
   const show = (CHIPS.find((c) => c.id === sp.show)?.id ?? "all") as "all" | CoverageState;
-  // Type filter (ver_89): only the Jira types that are on the page.
+  // Type filter: only the Jira types that are on the page.
   const type = cov.types.find((t) => t.toLowerCase() === sp.type?.toLowerCase()) ?? null;
   const rows = cov.rows.filter((r) => (show === "all" || r.state === show) && (!type || r.story.type === type));
   const canEdit = can(who, "case:edit");
   const picker = canEdit ? (await suitePickerData(project)).cases.map((c) => ({ id: c.id, key: c.key, title: c.title, folder: c.folderPath })) : [];
-  // New cases from a requirement (ver_96) go into this library's folders.
+  // New cases from a requirement go into this library's folders.
   const folderRows = canEdit ? await db.folder.findMany({ where: { projectId: project.id }, select: { id: true, parentId: true, name: true } }) : [];
   const folders = flattenTree(buildTree(folderRows)).map((f) => ({ id: f.id, label: pathOf(folderRows, f.id).join(" / ") }));
   const qs = (extra: Record<string, string | undefined>) => {
@@ -58,7 +58,7 @@ export default async function StoriesPage({ params, searchParams }: { params: Pr
     return `?${u}`;
   };
   const source = cov.config?.project === "*" ? "any Jira project" : `Jira project ${cov.config?.project || ""}`.trim();
-  // "Stories and Epics from Jira project PB" (ver_94): says what the page lists.
+  // "Stories and Epics from Jira project PB": says what the page lists.
   const many = cov.types.map((t) => (/[^aeiou]y$/i.test(t) ? `${t.slice(0, -1)}ies` : `${t}s`));
   const kinds = many.length === 0 ? "Requirements" : many.length === 1 ? many[0] : `${many.slice(0, -1).join(", ")} and ${many.at(-1)}`;
 

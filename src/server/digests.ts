@@ -11,7 +11,7 @@ import { requireProjectAction, requireUser } from "@/lib/session";
 import { origin } from "@/lib/slack";
 import { attempt, UserError } from "./result";
 
-// Email digests and email groups (ver_132). The people who manage Slack alerts manage an
+// Email digests and email groups. The people who manage Slack alerts manage an
 // umbrella's digests; anyone can make or edit an email group; only admins delete one.
 
 export type DigestTarget = { groupId: string } | { projectId: string };

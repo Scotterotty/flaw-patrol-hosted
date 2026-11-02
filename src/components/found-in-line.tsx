@@ -7,7 +7,7 @@ import { Select } from "./ui";
 const WHY = { run: "From this run's release", bash: "From the bug bash's release", cycle: "From this test cycle's release name", none: "" } as const;
 
 /**
- * The bug box's Found in line (ver_141): the release being tested, already picked as the Jira
+ * The bug box's Found in line: the release being tested, already picked as the Jira
  * version. Anyone filing can change it or leave it out. A release Jira doesn't have is said in
  * words, since it goes in the description instead.
  */

@@ -23,7 +23,7 @@ export type GearProps = {
   owned: OwnedItem[];
   pawn: string;
   color: string;
-  /** Your profile picture, for the "My picture" pawn (ver_95). */
+  /** Your profile picture, for the "My picture" pawn. */
   photo: string | null;
   /** Pawn ids you may pick. */
   unlocked: string[];
@@ -280,7 +280,7 @@ export function PawnPicker({
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(76px,1fr))] gap-2.5">
         {PAWNS.map((p) => {
-          // "My picture" (ver_95): with no profile picture yet, the tile offers to add one.
+          // "My picture": with no profile picture yet, the tile offers to add one.
           if (p.id === "photo" && !photo)
             return (
               <button

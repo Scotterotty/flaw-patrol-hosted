@@ -57,9 +57,9 @@ export default async function ExecutePage({
   searchParams: Promise<{ entry?: string; mine?: string; only?: string; finished?: string }>;
 }) {
   // FP_TIMING=1 prints how long each part took. Lookups that don't need each other run side by
-  // side instead of one after another, so Save and next opens the next case sooner (ver_111).
+  // side instead of one after another, so Save and next opens the next case sooner.
   const timing = startTiming("Runner");
-  // Live rows read after this replace the list's rows straight away (ver_112).
+  // Live rows read after this replace the list's rows straight away.
   const renderedAt = Date.now();
   const { key, number } = await params;
   const sp = await searchParams;
@@ -116,11 +116,11 @@ export default async function ExecutePage({
     })),
     timing.step("bugs filed", db.defectLink.findMany({ where: { result: { runId: run.id } }, include: { defect: true }, orderBy: { defect: { createdAt: "desc" } } })),
     timing.step("flaky cases", flakyCases({ caseIds: [...new Set(list.map((e) => e.caseId))] })),
-    // New or Updated since its last run (ver_96).
+    // New or Updated since its last run.
     timing.step("new or updated", entryP.then(async (e) => (await caseNewsForRun(run, [e])).get(e.id) ?? null)),
     // The case's Jira stories, for the runner's chip and the bug box's "Link to story" ticks.
     timing.step("Jira stories", entryP.then((e) => (jira && e.testCase.jiraStories.length ? storyInfo(project.id, e.testCase.jiraStories) : null))),
-    // Regression flag (ver_93): the earlier release this case passed in, so a failed step there gets a note.
+    // Regression flag: the earlier release this case passed in, so a failed step there gets a note.
     timing.step("regression", pick.kind === "EXPLORATORY" ? Promise.resolve(null) : entryComparison(project, pick.id)),
     timing.step("history", db.testResult.findMany({
       where: { caseId: pick.caseId },
@@ -193,7 +193,7 @@ export default async function ExecutePage({
   }));
   const done = run.entries.filter((e) => !isOpen(e.status)).length;
 
-  // Above the case title, inside the part that scrolls, so it never covers Flag or the timer (ver_87).
+  // Above the case title, inside the part that scrolls, so it never covers Flag or the timer.
   const take = {
     projectId: project.id,
     entryId: entry.id,

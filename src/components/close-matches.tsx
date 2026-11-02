@@ -1,7 +1,7 @@
 import { CLOSE_LABEL } from "@/lib/fuzzy";
 import { cx } from "./ui";
 
-/** The amber label above close matches (ver_96), the same in every search box. */
+/** The amber label above close matches, the same in every search box. */
 export function CloseMatchesLabel({ className, as: Tag = "p" }: { className?: string; as?: "p" | "li" | "div" | "span" }) {
   return (
     <Tag className={cx("flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-amber-800", className)} data-testid="close-matches">

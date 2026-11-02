@@ -8,7 +8,7 @@ import { db } from "./db";
 import { parseRoleRules, type Who } from "./permissions";
 import { toolsOn, type ToolId } from "./tools";
 
-// Umbrella projects (ver_68). An umbrella is a project group with a hub project:
+// Umbrella projects. An umbrella is a project group with a hub project:
 // the hub holds the shared library (cases, suites, shared steps, personas), the
 // Jira connection and bug template, and the team. Its RC projects run tests from
 // the hub's library, pick up its Jira setup unless they have their own, and get
@@ -81,7 +81,7 @@ export async function jiraConfigFor(projectId: string) {
   const hub = p?.group?.hubProjectId;
   const row = own ?? (hub && hub !== projectId ? await db.jiraConfig.findUnique({ where: { projectId: hub }, include: { sharedTemplate: { select: { settings: true } } } }) : null);
   if (!row) return null;
-  // A company template (ver_96) stands in for the project's own layout while it's picked.
+  // A company template stands in for the project's own layout while it's picked.
   const { sharedTemplate, ...rest } = row;
   return sharedTemplate ? { ...rest, bugTemplate: effectiveTemplate(row.bugTemplate, sharedTemplate.settings) as unknown as Prisma.JsonValue } : rest;
 }
@@ -102,7 +102,7 @@ export function parseShortcuts(v: unknown): Shortcut[] {
 
 /**
  * A platform the umbrella tests on, with the hub suites each new release project runs, or
- * the cases picked from folders for it (ver_91), remembered for its next release.
+ * the cases picked from folders for it, remembered for its next release.
  */
 export type Platform = { name: string; suiteIds: string[]; caseIds?: string[]; crownName?: string };
 export function parsePlatforms(v: unknown): Platform[] {
@@ -112,7 +112,7 @@ export function parsePlatforms(v: unknown): Platform[] {
     .filter((p): p is Platform => !!p && typeof p.name === "string" && p.name.trim() !== "")
     .map((p) => {
       const caseIds = ids(p.caseIds);
-      // Mini game crowns (ver_96): an optional name for the platform's crown, e.g. "Ruler of the Web".
+      // Mini game crowns: an optional name for the platform's crown, e.g. "Ruler of the Web".
       const crownName = typeof p.crownName === "string" ? p.crownName.trim().slice(0, 40) : "";
       return { name: p.name.trim(), suiteIds: ids(p.suiteIds), ...(caseIds.length ? { caseIds } : {}), ...(crownName ? { crownName } : {}) };
     });
@@ -120,7 +120,7 @@ export function parsePlatforms(v: unknown): Platform[] {
 
 /**
  * What a new release's test cycle carries over from the last release when it starts with no runs
- * (ver_91): who had each case and which cases still have open bugs. Its first run uses it.
+ *: who had each case and which cases still have open bugs. Its first run uses it.
  */
 export type CarryOver = { from: string; assigned: Record<string, string>; recheck: string[] };
 export function parseCarryOver(v: unknown): CarryOver | null {
@@ -166,10 +166,10 @@ export function loadUmbrella(groupId: string, user: Viewer) {
   return loadUmbrellaOnce(groupId, user.id, !!user.isAdmin);
 }
 
-// The layout, the left menu and the page each ask for the umbrella; one load per page view (ver_120).
+// The layout, the left menu and the page each ask for the umbrella; one load per page view.
 const loadUmbrellaOnce = cache(async (groupId: string, userId: string, isAdmin: boolean) => {
   const user = { id: userId, isAdmin };
-  // The umbrella and its test cycles together (ver_129): the cycles only need the id, so they don't wait.
+  // The umbrella and its test cycles together: the cycles only need the id, so they don't wait.
   const [group, projects] = await Promise.all([
     db.projectGroup.findUnique({ where: { id: groupId }, include: { hub: { include: { members: { where: { userId: user.id } } } } } }),
     db.project.findMany({
@@ -240,12 +240,12 @@ export type UmbrellaNav = {
   name: string;
   hubKey: string;
   counts: { cases: number; charters: number; suites: number; shared: number; personas: number; activeRuns: number; openBugs: number; repos: number };
-  /** A bug bash running now (ver_93), for the Live dot and the Join pill. */
+  /** A bug bash running now, for the Live dot and the Join pill. */
   live: LiveBash | null;
   current: { key: string; name: string; color: string; platform: string; rc: string }[];
   older: number;
   archived: boolean;
-  /** Tools that are on (ver_128); off ones leave the menu. */
+  /** Tools that are on; off ones leave the menu. */
   tools: ToolId[];
   /** Admins see + Add tools when some are off. */
   canTools: boolean;
@@ -275,7 +275,7 @@ export function navOf(u: Umbrella): UmbrellaNav {
 }
 
 /** The umbrella whose hub this project is, if any. */
-/** Where a test cycle's Settings really lives, so links go straight there with no redirect hop (ver_120). Same rules as /p/KEY/settings. */
+/** Where a test cycle's Settings really lives, so links go straight there with no redirect hop. Same rules as /p/KEY/settings. */
 export async function cycleSettingsHref(project: { id: string; key: string; groupId: string | null }, user: Viewer, hash = "") {
   const hub = await hubGroupId(project.id);
   if (hub) return `/g/${hub}/settings${hash ? `#${hash}` : ""}`;

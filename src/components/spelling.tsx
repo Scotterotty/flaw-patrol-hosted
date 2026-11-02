@@ -6,7 +6,7 @@ import { spell, type Spelling } from "@/lib/spelling";
 const SpellingContext = createContext<Spelling>("us");
 const ZoneContext = createContext<string>("UTC");
 
-/** Set once in the root layout from the signed-in person's Language choice and their browser's time zone (ver_137). */
+/** Set once in the root layout from the signed-in person's Language choice and their browser's time zone. */
 export function SpellingProvider({ spelling, zone = "UTC", children }: { spelling: Spelling; zone?: string; children: ReactNode }) {
   return (
     <SpellingContext.Provider value={spelling}>
@@ -17,7 +17,7 @@ export function SpellingProvider({ spelling, zone = "UTC", children }: { spellin
 
 export const useSpelling = () => useContext(SpellingContext);
 /**
- * The viewer's time zone (ver_137): the same on the server and in the browser, so a date drawn
+ * The viewer's time zone: the same on the server and in the browser, so a date drawn
  * in a client component doesn't change as the page loads (React error #418).
  */
 export const useZone = () => useContext(ZoneContext);

@@ -10,7 +10,7 @@ import { db } from "@/lib/db";
 import { requireProjectAction } from "@/lib/session";
 import { attempt, UserError } from "./result";
 
-// Screenshots, videos and replays (ver_93): umbrella Settings → Automation decides what's
+// Screenshots, videos and replays: umbrella Settings → Automation decides what's
 // kept, and old files go only when someone deletes them, with a preview first.
 
 async function requireGroup(groupId: string) {

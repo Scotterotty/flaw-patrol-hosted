@@ -2,7 +2,7 @@ import "server-only";
 import { effectiveTemplate, emailMatches, parseTemplateSettings, templateKind, type TemplateSettings } from "./bug-template";
 import { db } from "./db";
 
-// Company bug templates (ver_96): what a Bug template section and the Workspace settings tab show.
+// Company bug templates: what a Bug template section and the Workspace settings tab show.
 
 export type SharedChoice = { id: string; name: string; source: string; domains: string[]; title: string; kind: "plain" | "imported" | "detailed" };
 export type SharedView = { choices: SharedChoice[]; current: SharedChoice | null };

@@ -15,7 +15,7 @@ export function JiraEmailForm({ jiraEmail, email }: { jiraEmail: string | null; 
 
   useEffect(() => {
     checkMyJira().then((res) => res.ok && setMatch(res));
-    // "Link my Jira account" in the bug box (ver_85) lands straight in this box.
+    // "Link my Jira account" in the bug box lands straight in this box.
     if (window.location.hash === "#jira") requestAnimationFrame(() => document.getElementById("jira-email-own")?.focus());
   }, []);
 

@@ -5,7 +5,7 @@ import type { CaseNews, StepChange } from "@/lib/case-news";
 import { shortDate } from "@/lib/spelling";
 import { useSpelling, useZone } from "./spelling";
 
-// New and Updated cases in the runner (ver_96): a note above the steps, and tags on updated steps.
+// New and Updated cases in the runner: a note above the steps, and tags on updated steps.
 
 export function CaseNewsNote({ news, href }: { news: CaseNews | null | undefined; href?: string }) {
   const spelling = useSpelling();

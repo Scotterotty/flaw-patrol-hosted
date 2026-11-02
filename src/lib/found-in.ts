@@ -1,4 +1,4 @@
-// Found-in version (ver_141): the release being tested goes into a Jira version field on new bugs.
+// Found-in version: the release being tested goes into a Jira version field on new bugs.
 // Pure helpers, shared by the server, the bug box and Settings → Jira.
 
 /** Which Jira version field gets the release: Affects versions ("found in") or Fix versions. */

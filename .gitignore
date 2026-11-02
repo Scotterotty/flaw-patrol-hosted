@@ -7,3 +7,5 @@ playwright-report
 test-results
 .e2e-database
 /dist
+# Copied from playwright-core after npm install (scripts/copy-trace-viewer.mjs)
+/public/trace-viewer

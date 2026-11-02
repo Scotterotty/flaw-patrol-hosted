@@ -96,7 +96,7 @@ export function ArchiveCard({ data }: { data: ArchiveCardData }) {
   const [asking, setAsking] = useState<null | "archive" | "restore-cycle" | "restore-umbrella" | "archive-one">(null);
   const { current, umbrella } = data;
   const [ticked, setTicked] = useState<Set<string>>(() => new Set(current && !current.archived ? [current.id] : []));
-  // ⋯ → Archive… on a Test cycles row (ver_117) opens this card with that test cycle ticked.
+  // ⋯ → Archive… on a Test cycles row opens this card with that test cycle ticked.
   useEffect(() => {
     const pick = (e: Event) => {
       const id = (e as CustomEvent<string>).detail;

@@ -13,7 +13,7 @@ import { requireProjectAction, requireUser } from "@/lib/session";
 import { loadUmbrella, platformColor, umbrellaOf } from "@/lib/umbrella";
 import { attempt, UserError } from "./result";
 
-// Upload automation results (ver_82, milestone 3): JUnit or NUnit XML from any CI
+// Upload automation results (milestone 3): JUnit or NUnit XML from any CI
 // server or a local test run becomes a closed, automated run in one test cycle.
 // Tests find their case by Automation ID, then by a case key in the test's name;
 // the rest become Automated cases in the library's Automation folder.
@@ -30,7 +30,7 @@ export async function readAutomationFiles(files: Files) {
 
 export type UploadCycle = { id: string; key: string; name: string; color: string; rcName: string; current: boolean };
 
-/** What step 2, Where they go (ver_133), needs besides the test cycles. */
+/** What step 2, Where they go, needs besides the test cycles. */
 export type WhereInfo = {
   /** The umbrella, when + New test cycle can make one there. */
   newCycle: { groupId: string; platforms: string[]; release: string } | null;
@@ -92,7 +92,7 @@ export async function previewAutomation(cycleId: string, files: Files, links: Re
   return attempt(async () => {
     const { user } = await requireProjectAction(cycleId, "run:import");
     const { list, tests, build } = read(files);
-    // Screenshots, videos and replays (ver_93): what's there and what this umbrella keeps.
+    // Screenshots, videos and replays: what's there and what this umbrella keeps.
     let media: { found: MediaCounts; kept: MediaCounts; unmatched: number; keep: "failed" | "all" } | null = null;
     const staged = await loadStage(stageId, user.id);
     if (staged.length) {
@@ -107,8 +107,8 @@ export async function previewAutomation(cycleId: string, files: Files, links: Re
     const rows = tests.map((t) => {
       const m = matches.get(t.id);
       const c = m ? byId.get(m.caseId)! : null;
-      // No match, but a case with the same title: suggest it, so the upload doesn't make a twin (ver_86).
-      // Near titles too (ver_94): case and simple endings like "Adds"/"Add" don't make a new case without asking.
+      // No match, but a case with the same title: suggest it, so the upload doesn't make a twin.
+      // Near titles too: case and simple endings like "Adds"/"Add" don't make a new case without asking.
       const like = c ? null : (cases.find((x) => sameTitle(x.title, titleFromTest(t.name))) ?? cases.find((x) => nearTitle(x.title, titleFromTest(t.name))));
       return {
         id: t.id,

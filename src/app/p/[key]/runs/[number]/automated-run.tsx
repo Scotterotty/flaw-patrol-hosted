@@ -18,7 +18,7 @@ import { StepChips } from "@/components/github-steps";
 import { open } from "@/lib/crypto";
 import { GitHubClient } from "@/lib/github";
 
-/** The GitHub run's build steps (ver_89), or null when the repo is gone or GitHub can't be reached. */
+/** The GitHub run's build steps, or null when the repo is gone or GitHub can't be reached. */
 async function pulledSteps(repoId: string | null, runId: string) {
   if (!repoId) return null;
   const repo = await db.gitHubRepo.findUnique({ where: { id: repoId }, select: { fullName: true, tokenEncrypted: true } });
@@ -31,7 +31,7 @@ async function pulledSteps(repoId: string | null, runId: string) {
 }
 
 /**
- * A run uploaded from automation results (ver_82): opens on the failures, with each
+ * A run uploaded from automation results: opens on the failures, with each
  * one's message, stack trace and output, and File bug. Nothing here needs testing.
  */
 export async function AutomatedRun({ project, runId, who }: { project: { id: string; key: string }; runId: string; who: Who }) {
@@ -63,7 +63,7 @@ export async function AutomatedRun({ project, runId, who }: { project: { id: str
       distinct: ["caseId"],
       select: { caseId: true, status: true, run: { select: { number: true } } },
     }),
-    // New and Updated tests (ver_96).
+    // New and Updated tests.
     caseNewsForRun(run, run.entries),
   ]);
   const before = new Map(earlier.map((r) => [r.caseId, r]));
@@ -92,7 +92,7 @@ export async function AutomatedRun({ project, runId, who }: { project: { id: str
     };
   });
   const steps = run.githubRunId ? await pulledSteps(run.githubRepoId, run.githubRunId) : null;
-  // Seconds under a minute, so a 12-second suite doesn't read as "1 min" (ver_91).
+  // Seconds under a minute, so a 12-second suite doesn't read as "1 min".
   const took = run.durationSec == null ? null : run.durationSec < 60 ? `${run.durationSec}s` : `${Math.round(run.durationSec / 60)} min`;
   const canDelete = can(who, "run:delete");
   const fileCount = rows.reduce((n, r) => n + r.files.length, 0);

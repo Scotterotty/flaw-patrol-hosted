@@ -1,4 +1,4 @@
-// How Flaw Patrol emails look (ver_92): a plain text version and a small HTML one.
+// How Flaw Patrol emails look: a plain text version and a small HTML one.
 
 const escape = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
@@ -6,7 +6,7 @@ export type Mail = { to: string; subject: string; lines: string[]; button?: { la
 
 /** Plain text and a small HTML version of the same message. */
 export function renderMail(m: Mail) {
-  // Digests (ver_132) bring their own layout, see src/lib/digest-render.ts.
+  // Digests bring their own layout, see src/lib/digest-render.ts.
   if (m.rich) return m.rich;
   const text = [...m.lines, ...(m.button ? ["", `${m.button.label}: ${m.button.url}`] : []), ...(m.footer ? ["", m.footer] : [])].join("\n");
   const html = [

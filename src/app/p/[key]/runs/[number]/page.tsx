@@ -50,10 +50,10 @@ import { KnownBugsHeadsUp, KnownBugsPanel, type RunKnown } from "@/components/kn
 export const metadata = { title: "Test run" };
 
 export default async function RunPage({ params, searchParams }: { params: Promise<{ key: string; number: string }>; searchParams: Promise<{ handed?: string; compare?: string }> }) {
-  // FP_TIMING=1 prints how long each part took (ver_108). The independent lookups run side by
+  // FP_TIMING=1 prints how long each part took. The independent lookups run side by
   // side instead of one after another, so the page shows sooner after Start.
   const timing = startTiming("Run page");
-  // Live rows read after this replace the list's rows straight away (ver_112).
+  // Live rows read after this replace the list's rows straight away.
   const renderedAt = Date.now();
   const { key, number } = await params;
   const { handed, compare } = await searchParams;
@@ -86,12 +86,12 @@ export default async function RunPage({ params, searchParams }: { params: Promis
     timing.step("releases", releaseOptions(project.id)),
     readCaseSort(),
     timing.step("run fields", runFieldsFor(project.id)),
-    // Known bugs from earlier runs (ver_96), for runs tested by hand.
+    // Known bugs from earlier runs, for runs tested by hand.
     timing.step("known bugs", knownBugsForRun(run.id, entryRefs)),
     timing.step("new and updated cases", caseNewsForRun(run, run.entries)),
     timing.step("Slack", slackSummaryFor(project.id)),
     timing.step("flaky cases", flakyCases({ caseIds: [...new Set(run.entries.map((e) => e.caseId))] })),
-    // Regression flag (ver_93): cases that passed last release on this platform and fail now.
+    // Regression flag: cases that passed last release on this platform and fail now.
     timing.step("regressions", runRegressions(run, project, compare)),
     timing.step("Sentry", sentryConnected(project.id)),
     timing.step("tags", tagColorsFor(project.id)),
@@ -108,7 +108,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   }
   const defects = [...new Map(defectLinks.map((l) => [l.defectId, l.defect])).values()];
   const knownList: RunKnown[] = run.entries.flatMap((e) => (knownMap.get(e.id) ?? []).map((bug) => ({ bug, caseKey: caseKey(e.testCase.project.key, e.testCase.number) })));
-  // Step counts from each case's last saved result. Heading rows in shared steps take no result, so they don't count (ver_110).
+  // Step counts from each case's last saved result. Heading rows in shared steps take no result, so they don't count.
   const steps: Partial<Record<ResultStatus, number>> = {};
   let stepTotal = 0;
   for (const e of run.entries) {
@@ -130,7 +130,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   const unassigned = run.entries.filter((e) => !e.assigneeId);
   const sheet: SheetState = { hook: run.sheetHook, tab: run.sheetTab, auto: run.sheetAuto, link: run.sheetLink, syncedAgo: run.sheetSyncedAt && relativeTime(run.sheetSyncedAt, spelling), error: run.sheetError };
   const failedish = run.entries.filter((e) => ["FAILED", "BLOCKED", "RETEST"].includes(e.status)).length;
-  // "Retest 3 not passed" says what's in it on hover: 1 failed · 1 blocked (ver_91).
+  // "Retest 3 not passed" says what's in it on hover: 1 failed · 1 blocked.
   const notPassed = (["FAILED", "BLOCKED", "RETEST"] as const)
     .map((s) => [s, run.entries.filter((e) => e.status === s).length] as const)
     .filter(([, n]) => n > 0)
@@ -138,7 +138,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
     .join(" · ");
   // Every case has a result: the run only needs closing.
   const finished = run.state === "ACTIVE" && t.total > 0 && t.tested === t.total;
-  // Just started and handed to someone else (ver_85): a link to send them.
+  // Just started and handed to someone else: a link to send them.
   const handedTo = handed ? members.find((m) => m.id === handed) : undefined;
   const handedCases = handedTo ? run.entries.filter((e) => e.assigneeId === handedTo.id).length : 0;
 
@@ -283,7 +283,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         </Card>
       </div>
 
-      {/* Sentry (ver_96): how this build is doing, for runs tested by hand. */}
+      {/* Sentry: how this build is doing, for runs tested by hand. */}
       {!run.automated && sentryOn && (
         <div className="mb-5">
           <SentryCard projectId={project.id} runIds={[run.id]} />

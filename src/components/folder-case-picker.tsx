@@ -11,7 +11,7 @@ const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 export type PickerCase = { id: string; key: string; title: string; folderId: string | null; tags?: string[] };
 
 /**
- * Choose from folders… (ver_91): the Case library as a tree. Tick a folder to take every
+ * Choose from folders…: the Case library as a tree. Tick a folder to take every
  * case in it and its subfolders, or open it and tick single cases. A dash means partly picked.
  */
 export function FolderCasePicker({
@@ -34,7 +34,7 @@ export function FolderCasePicker({
   const picked = useMemo(() => new Set(value), [value]);
   const tree = useMemo(() => buildTree(folders), [folders]);
   const needle = q.trim().toLowerCase();
-  // Forgiving search (ver_96): exact matches in the tree, close ones listed under their own label.
+  // Forgiving search: exact matches in the tree, close ones listed under their own label.
   const found = useMemo(() => forgivingFilter(cases, q, (c) => `${c.key} ${c.title} ${(c.tags ?? []).join(" ")}`), [cases, q]);
   const exactIds = useMemo(() => new Set(found.exact.map((c) => c.id)), [found]);
   const matches = (c: PickerCase) => !needle || exactIds.has(c.id);

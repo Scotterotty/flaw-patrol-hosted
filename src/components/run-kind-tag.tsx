@@ -1,7 +1,7 @@
 import { EXPLORE_KIND, kindIcon, kindLabel, type RunKindDef } from "@/lib/run-kinds";
 import { cx } from "./ui";
 
-/** A run's kind as a small tag (ver_96): 🧭 Exploratory, 🐞 Bug bash, Release candidate, Run… */
+/** A run's kind as a small tag: 🧭 Exploratory, 🐞 Bug bash, Release candidate, Run… */
 export function RunKindTag({ kinds, kind, live = false, className }: { kinds: RunKindDef[]; kind: string; live?: boolean; className?: string }) {
   const icon = kindIcon(kind);
   return (

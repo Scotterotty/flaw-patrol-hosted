@@ -14,14 +14,14 @@ import { shownKind, type RunKindDef } from "@/lib/run-kinds";
 import { RunKindTag } from "@/components/run-kind-tag";
 
 /** Runs across these projects, newest first. */
-/** canStart false (ver_124, Viewers): the empty state says what will show, not which button to press. */
+/** canStart false (Viewers): the empty state says what will show, not which button to press. */
 export async function Runs({ projectIds, state, kind, kinds = [], canStart = true }: { projectIds: string[]; state?: string; kind?: string; kinds?: RunKindDef[]; canStart?: boolean }) {
   const spelling = await mySpelling();
   const runs = await db.testRun.findMany({
     where: {
       projectId: { in: projectIds },
       ...(state === "active" ? { state: "ACTIVE" as const } : state === "closed" ? { state: "COMPLETED" as const, automated: false } : state === "automated" ? { automated: true } : {}),
-      // Kind filter (ver_95): "none" is plain runs.
+      // Kind filter: "none" is plain runs.
       ...(kind ? { kind: kind === "none" ? "" : kind } : {}),
     },
     orderBy: { createdAt: "desc" },
@@ -58,7 +58,7 @@ export async function Runs({ projectIds, state, kind, kinds = [], canStart = tru
                     Closed
                   </Badge>
                 )}
-                {/* Automated runs that don't count toward any release (ver_133). */}
+                {/* Automated runs that don't count toward any release. */}
                 {r.automated && !r.release.trim() && (
                   <Badge tone="gray" className="ml-1" data-testid="no-release">
                     No release

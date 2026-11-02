@@ -1,4 +1,4 @@
-// Bug templates in bug bashes (ver_125): a bash picks a template, each bug logged in it keeps
+// Bug templates in bug bashes: a bash picks a template, each bug logged in it keeps
 // that template's layout, and what the template must have can be added later by anyone, up to
 // wrap-up. Logging never waits on it (Scott, 2026-11-01): only filing does. Pure, client-safe.
 
@@ -39,7 +39,7 @@ export function valuesOf(answers: Answer[]): BashValues {
 }
 
 /**
- * Fill in (ver_125): what someone adds on top of what's there. A heading they typed in replaces
+ * Fill in: what someone adds on top of what's there. A heading they typed in replaces
  * its text; files are added to the ones already there. Tables and env headings stay as they are.
  */
 export function mergeValues(answers: Answer[], layout: BugLayout, values: BashValues): Answer[] {
@@ -73,7 +73,7 @@ export function itemTemplate(i: { templateName: string; layout: unknown; answers
   return { name: i.templateName, layout: parseLayout(i.layout), answers: parseAnswers(i.answers) };
 }
 
-/** +1 (ver_125): one more row in each growing table, with the person's own automatic cells. */
+/** +1: one more row in each growing table, with the person's own automatic cells. */
 export function withSeenRow(answers: Answer[], auto: AutoCells): Answer[] {
   return answers.map((a) => (a.growing && a.columns && a.rows ? { ...a, rows: [...a.rows, a.columns.map((c) => (c.fill === "write" || c.fill === "files" ? "" : auto[c.fill]))].slice(0, 200) } : a));
 }

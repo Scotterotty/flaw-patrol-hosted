@@ -54,12 +54,12 @@ export function CsvImporter({
   const place = places.find((p) => p.id === placeId) ?? places[0];
   const folderOptions = place.folderOptions;
   const startFolder = placeId === initialFolderPlaceId ? initialFolderId : null;
-  // Folders built from the file's Folder column, one folder for the whole file, or no folder (ver_107).
-  // ver_91: a file with a Folder column (TestRail sections) keeps its folders unless you choose otherwise.
+  // Folders built from the file's Folder column, one folder for the whole file, or no folder.
+  // A file with a Folder column (TestRail sections) keeps its folders unless you choose otherwise.
   const [folderMode, setFolderMode] = useState<"one" | "file" | "none" | null>(null);
-  // The folder the file's folders go in: "" for none, a folder, or NEW_FOLDER named parentName (ver_107).
+  // The folder the file's folders go in: "" for none, a folder, or NEW_FOLDER named parentName.
   const [parentName, setParentName] = useState("");
-  // "Have these cases been run before?" (ver_107): nothing picked until you answer.
+  // "Have these cases been run before?": nothing picked until you answer.
   const [runBefore, setRunBefore] = useState<boolean | null>(null);
   // The import warning whose case and step the preview opened ("Show me the step").
   const [shownWarning, setShownWarning] = useState<ImportWarning | null>(null);
@@ -73,7 +73,7 @@ export function CsvImporter({
   const [folderId, setFolderId] = useState(startFolder ?? "");
   const [error, setError] = useState<string | null>(null);
   const [restoreBreaks, setRestoreBreaks] = useState(false);
-  // Lines under a step's name go to Expected (ver_135). Picked by default; the card only shows when a file has such steps.
+  // Lines under a step's name go to Expected. Picked by default; the card only shows when a file has such steps.
   const [moveExpected, setMoveExpected] = useState(true);
   // "Keep one more line in the step" in the preview: lines each step keeps, by "caseRow:stepIndex".
   const [keepLines, setKeepLines] = useState<Record<string, number>>({});
@@ -103,7 +103,7 @@ export function CsvImporter({
   const oneMode = mode === "one";
   const rootLabel = place.kind === "library" ? `${place.label.replace(/ case library$/i, "")} Case library` : place.label;
   const parentPath = folderId && folderId !== NEW_FOLDER ? (folderOptions.find((f) => f.id === folderId)?.label.split(" / ") ?? []) : [];
-  // Area tags (ver_102): the word after the platform. Words that are already tags (or [bracket]
+  // Area tags: the word after the platform. Words that are already tags (or [bracket]
   // tags in this file) are picked up on their own; new ones are listed with a tick box.
   const [areaOn, setAreaOn] = useState(true);
   const [areaOff, setAreaOff] = useState<string[]>([]);
@@ -112,7 +112,7 @@ export function CsvImporter({
     const names = [...place.area.platforms, ...place.area.known];
     const split = result.cases.map((c) => {
       const s = splitBracketTitle(c.title, { platforms: names });
-      // With no platforms, only the [bracket] tag leads (ver_105); the file's own tags come after.
+      // With no platforms, only the [bracket] tag leads; the file's own tags come after.
       return { title: s.title, tags: place.area.platforms.length ? [...s.tags, ...c.tags] : s.tags };
     });
     const ctx = { ...place.area, known: [...place.area.known, ...split.flatMap((c) => c.tags)] };
@@ -368,7 +368,7 @@ export function CsvImporter({
                 : "This file has no folders in it."}
               {!folderOptions.length && ` ${place.kind === "library" ? "Your Case library" : "This test cycle"} has no folders yet.`}
             </p>
-            {/* ver_107: plain choices, and a dropdown only when there's a real folder to pick. */}
+            {/* Plain choices, and a dropdown only when there's a real folder to pick. */}
             <div className="space-y-2" role="radiogroup" aria-label="Which folder?">
               {hasFolders && (
                 <Choice checked={mode === "file"} onSelect={() => setFolderMode("file")} name="folder-mode">
@@ -550,7 +550,7 @@ export function CsvImporter({
                 {result.cases.length > MAX_IMPORT && <p className="text-xs text-red-600">Split the file: at most {MAX_IMPORT} cases per import.</p>}
               </div>
               <span className="flex flex-wrap items-center justify-end gap-2">
-                {/* The reason in words, not only in a hover tip on a gray button (ver_89). */}
+                {/* The reason in words, not only in a hover tip on a gray button. */}
                 {needsName && <span className="text-xs font-medium text-amber-800">Name the folder first</span>}
                 {runBefore === null && <span className="text-xs font-medium text-amber-800">Answer &ldquo;Have these cases been run before?&rdquo;</span>}
                 {!result.cases.length && <span className="text-xs font-medium text-amber-800">No cases found: check the Title column</span>}
@@ -733,7 +733,7 @@ export function CsvImporter({
 
 /**
  * A preview step's Expected text. Lines that moved there from the step are the last ones and
- * show in green, with buttons to keep one more line in the step or undo that (ver_135).
+ * show in green, with buttons to keep one more line in the step or undo that.
  */
 function MovedExpected({ expected, had, kept, onKeep }: { expected: string; had: number; kept: number; onKeep: (by: number) => void }) {
   if (had < 2) return <>{expected}</>;
@@ -790,7 +790,7 @@ function Choice({
   );
 }
 
-/** One place in the "Make them in" folder list (ver_107). */
+/** One place in the "Make them in" folder list. */
 function PickRow({ on, onPick, depth = 0, add, children }: { on: boolean; onPick: () => void; depth?: number; add?: boolean; children: React.ReactNode }) {
   return (
     <button

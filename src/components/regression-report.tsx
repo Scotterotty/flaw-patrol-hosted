@@ -5,7 +5,7 @@ import { PartTitle } from "./report-part-title";
 import { Card, cx, EmptyState, Select } from "./ui";
 
 /**
- * Reports → Regression (ver_93): what got worse since the last release, in one table. Cases that
+ * Reports → Regression: what got worse since the last release, in one table. Cases that
  * passed in the older release and broke in the newer one, per platform, still broken or fixed again.
  */
 export function RegressionView({
@@ -20,7 +20,7 @@ export function RegressionView({
   /** Other filters to keep (view, platform), as hidden fields. */
   hidden: Record<string, string>;
   qs: (extra: Record<string, string | undefined>) => string;
-  /** Inside a custom report (ver_101): no release pickers or list switch, every regression shows. */
+  /** Inside a custom report: no release pickers or list switch, every regression shows. */
   inReport?: boolean;
 }) {
   const { releases, newer, older, rows } = data;

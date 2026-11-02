@@ -1,6 +1,6 @@
 "use server";
 
-// Settings → Bug templates (ver_119): anyone who can make bug templates (Testers and up by
+// Settings → Bug templates: anyone who can make bug templates (Testers and up by
 // default) adds and edits them; deleting is for admins by default. Bugs already reported keep
 // their layout, so editing or deleting a template never changes them (Scott, ver_119).
 

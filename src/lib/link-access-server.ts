@@ -4,7 +4,7 @@ import { db } from "./db";
 import { phaseOf } from "./bash";
 import { linkTarget, type LinkTarget } from "./link-access";
 
-// Shared links for people outside the team (ver_115): who a link's team is, who its admins
+// Shared links for people outside the team: who a link's team is, who its admins
 // are, and whether someone signed in may come into a bug bash as a guest.
 
 /** The page being opened, set by src/middleware.ts. Null outside a page request. */

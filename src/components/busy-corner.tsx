@@ -6,7 +6,7 @@ import { actionRedirect, busyLabel, CHAIN_MS, GESTURE_MS, LINE_AFTER_MS, movesPa
 import { LoadingSpinner } from "./loading-spinner";
 
 /**
- * Loading signs (ver_116, Scott: "the spinner should appear anytime something loads"; ver_130,
+ * Loading signs (Scott: "the spinner should appear anytime something loads"; ver_130,
  * Scott: keep them out of the way).
  * - Moving to another page (a link, a left menu item, a library tab, Back or Forward, or a save
  *   that takes you to a new page): after a third of a second a thin line slides along the top

@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { setRegressionOff } from "@/server/regression";
 import { InfoTip } from "./ui";
 
-/** "Compared with Web RC 21 ▾" above a run's cases: what the Regression flag measures against (ver_93). */
+/** "Compared with Web RC 21 ▾" above a run's cases: what the Regression flag measures against. */
 export function CompareWith({ label, only, choices, count, path }: { label: string; only: string | null; choices: string[]; count: number; path: string }) {
   const router = useRouter();
   return (
@@ -37,7 +37,7 @@ export function CompareWith({ label, only, choices, count, path }: { label: stri
 }
 
 /**
- * Under a failed step in the runner: this step passed in the earlier release, so it looks new (ver_93).
+ * Under a failed step in the runner: this step passed in the earlier release, so it looks new.
  * Report a bug and See what it looked like are handed in; Turn the flag off saves at once and can be undone.
  */
 export function RegressionNote({

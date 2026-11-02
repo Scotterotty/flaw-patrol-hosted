@@ -32,12 +32,12 @@ type Progress = {
   crowns?: CrownOption[];
 };
 
-/** A crown in one of your umbrellas (ver_96), with the number to beat. */
+/** A crown in one of your umbrellas, with the number to beat. */
 export type CrownOption = {
   id: string;
   label: string;
   umbrella: string;
-  /** Keeper of Words (ver_140): one crown for the whole team, not one per umbrella. */
+  /** Keeper of Words: one crown for the whole team, not one per umbrella. */
   team?: boolean;
   mine: boolean;
   holder: string | null;
@@ -153,7 +153,7 @@ export function GamePanel({
   pawnHref,
 }: {
   questMap?: boolean;
-  /** Seasonal scenery on quest maps (ver_98). */
+  /** Seasonal scenery on quest maps. */
   seasonalMaps?: boolean;
   /** Where the pawn's gear is picked: the Quest map of your latest project. */
   pawnHref?: string | null;
@@ -496,7 +496,7 @@ export function GamePanel({
   );
 }
 
-/** One folding section of the Mini game card (ver_96); open state saved on your account. */
+/** One folding section of the Mini game card; open state saved on your account. */
 function Section({ id, title, summary, pill, forceOpen = false, children }: { id: string; title: string; summary: ReactNode; pill: ReactNode; forceOpen?: boolean; children: ReactNode }) {
   const { open, toggle, set } = useOpenCard(id);
   // A new unlock opens its section by itself.
@@ -521,7 +521,7 @@ function Section({ id, title, summary, pill, forceOpen = false, children }: { id
 const plural = (n: number, unit: [string, string]) => `${n} ${n === 1 ? unit[0] : unit[1]}`;
 
 /**
- * Crowns (ver_96): the ones you hold, the three you're closest to (only you vs the holder,
+ * Crowns: the ones you hold, the three you're closest to (only you vs the holder,
  * never a ranking), and a small list of every crown and who holds it.
  */
 function Crowns({ crowns, worn: wearing, onWear }: { crowns: CrownOption[]; worn: string | null; onWear: (id: string) => void }) {

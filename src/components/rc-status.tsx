@@ -49,13 +49,13 @@ type Props = {
   base?: string;
   /** Says where the listed runs come from, in the Runs picker. */
   scopeNote?: string;
-  /** The team's severity names and which count as critical (ver_91). */
+  /** The team's severity names and which count as critical. */
   scale?: SeverityScale;
-  /** One Export menu, as on Run reports (ver_91). Without it, Share stays. */
+  /** One Export menu, as on Run reports. Without it, Share stays. */
   exportTo?: { url: string; cycle: boolean; preparedBy: string };
-  /** Bug bashes that ran during this release (ver_94). */
+  /** Bug bashes that ran during this release. */
   bashCount?: number;
-  /** Attached wrap-ups (ver_96), shown as their own section and copied with the report. */
+  /** Attached wrap-ups, shown as their own section and copied with the report. */
   wrapUps?: WrapUp[];
   attach?: React.ReactNode;
 };

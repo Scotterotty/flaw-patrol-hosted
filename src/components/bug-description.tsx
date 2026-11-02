@@ -1,4 +1,4 @@
-/** A bug saved without Jira (ver_124): what the tester wrote under What happened, folded. */
+/** A bug saved without Jira: what the tester wrote under What happened, folded. */
 export function BugDescription({ text }: { text: string }) {
   if (!text.trim()) return null;
   return (

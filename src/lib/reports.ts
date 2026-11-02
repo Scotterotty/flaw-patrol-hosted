@@ -15,14 +15,14 @@ export type ReportFilters = {
   suiteId?: string;
   release?: string;
   runNumber?: number;
-  // Narrow every tab to cases of one priority, tag or folder (ver_139). No filter by person:
+  // Narrow every tab to cases of one priority, tag or folder. No filter by person:
   // reports show how the product is doing, never who did the most.
   priority?: Priority;
   tag?: string;
   folder?: string;
   /** Only runs tested by hand, or only uploaded and GitHub-pulled ones. */
   kind?: RunKind;
-  /** One kind of run (ver_95), or "none" for plain runs. See src/lib/run-kinds.ts. */
+  /** One kind of run, or "none" for plain runs. See src/lib/run-kinds.ts. */
   runKind?: string;
 };
 
@@ -55,7 +55,7 @@ const inScope = (scope: ReportScope) => (Array.isArray(scope) ? { in: scope } : 
 
 export function runWhere(scope: ReportScope, f: ReportFilters): Prisma.TestRunWhereInput {
   const w: Prisma.TestRunWhereInput = { projectId: inScope(scope) };
-  // Manual leaves out bug bashes, which have their own choice (ver_94).
+  // Manual leaves out bug bashes, which have their own choice.
   if (f.kind === "bash") w.bugBash = { isNot: null };
   else if (f.kind) {
     w.automated = f.kind === "automated";
@@ -71,7 +71,7 @@ export function runWhere(scope: ReportScope, f: ReportFilters): Prisma.TestRunWh
   return w;
 }
 
-/** The cases a report counts: the priority, folder and tag picked (ver_139). Empty = every case. */
+/** The cases a report counts: the priority, folder and tag picked. Empty = every case. */
 export function entryWhere(f: ReportFilters): Prisma.RunEntryWhereInput {
   const entry: Prisma.RunEntryWhereInput = {};
   if (f.priority) entry.priority = f.priority;
@@ -83,7 +83,7 @@ export const hasCaseFilter = (f: ReportFilters) => !!(f.priority || f.folder || 
 
 export type RunRow = {
   id: string;
-  /** A bug bash's run (ver_124): kept out of the Reports summary's run count. */
+  /** A bug bash's run: kept out of the Reports summary's run count. */
   bash?: boolean;
   /** The test cycle the run belongs to: run numbers are only unique within it. */
   projectKey: string;
@@ -108,7 +108,7 @@ export type RunRow = {
   sourceFile: string;
   suiteId: string | null;
   caseIds: string[];
-  /** Each case's status in the run, for the manual vs automated split (ver_95). */
+  /** Each case's status in the run, for the manual vs automated split. */
   caseStatuses: [string, ResultStatus][];
 };
 
@@ -146,7 +146,7 @@ export async function runReport(scope: ReportScope, f: ReportFilters): Promise<R
     createdAt: r.createdAt,
     state: r.state,
     counts: countStatuses(r.entries.map((e) => e.status)),
-    // Heading rows in shared steps take no result, so they aren't steps (ver_110).
+    // Heading rows in shared steps take no result, so they aren't steps.
     steps: countStatuses(r.entries.flatMap((e) => withoutHeadings(e.steps, (e.results[0]?.stepResults as { status: ResultStatus }[] | undefined) ?? []).map((s) => s.status))),
     defects: new Set(r.results.flatMap((x) => x.defects.map((d) => d.defectId))).size,
     source: !r.automated ? "manual" : r.githubRepoId || r.githubRunId ? "github" : "upload",
@@ -227,7 +227,7 @@ export async function stepHistory(scope: ReportScope, f: ReportFilters): Promise
   const agg = new Map<string, StepHistory>();
   for (const r of [...latest.values()].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())) {
     const steps = (r.entry.steps as { number: string; action: string; row?: number }[]) ?? [];
-    // Test data (ver_138): a step of a row reads "2 (row 2)", so the row that failed is named.
+    // Test data: a step of a row reads "2 (row 2)", so the row that failed is named.
     const num = (st: { number: string; row?: number }) => (typeof st.row === "number" ? `${st.number} (row ${st.row + 1})` : st.number);
     ((r.stepResults as { status: ResultStatus }[]) ?? []).forEach((s, i) => {
       const step = steps[i];
@@ -361,7 +361,7 @@ export type TrendBucket = {
   counts: StatusCounts;
   passRate: number | null;
   bugs: number;
-  /** Pass rate of hand testing and of automation on their own (ver_95). */
+  /** Pass rate of hand testing and of automation on their own. */
   manualRate?: number | null;
   autoRate?: number | null;
 };
@@ -443,7 +443,7 @@ export async function trends(scope: ReportScope, f: ReportFilters): Promise<Tren
   return { unit, buckets, releases, results: kept.length, manual: kept.filter((r) => !r.run.automated).length, automated: kept.filter((r) => r.run.automated).length };
 }
 
-/** Choices for the Priority, Folder and Tag filters, on every tab (ver_139). */
+/** Choices for the Priority, Folder and Tag filters, on every tab. */
 export async function caseFilterOptions(scope: ReportScope) {
   const run = { projectId: inScope(scope) };
   const [cases, folders] = await Promise.all([

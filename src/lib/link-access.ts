@@ -1,4 +1,4 @@
-// Shared links for people outside the team (ver_115). Pure helpers: what a link opens, and
+// Shared links for people outside the team. Pure helpers: what a link opens, and
 // how to say a list of names. The database side is in src/lib/link-access-server.ts.
 
 /** What a path inside Flaw Patrol opens, in plain words ("a report"), with its project or umbrella. */
@@ -73,10 +73,10 @@ export function bashGuestPath(path: string): { key: string; id: string; page: ""
 }
 
 /** "Dana", "Dana and Sam", "Dana, Sam and Riley". */
-/** A Viewer's Ask for Member access (ver_124) is a join request with this as its "what". */
+/** A Viewer's Ask for Member access is a join request with this as its "what". */
 export const MEMBER_ACCESS = "Member access";
 
-/** Two names, then "and 3 others", so a long admin list stays one line (ver_124). */
+/** Two names, then "and 3 others", so a long admin list stays one line. */
 export function fewNames(names: string[], show = 2) {
   if (names.length <= show + 1) return andList(names);
   const rest = names.length - show;

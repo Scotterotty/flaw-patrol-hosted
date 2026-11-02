@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { readForm } from "@/lib/zip-limits";
 import { UserError } from "@/server/result";
 
-// CI uploads (ver_91): a pipeline posts its JUnit or NUnit file with an umbrella's token.
+// CI uploads: a pipeline posts its JUnit or NUnit file with an umbrella's token.
 //   curl -X POST $URL/api/ci/results -H "Authorization: Bearer $TOKEN" \
 //     -F platform=Web -F build=$BUILD_ID -F file=@reports/junit.xml
 // Results land like Upload automation results, in the newest open test cycle for that

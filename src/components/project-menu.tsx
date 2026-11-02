@@ -15,8 +15,8 @@ type MenuProject = { id: string; key: string; name: string; groupId: string | nu
  */
 export async function ProjectMenu({ project, user, umbrella }: { project: MenuProject; user: Viewer; umbrella?: Umbrella | null }) {
   const quests = user.gameEnabled && user.questMap;
-  // Glossary (ver_113): one list for everyone, in every menu, with a dot when your question got answered.
-  // Asked together (ver_120): the glossary, the umbrella, and the test cycle's own cases.
+  // Glossary: one list for everyone, in every menu, with a dot when your question got answered.
+  // Asked together: the glossary, the umbrella, and the test cycle's own cases.
   const ownCasesP = project.groupId ? db.testCase.count({ where: { projectId: project.id, archived: false, ...NOT_BASH_CASE } }).catch(() => 0) : Promise.resolve(0);
   const [glossary, group] = await Promise.all([
     glossaryMenu(user.id),

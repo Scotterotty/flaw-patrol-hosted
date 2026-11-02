@@ -32,7 +32,7 @@ export async function requireUser() {
 }
 
 /**
- * Someone signed in who isn't on this team (ver_115): send them to the page that says what the
+ * Someone signed in who isn't on this team: send them to the page that says what the
  * link is and offers Ask to join, instead of a bare Not found.
  */
 export async function notOnTeam(fallback: string): Promise<never> {
@@ -42,15 +42,15 @@ export async function notOnTeam(fallback: string): Promise<never> {
 
 /**
  * Load a project by key with the viewer's role. 404 when it doesn't exist. People outside the
- * team get a guest pass for a bug bash link they may join (ver_115); other links send them to
+ * team get a guest pass for a bug bash link they may join; other links send them to
  * Ask to join.
  */
 export const projectAccessOrGuest = cache(async (key: string) => {
   const user = await requireUser();
-  // The Roles card rules come along in the same query (ver_120), instead of a second trip.
+  // The Roles card rules come along in the same query, instead of a second trip.
   const row = await db.project.findUnique({
     where: { key: key.toUpperCase() },
-    // ver_129: the umbrella this is the hub of, and its group's name, come along too for the layout.
+    // The umbrella this is the hub of, and its group's name, come along too for the layout.
     include: {
       members: { where: { userId: user.id } },
       hubOf: { select: { id: true, roleRules: true } },
@@ -72,7 +72,7 @@ export const projectAccessOrGuest = cache(async (key: string) => {
   const at = path ? bashGuestPath(path) : null;
   const bash = at && at.key === project.key ? await bashGuestOk(at.id, user.id) : null;
   if (!at || !bash || bash.projectId !== project.id) return notOnTeam(`/p/${project.key}`);
-  // Guests start on the bash page, where they join and pick an area (ver_121); the report is for people who took part.
+  // Guests start on the bash page, where they join and pick an area; the report is for people who took part.
   if (!bash.joined && at.page !== "join" && at.page !== "") redirect(`/p/${project.key}/bashes/${bash.id}?join=1`);
   // A guest acts like a Viewer inside the bash: join, log, +1 and attach. Nothing else.
   const who: Who = { role: "VIEWER", rules: null };

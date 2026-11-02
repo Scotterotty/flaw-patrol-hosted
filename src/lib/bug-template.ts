@@ -69,7 +69,7 @@ export function parseTemplateSettings(v: unknown): TemplateSettings {
 }
 
 /**
- * What a project's bugs use when it points at a company template (ver_96): the shared layout,
+ * What a project's bugs use when it points at a company template: the shared layout,
  * with this project's own defaults (client tag, team, clients) wherever the shared one has none.
  */
 export function effectiveTemplate(own: unknown, shared: unknown | null | undefined): TemplateSettings {

@@ -8,7 +8,7 @@ import { addPartToReport, createCustomReport } from "@/server/custom-reports";
 import type { PartId } from "@/lib/report-parts";
 import { Button, cx, Input } from "./ui";
 
-// "+ Add to report" on every box of the Reports tabs (ver_101), and the same boxes' headings
+// "+ Add to report" on every box of the Reports tabs, and the same boxes' headings
 // inside a custom report, where the heading can be renamed and shows which tab it came from.
 
 export type AddTarget = { id: string; name: string; parts: number; shared: boolean };

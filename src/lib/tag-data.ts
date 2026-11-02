@@ -12,7 +12,7 @@ export async function platformNamesFor(projectId: string) {
 }
 
 /**
- * Tag colors for a library (ver_96): ones someone picked, then platform colors for tags
+ * Tag colors for a library: ones someone picked, then platform colors for tags
  * named after a platform. Tags without either get a color from their name on screen.
  */
 export async function tagColorsFor(projectId: string): Promise<TagColors> {
@@ -31,7 +31,7 @@ export async function knownTagNamesFor(projectId: string, opts: { platforms?: bo
   return [...(opts.platforms === false ? [] : await platformNamesFor(projectId)), ...tags.map((t) => t.tag)];
 }
 
-/** What area tags (ver_102) need for a library: platforms, its other tags, and words it said No to. */
+/** What area tags need for a library: platforms, its other tags, and words it said No to. */
 export async function areaContextFor(projectId: string): Promise<AreaContext> {
   const [platforms, tags, p] = await Promise.all([
     platformNamesFor(projectId),

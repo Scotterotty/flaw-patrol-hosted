@@ -1,6 +1,6 @@
 "use client";
 
-// Settings → Bug templates (ver_119): the list, New template, and the editor with a live preview.
+// Settings → Bug templates: the list, New template, and the editor with a live preview.
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";

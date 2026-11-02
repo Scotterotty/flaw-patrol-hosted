@@ -46,7 +46,7 @@ export async function generateMetadata({ params }: { params: Promise<{ key: stri
 export default async function CasePage({ params }: { params: Promise<{ key: string; number: string }> }) {
   const { key, number } = await params;
   const [spelling, { project, user, who }] = await Promise.all([mySpelling(), projectAccess(key)]);
-  // What the page needs besides the case itself, asked for together (ver_120).
+  // What the page needs besides the case itself, asked for together.
   const others = Promise.all([
     // A Case library case runs in one of the umbrella's test cycles, picked in the Start a run box.
     hubGroupId(project.id),
@@ -129,7 +129,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
         <div className="flex flex-wrap items-center gap-2">
           {can(who, "case:flag") && <CaseFlagButton projectId={project.id} projectKey={project.key} caseId={c.id} flag={flag} />}
           {can(who, "suite:manage") && !c.archived && suites.length > 0 && <AddToSuite projectId={project.id} caseId={c.id} suites={suites} />}
-          {/* Charters get the small Start exploring box (ver_96). */}
+          {/* Charters get the small Start exploring box. */}
           {can(who, "run:create") && !c.archived && isCharter && <StartExploringButton caseId={c.id} />}
           {can(who, "run:create") && !c.archived && hubOf && !isCharter && (
             <StartRunBox
@@ -225,7 +225,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
           <CaseHistory caseId={c.id} projectKey={project.key} charter={isCharter} canRun={can(who, "run:create")} />
         </div>
         <aside className="space-y-5">
-          {/* Charters link to requirements too (ver_93), so the Risk board sees them. */}
+          {/* Charters link to requirements too, so the Risk board sees them. */}
           {(
             <Card className="p-4">
               <StoryLinks projectId={project.id} caseId={c.id} stories={[...stories.values()]} canEdit={can(who, "case:edit") && !c.archived} jira={!!jira} />

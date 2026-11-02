@@ -1,4 +1,4 @@
-// Color vision (ver_96): status colors one person can tell apart. The palettes live in
+// Color vision: status colors one person can tell apart. The palettes live in
 // globals.css (data-vision on <html>); these are the choices and their swatches.
 
 export type Vision = "standard" | "redgreen" | "blueyellow" | "none";

@@ -1,4 +1,4 @@
-// Risk board (ver_93): each requirement in a release on a 3×3 grid of how likely it is to break
+// Risk board: each requirement in a release on a 3×3 grid of how likely it is to break
 // (likelihood) against how much it would hurt (impact). Flaw Patrol makes a first guess from what
 // it already knows, and people move cards to correct it. Client-safe; data lives in risk-data.ts.
 
@@ -13,7 +13,7 @@ export type RiskSignals = {
   /** Bugs ever found by this requirement's cases. */
   pastBugs: number;
   failing: boolean;
-  /** False when the umbrella doesn't use Test cases (ver_128): "No tests yet" is left out of the guess. */
+  /** False when the umbrella doesn't use Test cases: "No tests yet" is left out of the guess. */
   withCases?: boolean;
 };
 

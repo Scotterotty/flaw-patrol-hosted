@@ -38,15 +38,15 @@ export type EntryRow = {
   assigneeId: string | null;
   lastTestedAt: string | null;
   defects: number;
-  /** New or Updated since the case's last run (ver_96), with why and a What was updated link. */
+  /** New or Updated since the case's last run, with why and a What was updated link. */
   news?: { kind: "new" | "updated"; why: string; href?: string };
-  /** Added after the run started (ver_96), like "Added from the Risk board by Sam". */
+  /** Added after the run started, like "Added from the Risk board by Sam". */
   added?: string;
-  /** Known bugs from earlier runs (ver_96). */
+  /** Known bugs from earlier runs. */
   known?: number;
   /** Flaky: how often its result flipped in its last 10 runs. */
   flaky?: number;
-  /** Regression (ver_93): where it passed before, for the badge's hover. */
+  /** Regression: where it passed before, for the badge's hover. */
   regression?: string;
   /** Step results so far, for a case that's in progress. */
   progress: ResultStatus[] | null;
@@ -75,7 +75,7 @@ export function RunEntries({
   runId: string;
   runNumber: number;
   rows: EntryRow[];
-  /** Server time the rows were read; live rows read later replace them (ver_112). */
+  /** Server time the rows were read; live rows read later replace them. */
   renderedAt: number;
   members: { id: string; name: string; avatarAt?: Date | null; frame?: string | null; title?: string | null; canTest?: boolean }[];
   canManage: boolean;
@@ -84,11 +84,11 @@ export function RunEntries({
   meId: string;
   sort: CaseSort;
   tagColors?: TagColors;
-  /** Can say the run's new cases were run before Flaw Patrol (ver_107): needs case editing. */
+  /** Can say the run's new cases were run before Flaw Patrol: needs case editing. */
   canMarkRunBefore?: boolean;
 }) {
   const spelling = useSpelling();
-  // Other people's progress from the live check, without waiting for the page to reload (ver_112).
+  // Other people's progress from the live check, without waiting for the page to reload.
   const live = useLiveRows(renderedAt);
   const rows = useMemo(
     () =>
@@ -102,7 +102,7 @@ export function RunEntries({
   );
   const [status, setStatus] = useState("");
   const [onlyReg, setOnlyReg] = useState(false);
-  // All / New / Updated (ver_96).
+  // All / New / Updated.
   const [news, setNews] = useState<"" | "new" | "updated">("");
   const newCount = rows.filter((r) => r.news?.kind === "new").length;
   const updCount = rows.filter((r) => r.news?.kind === "updated").length;
@@ -112,7 +112,7 @@ export function RunEntries({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, start] = useTransition();
   const router = useRouter();
-  // Entries just marked as run before, kept for Undo (ver_107).
+  // Entries just marked as run before, kept for Undo.
   const [marked, setMarked] = useState<string[] | null>(null);
   const [markError, setMarkError] = useState<string | null>(null);
   const allNew = newCount === rows.length && updCount === 0;
@@ -130,7 +130,7 @@ export function RunEntries({
   // Selected cases in the order they're listed, as case numbers for a short, shareable link.
   const only = rows.filter((r) => selected.has(r.id)).map((r) => r.caseNumber);
 
-  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  // Forgiving search: exact matches, then close ones under their own label.
   const found = forgivingFilter(
     rows.filter(
       (r) =>
@@ -188,7 +188,7 @@ export function RunEntries({
               Not new? Mark {newCount === 1 ? "it" : "them"} as run before
             </button>
           )}
-          {/* With every case new, All and New would show the same list (ver_107). */}
+          {/* With every case new, All and New would show the same list. */}
           {!allNew && (
             <span role="group" aria-label="Show cases" className="inline-flex overflow-hidden rounded-md border border-slate-300">
               {(
@@ -485,13 +485,13 @@ export function LiveStepProgress({ entryId, steps, lastChange }: { entryId: stri
 
 const saved = (s: ResultStatus) => s !== "IN_PROGRESS" && s !== "UNTESTED";
 
-/** A runner list row's status dot, kept current by the live check (ver_112). */
+/** A runner list row's status dot, kept current by the live check. */
 export function LiveStatusPip({ id, status, renderedAt }: { id: string; status: ResultStatus; renderedAt: number }) {
   const s = useLiveRow(id, renderedAt)?.status ?? status;
   return <span className={cx("st-pip mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full", STATUS_STYLE[s].bar)} />;
 }
 
-/** A runner list row's status word, kept current by the live check (ver_112). */
+/** A runner list row's status word, kept current by the live check. */
 export function LiveStatusLabel({ id, status, renderedAt }: { id: string; status: ResultStatus; renderedAt: number }) {
   const s = useLiveRow(id, renderedAt)?.status ?? status;
   return <span className="text-xs text-slate-500">{STATUS_LABEL[s]}</span>;
@@ -500,7 +500,7 @@ export function LiveStatusLabel({ id, status, renderedAt }: { id: string; status
 /**
  * A runner list row's step pips: a saved case keeps its last result's, a case in progress shows
  * its step results so far and who's on it, and the open case follows the runner as you mark steps.
- * Other people's changes come from the live check, so they show even while you're mid-case (ver_112).
+ * Other people's changes come from the live check, so they show even while you're mid-case.
  */
 export function LiveEntryProgress({ row, current, renderedAt }: { row: LiveRow; current: boolean; renderedAt: number }) {
   const r = useLiveRow(row.id, renderedAt) ?? row;

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 /**
- * Case versions saved in this tab (ver_120). Save no longer reloads every page, so the browser can
+ * Case versions saved in this tab. Save no longer reloads every page, so the browser can
  * show a case page or editor it remembers from before the save; seeing an older version, it reloads.
  */
 const savedHere = new Map<string, number>();

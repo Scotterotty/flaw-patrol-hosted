@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Email digests (ver_132). When a run finishes, a bug bash ends or a release's testing
+// Email digests. When a run finishes, a bug bash ends or a release's testing
 // is done, Flaw Patrol can email a summary. The umbrella decides who it goes to
 // (ProjectGroup.emailDigest); each person decides which ones they get (User.digestPrefs),
 // and their choice wins. Shared by the server and the settings cards.

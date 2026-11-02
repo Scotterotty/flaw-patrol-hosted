@@ -2,7 +2,7 @@ import type { ResultStatus } from "@prisma/client";
 import { z } from "zod";
 
 /**
- * The Regression flag (ver_93): a case gets it when it passed the last time it ran in an
+ * The Regression flag: a case gets it when it passed the last time it ran in an
  * earlier release on the same platform, and fails now. It's worked out from stored results, for
  * hand-run and automated tests alike. Flaky cases and cases that never passed don't get it,
  * and anyone can turn it off for one case in one run (RunEntry.regressionOff).
@@ -108,7 +108,7 @@ export function stepPassedThere(p: PastResult | null, step: number, stepCount: n
 
 /**
  * A case's own history with the flag kept on the result where it broke, and "Fixed again" on
- * the pass that came after (ver_93). `rows` are its results, any order, with their platform.
+ * the pass that came after. `rows` are its results, any order, with their platform.
  */
 export function historyMarks(rows: (PastResult & { off: boolean })[], mode: CompareMode, flaky: boolean): Map<string, "regression" | "fixed"> {
   const out = new Map<string, "regression" | "fixed">();

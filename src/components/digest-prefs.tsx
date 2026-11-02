@@ -6,7 +6,7 @@ import { BASH_PREFS, RUN_PREFS, type DigestPrefs } from "@/lib/digest-settings";
 import { saveDigestPrefs } from "@/server/digests";
 import { ErrorText } from "./ui";
 
-/** Your account → Emails I get (ver_132): which digest emails come to you. Saves on each change. */
+/** Your account → Emails I get: which digest emails come to you. Saves on each change. */
 export function DigestPrefsForm({ initial }: { initial: DigestPrefs }) {
   const router = useRouter();
   const [p, setP] = useState(initial);

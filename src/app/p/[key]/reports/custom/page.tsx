@@ -7,7 +7,7 @@ import { projectAccess } from "@/lib/session";
 
 export const metadata = { title: "Custom reports" };
 
-/** Reports → Custom reports (ver_101): reports put together from parts of the other tabs. */
+/** Reports → Custom reports: reports put together from parts of the other tabs. */
 export default async function CycleCustomReports({ params }: { params: Promise<{ key: string }> }) {
   const { project, user, who } = await projectAccess((await params).key);
   const base = `/p/${project.key}/reports`;

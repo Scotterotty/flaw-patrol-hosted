@@ -6,7 +6,7 @@ import { MAX_RUN_FIELDS, type RunField } from "@/lib/run-fields";
 import { setRunFields } from "@/server/umbrella";
 import { Badge, Button, ErrorText, Field, Input, Select } from "./ui";
 
-/** Umbrella Settings → Run fields (ver_89): the extra details runs ask for. Saves on each add or remove. */
+/** Umbrella Settings → Run fields: the extra details runs ask for. Saves on each add or remove. */
 export function RunFieldsPanel({ groupId, umbrella, fields: initial, canEdit }: { groupId: string; umbrella: string; fields: RunField[]; canEdit: boolean }) {
   const [fields, setFields] = useState(initial);
   const [adding, setAdding] = useState(false);

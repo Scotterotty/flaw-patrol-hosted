@@ -15,7 +15,7 @@ const EMOJIS = ["🧑", "🧓", "👵", "🧒", "👶", "🎮", "📱", "💼", 
 export const newCharterHref = (projectKey: string, personaId: string) => `/p/${projectKey}/cases/new?charter=1&persona=${personaId}`;
 
 /** The Personas page: who testers pretend to be, with a quick way to write a charter as each one. */
-export function PersonasBoard({ projectId, projectKey, personas, canManage, canArchive = canManage, canWrite, embedded = false }: { projectId: string; projectKey: string; personas: PersonaRow[]; canManage: boolean; canArchive?: boolean; canWrite: boolean; /** On the Charters page's Personas tab (ver_96): no page heading of its own. */ embedded?: boolean }) {
+export function PersonasBoard({ projectId, projectKey, personas, canManage, canArchive = canManage, canWrite, embedded = false }: { projectId: string; projectKey: string; personas: PersonaRow[]; canManage: boolean; canArchive?: boolean; canWrite: boolean; /** On the Charters page's Personas tab: no page heading of its own. */ embedded?: boolean }) {
   const [editing, setEditing] = useState<PersonaRow | "new" | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [pending, start] = useTransition();
@@ -23,7 +23,7 @@ export function PersonasBoard({ projectId, projectKey, personas, canManage, canA
   const active = personas.filter((p) => !p.archived);
   const archived = personas.filter((p) => p.archived);
   const shown = showArchived ? personas : active;
-  // Charters open the Charters page filtered to the persona (ver_96); cases the Case library.
+  // Charters open the Charters page filtered to the persona; cases the Case library.
   const filtered = (p: PersonaRow, type: string) => (type === "EXPLORATORY" ? `/p/${projectKey}/charters?persona=${p.id}` : `/p/${projectKey}/cases?persona=${p.id}`);
 
   return (
@@ -210,7 +210,7 @@ export function PersonaForm({
 }
 
 /**
- * New and edit charter (ver_96): "Create a test persona (optional)", right under the
+ * New and edit charter: "Create a test persona (optional)", right under the
  * mission. Pick one, or Nobody in particular; + New persona makes one on the spot.
  */
 export function TestPersonaPicker({ projectId, personas, value, onChange, onCreated, canCreate }: { projectId: string; personas: { id: string; name: string; emoji: string }[]; value: string; onChange: (id: string) => void; onCreated: (p: { id: string; name: string; emoji: string }) => void; canCreate: boolean }) {

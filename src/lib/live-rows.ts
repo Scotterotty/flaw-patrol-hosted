@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import type { ResultStatus } from "@prisma/client";
 
-// Run list rows as the last live check found them (ver_112), so other people's progress shows
+// Run list rows as the last live check found them, so other people's progress shows
 // within a second or so without reloading the page, and keeps showing while you're filling in a
 // case (when the page itself is held from refreshing, see holdLive). Browser-only.
 export type LiveRow = {

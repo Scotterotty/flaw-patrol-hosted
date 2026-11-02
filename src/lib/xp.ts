@@ -17,7 +17,7 @@ type Shared = {
 };
 
 /**
- * Everyone's XP numbers at once (ver_129, the Workspace Game admin card). Lookups that are the
+ * Everyone's XP numbers at once (the Workspace Game admin card). Lookups that are the
  * same for everyone, and each run's quest map, are done once and shared; the numbers match
  * gameStats for each person (npm run check:xp checks).
  */
@@ -57,7 +57,7 @@ export async function gameStats(userId: string, shared?: Shared): Promise<GameSt
   // Before launch everyone who signs in is an early adopter; after it, those who had.
   const earlyAdopter = user.earlyAdopter || !workspace?.launchedAt ? 1 : 0;
 
-  // Everything that only needs the dates above goes in one wave (ver_120), instead of one after another.
+  // Everything that only needs the dates above goes in one wave, instead of one after another.
   // Only bugs filed here from a run count; linked Jira issues and sheet imports don't.
   const myBugs = { createdById: userId, filed: true, createdAt: since, status: { not: "WONT_FIX" as const }, links: { some: {} } };
   const [mine, written, bugFiled, bugFixed, sessions, authored, sharedUsed, suitesRun, glossaryRows] = await Promise.all([
@@ -95,7 +95,7 @@ export async function gameStats(userId: string, shared?: Shared): Promise<GameSt
       where: { authorId: userId, version: 1, createdAt: authoredSince, suite: { runs: { some: {} } } },
       select: { suiteId: true },
     }),
-    // Glossary (ver_113): terms whose meaning you wrote, and teammates who opened them.
+    // Glossary: terms whose meaning you wrote, and teammates who opened them.
     shared ? shared.glossary : glossaryWork({ OR: [{ createdById: userId }, { answeredById: userId }] }),
   ]);
 
@@ -162,7 +162,7 @@ type Pass = { caseId: string; runId: string; createdAt: Date };
 const passIndex = new WeakMap<Pass[], Map<string, Pass[]>>();
 
 /**
- * Whether the same case passed in another, earlier run (ver_120): passes grouped by case once,
+ * Whether the same case passed in another, earlier run: passes grouped by case once,
  * oldest first, instead of checking every pass against every failure.
  */
 function passedBefore(passes: Pass[], f: Pass) {

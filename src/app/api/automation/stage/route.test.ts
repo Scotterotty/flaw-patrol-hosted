@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Upload automation results: sign-in check and the 200 MB cap counted while reading (ver_103).
+// Upload automation results: sign-in check and the 200 MB cap counted while reading.
 
 const session = { current: null as null | { user: { id: string } } };
 vi.mock("@/auth", () => ({ auth: async () => session.current }));

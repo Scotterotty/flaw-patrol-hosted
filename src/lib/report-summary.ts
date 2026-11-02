@@ -1,4 +1,4 @@
-// Reports summary line (ver_124, persona audit #10): one sentence above the tabs that answers
+// Reports summary line (persona audit #10): one sentence above the tabs that answers
 // "how are we doing?" for whatever dates and filters are picked, plus four tiles and a plain-text
 // copy for Slack or email. Pure, so it's unit tested.
 import { countStatuses, OPEN, STATUSES, totals, type StatusCounts } from "./status";

@@ -3,7 +3,7 @@ import { verdictFlips } from "./run-history";
 import { countStatuses, totals } from "./status";
 import { bucketKey, bucketLabel } from "./trend-buckets";
 
-// How testing is going (ver_131): the run trends box on an umbrella's home. Pure, so it's
+// How testing is going: the run trends box on an umbrella's home. Pure, so it's
 // unit tested; src/lib/home-trends.ts loads the rows. Bug bashes are left out before this.
 
 /** One saved result, with what the box needs about its run, case and bugs. */
@@ -24,14 +24,14 @@ export type TrendRow = {
   caseNumber: number;
   archived: boolean;
   bugs: { id: string; at: Date; severe: boolean; open: boolean }[];
-  /** For By build (ver_133): the run's link and what to call it. */
+  /** For By build: the run's link and what to call it. */
   runKey?: string;
   runNumber?: number;
   runName?: string;
   build?: string;
 };
 
-/** One automated run on By build (ver_133), release or not. */
+/** One automated run on By build, release or not. */
 export type BuildPoint = {
   runId: string;
   href: string;
@@ -85,7 +85,7 @@ export type TrendCase = {
 export type HomeTrendsData = {
   release: TrendPoint[];
   week: TrendPoint[];
-  /** Automated runs, oldest first, newest last (ver_133). */
+  /** Automated runs, oldest first, newest last. */
   build: BuildPoint[];
   hasManual: boolean;
   hasAuto: boolean;
@@ -195,7 +195,7 @@ export function homeTrends(rows: TrendRow[], entries: Map<string, number>, now =
     }
   }
 
-  // By build (ver_133): every automated run on its own, so one broken build stands out.
+  // By build: every automated run on its own, so one broken build stands out.
   const byRun = new Map<string, TrendRow[]>();
   for (const r of kept) {
     if (!r.automated) continue;
@@ -285,7 +285,7 @@ export function buildHealth(points: BuildPoint[]) {
 export const TREND_COUNTS = [6, 10, 20, 0] as const;
 export type TrendCount = (typeof TREND_COUNTS)[number];
 
-/** Saved on the account in openCards as trends:* words (ver_131), so it's the same on every computer. */
+/** Saved on the account in openCards as trends:* words, so it's the same on every computer. */
 const COUNT_WORD: Record<number, string> = { 10: "trends:ten", 20: "trends:twenty", 0: "trends:all" };
 export const HIDDEN_WORD = "trends:hidden";
 

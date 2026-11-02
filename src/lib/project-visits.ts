@@ -17,7 +17,7 @@ export async function recordVisit(userId: string, projectId: string) {
 
 /**
  * Last time anything happened in each project: a case saved, a run started or a result recorded.
- * Each max reads one end of an index (ver_100), so it stays quick however many results pile up.
+ * Each max reads one end of an index, so it stays quick however many results pile up.
  */
 export async function lastActivity(projectIds: string[]) {
   if (!projectIds.length) return new Map<string, Date>();

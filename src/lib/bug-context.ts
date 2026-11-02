@@ -15,7 +15,7 @@ import { UserError } from "@/server/result";
 
 /** Build the context for a bug report from a run entry. */
 /**
- * focus (ver_124, persona audit #4): a whole-case bug written from the first failed step, so
+ * focus (persona audit #4): a whole-case bug written from the first failed step, so
  * its summary and steps start from what failed. The bug still belongs to the whole case.
  */
 export async function bugContext(projectId: string, entryId: string, stepIndex: number | null, actual: string, focus: number | null = null) {
@@ -24,13 +24,13 @@ export async function bugContext(projectId: string, entryId: string, stepIndex: 
     include: { run: { include: { project: true } }, testCase: { select: { number: true, tags: true, project: { select: { key: true, groupId: true, hubOf: { select: { platforms: true } } } } } } },
   });
   if (!entry) throw new UserError("This case is no longer in the run.");
-  // Bracket tags (ver_96): platform tags and ALL-CAPS ones like ANDROID go back in front of the bug's title.
+  // Bracket tags: platform tags and ALL-CAPS ones like ANDROID go back in front of the bug's title.
   const platformNames = parsePlatforms(entry.testCase.project.hubOf?.platforms).map((p) => p.name.toLowerCase());
   const titleTags = entry.testCase.tags.filter((t) => platformNames.includes(t.toLowerCase()) || (/[A-Z]/.test(t) && t === t.toUpperCase()));
   const steps = (Array.isArray(entry.steps) ? entry.steps : []) as unknown as ExpandedStep[];
   if (stepIndex !== null && !steps[stepIndex]) throw new UserError("That step no longer exists.");
   const at = stepIndex ?? (focus !== null && steps[focus] ? focus : null);
-  // Test data (ver_138): the bug shows only the failing row's steps, and names that row's values.
+  // Test data: the bug shows only the failing row's steps, and names that row's values.
   const data = parseTestData(entry.testData);
   const row = data && steps.some((s) => s.row !== undefined) ? (at !== null ? (steps[at]?.row ?? 0) : 0) : null;
   const shown = row === null ? steps : steps.filter((s) => s.row === row);

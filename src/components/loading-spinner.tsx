@@ -77,7 +77,7 @@ function art(id: SpinnerId, pawn?: string) {
 }
 
 /**
- * The spinner for a long wait (ver_108): one of the spinners this person ticked in
+ * The spinner for a long wait: one of the spinners this person ticked in
  * Account → Appearance, picked at random each time. It starts as the plain ring and
  * swaps in after the page loads, so the server and browser draw the same first frame.
  */
@@ -95,7 +95,7 @@ export function LoadingSpinner({ size = 48, className }: { size?: number; classN
 }
 
 /**
- * The strip a box shows while it works (ver_108, ver_116): your spinner and what's happening.
+ * The strip a box shows while it works (ver_116): your spinner and what's happening.
  * It marks itself data-own-spinner so the corner spinner stays out of the way. Keep one strip
  * mounted through every phase so the spinner doesn't change halfway.
  */

@@ -21,7 +21,7 @@ const FILTERS: [SearchKind | "all", string][] = [
 type Row = { id: string; hit: SearchHit; kind: SearchKind; seeAll?: boolean; close?: boolean };
 
 /**
- * Ctrl+K search (ver_82): a Search button in the top bar and a dialog that finds cases,
+ * Ctrl+K search: a Search button in the top bar and a dialog that finds cases,
  * runs, bugs, test cycles, suites and pages. Find and open only.
  */
 export function GlobalSearch({ scope }: { scope: { id: string; name: string } | null }) {
@@ -124,7 +124,7 @@ function SearchDialog({ scope: start, onClose }: { scope: { id: string; name: st
     ? shown.flatMap((g) => [
         ...g.hits.map((hit, i) => ({ id: `${ids}-${g.kind}-${i}`, hit, kind: g.kind })),
         ...(g.seeAll && g.total > g.hits.length ? [{ id: `${ids}-${g.kind}-all`, hit: { href: g.seeAll, label: `See all ${g.total} ${KIND_LABEL[g.kind].toLowerCase()} for “${q.trim()}”`, sub: "" }, kind: g.kind, seeAll: true }] : []),
-        // Close matches (ver_96) always come after the exact ones.
+        // Close matches always come after the exact ones.
         ...g.close.map((hit, i) => ({ id: `${ids}-${g.kind}-c${i}`, hit, kind: g.kind, close: true })),
       ])
     : [...recent.map((r, i) => ({ id: `${ids}-recent-${i}`, hit: { href: r.href, label: r.label, sub: r.sub }, kind: r.kind })), ...goTo.map((g, i) => ({ id: `${ids}-go-${i}`, hit: g, kind: "pages" as const }))];
@@ -187,7 +187,7 @@ function SearchDialog({ scope: start, onClose }: { scope: { id: string; name: st
           {row.hit.sub && <span className="block truncate text-xs text-slate-500">{row.hit.sub}</span>}
         </span>
       )}
-      {/* A page whose tool is off (ver_128): Admins turn it on right here, then it opens. */}
+      {/* A page whose tool is off: Admins turn it on right here, then it opens. */}
       {row.hit.off?.canTurnOn && (
         <button
           type="button"

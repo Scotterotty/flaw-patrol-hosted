@@ -21,7 +21,7 @@ export async function GameCard({ user, stats: given }: { user: Player; stats?: G
   if (!user.gameEnabled) return <GamePanel enabled={false} person={user} title={null} frame={null} />;
 
   const stats = given ?? (await gameStats(user.id));
-  // Crowns (ver_96): counted fresh for every umbrella you're in.
+  // Crowns: counted fresh for every umbrella you're in.
   const crowns = await crownsFor(user.id);
   // Pawn gear is picked on a Quest map; send people to the one in the project they used last.
   const lastProject = user.questMap

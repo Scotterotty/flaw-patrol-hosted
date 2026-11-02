@@ -198,7 +198,7 @@ export default async function GroupPage({
 
 async function Suites({ projectIds, q }: { projectIds: string[]; q: string }) {
   const spelling = await mySpelling();
-  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  // Forgiving search: exact matches, then close ones under their own label.
   const all = await db.testSuite.findMany({
     where: { projectId: { in: projectIds }, archived: false },
     include: {

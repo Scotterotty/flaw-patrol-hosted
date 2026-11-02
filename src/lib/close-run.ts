@@ -1,4 +1,4 @@
-// Close run asks first when cases still need a result (ver_137): how many, and whose lists they
+// Close run asks first when cases still need a result: how many, and whose lists they
 // come off, so a lead closing at sprint end sees who is affected before the work disappears.
 
 /** "Mia Member's list", "Mia Member's and Lee Lead's lists", "3 people's lists". */

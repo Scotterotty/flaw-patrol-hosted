@@ -12,7 +12,7 @@ import { bashSlackLines, runSlackLines, type RunDigest } from "./digest-render";
 import { atLeast, parseAlerts, type AlertId, type Alerts } from "./slack-alerts";
 import { OPEN } from "./status";
 
-// Slack alerts (ver_82): Flaw Patrol only sends messages out, through each channel's
+// Slack alerts: Flaw Patrol only sends messages out, through each channel's
 // incoming webhook, so it works without hosting. Sending never holds up a save.
 
 export type SlackMessage = { tone: "red" | "green" | "amber" | "blue"; title: string; lines: string[]; button?: { label: string; url: string } | null; more?: { label: string; url: string }[] };
@@ -89,7 +89,7 @@ export async function origin() {
   }
 }
 
-/** Whether a channel wants the longer post for this alert (ver_132): "Counts and what failed" / "Counts and top finds". */
+/** Whether a channel wants the longer post for this alert: "Counts and what failed" / "Counts and top finds". */
 const wantsDetail = (a: Alerts, alert: AlertId) => (alert === "run" ? a.runDetail : alert === "bash" ? a.bashDetail : false);
 
 /** Send an alert to every channel of the test cycle that has it on, after the response. `detail` asks for the longer post. */
@@ -204,7 +204,7 @@ export async function runFinished(cycle: CycleRef, runId: string, closedEarly: b
   const run = await db.testRun.findUnique({ where: { id: runId }, select: { id: true, number: true, name: true, build: true, release: true, automated: true, createdAt: true, entries: { select: { status: true } } } });
   if (!run || run.automated) return;
   const base = await origin();
-  // The longer post and the email digest (ver_132) share one look at the run.
+  // The longer post and the email digest share one look at the run.
   let digest: Promise<RunDigest | null> | null = null;
   const details = () => (digest ??= runDigest(cycle, runId, base));
   await notify(cycle.id, "run", async (base, detail) => {
@@ -243,7 +243,7 @@ export async function runFinished(cycle: CycleRef, runId: string, closedEarly: b
 }
 
 /**
- * Bug bash ended (ver_132): the summary to every channel with the Bug bash ended alert on
+ * Bug bash ended: the summary to every channel with the Bug bash ended alert on
  * (when the bash's own Post to Slack tick is on), and the email digest.
  */
 export async function bashEnded(bashId: string, projectId: string, post: boolean, counts: () => Promise<string>) {
@@ -325,7 +325,7 @@ export async function alertRunStarted(cycle: CycleRef, runId: string, by: string
   });
 }
 
-/** Ask to join (ver_115): someone opened a link to the team and asked to be added. */
+/** Ask to join: someone opened a link to the team and asked to be added. */
 export async function alertJoinRequest(teamId: string, who: { name: string; email: string; what: string }, membersPath: string) {
   await notify(teamId, "join", (base) => ({
     tone: "blue",
@@ -343,7 +343,7 @@ export async function slackChannelsOf(where: { groupId: string } | { projectId: 
   return (await db.slackChannel.findMany({ where, orderBy: { createdAt: "asc" } })).map(channelView);
 }
 
-/** Each test cycle's own channels, for several at once (ver_129): one lookup instead of one per cycle. */
+/** Each test cycle's own channels, for several at once: one lookup instead of one per cycle. */
 export async function slackChannelsByProject(projectIds: string[]) {
   const out = new Map<string, ReturnType<typeof channelView>[]>(projectIds.map((id) => [id, []]));
   if (!projectIds.length) return out;
@@ -365,7 +365,7 @@ function channelView(r: { id: string; name: string; webhookEncrypted: string; al
 export type SlackChannelView = Awaited<ReturnType<typeof slackChannelsOf>>[number];
 
 /**
- * Bug bash posts (ver_93): the start, a 10-minute warning and the summary, to every
+ * Bug bash posts: the start, a 10-minute warning and the summary, to every
  * channel the test cycle posts to. The bash's own "Post to Slack" switch decides.
  */
 export async function postBash(projectId: string, build: (base: string) => SlackMessage) {

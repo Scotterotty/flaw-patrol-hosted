@@ -8,7 +8,7 @@ import { Button, ErrorText, Input } from "./ui";
 export type CiTokenRow = { id: string; name: string; last4: string; createdBy: string; created: string; lastUsed: string | null };
 
 /**
- * CI uploads (ver_91), on the umbrella's Settings: tokens a pipeline sends with its
+ * CI uploads, on the umbrella's Settings: tokens a pipeline sends with its
  * results file. A new token shows once; Flaw Patrol only keeps its hash.
  */
 export function CiUploadsPanel({ groupId, tokens, platforms, canManage }: { groupId: string; tokens: CiTokenRow[]; platforms: string[]; canManage: boolean }) {

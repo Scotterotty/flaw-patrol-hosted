@@ -53,7 +53,7 @@ export async function saveImage(el: HTMLElement, fileName: string) {
 }
 
 /**
- * Export ▾ (ver_91): the same menu on every Reports page. "This tab" exports what's on screen
+ * Export ▾: the same menu on every Reports page. "This tab" exports what's on screen
  * with its filters; "Whole report" makes a PDF of the tabs you pick, or an Excel workbook.
  */
 export function ExportMenu({

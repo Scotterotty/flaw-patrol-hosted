@@ -1,4 +1,4 @@
-// Glossary (ver_113): one shared list of the team's words, each with a plain meaning.
+// Glossary: one shared list of the team's words, each with a plain meaning.
 // Anyone can look a word up from selected text; known words get a dotted underline
 // wherever they show up. Pure helpers here, used by the page, the underlines and the server.
 

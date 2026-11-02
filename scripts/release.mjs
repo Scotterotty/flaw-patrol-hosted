@@ -19,6 +19,7 @@ writeFileSync(
 );
 try {
   run(`npx prisma generate --schema ${schema}`);
+  run("node scripts/copy-trace-viewer.mjs");
   rmSync(".next", { recursive: true, force: true });
   run("npx next build");
 

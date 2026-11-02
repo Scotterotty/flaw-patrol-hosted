@@ -3,7 +3,7 @@ import { db } from "./db";
 import { guessRisk, riskLevel, riskScore, type Level, type RiskLevel } from "./risk";
 import { storyCoverage, type CoverageColumn } from "./story-coverage";
 
-// The Risk board's data (ver_93): the release's requirements from Jira, the cases that test
+// The Risk board's data: the release's requirements from Jira, the cases that test
 // them, their bug history, Flaw Patrol's first guess, and any moves people made.
 
 export type RiskCard = {

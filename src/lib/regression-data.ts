@@ -221,7 +221,7 @@ export type RegressionRow = {
 
 const norm = (s: string) => s.trim().toLowerCase();
 
-/** Reports → Regression (ver_93): cases that passed in `older` and broke in `newer`, per platform, and whether they're still broken. */
+/** Reports → Regression: cases that passed in `older` and broke in `newer`, per platform, and whether they're still broken. */
 async function compareRcs(projectIds: string[], newer: string, older: string, platform: string): Promise<RegressionRow[]> {
   const runs = await db.testRun.findMany({ where: { projectId: { in: projectIds }, release: { not: "" } }, select: { id: true, release: true, project: { select: { platform: true } } } });
   const pick = runs.filter((r) => [norm(newer), norm(older)].includes(norm(r.release)) && (!platform || norm(r.project.platform) === norm(platform)));
@@ -292,7 +292,7 @@ export async function regressionReport(projectIds: string[], opts: { rc?: string
   return { releases, newer, older, rows, before };
 }
 
-/** Release status (ver_93): per platform, the regressions in this release that are still broken. */
+/** Release status: per platform, the regressions in this release that are still broken. */
 export async function stillBrokenByPlatform(projectIds: string[], release: string) {
   const releases = await rcList(projectIds);
   const at = releases.findIndex((r) => norm(r) === norm(release));

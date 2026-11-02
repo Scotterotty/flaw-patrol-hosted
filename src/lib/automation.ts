@@ -1,6 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 
-// Automation results (ver_82): read the JUnit XML most test tools and CI servers write,
+// Automation results: read the JUnit XML most test tools and CI servers write,
 // and the NUnit XML (2 and 3) that .NET and Unity test runners write.
 
 export type AutoStatus = "PASSED" | "FAILED" | "SKIPPED";
@@ -16,13 +16,13 @@ export type AutoTest = {
   stack: string;
   output: string;
   durationMs: number | null;
-  /** Screenshots, videos and replays the file points at (ver_93): JUnit [[ATTACHMENT|path]] lines or the JSON report. */
+  /** Screenshots, videos and replays the file points at: JUnit [[ATTACHMENT|path]] lines or the JSON report. */
   attachments?: string[];
-  /** What the test did (ver_93): its test.step() lines, from Playwright's JSON report. */
+  /** What the test did: its test.step() lines, from Playwright's JSON report. */
   steps?: TestStep[];
-  /** Playwright's own test.step() titles (ver_95), which become the case's steps. */
+  /** Playwright's own test.step() titles, which become the case's steps. */
   caseSteps?: string[];
-  /** Failed this many times before passing on a retry (ver_93). */
+  /** Failed this many times before passing on a retry. */
   retried?: number;
 };
 export type TestStep = { title: string; ok: boolean; ms: number | null };
@@ -265,9 +265,9 @@ export function keysInName(name: string, projectKeys: string[]): string[] {
 
 /** A readable case title from a test name: "ABC_12_AddItemToCart" → "Add item to cart". */
 export function titleFromTest(name: string) {
-  // "Shop › adds an item" is "Adds an item" (ver_95): the describe() path is the folder.
+  // "Shop › adds an item" is "Adds an item": the describe() path is the folder.
   const bare = (name.split(" \u203a ").pop() ?? name).replace(/^[A-Za-z][A-Za-z0-9]{1,9}[-_]\d+[-_ ]*/, "").replace(/\(.*\)$/, "");
-  // Words in capitals (GET, API, iOS-style mixes aside) keep them (ver_91).
+  // Words in capitals (GET, API, iOS-style mixes aside) keep them.
   const words = bare
     .replace(/[_.]+/g, " ")
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
@@ -279,14 +279,14 @@ export function titleFromTest(name: string) {
   return words ? words[0].toUpperCase() + words.slice(1) : name;
 }
 
-/** Titles that say the same thing: "Pay with card" and "pay_with_card" (ver_86). */
+/** Titles that say the same thing: "Pay with card" and "pay_with_card". */
 export const sameTitle = (a: string, b: string) => {
   const n = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
   return n(a) !== "" && n(a) === n(b);
 };
 
 /**
- * Titles that are nearly the same (ver_94): case and simple endings don't count, and a
+ * Titles that are nearly the same: case and simple endings don't count, and a
  * leading "sign"/"signs"/"should" is skipped, so "Signs in with SSO" is near "Sign in with SSO"
  * and "Adds items to cart" near "Add item to cart". Only ever offered as "Looks like", never linked on its own.
  */
@@ -305,7 +305,7 @@ export const nearTitle = (a: string, b: string) => {
 
 /**
  * A readable folder for a test class, under Automation: "checkout.CartTest" → "Cart",
- * "src/cart.test.js" → "Cart", "CheckoutFlowSpec" → "Checkout flow" (ver_86).
+ * "src/cart.test.js" → "Cart", "CheckoutFlowSpec" → "Checkout flow".
  */
 export function folderFromClass(className: string) {
   const parts = className

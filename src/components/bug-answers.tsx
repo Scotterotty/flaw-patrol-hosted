@@ -1,6 +1,6 @@
 "use client";
 
-// A bug reported with a bug template (ver_119): what was filled in under each heading, and for a
+// A bug reported with a bug template: what was filled in under each heading, and for a
 // table set to grow, "I saw it again", which adds a row with the automatic cells filled in.
 
 import { useRouter } from "next/navigation";

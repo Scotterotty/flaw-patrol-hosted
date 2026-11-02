@@ -10,7 +10,7 @@ import { copyCustomReport, createCustomReport, deleteCustomReport, saveCustomRep
 import { layoutRows, newItemId, type OwnFilters, type PartId, type ReportItem, type ReportNote, type ReportPart } from "@/lib/report-parts";
 import { Button, buttonClass, cx, ErrorText, Input, Select } from "./ui";
 
-// Custom reports (ver_101): the editor, the toolbar above a report, and the New report card.
+// Custom reports: the editor, the toolbar above a report, and the New report card.
 
 export type EditorItem = ReportNote | (ReportPart & { title: string; from: string });
 type Catalog = { tab: string; parts: { id: string; title: string }[] }[];

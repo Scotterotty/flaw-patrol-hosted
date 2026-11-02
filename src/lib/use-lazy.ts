@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// A box's data, fetched when the box opens or is about to (ver_120) instead of with the page.
+// A box's data, fetched when the box opens or is about to instead of with the page.
 // Boxes on one page with the same key share one fetch, and a fetch is reused for 30 seconds.
 
 type Entry = { at: number; promise: Promise<unknown> };
@@ -55,7 +55,7 @@ export function useLazy<T>(key: string, fetcher: () => Promise<T>) {
   return { data, failed, load: start, ensure, reload };
 }
 
-/** The props that start a fetch early, before the click (ver_120): mouse resting on it, Tab, or a finger. */
+/** The props that start a fetch early, before the click: mouse resting on it, Tab, or a finger. */
 export function prefetchOn(start: () => void) {
   return { onPointerEnter: start, onFocus: start, onTouchStart: start };
 }

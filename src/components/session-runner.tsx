@@ -106,7 +106,7 @@ export function SessionRunner({
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [pending, start] = useTransition();
-  // Saved and on the way to the next case: stays busy until it opens (ver_111).
+  // Saved and on the way to the next case: stays busy until it opens.
   const [leaving, setLeaving] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -261,7 +261,7 @@ export function SessionRunner({
     setEnding(true);
   };
 
-  // Finish exploring (ver_96): no pass or fail. Explored, or Blocked when something stopped you.
+  // Finish exploring: no pass or fail. Explored, or Blocked when something stopped you.
   const blocked = outcome === "BLOCKED";
   const save = (goNext: boolean) => {
     if (leaving) return;
@@ -287,7 +287,7 @@ export function SessionRunner({
       }
       showQuestMoments(res.quest);
       // Plain Save stays on this session; the refresh reloads it with the saved result.
-      // Opened just after the save, so Next.js loads the next case once, not twice (ver_111).
+      // Opened just after the save, so Next.js loads the next case once, not twice.
       if (goNext) {
         setLeaving(true);
         setTimeout(() => {
@@ -650,7 +650,7 @@ function PreviousSessionNote({ previous }: { previous: PreviousSession }) {
   );
 }
 
-/** Prompts from a tour or checklist (ver_93): ticking one logs "Covered", so the debrief shows what got looked at. */
+/** Prompts from a tour or checklist: ticking one logs "Covered", so the debrief shows what got looked at. */
 export function PromptsCard({ prompts, covered, disabled, onToggle }: { prompts: string[]; covered: Set<string>; disabled?: boolean; onToggle: (prompt: string, on: boolean) => void }) {
   const done = prompts.filter((p) => covered.has(p)).length;
   return (

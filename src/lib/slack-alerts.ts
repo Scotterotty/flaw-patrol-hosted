@@ -1,9 +1,9 @@
 import type { Severity } from "@prisma/client";
 
-// Slack alerts (ver_82): which alerts a channel gets. Shared by the server and the settings card.
+// Slack alerts: which alerts a channel gets. Shared by the server and the settings card.
 
 export type AlertId = "reg" | "bug" | "block" | "run" | "bash" | "rc" | "start" | "join";
-/** runDetail / bashDetail (ver_132): "Counts and what failed" / "Counts and top finds" instead of counts only. */
+/** runDetail / bashDetail: "Counts and what failed" / "Counts and top finds" instead of counts only. */
 export type Alerts = Record<AlertId, boolean> & { sev: Severity; runDetail: boolean; bashDetail: boolean };
 
 export const DEFAULT_ALERTS: Alerts = { reg: true, bug: true, sev: "CRITICAL", block: false, run: true, runDetail: true, bash: true, bashDetail: true, rc: true, start: false, join: true };
@@ -64,7 +64,7 @@ export function webhookProblem(url: string, production = process.env.NODE_ENV ==
 /** "#qa-alerts" from "qa-alerts" or "#qa-alerts". */
 export const channelName = (name: string) => `#${name.trim().replace(/^#+/, "")}`;
 
-/** The two ways a Run finished or Bug bash ended post can look (ver_132). */
+/** The two ways a Run finished or Bug bash ended post can look. */
 export const DETAIL_CHOICES = {
   run: [
     { id: false, label: "Counts only" },

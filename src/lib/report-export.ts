@@ -20,7 +20,7 @@ import { listReleases, rcStatus } from "@/server/rc-status";
 import { db } from "./db";
 import { regressionReport, regressionScope } from "./regression-data";
 
-// One Export menu on every Reports page (ver_91): each tab as CSV, copy or image, and the
+// One Export menu on every Reports page: each tab as CSV, copy or image, and the
 // whole report as an Excel workbook (one sheet per tab) or a PDF made here on the server.
 
 export type Cell = string | number | null;
@@ -57,7 +57,7 @@ export type ExportCtx = {
   /** Session findings are a test cycle's own tab. */
   projectKey?: string;
   query: Record<string, string | undefined>;
-  /** Wrap-ups attached to the report (ver_96): their own sheet and section, outside pass rates. */
+  /** Wrap-ups attached to the report: their own sheet and section, outside pass rates. */
   wrapUps?: WrapUp[];
 };
 
@@ -201,7 +201,7 @@ export async function reportTable(ctx: ExportCtx, view: ExportTab, f: ReportFilt
   // Execution status: one row per run.
   const runs = await runReport(scope, f);
   const defs = await runFieldsFor(ctx.homeId);
-  // One column per run field (ver_89), plus any a run still has after it was removed.
+  // One column per run field, plus any a run still has after it was removed.
   const cols = [...defs.map((d) => ({ id: d.id, name: d.name }))];
   for (const r of runs) for (const v of runValues(r, defs)) if (!cols.some((c) => c.id === v.id)) cols.push({ id: v.id, name: v.name });
   return {
@@ -507,7 +507,7 @@ export async function reportPdf(ctx: ExportCtx, f: ReportFilters, tabs: ExportTa
       const counts = countStatuses(runs.flatMap((r) => STATUSES.flatMap((s) => Array(id === "status" ? r.counts[s] : r.steps[s]).fill(s))));
       const t = totals(counts);
       pdf.heading(EXPORT_TABS.find((x) => x.id === id)!.label);
-      // Hand testing and automation are never added together (ver_95).
+      // Hand testing and automation are never added together.
       const { manual, auto } = splitProgress(runs);
       const hand = manualLine(manual);
       pdf.tiles(

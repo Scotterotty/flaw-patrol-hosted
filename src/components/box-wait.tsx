@@ -4,7 +4,7 @@ import { LoadingSpinner } from "./loading-spinner";
 import { Button } from "./ui";
 
 /**
- * What a box shows while it gets its data (ver_120): your spinner at 36 px and what it's getting,
+ * What a box shows while it gets its data: your spinner at 36 px and what it's getting,
  * or a Try again if that failed. It marks itself data-own-spinner so the corner spinner stays hidden.
  */
 export function BoxWait({ failed, onRetry, testId, compact, children }: { failed: boolean; onRetry: () => void; testId: string; compact?: boolean; children: React.ReactNode }) {

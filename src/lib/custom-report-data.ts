@@ -7,7 +7,7 @@ import { cleanReportQuery, REPORT_KEYS } from "./report-query";
 import type { OwnFilters } from "./report-parts";
 import type { ExportCtx } from "./report-export";
 
-// Custom reports (ver_101): where a report's numbers come from, shared by its page and its export.
+// Custom reports: where a report's numbers come from, shared by its page and its export.
 
 /** A test cycle's or an umbrella's Reports, as a custom report sees them. */
 export type CustomScope = {

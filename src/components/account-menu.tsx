@@ -40,7 +40,7 @@ export function AccountMenu({ children, label, admin, signOut, joins }: { childr
       </button>
       {open && (
         <div ref={list} role="menu" style={place} onClick={() => setOpen(false)} className="absolute top-full right-0 z-40 w-52 rounded-lg border border-slate-200 bg-surface p-1 shadow-lg">
-          {/* Ask to join (ver_115): the dot on the avatar leads here. */}
+          {/* Ask to join: the dot on the avatar leads here. */}
           {joins && (
             <>
               <Link role="menuitem" href={joins.href} className={`${item} font-medium text-accent-700`}>

@@ -8,7 +8,7 @@ const PRIORITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
 const withCurrent = (list: string[], cur: string | undefined) => (cur && !list.includes(cur) ? [cur, ...list] : list);
 
 /**
- * Priority, Folder and Tag on every Reports tab (ver_139). Session findings shows Tag only
+ * Priority, Folder and Tag on every Reports tab. Session findings shows Tag only
  * (`tagsOnly`, the charters' tags) and Regression none (`hideAll`); a pick a tab doesn't show is
  * kept in a hidden field, so it is still there when you go back to another tab. Each box is keyed
  * on its value: it stays on screen between tabs now, and a saved view or Reset must show the new pick.

@@ -26,10 +26,10 @@ export async function RcReport({
   base: string;
   scope?: RcScope;
   scopeNote?: string;
-  /** The Reports export route, for the Export menu (ver_91). */
+  /** The Reports export route, for the Export menu. */
   exportUrl?: string;
   cycle?: boolean;
-  /** Attach wrap-ups (ver_96): the umbrella or test cycle whose bashes and exploring can be attached. */
+  /** Attach wrap-ups: the umbrella or test cycle whose bashes and exploring can be attached. */
   wrapScope?: WrapScope;
 }) {
   const releases = await listReleases(user, scope);
@@ -43,10 +43,10 @@ export async function RcReport({
         button. All other testing is on Test runs.
       </EmptyState>
     );
-  // Bug bashes join a report as wrap-ups now (ver_96), not as a column.
+  // Bug bashes join a report as wrap-ups now, not as a column.
   const pick = { ...pickFor(prefs, release), bashes: false };
   const status = await rcStatus(user, release, pick, scope);
-  // Sentry (ver_96): how the release's build is doing, when the scope's test cycles have Sentry.
+  // Sentry: how the release's build is doing, when the scope's test cycles have Sentry.
   const sentryFor = scope ? (await Promise.all(scope.projectIds.map(async (id) => ((await sentryConnected(id)) ? id : null)))).find(Boolean) : null;
   const runIds = status.columns.flatMap((c) => c.runIds);
   const wrapKey = rcWrapKey(base, release);

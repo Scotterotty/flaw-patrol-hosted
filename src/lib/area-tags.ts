@@ -1,8 +1,8 @@
-// Area tags (ver_102): in "Unity · Spaces Deep Link" or "Unity · Hub - Space List" the word
+// Area tags: in "Unity · Spaces Deep Link" or "Unity · Hub - Space List" the word
 // after the platform is the part of the app being tested. Words that are already tags
 // become tags on their own; new words are offered first (Case library banner, title box,
 // import preview). Pure functions, so the browser and the server agree. With no platforms
-// set up, a case's single [bracket] tag counts as its platform (ver_105).
+// set up, a case's single [bracket] tag counts as its platform.
 
 const MAX_AREA = 24;
 const SEP = /^\s*[-–—:|]\s*/;
@@ -32,7 +32,7 @@ export function areaWordOk(word: string, ctx: AreaContext, tags: string[] = []) 
 /**
  * The case follows a platform: one of its tags is a platform name. With no platforms set up
  * (a new umbrella, or a fresh import), a case's only tag, the one from its [bracket], takes
- * the platform's place (ver_105), so "[WEB] Hub - Downloads" still offers Hub.
+ * the platform's place, so "[WEB] Hub - Downloads" still offers Hub.
  */
 export const followsPlatform = (tags: string[], ctx: AreaContext) => (ctx.platforms.length ? tags.some((t) => has(ctx.platforms, t)) : tags.length === 1);
 

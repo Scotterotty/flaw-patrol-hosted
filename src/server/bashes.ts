@@ -31,7 +31,7 @@ import { bashAnswers, itemTemplate, mergeValues, needsLine, needsOf, withoutSeen
 import { attempt, UserError } from "./result";
 import { buildEntries } from "./snapshot";
 
-// Bug bashes (ver_93). Starting one makes a charter per area and one test run in a test
+// Bug bashes. Starting one makes a charter per area and one test run in a test
 // cycle, so it counts like any run. People join, pick an area and log bugs in one line;
 // whoever started it wraps up: bugs are filed, and each person's log is saved as their
 // session on that area's charter.
@@ -54,7 +54,7 @@ async function loadBash(bashId: string) {
 
 /**
  * Anyone on the bash's test cycle can join and log. So can anyone signed in while it's on,
- * and people who took part (ver_115): they act like a Viewer inside this bash only.
+ * and people who took part: they act like a Viewer inside this bash only.
  */
 async function requireIn(bashId: string) {
   const bash = await loadBash(bashId);
@@ -87,7 +87,7 @@ async function bashTemplate(runProjectId: string, id: string | null) {
   return { id: t.id, name: t.name, layout: parseLayout(t.layout) };
 }
 
-/** The run's details and a person's automatic table cells, for a bug in this area (ver_125). */
+/** The run's details and a person's automatic table cells, for a bug in this area. */
 async function bashFill(bash: Awaited<ReturnType<typeof loadBash>>, areaId: string, who: string, seen?: z.input<typeof seenSchema>) {
   const area = parseAreas(bash.areas).find((a) => a.id === areaId);
   const entry = await db.runEntry.findFirst({ where: { runId: bash.run.id, caseId: area?.caseId ?? "" }, select: { id: true } });
@@ -104,7 +104,7 @@ async function bashFill(bash: Awaited<ReturnType<typeof loadBash>>, areaId: stri
 }
 
 /** Start a bug bash: a charter per area, one run in the test cycle, and a Slack post. */
-/** The Start a bug bash box's area ideas and choices, fetched when the box opens or is about to (ver_120). */
+/** The Start a bug bash box's area ideas and choices, fetched when the box opens or is about to. */
 export async function startBoxFor(projectId: string) {
   return attempt(async () => {
     const { project } = await requireProjectAction(projectId, "run:create");
@@ -117,7 +117,7 @@ export async function startBugBash(homeId: string, input: StartInput) {
     const user = await requireUser();
     const data = startSchema.parse(input);
     const home = await db.project.findUniqueOrThrow({ where: { id: homeId }, select: { id: true, key: true, name: true, groupId: true, hubOf: { select: { id: true } } } });
-    // The run goes in the picked test cycle, else here: never a release's test cycle unless asked (ver_94).
+    // The run goes in the picked test cycle, else here: never a release's test cycle unless asked.
     const cycles = home.hubOf ? await db.project.findMany({ where: { groupId: home.hubOf.id, archivedAt: null, id: { not: home.id } }, orderBy: { createdAt: "desc" }, select: { id: true } }) : [];
     const cycleId = data.cycleId && (data.cycleId === home.id || cycles.some((c) => c.id === data.cycleId)) ? data.cycleId : home.id;
     const { project: cycle } = await requireProjectAction(cycleId, "run:create");
@@ -194,7 +194,7 @@ export async function startBugBash(homeId: string, input: StartInput) {
 async function slackStart(bashId: string) {
   const b = await db.bugBash.findUnique({ where: { id: bashId }, include: { project: { select: { key: true } }, run: { select: { projectId: true } } } });
   if (!b?.run || b.slackStartAt || !b.slack) return [];
-  // Claim the start in one step so two people opening the page at once can't both post it (ver_127).
+  // Claim the start in one step so two people opening the page at once can't both post it.
   const claimed = await db.bugBash.updateMany({ where: { id: b.id, slackStartAt: null }, data: { slackStartAt: new Date() } });
   if (!claimed.count) return [];
   const areas = parseAreas(b.areas);
@@ -209,7 +209,7 @@ async function slackStart(bashId: string) {
 }
 
 /**
- * Things that happen on the clock, done when anyone looks (ver_93): a scheduled bash
+ * Things that happen on the clock, done when anyone looks: a scheduled bash
  * posts its start, and ten minutes before the end the warning goes out.
  */
 export async function bashTick(bashId: string) {
@@ -252,7 +252,7 @@ export async function logBashItem(bashId: string, input: z.input<typeof logSchem
     if (phase === "scheduled") throw new UserError("This bash hasn't started yet.");
     const me = await db.bashPerson.findUnique({ where: { bashId_userId: { bashId, userId: user.id } } });
     if (!me) throw new UserError("Pick an area first.");
-    // A bug with a bug template (ver_125) keeps the template as it is now, and what was typed under it.
+    // A bug with a bug template keeps the template as it is now, and what was typed under it.
     const tpl = data.kind === "bug" ? await bashTemplate(bash.run.projectId, data.templateId) : null;
     let kept = {};
     if (tpl) {
@@ -289,7 +289,7 @@ async function itemNeeds(itemId: string) {
 }
 
 /**
- * Fill in (ver_125): anyone in the bash adds what a bug's template still needs, from Live finds
+ * Fill in: anyone in the bash adds what a bug's template still needs, from Live finds
  * or at wrap-up. A straight-to-Jira bash files the bug as soon as it has everything.
  */
 export async function fillBashItem(itemId: string, input: { values: z.input<typeof valuesSchema>; attachmentIds?: string[] }) {
@@ -327,7 +327,7 @@ export async function setBashTemplate(bashId: string, templateId: string | null)
   });
 }
 
-/** "+1, I see it too" (or take it back). With a growing table, it adds the person's own row (ver_125). */
+/** "+1, I see it too" (or take it back). With a growing table, it adds the person's own row. */
 export async function plusOneBash(itemId: string, on: boolean, seen?: z.input<typeof seenSchema>) {
   return attempt(async () => {
     const item = await db.bashItem.findUnique({ where: { id: itemId }, select: { bashId: true, areaId: true, byId: true, plusOnes: true, defectId: true, templateName: true, layout: true, answers: true } });
@@ -367,7 +367,7 @@ export async function deleteBashItem(itemId: string) {
 const addSchema = z.string().trim().min(1, "Type what to add.").max(1000);
 
 /**
- * Add to it / Answer (ver_96): one line on someone's find, like "Also on Safari" or the answer
+ * Add to it / Answer: one line on someone's find, like "Also on Safari" or the answer
  * to a question. Goes into the Jira description when the bug is filed.
  */
 export async function addToBashItem(itemId: string, text: string) {
@@ -398,7 +398,7 @@ export async function editBashItem(itemId: string, input: { text: string; detail
 }
 
 /**
- * What you're testing → Edit (ver_96): the starter (or a lead) changes an area's links, or
+ * What you're testing → Edit: the starter (or a lead) changes an area's links, or
  * the whole bash's (areaId null). Everyone sees the change on their next refresh.
  */
 export async function setBashLinks(bashId: string, areaId: string | null, links: BashLink[]) {
@@ -546,7 +546,7 @@ async function fileItem(bash: Awaited<ReturnType<typeof loadBash>>, itemId: stri
   const entry = await db.runEntry.findFirst({ where: { runId: bash.run.id, caseId: area?.caseId ?? "" }, select: { id: true } });
   if (!entry) throw new UserError("That area's charter isn't in the run anymore.");
   const seen = plusOnesOf(item.plusOnes);
-  // Additions (ver_96) and what was being tested: PRs and pages in the description, Jira issues as "relates to".
+  // Additions and what was being tested: PRs and pages in the description, Jira issues as "relates to".
   const adds = await db.bashItem.findMany({ where: { replyToId: item.id, kind: "add" }, orderBy: { createdAt: "asc" }, select: { byName: true, text: true } });
   const links = [...(area?.links ?? []), ...parseLinks(bash.links)];
   const actual = [
@@ -561,7 +561,7 @@ async function fileItem(bash: Awaited<ReturnType<typeof loadBash>>, itemId: stri
   let defectId: string, key: string;
   const t = itemTemplate(item);
   if (t) {
-    // With its bug template (ver_125): held back until it has what the template must have.
+    // With its bug template: held back until it has what the template must have.
     const needs = needsOf(t.layout, t.answers, await db.attachment.findMany({ where: { bashItemId: item.id }, select: { fileName: true, contentType: true } })).words;
     if (needs.length) throw new UserError(needsLine(needs));
     const inSections = new Set(t.answers.flatMap((a) => (a.files ?? []).map((f) => f.id)));
@@ -605,7 +605,7 @@ async function fileItem(bash: Awaited<ReturnType<typeof loadBash>>, itemId: stri
 /**
  * Wrap up: each person's lines become their session on the area's charter, the bugs
  * ticked File it go to Jira (or here), the run closes, and the summary goes to Slack.
- * If any bug won't file, nothing wraps (ver_94): the review screen shows why, and
+ * If any bug won't file, nothing wraps: the review screen shows why, and
  * Wrap up anyway (`anyway`) closes it without trying those bugs again.
  */
 export async function wrapUpBash(bashId: string, anyway = false) {
@@ -615,7 +615,7 @@ export async function wrapUpBash(bashId: string, anyway = false) {
     if (phaseOf(bash) === "live" || phaseOf(bash) === "scheduled") await db.bugBash.update({ where: { id: bashId }, data: { endedAt: new Date() } });
     const areas = parseAreas(bash.areas);
     const all = await db.bashItem.findMany({ where: { bashId }, orderBy: { createdAt: "asc" }, include: { attachments: { select: { id: true, fileName: true, contentType: true } } } });
-    // Additions (ver_96) ride along in the line they add to, so sessions stay one line per find.
+    // Additions ride along in the line they add to, so sessions stay one line per find.
     const addsTo = new Map<string, string[]>();
     for (const a of all) if (a.kind === "add" && a.replyToId) addsTo.set(a.replyToId, [...(addsTo.get(a.replyToId) ?? []), `${a.byName}: ${a.text}`]);
     const items = all.filter((i) => i.kind !== "add").map((i) => (addsTo.has(i.id) ? { ...i, details: [i.details, `Added: ${addsTo.get(i.id)!.join("; ")}`].filter(Boolean).join("\n") } : i));
@@ -690,7 +690,7 @@ export async function wrapUpBash(bashId: string, anyway = false) {
       { timeout: 60_000 },
     );
     await logActivity({ actor: user, kind: "run", action: `Wrapped up the bug bash ${bash.name}`, project: bash.run.project, detail: `${filedCount} bugs filed` });
-    // The summary (ver_132): to Slack channels with Bug bash ended on, and the email digest. Only once.
+    // The summary: to Slack channels with Bug bash ended on, and the email digest. Only once.
     const claimed = await db.bugBash.updateMany({ where: { id: bashId, slackDoneAt: null }, data: { slackDoneAt: new Date() } });
     if (claimed.count) await bashEnded(bashId, bash.run.projectId, bash.slack, () => bashSummaryLine(bashId)).catch((e) => console.warn("Bug bash summary failed", e));
     refresh(bash.project.key, bash.run.project.key);
@@ -699,7 +699,7 @@ export async function wrapUpBash(bashId: string, anyway = false) {
 }
 
 /**
- * File this bug… (ver_94): a bash bug filed later from the usual bug box, at wrap-up or
+ * File this bug…: a bash bug filed later from the usual bug box, at wrap-up or
  * from the report. Records the bug on the item and, once wrapped, on the finder's session.
  */
 export async function bashBugFiled(itemId: string, defectId: string) {

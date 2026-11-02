@@ -18,7 +18,7 @@ export default async function NewCasePage({ params, searchParams }: { params: Pr
   const { project, who } = await projectAccess(key);
   if (!can(who, "case:edit")) notFound();
   const ctx = await editorContext(project.id, [], null, isCharter);
-  // From a tour or checklist (ver_93): the template fills in everything but the area.
+  // From a tour or checklist: the template fills in everything but the area.
   const tpl = isCharter && template ? templateById(template, await teamTemplates((await charterHome(project)).id)) : null;
   return (
     <CaseEditor

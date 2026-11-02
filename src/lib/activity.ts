@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { ACTIVITY_KINDS, KEEP_CHOICES, type ActivityKind } from "./activity-query";
 import { db } from "./db";
 
-// Workspace settings → Activity log (ver_92). Admin and security events only:
+// Workspace settings → Activity log. Admin and security events only:
 // sign-ins, people and roles, settings, deletes and archives, runs opened and
 // closed. Test results, cases run and bugs filed are never written here, and the
 // log never shows per-person counts, so it can't be used to rank testers.

@@ -57,6 +57,8 @@ if (!existsSync("node_modules")) {
   console.log("Installing packages (first run only)…");
   run("npm install --no-audit --no-fund");
 }
+// Step-by-step replays open in Playwright's trace viewer, copied from the installed package.
+run("node scripts/copy-trace-viewer.mjs");
 
 console.log("Setting up the database…");
 // Neon's pooled address ("-pooler") can't take the lock migrations need, so

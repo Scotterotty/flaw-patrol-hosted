@@ -3,7 +3,7 @@ import { db } from "./db";
 import { mapHistorySteps } from "./run-history";
 import type { ExpandedStep } from "./steps";
 
-// Known bugs (ver_96): bugs linked to the same case in an earlier run that aren't closed, so
+// Known bugs: bugs linked to the same case in an earlier run that aren't closed, so
 // people in this run know what to expect and nobody files the same bug twice.
 
 export type KnownState = "open" | "fixed" | "expected";

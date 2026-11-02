@@ -1,5 +1,5 @@
 // The message an admin pastes into Slack, Teams or an email when an invite isn't emailed
-// (ver_114). The same words come from Add and from Copy invite link, so people see one message.
+//. The same words come from Add and from Copy invite link, so people see one message.
 
 export const INVITE_LINK_DAYS = 7;
 

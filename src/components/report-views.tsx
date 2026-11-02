@@ -18,7 +18,7 @@ import { pct, STATUS_LABEL, STATUSES, totals, type StatusCounts } from "@/lib/st
 import type { PartId } from "@/lib/report-parts";
 import { PartTitle } from "@/components/report-part-title";
 
-/** `only`: inside a custom report (ver_101), show just this part of the view. */
+/** `only`: inside a custom report, show just this part of the view. */
 const shows = (only: PartId | undefined) => (p: PartId) => !only || only === p;
 
 // The report views, shared by a test cycle's Reports and an umbrella's Reports.
@@ -176,7 +176,7 @@ function KindSplit({ manual, auto }: { manual: string; auto: string }) {
   );
 }
 
-/** Yellow notice when nobody has tested by hand yet but automation has results (ver_95). */
+/** Yellow notice when nobody has tested by hand yet but automation has results. */
 export function NoManualBanner({ total }: { total: number }) {
   return (
     <div role="note" className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="no-manual-banner">
@@ -188,7 +188,7 @@ export function NoManualBanner({ total }: { total: number }) {
   );
 }
 
-/** Two bars, one per side, so hand testing and automation are never added together (ver_95). */
+/** Two bars, one per side, so hand testing and automation are never added together. */
 function SplitBars({ manual, auto, autoAll, autoRuns }: { manual: StatusCounts | null; auto: StatusCounts | null; autoAll: StatusCounts; autoRuns: number }) {
   const all = totals(autoAll);
   return (
@@ -380,7 +380,7 @@ export function StepsView({ runs, stepCounts, failing, moreHref, only }: { runs:
       {show("steps.outcomes") && <Card className="p-4">
         <PartTitle part="steps.outcomes" className="mb-2" title="Step outcomes">Step outcomes (latest result of each case)</PartTitle>
         {mixed ? (
-          // Hand testing and automation on their own bars (ver_95).
+          // Hand testing and automation on their own bars.
           <div className="space-y-4">
             {(
               [
@@ -452,7 +452,7 @@ export function StepsView({ runs, stepCounts, failing, moreHref, only }: { runs:
             </Link>
           )}
         </div>
-        {/* Only steps that have failed at least once (ver_91). */}
+        {/* Only steps that have failed at least once. */}
         {failing.filter((r) => r.failures > 0).length === 0 ? (
           <p className="px-4 py-4 text-sm text-slate-500">No failed steps in this range.</p>
         ) : (
@@ -465,7 +465,7 @@ export function StepsView({ runs, stepCounts, failing, moreHref, only }: { runs:
 
 export function DefectsView({ rows: all, scale = AE_SCALE, only, critical }: { rows: Awaited<ReturnType<typeof defectReport>>; scale?: SeverityScale; only?: PartId; critical?: boolean }) {
   const show = shows(only);
-  // "Critical only" is a custom report part's own filter (ver_101).
+  // "Critical only" is a custom report part's own filter.
   const rows = critical ? all.filter((r) => (scale.critical as string[]).includes(r.severity)) : all;
   const open = rows.filter((r) => r.open).length;
   const sev = (s: string) => rows.filter((r) => r.severity === s).length;

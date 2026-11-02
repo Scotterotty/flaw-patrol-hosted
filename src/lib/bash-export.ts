@@ -4,7 +4,7 @@ import { PDFDocument, StandardFonts } from "pdf-lib";
 import type { BashReport } from "./bash-summary";
 import { MUTED, PdfWriter, safe, type Cell } from "./report-export";
 
-// A bug bash report as CSV, Excel, PDF or a table to paste into Confluence (ver_93),
+// A bug bash report as CSV, Excel, PDF or a table to paste into Confluence,
 // for the Export menu every Reports page has.
 
 const keyOf = (b: BashReport["bugs"][number]) => (b.bug ? (b.bug.externalKey ?? `D-${b.bug.number}`) : "");

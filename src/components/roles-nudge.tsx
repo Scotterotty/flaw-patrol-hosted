@@ -6,7 +6,7 @@ import { keepEveryoneOpen } from "@/server/roles";
 import { Button, ErrorText, LinkButton } from "./ui";
 
 /**
- * The before-invite reminder (ver_96), admins only, until they save What can they do once
+ * The before-invite reminder, admins only, until they save What can they do once
  * or press Keep everyone open: people they add can use every feature except archive,
  * delete and connections, so tighten it first if they want.
  */

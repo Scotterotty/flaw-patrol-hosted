@@ -39,7 +39,7 @@ import { CaseNewsNote, StepChangeTag } from "./case-news-note";
 import { NewsTag } from "./case-news-tag";
 import type { CaseNews } from "@/lib/case-news";
 
-/** Regression flag (ver_93): the earlier release this case passed in, and which of its steps passed there. */
+/** Regression flag: the earlier release this case passed in, and which of its steps passed there. */
 export type RunnerRegression = { label: string; when: string; passed: boolean[]; resultId: string; off: boolean; jiraLabel: string };
 
 type Attachment = { id: string; fileName: string; contentType: string; stepIndex: number | null };
@@ -60,7 +60,7 @@ export type RunnerEntry = {
   preconditions: string;
   folderPath: string;
   steps: ExpandedStep[];
-  /** Test data (ver_138): the case runs once per row; each step's `row` says which. */
+  /** Test data: the case runs once per row; each step's `row` says which. */
   testData?: TestData | null;
   status: ResultStatus;
   /** Results autosaved earlier and not yet saved as the case result. */
@@ -118,17 +118,17 @@ export function Runner({
   news = null,
   newsHref,
 }: {
-  /** New or Updated since its last run (ver_96). */
+  /** New or Updated since its last run. */
   news?: CaseNews | null;
   /** Compare with the last run's copy. */
   newsHref?: string;
-  /** Bugs found on this case in earlier runs (ver_96). */
+  /** Bugs found on this case in earlier runs. */
   knownBugs?: KnownBug[];
-  /** Sentry is connected (ver_96): Failed and Blocked steps show the errors it caught. */
+  /** Sentry is connected: Failed and Blocked steps show the errors it caught. */
   sentryOn?: boolean;
   tagColors?: TagColors;
   regression?: RunnerRegression | null;
-  /** The "You're on this case" bar. It sits above the title and scrolls with it, so it never covers Flag or the timer (ver_87). */
+  /** The "You're on this case" bar. It sits above the title and scrolls with it, so it never covers Flag or the timer. */
   takeBar?: ReactNode;
   canCloseRun?: boolean;
   /** The run this case just finished (?finished=1): show the close-the-run prompt. It lives in the URL because saving remounts the runner. */
@@ -197,7 +197,7 @@ export function Runner({
     };
   }, []);
   const reopened = useRef(saved !== null).current;
-  // Shared steps with several checks in them get a result per check (ver_97); rows in capitals are headings with no result.
+  // Shared steps with several checks in them get a result per check; rows in capitals are headings with no result.
   const parsed = useMemo(
     () =>
       entry.steps.map((s, i) => stepChecks(s, firstOfShared(entry.steps, i))),
@@ -239,7 +239,7 @@ export function Runner({
     });
   }, [checkResults, checkCount]);
   const [override, setOverride] = useState<ResultStatus | null>(start0?.override ?? null);
-  // Test data (ver_138): the steps hold one copy per row; the runner shows one row at a time.
+  // Test data: the steps hold one copy per row; the runner shows one row at a time.
   const data: TestData | null = entry.testData && entry.steps.some((st) => st.row !== undefined) ? entry.testData : null;
   const activeRow = data ? (entry.steps[current]?.row ?? 0) : null;
   const rowStatuses = useMemo(
@@ -268,7 +268,7 @@ export function Runner({
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [pending, start] = useTransition();
-  // Saved and on the way to the next case: stays busy until that case opens (ver_111).
+  // Saved and on the way to the next case: stays busy until that case opens.
   const [leaving, setLeaving] = useState(false);
   const saving = pending || leaving;
   const statusesRef = useRef(statuses);
@@ -278,7 +278,7 @@ export function Runner({
   const fileInput = useRef<HTMLInputElement>(null);
   const uploadStep = useRef<number | null>(null);
   const dirty = statuses.some((s) => s !== "UNTESTED") || comment !== "" || defects.length > 0 || attachments.length > 0;
-  // Sentry (ver_96): when each step was opened, and the errors found for Failed or Blocked ones.
+  // Sentry: when each step was opened, and the errors found for Failed or Blocked ones.
   const opened = useRef<Record<number, number>>({});
   const [sentry, setSentry] = useState<Record<number, StepSentry>>({});
 
@@ -447,9 +447,9 @@ export function Runner({
   // Don't let other people's live changes reset this case while you're filling it in.
   const busy = dirty || actuals.some((a) => a !== "") || bugFor !== undefined;
   const firstFailed = statuses.findIndex((st) => st === "FAILED");
-  // Report bug for case (ver_124, persona audit #4): start from the first failed step, not the
+  // Report bug for case (persona audit #4): start from the first failed step, not the
   // case's title. Other failed steps and the case comment go in What happened too.
-  // Test data (ver_138): a bug's title says which row, like "(Safari · viewer)".
+  // Test data: a bug's title says which row, like "(Safari · viewer)".
   const withRow = (title: string, i: number) => {
     const r = entry.steps[i]?.row;
     return data && r !== undefined ? `${title} (${rowLabel(data, r)})`.slice(0, 250) : title;
@@ -474,7 +474,7 @@ export function Runner({
   // No case result yet: saving keeps the progress and the case stays In progress.
   const partial = caseStatus === "UNTESTED";
 
-  // A failed step's note box and Report bug come into view (ver_124, persona audit #5).
+  // A failed step's note box and Report bug come into view (persona audit #5).
   // Clicking Failed also puts the cursor in the note; the F key only scrolls, so keys keep marking steps.
   const [reveal, setReveal] = useState<{ i: number; focus: boolean; n: number } | null>(null);
   const setStep = useCallback(
@@ -515,7 +515,7 @@ export function Runner({
     [],
   );
 
-  // Sentry (ver_96): the clock for a step starts when it's opened.
+  // Sentry: the clock for a step starts when it's opened.
   useEffect(() => {
     opened.current[current] ??= Date.now();
   }, [current]);
@@ -538,7 +538,7 @@ export function Runner({
   const sentryPicked = (i: number | null) =>
     Object.entries(sentry).flatMap(([k, v]) => (i === null || Number(k) === i ? v.errors.filter((e) => v.picked.includes(e.id)).map((e) => ({ ...e, stepIndex: Number(k) })) : []));
 
-  // Known bugs (ver_96): Still happens fails its step, links the bug and says so in the comment; Didn't happen just records it.
+  // Known bugs: Still happens fails its step, links the bug and says so in the comment; Didn't happen just records it.
   const [checks, setChecks] = useState<Record<string, KnownCheck | undefined>>(() => Object.fromEntries(knownBugs.map((b) => [b.id, b.check?.outcome])));
   const before = useRef<Record<string, { status: ResultStatus | null; line: string }>>({});
   const checkKnown = (b: KnownBug, outcome: KnownCheck | null) => {
@@ -683,7 +683,7 @@ export function Runner({
       // Plain Save stays on this case; the refresh below reloads it with the saved result.
       const goOn = () => goNext && router.push(nextEntryId ? `${runPath}/execute?entry=${nextEntryId}${keepQuery}` : runPath);
       // Opening the next case from inside the save made Next.js load it twice, so it opens just
-      // after. The next case loads fresh; the run page may be kept from earlier, so refresh it (ver_111).
+      // after. The next case loads fresh; the run page may be kept from earlier, so refresh it.
       const leave = () => {
         setLeaving(true);
         setTimeout(() => {

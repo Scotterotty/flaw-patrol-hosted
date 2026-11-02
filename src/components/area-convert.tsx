@@ -12,7 +12,7 @@ import { Button, ErrorText } from "./ui";
 type Undo = { id: string; title: string; tags: string[] }[];
 
 /**
- * Case library banner (ver_102): "N cases have an area word after the platform". Review…
+ * Case library banner: "N cases have an area word after the platform". Review…
  * lists each word with a tick box; unticked words aren't offered again, and Undo puts the
  * titles back.
  */

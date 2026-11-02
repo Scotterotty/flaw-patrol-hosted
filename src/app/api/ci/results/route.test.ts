@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-// CI uploads: token checks and the 200 MB cap counted while reading (ver_103).
+// CI uploads: token checks and the 200 MB cap counted while reading.
 
 vi.mock("@/lib/db", () => ({
   db: {

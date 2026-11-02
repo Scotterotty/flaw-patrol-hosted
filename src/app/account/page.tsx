@@ -22,7 +22,7 @@ export default async function AccountPage() {
         {last && <ProjectMenu project={last.project} user={user} />}
         <main className="mx-auto max-w-xl min-w-0 flex-1 px-4 py-8 pb-16 md:pb-8">
           <PageHeader title="Your account" subtitle={user.email} />
-          {/* Every card folds to one line (ver_96), so the section tabs went: Open all / Close all instead. */}
+          {/* Every card folds to one line, so the section tabs went: Open all / Close all instead. */}
           <ProfileSettings user={user} />
         </main>
       </div>

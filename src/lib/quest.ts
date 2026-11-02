@@ -88,7 +88,7 @@ export const ITEMS: Find[] = [
     ["comet", "Comet of Perfect Coverage", "☄️"],
     ["rainbow", "Rainbow of Green Pipelines", "🌈"],
   ]),
-  // Catalog 2 (ver_49): beyond software testing.
+  // Catalog 2: beyond software testing.
   ...c("common", [
     ["acorn", "Lucky Acorn", "🌰"],
     ["bouquet", "Wildflower Bouquet", "💐"],
@@ -166,7 +166,7 @@ export const FOES: Find[] = [
     ["alien", "the Works-on-My-Machine Alien", "👽"],
     ["rex", "the Ancient Y2K Rex", "🦖"],
   ]),
-  // Catalog 2 (ver_49): beyond software testing.
+  // Catalog 2: beyond software testing.
   ...c("common", [
     ["toad", "a Grumpy Toad", "🐸"],
     ["raccoon", "a Mischievous Raccoon", "🦝"],
@@ -201,7 +201,7 @@ export const FOES: Find[] = [
     ["dodo", "the Last Dodo", "🦤"],
     ["moonrabbit", "the Moon Rabbit", "🐇"],
   ], 2),
-  // Catalog 3 (ver_67): the Owlbear and friends.
+  // Catalog 3: the Owlbear and friends.
   ...c("common", [["goose", "a Cranky Goose", "🪿"]], 3),
   ...c("uncommon", [["cube", "the Gelatinous Cube", "🧊"]], 3),
   ...c("rare", [["owlbear", "the Owlbear", "🦉"]], 3),

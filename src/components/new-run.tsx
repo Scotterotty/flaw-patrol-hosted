@@ -43,9 +43,9 @@ export function NewRunButton({
   members: Member[];
   label?: string;
   variant?: "primary" | "secondary";
-  /** An earlier run's details, offered as "Use R19's" instead of filled in (ver_99). */
+  /** An earlier run's details, offered as "Use R19's" instead of filled in. */
   suggest?: { from: string; build?: string; cspVersion?: string; environment?: string; release?: string; fields?: Record<string, string> };
-  /** The umbrella's run fields (ver_89); CSP version outside an umbrella. */
+  /** The umbrella's run fields; CSP version outside an umbrella. */
   fields?: RunField[];
   disabled?: boolean;
   releases?: string[];
@@ -57,7 +57,7 @@ export function NewRunButton({
 }) {
   const [open, setOpen] = useState(initialOpen && !disabled);
   const [error, setError] = useState<string | null>(null);
-  // Nothing carries over from the last run (ver_77): cases start unassigned.
+  // Nothing carries over from the last run: cases start unassigned.
   const [assignee, setAssignee] = useState("");
   const openFresh = () => {
     setAssignee("");
@@ -65,7 +65,7 @@ export function NewRunButton({
     setOpen(true);
   };
   const handed = !!assignee && assignee !== meId;
-  // "Use R19's": fills the empty boxes with that run's details, only when asked (ver_99).
+  // "Use R19's": fills the empty boxes with that run's details, only when asked.
   const offered = suggest
     ? [
         ["run-release", suggest.release],
@@ -105,7 +105,7 @@ export function NewRunButton({
               });
               if (!res.ok) return setError(res.error);
               setOpen(false);
-              // Handed to someone else (ver_85): land on the run page with a link to send them.
+              // Handed to someone else: land on the run page with a link to send them.
               router.push(`/p/${projectKey}/runs/${res.number}${openRunner || goTest ? "/execute" : handed ? `?handed=${assignee}` : ""}`);
             })
           }

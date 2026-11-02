@@ -19,7 +19,7 @@ export const metadata = { title: "Charters" };
 type Search = { q?: string; archived?: string; tab?: string; persona?: string };
 
 /**
- * Charters (ver_93): exploratory missions get their own page, with New charter ▾ for
+ * Charters: exploratory missions get their own page, with New charter ▾ for
  * a blank one or a tour or checklist. Since ver_96 the test personas you explore as
  * live here too, on the Personas tab, and each charter has Start exploring.
  */

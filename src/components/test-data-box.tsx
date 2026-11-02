@@ -12,7 +12,7 @@ import {
 } from "@/lib/test-data";
 import { Button, cx } from "./ui";
 
-// The Test data box under a case's steps (ver_138). Optional: it stays one dashed line until
+// The Test data box under a case's steps. Optional: it stays one dashed line until
 // someone clicks + Add test data. Each column is a {{blank}} in the steps; the case runs once per row.
 
 const Blank = ({ name }: { name: string }) => (

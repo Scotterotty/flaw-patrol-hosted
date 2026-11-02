@@ -16,7 +16,7 @@ const names = (ids: ToolId[]) => {
 export type GateInfo = { g: string; hub: string; cycles: string[]; name: string; tools: ToolId[]; canTurnOn: boolean; kept: Partial<Record<ToolId, string>> };
 
 /**
- * Old links to a tool that's off (ver_128): instead of the page, a short note saying where it
+ * Old links to a tool that's off: instead of the page, a short note saying where it
  * went, that nothing was deleted, and Turn on (Admins) or Ask an admin (everyone else).
  */
 export function ToolGate({ info, children }: { info: GateInfo; children: ReactNode }) {
@@ -130,7 +130,7 @@ function ToolList({ on, onToggle, disabled, compact, extra }: { on: ToolId[]; on
 /** What's in each tool, for "Turn off Test cases?". */
 export type ToolCounts = Partial<Record<ToolId, string>>;
 
-/** Settings → Tools (ver_128). Admins flip switches; turning off a tool that has things in it asks first. */
+/** Settings → Tools. Admins flip switches; turning off a tool that has things in it asks first. */
 export function ToolsPanel({ groupId, umbrella, tools, canEdit, counts, jira }: { groupId: string; umbrella: string; tools: ToolId[]; canEdit: boolean; counts: ToolCounts; jira: string | null }) {
   const router = useRouter();
   const [on, setOn] = useState(tools);
@@ -218,7 +218,7 @@ export function ToolsPanel({ groupId, umbrella, tools, canEdit, counts, jira }: 
   );
 }
 
-/** The New umbrella box's "What will you use?" (ver_128): four choices, and switches for Pick my own. */
+/** The New umbrella box's "What will you use?": four choices, and switches for Pick my own. */
 export function ToolPicker({ on, onChange }: { on: ToolId[]; onChange: (on: ToolId[]) => void }) {
   const [preset, setPreset] = useState<PresetId>(() => presetOf(on));
   const turnedOn = names(on);

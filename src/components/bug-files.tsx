@@ -7,8 +7,8 @@ import { Button, cx, InfoTip } from "./ui";
 /** A file the bug box can put on the Jira issue, with where it came from ("Step 3", "Whole case"). */
 export type BugFile = { id: string; fileName: string; contentType: string; label?: string };
 
-/** Take screenshot / Record screen from inside the bug box (ver_88). */
-export type BugCapture = { ok: boolean; why: string; busy: boolean; screenshot: () => void; record: () => void; /** "Sentry error…" (ver_96), when Sentry is connected. */ sentry?: () => void };
+/** Take screenshot / Record screen from inside the bug box. */
+export type BugCapture = { ok: boolean; why: string; busy: boolean; screenshot: () => void; record: () => void; /** "Sentry error…", when Sentry is connected. */ sentry?: () => void };
 
 function Thumb({ f }: { f: BugFile }) {
   if (f.contentType.startsWith("image/"))

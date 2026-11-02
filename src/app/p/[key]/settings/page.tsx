@@ -76,10 +76,10 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
   // Slack: a test cycle in an umbrella follows its channels (or picks); one outside an umbrella has its own card.
   const [slackOwn, slackUmbrella] = await Promise.all([slackChannelsOf({ projectId: project.id }), umbrella ? slackChannelsOf({ groupId: umbrella.id }) : []]);
   const templateView = await bugTemplateView(project.id, user.email);
-  // Email digests (ver_132): a test cycle outside an umbrella has its own card; one inside follows or chooses.
+  // Email digests: a test cycle outside an umbrella has its own card; one inside follows or chooses.
   const digest = await digestCardData(project.emailDigest, [project.id]);
   const umbrellaDigest = umbrella ? parseDigestSettings((await db.projectGroup.findUnique({ where: { id: umbrella.id }, select: { emailDigest: true } }))?.emailDigest) : null;
-  // Bug templates (ver_119): a test cycle outside an umbrella keeps its own list.
+  // Bug templates: a test cycle outside an umbrella keeps its own list.
   const bugTemplates = umbrella ? null : await loadBugTemplates(project);
   const jira = jiraRow && { siteUrl: jiraRow.siteUrl, email: jiraRow.email, jiraProjectKey: jiraRow.jiraProjectKey, issueType: jiraRow.issueType, tokenReadable: canOpen(jiraRow.tokenEncrypted) };
   return (
@@ -205,7 +205,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
       ) : (
         <DigestCard target={{ projectId: project.id }} data={digest} canManage={canJira} team={project.name} isAdmin={user.isAdmin} />
       )}
-      {/* Sentry (ver_96): test cycles in an umbrella use the umbrella's connection. */}
+      {/* Sentry: test cycles in an umbrella use the umbrella's connection. */}
       {!umbrella && (
         <Card id="sentry" className="scroll-mt-20 p-5">
           <h2 className="mb-1 text-sm font-semibold text-slate-800">Sentry</h2>

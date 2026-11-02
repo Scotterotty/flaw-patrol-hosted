@@ -34,10 +34,10 @@ export function QuestMapView({
   /** Everyone who has saved a case, latest saver first. Empty shows the plain team pawn. */
   party?: PartyPawn[];
   me?: string | null;
-  /** The viewer's look: until they save a case in this run, their pawn waits faded at the start (ver_94). */
+  /** The viewer's look: until they save a case in this run, their pawn waits faded at the start. */
   waiting?: Look | null;
   teamwork?: TeamworkEvent[];
-  /** Seasonal scenery (ver_98), from the day the run started. Null is the plain green map. */
+  /** Seasonal scenery, from the day the run started. Null is the plain green map. */
   season?: SeasonId | null;
 }) {
   const pawn = map.nodes[Math.min(position, map.nodes.length - 1)];
@@ -270,7 +270,7 @@ export function PawnMark({
       <g className={lead ? "quest-pawn-bob" : undefined}>
         <circle cx={0} cy={-14 * s} r={15 * s} fill={pawnFill(look.color)} stroke="var(--color-surface)" strokeWidth={3} />
         {look.pawn === "photo" && look.photo ? (
-          // "My picture" (ver_95): the profile picture inside a ring of the pawn color.
+          // "My picture": the profile picture inside a ring of the pawn color.
           <>
             <clipPath id={`pawn-photo-${look.userId}-${x.toFixed(0)}`}>
               <circle cx={0} cy={-14 * s} r={12 * s} />

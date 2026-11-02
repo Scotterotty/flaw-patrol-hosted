@@ -12,7 +12,7 @@ import { redirect } from "next/navigation";
 export const metadata = { title: "Bug bashes" };
 
 /**
- * Bug bashes (ver_93): start one, join the live one, and past bashes with their reports.
+ * Bug bashes: start one, join the live one, and past bashes with their reports.
  * They live on the umbrella's hub, so every test cycle's menu leads here.
  */
 export default async function BashesPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ bash?: string }> }) {

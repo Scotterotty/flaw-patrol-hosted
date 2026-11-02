@@ -1,4 +1,4 @@
-// Digests (ver_132): what a finished run, an ended bug bash or a finished release says,
+// Digests: what a finished run, an ended bug bash or a finished release says,
 // in Slack (short, at most 3 of each list) and by email (every failure). Pure, so it's tested
 // on its own; src/lib/digest-data.ts gathers the numbers.
 

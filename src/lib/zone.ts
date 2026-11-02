@@ -1,4 +1,4 @@
-// The viewer's time zone (ver_137). The browser saves it in a cookie (see ZoneCookie), so the
+// The viewer's time zone. The browser saves it in a cookie (see ZoneCookie), so the
 // server can show times on the viewer's own clock: hosting runs in UTC, so a 5:35 PM Pacific
 // bug bash used to read 1:35 AM the next day. Without the cookie yet, times fall back to UTC.
 
@@ -25,7 +25,7 @@ export function dayIn(d: Date, zone: string) {
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * A report's date range as the viewer reads it (ver_137): days typed in the date boxes as typed,
+ * A report's date range as the viewer reads it: days typed in the date boxes as typed,
  * and the default "last 30 days" ending today on the viewer's clock, not the server's.
  */
 export function rangeDays(from: Date, to: Date, typed: { from?: string; to?: string }, zone: string) {

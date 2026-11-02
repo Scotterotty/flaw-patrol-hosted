@@ -4,7 +4,7 @@ import { bashReport } from "@/lib/bash-summary";
 import { toCsv } from "@/lib/csv";
 import { projectAccess } from "@/lib/session";
 
-/** A bug bash report's Export (ver_93): CSV of the bugs, Excel, PDF, or JSON for Copy for Confluence. */
+/** A bug bash report's Export: CSV of the bugs, Excel, PDF, or JSON for Copy for Confluence. */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ key: string; id: string }> }) {
   const { key, id } = await params;
   const { project } = await projectAccess(key);

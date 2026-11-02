@@ -13,7 +13,7 @@ type Preview = { count: number; tags: { tag: string; count: number }[]; example:
 type Undo = { id: string; title: string; tags: string[] }[];
 
 /**
- * Case library banner (ver_96): "N case titles start with [brackets]". Review shows what
+ * Case library banner: "N case titles start with [brackets]". Review shows what
  * would change; Turn them into tags gives each case a new version, and Undo puts them back.
  */
 export function BracketBanner({ projectId, count, colors, platforms }: { projectId: string; count: number; colors: TagColors; platforms: boolean }) {

@@ -29,7 +29,7 @@ export function RunnerCaseList({ items, empty, tuckDone = false }: { items: Item
       return !s;
     });
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  // Forgiving search: exact matches, then close ones under their own label.
   const found = forgivingFilter(items, query, (i) => i.text);
   const matching = words.length ? [...found.exact, ...found.close] : items;
   const closeStart = words.length && found.close.length ? found.exact.length : -1;
@@ -100,7 +100,7 @@ export function RunnerCaseList({ items, empty, tuckDone = false }: { items: Item
 }
 
 /**
- * On a phone the case comes first (ver_94): the run's case list folds behind a
+ * On a phone the case comes first: the run's case list folds behind a
  * "Run list (x of y)" button. From the lg breakpoint it's always shown, as before.
  */
 export function RunListFold({ done, total, children }: { done: number; total: number; children: ReactNode }) {

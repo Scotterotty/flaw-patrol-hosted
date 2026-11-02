@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-  // ver_129: a query with include/select of related rows is one database trip instead of one per relation.
+  // A query with include/select of related rows is one database trip instead of one per relation.
   previewFeatures = ["relationJoins"]
 }
 
@@ -61,15 +61,15 @@ model User {
   gameFrame         String?
   // Opt-in quest maps for test runs (src/lib/quest.ts); needs the mini game on.
   questMap          Boolean         @default(false)
-  // Seasonal scenery on quest maps (ver_98, src/lib/seasons.ts): on unless they turn it off.
+  // Seasonal scenery on quest maps (src/lib/seasons.ts): on unless they turn it off.
   seasonalMaps      Boolean         @default(true)
-  // Loading spinners (ver_108, src/lib/spinners.ts): the ones ticked in Account → Appearance; long waits play one at random.
+  // Loading spinners (src/lib/spinners.ts): the ones ticked in Account → Appearance; long waits play one at random.
   spinners          String[]        @default(["ring"])
   // Quest pawn and worn gear (src/lib/quest-gear.ts): looks only, cleared with the satchel on an XP reset.
   questPawn         String          @default("classic")
   questColor        String          @default("accent") @map("questColour")
   questGear         Json            @default("{}")
-  // Auto-equip (ver_72): slots the player emptied or changed by hand never fill on their own again,
+  // Auto-equip: slots the player emptied or changed by hand never fill on their own again,
   // and slots the game filled itself, so the Gear tab can mark them. Cleared with the gear on an XP reset.
   questGearTouched  String[]        @default([])
   questGearAuto     String[]        @default([])
@@ -83,27 +83,27 @@ model User {
   avatar            Bytes?
   avatarType        String?
   avatarAt          DateTime?
-  // Ctrl+K search (ver_82): the last 5 things this person opened from it, { href, label, kind }[].
+  // Ctrl+K search: the last 5 things this person opened from it, { href, label, kind }[].
   searchRecent      Json            @default("[]")
-  // Arrange menu order (ver_93): this person's own left menu order (src/lib/nav-order.ts); {} is the default.
+  // Arrange menu order: this person's own left menu order (src/lib/nav-order.ts); {} is the default.
   navOrder          Json            @default("{}")
-  // Color vision (ver_96): "standard" | "redgreen" | "blueyellow" | "none" status colors, and
+  // Color vision: "standard" | "redgreen" | "blueyellow" | "none" status colors, and
   // shapes and patterns on statuses (always on for "none"). See src/lib/vision.ts.
   colorVision       String          @default("standard")
   visionShapes      Boolean         @default(false)
-  // Folding cards (ver_96): ids of the Account cards and Mini game sections this person keeps open.
+  // Folding cards: ids of the Account cards and Mini game sections this person keeps open.
   openCards         String[]        @default([])
-  /// Emails I get (ver_132): { runs: "tested"|"all"|"none", bashes: "joined"|"all"|"none", rc: boolean }, see src/lib/digest-settings.ts.
+  /// Emails I get: { runs: "tested"|"all"|"none", bashes: "joined"|"all"|"none", rc: boolean }, see src/lib/digest-settings.ts.
   digestPrefs       Json            @default("{}")
-  // Mini game crowns (ver_96): crowns this person held when last told, so take/lose toasts show once.
+  // Mini game crowns: crowns this person held when last told, so take/lose toasts show once.
   crownsSeen        String[]        @default([])
   // The title worn before putting on a crown, so losing the crown puts it back.
   gameTitleBefore   String?
-  // Activity log entries this person made (ver_92).
+  // Activity log entries this person made.
   activity          ActivityEntry[]
-  // Glossary (ver_113): dotted underlines under known terms all over the app; off hides them for this person only.
+  // Glossary: dotted underlines under known terms all over the app; off hides them for this person only.
   glossaryUnderline Boolean         @default(true)
-  // Ask to join (ver_115): teams this person asked to be added to from a shared link.
+  // Ask to join: teams this person asked to be added to from a shared link.
   joinRequests      JoinRequest[]
 }
 
@@ -116,7 +116,7 @@ model Workspace {
   spelling          String    @default("us")
   // XP for writing cases, shared steps and suites only counts work from here on (set by the ver_70 migration).
   xpAuthoringSince  DateTime?
-  // Workspace settings → Sign-in (ver_92). Email and password can be turned off once
+  // Workspace settings → Sign-in. Email and password can be turned off once
   // another way to sign in works; admins can still use it from "Admin sign-in".
   passwordSignIn    Boolean   @default(true)
   // Email domains anyone may create a password account with (adds to AUTH_ALLOWED_DOMAINS).
@@ -131,13 +131,13 @@ model Workspace {
   mailPassEncrypted String?
   mailFromName      String    @default("Flaw Patrol")
   mailFromAddress   String    @default("")
-  /// Email digests (ver_132): addresses outside Flaw Patrol that pressed Stop these emails, lowercased.
+  /// Email digests: addresses outside Flaw Patrol that pressed Stop these emails, lowercased.
   digestStopped     String[]  @default([])
   // Activity log entries older than this are removed.
   activityKeepDays  Int       @default(365)
 }
 
-// A company sign-in set from Workspace settings → Sign-in (ver_92): "microsoft",
+// A company sign-in set from Workspace settings → Sign-in: "microsoft",
 // "google" or "oidc" (any OpenID Connect single sign-on). Settings in .env win.
 model SignInProvider {
   id              String    @id
@@ -158,7 +158,7 @@ model SignInProvider {
   updatedAt       DateTime  @updatedAt
 }
 
-// Workspace settings → Activity log (ver_92): admin and security events only.
+// Workspace settings → Activity log: admin and security events only.
 // Results, cases run and bugs filed are never written here.
 model ActivityEntry {
   id         String   @id @default(cuid())
@@ -246,35 +246,35 @@ model Project {
   rcName               String            @default("")
   /// In an umbrella: don't give this project the umbrella's team (private projects).
   keepMembersSeparate  Boolean           @default(false)
-  /// Start next RC with "No runs yet" (ver_91): last RC's testers per case and cases with open
+  /// Start next RC with "No runs yet": last RC's testers per case and cases with open
   /// bugs, applied to this test cycle's first run, then cleared. See CarryOver in src/lib/umbrella.ts.
   carryOver            Json?
   /// Archived along with its umbrella, so restoring the umbrella brings it back.
   archivedWithUmbrella Boolean           @default(false)
-  /// Roles card (ver_82) for a test cycle that isn't in an umbrella; see src/lib/permissions.ts.
+  /// Roles card for a test cycle that isn't in an umbrella; see src/lib/permissions.ts.
   roleRules            Json?
-  /// When an admin last saved "What can they do" or pressed Keep everyone open (ver_96); null shows the before-invite nudge.
+  /// When an admin last saved "What can they do" or pressed Keep everyone open; null shows the before-invite nudge.
   rolesChosenAt        DateTime?
-  /// Bracket tags (ver_96): colors picked for this library's tags, { "web": "#2563eb" }. See src/lib/tags.ts.
+  /// Bracket tags: colors picked for this library's tags, { "web": "#2563eb" }. See src/lib/tags.ts.
   tagColors            Json              @default("{}")
-  /// Area tags (ver_102): words this library said No to, so they are not offered again.
+  /// Area tags: words this library said No to, so they are not offered again.
   areaSkip             String[]          @default([])
-  /// Slack alerts (ver_82): "umbrella" follows the umbrella's channels, "choose" uses
+  /// Slack alerts: "umbrella" follows the umbrella's channels, "choose" uses
   /// slackChannelIds (ticked umbrella channels) plus its own, "off" sends nothing.
   slackMode            String            @default("umbrella")
   slackChannelIds      String[]          @default([])
-  /// Email digests (ver_132): "umbrella" follows the umbrella's, "choose" uses emailDigest, "off" sends none.
+  /// Email digests: "umbrella" follows the umbrella's, "choose" uses emailDigest, "off" sends none.
   /// A test cycle outside an umbrella always uses emailDigest.
   emailDigestMode      String            @default("umbrella")
   emailDigest          Json              @default("{}")
   slackChannels        SlackChannel[]
   charterTemplates     CharterTemplate[]
   bugTemplates         BugTemplate[]
-  /// Bug templates (ver_119): the default one's id; "" means the current layout (Settings → Jira).
+  /// Bug templates: the default one's id; "" means the current layout (Settings → Jira).
   bugTemplateDefault   String            @default("")
   bugBashes            BugBash[]
   riskRatings          RiskRating[]
-  /// Ask to join (ver_115): people who opened a link here and asked to be added. Kept on the team (hub or lone test cycle).
+  /// Ask to join: people who opened a link here and asked to be added. Kept on the team (hub or lone test cycle).
   joinRequests         JoinRequest[]
 
   @@index([groupId])
@@ -292,32 +292,32 @@ model ProjectGroup {
   createdAt       DateTime       @default(now())
   projects        Project[]
   pins            GroupPin[]
-  /// Umbrellas (ver_68): the hub project holding the shared library, Jira and team.
+  /// Umbrellas: the hub project holding the shared library, Jira and team.
   hub             Project?       @relation("UmbrellaHub", fields: [hubProjectId], references: [id], onDelete: SetNull)
   hubProjectId    String?        @unique
   /// Up to 6 shortcuts on the umbrella's Projects-page card, same for everyone.
   shortcuts       Json           @default("[]")
   /// Platforms the umbrella tests on, each with the hub suites a new RC runs.
   platforms       Json           @default("[]")
-  /// Umbrellas (ver_73): archived with its projects. Nothing is deleted.
+  /// Umbrellas: archived with its projects. Nothing is deleted.
   archivedAt      DateTime?
-  /// Roles card (ver_82): what each role can do in the umbrella and all its test cycles.
+  /// Roles card: what each role can do in the umbrella and all its test cycles.
   roleRules       Json?
-  /// When an admin last saved "What can they do" or pressed Keep everyone open (ver_96); null shows the before-invite nudge.
+  /// When an admin last saved "What can they do" or pressed Keep everyone open; null shows the before-invite nudge.
   rolesChosenAt   DateTime?
-  /// Run fields (ver_89): extra details runs ask for, beyond Release, Build and Environment. See src/lib/run-fields.ts.
+  /// Run fields: extra details runs ask for, beyond Release, Build and Environment. See src/lib/run-fields.ts.
   runFields       Json           @default("[]")
   /// Umbrellas made before ver_89 keep the OKO bug layout choice in Jira settings.
   okoLayout       Boolean        @default(false)
-  /// Regression flag (ver_93): { on, compare, label, slack }, see src/lib/regression.ts. {} = defaults (on).
+  /// Regression flag: { on, compare, label, slack }, see src/lib/regression.ts. {} = defaults (on).
   regression      Json           @default("{}")
-  /// Screenshots, videos and replays from automation (ver_93): { keep: "failed" | "all", maxMb }, see src/lib/test-files.ts.
+  /// Screenshots, videos and replays from automation: { keep: "failed" | "all", maxMb }, see src/lib/test-files.ts.
   automationFiles Json           @default("{}")
-  /// Run kinds (ver_95): built-in Smoke test / Release candidate / Bug bash plus custom ones, see src/lib/run-kinds.ts.
+  /// Run kinds: built-in Smoke test / Release candidate / Bug bash plus custom ones, see src/lib/run-kinds.ts.
   runKinds        Json           @default("[]")
-  /// Tools (ver_128): { off: [...] } names the tools this umbrella doesn't use, see src/lib/tools.ts. {} = every tool.
+  /// Tools: { off: [...] } names the tools this umbrella doesn't use, see src/lib/tools.ts. {} = every tool.
   tools           Json           @default("{}")
-  /// Email digests (ver_132): who gets a summary when a run finishes or a bug bash ends, see src/lib/digest-settings.ts. {} = off.
+  /// Email digests: who gets a summary when a run finishes or a bug bash ends, see src/lib/digest-settings.ts. {} = off.
   emailDigest     Json           @default("{}")
   slackChannels   SlackChannel[]
   githubRepos     GitHubRepo[]
@@ -373,7 +373,7 @@ model GitHubRepo {
   workflowName   String       @default("")
   /// Which files inside a run's artifacts hold the results.
   resultsGlob    String       @default("*.xml")
-  /// Also bring in screenshots, videos and replays from the same artifact (ver_93).
+  /// Also bring in screenshots, videos and replays from the same artifact.
   bringFiles     Boolean      @default(true)
   lastPulledAt   DateTime?
   createdAt      DateTime     @default(now())
@@ -414,7 +414,7 @@ model GroupPin {
   groupId  String
   starred  Boolean      @default(false)
   position Int?
-  /// Hidden from this person's Umbrellas page (ver_94); everyone else still sees it.
+  /// Hidden from this person's Umbrellas page; everyone else still sees it.
   hidden   Boolean      @default(false)
 
   @@id([userId, groupId])
@@ -529,12 +529,12 @@ model TestCase {
   priority       Priority         @default(MEDIUM)
   type           CaseType         @default(MANUAL)
   automationId   String?
-  // Jira stories this case tests, by key (ver_82). Titles and statuses come from Jira.
+  // Jira stories this case tests, by key. Titles and statuses come from Jira.
   jiraStories    String[]         @default([])
   // The case's ID in the tool it was imported from, such as qTest's PQ-1708.
   sourceKey      String?
   // Already run before it came into Flaw Patrol, such as cases imported from another tool,
-  // so runs don't tag it New (ver_107). Set at import or from a run's New banner.
+  // so runs don't tag it New. Set at import or from a run's New banner.
   runBefore      Boolean          @default(false)
   tags           String[]
   persona        Persona?         @relation(fields: [personaId], references: [id], onDelete: SetNull)
@@ -547,7 +547,7 @@ model TestCase {
   flaggedAt      DateTime?
   flagRunNumber  Int?
   currentVersion Int              @default(1)
-  /// Rows of test data in the current version (ver_138), 0 for none. For the "3 rows" tag.
+  /// Rows of test data in the current version, 0 for none. For the "3 rows" tag.
   dataRows       Int              @default(0)
   archived       Boolean          @default(false)
   createdAt      DateTime         @default(now())
@@ -559,7 +559,7 @@ model TestCase {
 
   @@unique([projectId, number])
   @@index([projectId, folderId])
-  // Last activity on the Umbrellas page (ver_100).
+  // Last activity on the Umbrellas page.
   @@index([projectId, updatedAt])
 }
 
@@ -581,7 +581,7 @@ model CaseVersion {
   steps         Json
   // Exploratory charters only: { explore, with, discover, minutes } (src/lib/charter.ts).
   charter       Json?
-  /// Test data (ver_138): { columns, rows } (src/lib/test-data.ts). The case runs once per row.
+  /// Test data: { columns, rows } (src/lib/test-data.ts). The case runs once per row.
   testData      Json?
   personaName   String   @default("")
   changeNote    String   @default("")
@@ -698,7 +698,7 @@ enum ResultStatus {
   // Some steps have results saved but the case isn't finished. Only set by
   // autosave, never chosen as a result.
   IN_PROGRESS
-  // An exploring session or bug bash area that finished (ver_96). Not a pass or a
+  // An exploring session or bug bash area that finished. Not a pass or a
   // fail, so it never counts in pass rates.
   EXPLORED
 }
@@ -715,12 +715,12 @@ model TestRun {
   /// Which quest catalog (items and encounters) this run's map draws from; see QUEST_CATALOG.
   questCatalog   Int           @default(3)
   name           String
-  /// Run kind (ver_95): "smoke", "rc", "bash", a custom kind's id, or "" for a plain run. See src/lib/run-kinds.ts.
+  /// Run kind: "smoke", "rc", "bash", a custom kind's id, or "" for a plain run. See src/lib/run-kinds.ts.
   kind           String        @default("")
   description    String        @default("")
   build          String        @default("")
   cspVersion     String        @default("")
-  /// Run fields (ver_89): [{ id, name, value }] for the umbrella's extra fields. CSP version stays in cspVersion.
+  /// Run fields: [{ id, name, value }] for the umbrella's extra fields. CSP version stays in cspVersion.
   fields         Json          @default("[]")
   environment    String        @default("")
   release        String        @default("")
@@ -738,19 +738,19 @@ model TestRun {
   sheetLink      String        @default("")
   sheetSyncedAt  DateTime?
   sheetError     String        @default("")
-  // Automation results (ver_82): uploaded from a JUnit/NUnit file, never tested by hand.
+  // Automation results: uploaded from a JUnit/NUnit file, never tested by hand.
   automated      Boolean       @default(false)
   sourceFile     String        @default("")
   // sha256 of the uploaded files, to catch the same file uploaded twice.
   sourceHash     String?
   durationSec    Int?
-  /// Pulled from GitHub (ver_85): the repo, and the workflow run the results came from.
+  /// Pulled from GitHub: the repo, and the workflow run the results came from.
   githubRepo     GitHubRepo?   @relation(fields: [githubRepoId], references: [id], onDelete: SetNull)
   githubRepoId   String?
   githubRunId    String?
   githubRunNo    Int?
   githubRunUrl   String?
-  /// Someone deleted this run's screenshots, videos and replays (ver_93); results stay.
+  /// Someone deleted this run's screenshots, videos and replays; results stay.
   filesDeletedBy String        @default("")
   filesDeletedAt DateTime?
   entries        RunEntry[]
@@ -783,7 +783,7 @@ model RunEntry {
   // Charters are run as timed exploratory sessions instead of steps.
   kind            CaseType     @default(MANUAL)
   charter         Json?
-  /// Test data the case had when the run started (ver_138). Steps already hold one copy per row.
+  /// Test data the case had when the run started. Steps already hold one copy per row.
   testData        Json?
   // { name, emoji, description } of the persona when the run started.
   persona         Json?
@@ -796,16 +796,16 @@ model RunEntry {
   draftByName     String       @default("")
   // Who made the last autosaved change, so others see who's working on the case.
   draftById       String?
-  /// Regression flag turned off for this case in this run (ver_93), and by whom.
+  /// Regression flag turned off for this case in this run, and by whom.
   regressionOff   Boolean      @default(false)
   regressionOffBy String       @default("")
-  /// Added to the run after it started (ver_96), like "Added from the Risk board by Sam".
+  /// Added to the run after it started, like "Added from the Risk board by Sam".
   addedNote       String       @default("")
   results         TestResult[]
 
   @@unique([runId, caseId])
   @@index([caseId])
-  // Your work on the Umbrellas page: cases assigned to you still to test (ver_100).
+  // Your work on the Umbrellas page: cases assigned to you still to test.
   @@index([assigneeId, status])
 }
 
@@ -831,15 +831,15 @@ model TestResult {
   questGear      Json?
   // Brought in by Import a run; earns no testing XP.
   imported       Boolean         @default(false)
-  // From an automation upload (ver_82): what the test framework reported.
+  // From an automation upload: what the test framework reported.
   automated      Boolean         @default(false)
   failureMessage String          @default("")
   stackTrace     String          @default("")
   output         String          @default("")
   durationMs     Int?
-  /// Automation (ver_93): what the test did, from Playwright's test.step() lines: [{ title, ms, failed }].
+  /// Automation: what the test did, from Playwright's test.step() lines: [{ title, ms, failed }].
   testSteps      Json?
-  /// Sentry errors (ver_96) seen during failed or blocked steps and kept with the result: SentryRef[] (src/lib/sentry.ts).
+  /// Sentry errors seen during failed or blocked steps and kept with the result: SentryRef[] (src/lib/sentry.ts).
   sentry         Json?
   createdAt      DateTime        @default(now())
   defects        DefectLink[]
@@ -849,9 +849,9 @@ model TestResult {
   @@index([entryId, createdAt])
   @@index([caseId, createdAt])
   @@index([runId])
-  // Newest result per run, for last activity (ver_100).
+  // Newest result per run, for last activity.
   @@index([runId, createdAt])
-  // One person's results, for mini game XP (ver_120).
+  // One person's results, for mini game XP.
   @@index([testerId, createdAt])
 }
 
@@ -914,14 +914,14 @@ model Defect {
   updatedAt        DateTime      @updatedAt
   links            DefectLink[]
   checks           DefectCheck[]
-  /// Reported with a bug template (ver_119): the template's name and its layout at the time,
+  /// Reported with a bug template: the template's name and its layout at the time,
   /// and what was filled in under each heading (src/lib/bug-layout.ts). Old bugs never change
   /// when the template is edited later.
   templateName     String        @default("")
   layout           Json?
   answers          Json?
   files            Attachment[]
-  /// Found-in version (ver_141): the Jira version it was filed against, or the release when Jira
+  /// Found-in version: the Jira version it was filed against, or the release when Jira
   /// didn't have it. Refreshed from Jira's field while Settings → Jira → Found-in version is on.
   foundIn          String        @default("")
 
@@ -972,14 +972,14 @@ model Attachment {
   contentType  String
   size         Int
   data         Bytes
-  /// "file", or from automation (ver_93) "screenshot", "video" or "trace" (a step-by-step replay).
+  /// "file", or from automation "screenshot", "video" or "trace" (a step-by-step replay).
   kind         String      @default("file")
-  /// Which try made it (ver_95): 1 first, 2 after Playwright's first retry. Null on older files.
+  /// Which try made it: 1 first, 2 after Playwright's first retry. Null on older files.
   attempt      Int?
-  /// Logged in a bug bash (ver_93), before it's filed.
+  /// Logged in a bug bash, before it's filed.
   bashItem     BashItem?   @relation(fields: [bashItemId], references: [id], onDelete: Cascade)
   bashItemId   String?
-  /// A file added to a bug's heading or table row (ver_119).
+  /// A file added to a bug's heading or table row.
   defect       Defect?     @relation(fields: [defectId], references: [id], onDelete: Cascade)
   defectId     String?
   uploadedById String?
@@ -1006,7 +1006,7 @@ model SavedReport {
   @@index([projectId])
 }
 
-// A custom report (ver_101): parts picked from the Reports tabs, in the order people put them,
+// A custom report: parts picked from the Reports tabs, in the order people put them,
 // with notes between. Kept on the test cycle, or on an umbrella's hub for the umbrella's Reports.
 // `parts` is a JSON list (see src/lib/report-parts.ts); `query` holds the report's own filters.
 model CustomReport {
@@ -1038,14 +1038,14 @@ model JiraConfig {
   // The team bug template (OB-5292 layout) and this project's defaults for it;
   // null keeps the plain layout. See src/lib/bug-template.ts.
   bugTemplate      Json?
-  // Jira stories (ver_82): { project, types: string[], linkBugs: boolean }; null = stories off.
+  // Jira stories: { project, types: string[], linkBugs: boolean }; null = stories off.
   stories          Json?
-  // Severity field (ver_91): { fieldId, fieldName, values: string[], critical: string[] }; null = plain list.
+  // Severity field: { fieldId, fieldName, values: string[], critical: string[] }; null = plain list.
   severity         Json?
-  /// A company bug template it uses (ver_96); its layout wins over bugTemplate while set.
+  /// A company bug template it uses; its layout wins over bugTemplate while set.
   sharedTemplate   SharedBugTemplate? @relation(fields: [sharedTemplateId], references: [id], onDelete: SetNull)
   sharedTemplateId String?
-  /// Found-in version (ver_141): { field: "versions" | "fixVersions" }; null = off. See src/lib/found-in.ts.
+  /// Found-in version: { field: "versions" | "fixVersions" }; null = off. See src/lib/found-in.ts.
   foundIn          Json?
   updatedAt        DateTime           @updatedAt
 }
@@ -1112,13 +1112,13 @@ model BugBash {
   /// Wrap-up done: bugs filed and sessions saved to the run.
   wrappedAt    DateTime?
   areas        Json         @default("[]")
-  /// Links for the whole bash (ver_96): Jira issues, GitHub PRs, web pages. Each area has its own in `areas`.
+  /// Links for the whole bash: Jira issues, GitHub PRs, web pages. Each area has its own in `areas`.
   links        Json         @default("[]")
   /// Collect bugs here first and file them at wrap-up (the default), or straight to Jira.
   collectFirst Boolean      @default(true)
   slack        Boolean      @default(true)
   funExtras    Boolean      @default(false)
-  /// The bug template bugs use (ver_125); null means the plain one-line bug.
+  /// The bug template bugs use; null means the plain one-line bug.
   bugTemplateId String?
   /// When the start post, the 10-minute warning and the summary went to Slack.
   slackStartAt DateTime?
@@ -1170,9 +1170,9 @@ model BashItem {
   review       String       @default("file")
   mergedIntoId String?
   defectId     String?
-  /// Why filing it failed at wrap-up (ver_94); cleared once it's filed.
+  /// Why filing it failed at wrap-up; cleared once it's filed.
   fileError    String       @default("")
-  /// Logged with a bug template (ver_125): which one, its name and layout then, and what was filled in.
+  /// Logged with a bug template: which one, its name and layout then, and what was filled in.
   templateId   String?
   templateName String       @default("")
   layout       Json?

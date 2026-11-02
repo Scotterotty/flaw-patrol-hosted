@@ -36,9 +36,9 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
   if (sp.status === "open") where.status = "OPEN";
   if (sp.status === "resolved") where.status = { not: "OPEN" };
   if (sp.severity) where.severity = sp.severity as Prisma.DefectWhereInput["severity"];
-  // Bugs saved before Jira was connected (ver_91).
+  // Bugs saved before Jira was connected.
   if (sp.jira === "local") where.externalKey = null;
-  // Found-in version (ver_141).
+  // Found-in version.
   if (sp.version) where.foundIn = sp.version;
   const versions = (await db.defect.findMany({ where: { projectId: project.id, foundIn: { not: "" } }, distinct: ["foundIn"], orderBy: { createdAt: "desc" }, take: 30, select: { foundIn: true } })).map((d) => d.foundIn);
   const scale = await severityScaleFor(project.id);
@@ -54,7 +54,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
     },
   });
 
-  // Send to Jira (ver_91): open bugs saved before Jira was connected, for those who can file bugs.
+  // Send to Jira: open bugs saved before Jira was connected, for those who can file bugs.
   const canSend = !!jira && can(who, "run:execute");
   const notInJira = canSend ? await db.defect.count({ where: { projectId: project.id, externalKey: null, status: "OPEN" } }) : 0;
   const sendable = canSend

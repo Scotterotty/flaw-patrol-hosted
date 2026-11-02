@@ -4,7 +4,7 @@ import { db } from "./db";
 import { parseDraft } from "./run-draft";
 import { EXPLORE_KIND, shownKind } from "./run-kinds";
 
-// What Runs in progress says about exploring and bug bash runs (ver_96): time and finds
+// What Runs in progress says about exploring and bug bash runs: time and finds
 // instead of "0 of 1 tested", and a button that says what you'll do.
 
 export type ExploreLive = { type: "explore"; started: boolean; usedMin: number; limitMin: number; who: string; persona: PersonaInfo | null; bugs: number; notes: number; questions: number };

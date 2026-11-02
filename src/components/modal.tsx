@@ -16,7 +16,7 @@ export function Modal({
   title: string;
   children: React.ReactNode;
   wide?: boolean;
-  /** While something is being saved and opened (ver_108): Esc, clicking outside and ✕ don't close it. */
+  /** While something is being saved and opened: Esc, clicking outside and ✕ don't close it. */
   locked?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -44,7 +44,7 @@ export function Modal({
         <div className="relative p-5">
           <h2 className="mb-4 pr-8 text-base font-semibold text-slate-900">{title}</h2>
           {children}
-          {/* Every popup box has an ✕ (ver_89); Esc and clicking outside still close it too. It comes
+          {/* Every popup box has an ✕; Esc and clicking outside still close it too. It comes
               last so opening the box still puts the cursor in its first field. */}
           <button
             type="button"

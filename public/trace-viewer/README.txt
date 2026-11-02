@@ -1,1 +1,0 @@
-Playwright's trace viewer (from playwright-core 1.64.1), copied from node_modules/playwright-core/lib/vite/traceViewer so step-by-step replays open inside Flaw Patrol (ver_93). To update: npm run trace-viewer.

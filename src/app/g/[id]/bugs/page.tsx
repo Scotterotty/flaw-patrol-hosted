@@ -36,7 +36,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
   const projects = [u.hub, ...u.projects];
   const byId = new Map(projects.map((p) => [p.id, p]));
   const showAll = sp.all === "1";
-  // Same actions as a test cycle's Bugs page (ver_91): Refresh from Jira, status menu, Send to Jira.
+  // Same actions as a test cycle's Bugs page: Refresh from Jira, status menu, Send to Jira.
   const [jira, scale] = await Promise.all([jiraConfigFor(u.hub.id), severityScaleFor(u.hub.id)]);
   if (jira) await Promise.all(projects.map((p) => refreshDefectStatuses(p.id).catch(() => null)));
   const canRun = can(u.who, "run:execute");
@@ -57,7 +57,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
   const rcOrder = [...new Set(u.projects.slice().reverse().map((p) => p.rcName).filter(Boolean))];
   const latestRc = rcOrder.at(-1) ?? null;
   const rcOf = (d: (typeof defects)[number]) => byId.get(d.projectId)?.rcName || d.links.map((l) => l.result.run.release).find(Boolean) || "";
-  // Found-in version (ver_141): the Jira version each bug was filed against.
+  // Found-in version: the Jira version each bug was filed against.
   const versions = [...new Set(defects.slice().reverse().map((d) => d.foundIn).filter(Boolean))].slice(0, 30);
 
   // One row per Jira issue (or per bug when it isn't in Jira), oldest filing first.
@@ -78,7 +78,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
     if (c && (!row.check || c.createdAt > row.check.createdAt)) row.check = c;
     rows.set(k, row);
   }
-  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  // Forgiving search: exact matches, then close ones under their own label.
   const bySeverity = (a: Row, b: Row) => severityRank(a.first.severity) - severityRank(b.first.severity) || b.first.createdAt.getTime() - a.first.createdAt.getTime();
   const found = forgivingFilter(
     [...rows.values()]

@@ -67,7 +67,7 @@ export type SendToJiraData = {
 };
 
 /**
- * Send to Jira (ver_91): a bug saved before Jira was connected opens the usual bug box,
+ * Send to Jira: a bug saved before Jira was connected opens the usual bug box,
  * filled in from the result it came from, and becomes that Jira issue.
  */
 export function SendToJiraButton({ data }: { data: SendToJiraData }) {

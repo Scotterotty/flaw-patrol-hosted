@@ -13,11 +13,11 @@ export type BugContext = {
   /** The run's release. */
   release?: string;
   cspVersion?: string;
-  /** Run fields ticked "Add to Jira bugs" (ver_89). When set, these are used instead of cspVersion. */
+  /** Run fields ticked "Add to Jira bugs". When set, these are used instead of cspVersion. */
   fields?: { name: string; value: string }[];
   environment: string;
   preconditions: string;
-  /** Test data (ver_138): which row failed and its values, like "Test data row 2 of 3: role = viewer". */
+  /** Test data: which row failed and its values, like "Test data row 2 of 3: role = viewer". */
   testRow?: string;
   /** Test data: the row's short label, like "Safari · viewer", added to the end of the summary. */
   rowName?: string;
@@ -27,7 +27,7 @@ export type BugContext = {
   link: string | null;
   // Set when Jira can't show the tester as the bug's Reporter, so their name is in the text instead.
   reportedBy?: string | null;
-  /** Bracket tags (ver_96) the summary puts back in front, like [WEB]. */
+  /** Bracket tags the summary puts back in front, like [WEB]. */
   titleTags?: string[];
 };
 
@@ -220,7 +220,7 @@ function blocks(t: string): Node[] {
 
 /**
  * An imported template's description: each heading from the example bug in bold,
- * with this bug's text under it. Empty sections are left out (ver_85), so Jira
+ * with this bug's text under it. Empty sections are left out, so Jira
  * never gets a heading with nothing under it. `extra` holds fields Jira refused, so nothing typed is lost.
  */
 export function importedAdf(sections: { heading: string; text: string }[], opts: { reportedBy?: string | null; extra?: { name: string; text: string }[]; trace?: { label: string; link: string | null } }): Node {
@@ -265,7 +265,7 @@ function plain(n: unknown): string {
 const same = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
 
 /**
- * I saw it again (ver_126): the bug's description as it is in Jira now, with one row added to the
+ * I saw it again: the bug's description as it is in Jira now, with one row added to the
  * end of that heading's table. Everything else stays as Jira has it, edits made there included.
  * The table is the one under the heading, or else the one whose header row has the same column
  * names. When neither is there (someone took it out in Jira), the heading and table go at the end.
@@ -295,7 +295,7 @@ export function addRowToAdf(description: unknown, a: Answer, row: string[]): Nod
 }
 
 /**
- * A bug reported with a bug template (ver_119): each heading in bold with its text, tables as
+ * A bug reported with a bug template: each heading in bold with its text, tables as
  * Jira tables, and the files added under a heading as links. Headings left empty are skipped.
  */
 export function answersAdf(
@@ -340,7 +340,7 @@ export function sectionText(source: string, ctx: BugContext) {
   return "";
 }
 
-/** "CSP version: 0.22.1", "Firmware: 3.1": the run fields a bug's text carries (ver_89). */
+/** "CSP version: 0.22.1", "Firmware: 3.1": the run fields a bug's text carries. */
 function fieldLines(ctx: BugContext) {
   const fields = ctx.fields ?? (ctx.cspVersion ? [{ name: "CSP version", value: ctx.cspVersion }] : []);
   return fields.filter((f) => f.value).map((f) => `${f.name}: ${f.value}`);

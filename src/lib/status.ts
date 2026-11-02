@@ -37,7 +37,7 @@ export const STATUS_HELP: Record<ResultStatus, string> = {
 
 /**
  * Classes per status: solid chip, soft chip, and bar segment. They read the --st-* CSS
- * variables (ver_96), so Account → Color vision can swap them for one person; bar
+ * variables, so Account → Color vision can swap them for one person; bar
  * segments also carry st-bar-<STATUS> for the stripes and dots of Shapes and patterns.
  * `hex` is the standard color, for shared files (exports, Download image, Confluence)
  * that everyone sees the same; `fill` is the on-screen color for SVG and inline styles.
@@ -93,7 +93,7 @@ export function totals(c: StatusCounts) {
     total,
     tested,
     progress: total ? tested / total : 0,
-    // Pass rate over cases that got a verdict; skipped ones and exploring (ver_96) don't count either way.
+    // Pass rate over cases that got a verdict; skipped ones and exploring don't count either way.
     passRate: tested - c.SKIPPED - c.EXPLORED > 0 ? c.PASSED / (tested - c.SKIPPED - c.EXPLORED) : null,
   };
 }

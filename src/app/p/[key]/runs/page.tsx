@@ -60,7 +60,7 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
         actions={
           <>
             {can(who, "run:import") && <BringInResults scope={{ projectKey: project.key }} importHref={`/p/${project.key}/runs/import`} auto={!project.archivedAt} />}
-            {/* In an umbrella, Start a run's Bug bash kind opens this box (ver_95). */}
+            {/* In an umbrella, Start a run's Bug bash kind opens this box. */}
             {canStart && !project.archivedAt && <StartBashButton projectId={project.id} hideButton={inUmbrella} />}
             {picker}
           </>

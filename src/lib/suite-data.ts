@@ -21,7 +21,7 @@ export async function suitePickerData(project: { id: string; groupId: string | n
     }),
     db.$queryRaw<{ tag: string }[]>`SELECT DISTINCT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ANY(${ids}) AND archived = false ORDER BY tag`,
     db.project.findMany({ where: { id: { in: ids } }, select: { id: true, key: true } }),
-    // For "Can't find a case?" (ver_99): archived cases never show in a picker.
+    // For "Can't find a case?": archived cases never show in a picker.
     db.testCase.count({ where: { projectId: { in: ids }, archived: true } }),
     umbrellaOf(project),
   ]);
@@ -40,7 +40,7 @@ export async function suitePickerData(project: { id: string; groupId: string | n
       .map(({ projectId, ...c }) => ({ ...c, key: `${keyOf.get(projectId)}-${c.number}`, folderPath: label(c.folderId, projectId) })),
     folders: byProject
       .sort((a, b) => order(a.projectId) - order(b.projectId))
-      // name and depth (ver_99) draw the folder list beside the cases; group splits the library from a test cycle's own folders.
+      // name and depth draw the folder list beside the cases; group splits the library from a test cycle's own folders.
       .map((f) => ({ id: f.id, label: label(f.id, f.projectId), name: f.name, depth: f.depth, group: ids.length > 1 ? (shared(f.projectId) ? "Case library" : "This test cycle only") : "", ids: subtreeIds(folders, f.id) })),
     tags: tagRows.map((t) => t.tag),
     archived,
@@ -58,6 +58,6 @@ export async function projectMembers(projectId: string) {
     select: { userId: true, role: true, user: { select: { name: true, email: true, avatarAt: true, gameEnabled: true, gameTitle: true, gameFrame: true } } },
     orderBy: { user: { name: "asc" } },
   });
-  // canTest (ver_137): Viewers can't record results, so Assign lists leave them out (see assignable).
+  // canTest: Viewers can't record results, so Assign lists leave them out (see assignable).
   return members.map((m) => ({ id: m.userId, name: m.user.name ?? m.user.email, avatarAt: m.user.avatarAt, canTest: m.role !== "VIEWER", ...badgeOf(m.user) }));
 }

@@ -5,7 +5,7 @@ import { countMedia, expandUpload, matchMedia } from "@/lib/automation-media";
 import { stageMedia } from "@/lib/media-stage";
 import { readForm } from "@/lib/zip-limits";
 
-// Upload automation results with pictures (ver_93): the results file plus the
+// Upload automation results with pictures: the results file plus the
 // test-results folder, or one zip of both. Results come back as text for the usual
 // steps; screenshots, videos and replays wait on the server until Save.
 

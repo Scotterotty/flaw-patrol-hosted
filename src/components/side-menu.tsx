@@ -12,7 +12,7 @@ import { VersionLine } from "./version-line";
 /**
  * One menu link. `sub` indents it under the link above; `inner` indents it one more step (under the test cycle you're in).
  * `heading` makes it a small label (not a link) over the `sub` links that follow, like "Test cycles · 4.2".
- * `id` lets people move it with Arrange menu order (ver_93); test cycle rows use "cycle:<platform>".
+ * `id` lets people move it with Arrange menu order; test cycle rows use "cycle:<platform>".
  */
 export type MenuItem = {
   href: string;
@@ -22,7 +22,7 @@ export type MenuItem = {
   dot?: string;
   /** Shown in red after the label, like "Live" on Bug bashes while one is running. */
   badge?: string;
-  /** A small dot: something new for you there, like an answer to your Glossary question (ver_113). */
+  /** A small dot: something new for you there, like an answer to your Glossary question. */
   note?: boolean;
   sub?: boolean;
   inner?: boolean;
@@ -30,7 +30,7 @@ export type MenuItem = {
   tip?: string;
   onBar?: boolean;
   heading?: boolean;
-  /** The umbrella tool it belongs to (ver_128); the item leaves the menu while that tool is off. */
+  /** The umbrella tool it belongs to; the item leaves the menu while that tool is off. */
   tool?: string;
 };
 export type MenuGroup = { label: string; items: MenuItem[] };
@@ -69,7 +69,7 @@ const flat = (units: Unit[]) => units.flatMap((u) => [u.item, ...u.children.flat
 /**
  * The left menu every page uses: a name card on top, grouped links, and an optional link
  * pinned to the bottom. On phones it becomes a bottom bar that scrolls sideways.
- * Arrange menu order at the bottom lets each person drag links into their own order (ver_93).
+ * Arrange menu order at the bottom lets each person drag links into their own order.
  */
 export function SideMenu({ label, head, groups, footer, active }: { label: string; head: ReactNode; groups: MenuGroup[]; footer?: MenuItem; active: (i: MenuItem) => boolean }) {
   const path = usePathname();
@@ -174,7 +174,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
       }}
       onDragOver={(e) => {
         if (!drag || drag.group !== group) return;
-        // The dragged link slides under the pointer, so hovering it (or a link it can't swap with) is still a fine place to drop (ver_94).
+        // The dragged link slides under the pointer, so hovering it (or a link it can't swap with) is still a fine place to drop.
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
         setWrong(null);
@@ -226,7 +226,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
   const changed = !isDefaultOrder(mine);
   return (
     <>
-      {/* The background and border run the full height of the page; the links inside stay in view as you scroll (ver_87). */}
+      {/* The background and border run the full height of the page; the links inside stay in view as you scroll. */}
       <div className="fp-bar hidden w-52 shrink-0 border-r border-slate-200 bg-surface md:block">
         <nav ref={navRef} aria-label={label} className="sticky top-12 flex h-[calc(100vh-3rem)] flex-col overflow-y-auto px-2 py-4">
           {head}
@@ -244,7 +244,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
                 className={cx(isWrong && "rounded-md bg-red-50 ring-2 ring-red-400")}
                 onDragOver={(e) => {
                   if (!drag) return;
-                  // The gaps between links in its own section take the drop too (ver_94).
+                  // The gaps between links in its own section take the drop too.
                   if (drag.group === grp.label) {
                     e.preventDefault();
                     e.dataTransfer.dropEffect = "move";

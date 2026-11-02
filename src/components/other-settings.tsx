@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Card } from "./ui";
 
-/** Bottom of every settings page (ver_117): the two other places with settings, and who each one changes. */
+/** Bottom of every settings page: the two other places with settings, and who each one changes. */
 export function OtherSettings({ admin }: { admin: boolean }) {
   return (
     <Card className="p-5" data-testid="other-settings">

@@ -10,7 +10,7 @@ import { OPEN_BUG } from "./umbrella";
 const MAX_RESULTS = 50000;
 
 /**
- * How testing is going (ver_131): results from every test cycle under an umbrella, newest
+ * How testing is going: results from every test cycle under an umbrella, newest
  * first, without bug bashes, turned into release and week trends and the two case lists.
  */
 export async function loadHomeTrends(hubId: string, projectIds: string[]): Promise<HomeTrendsData> {

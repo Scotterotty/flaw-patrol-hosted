@@ -9,7 +9,7 @@ import { parseRoleRules, ROLE_ROWS } from "@/lib/permissions";
 import { requireProjectAction } from "@/lib/session";
 import { attempt, UserError } from "./result";
 
-// The Roles card (ver_82): what each role can do, saved on the umbrella (for its hub and
+// The Roles card: what each role can do, saved on the umbrella (for its hub and
 // every test cycle in it) or on a test cycle that isn't in one. Admins only.
 
 const rulesSchema = z.object({
@@ -43,7 +43,7 @@ export async function saveRoleRules(target: { groupId: string } | { projectId: s
 }
 
 /**
- * "Keep everyone open" on the before-invite reminder (ver_96): the admin is happy with the
+ * "Keep everyone open" on the before-invite reminder: the admin is happy with the
  * defaults, so the reminder stops showing. Nothing else changes.
  */
 export async function keepEveryoneOpen(target: { groupId: string } | { projectId: string }) {

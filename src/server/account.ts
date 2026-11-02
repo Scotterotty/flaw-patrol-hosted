@@ -84,7 +84,7 @@ export async function updateMyAccessibility(a: { textSize: string; reduceMotion:
   });
 }
 
-/** Loading spinners (ver_108): the ones you ticked; the plain ring when none are. */
+/** Loading spinners: the ones you ticked; the plain ring when none are. */
 export async function updateMySpinners(ids: string[]) {
   return attempt(async () => {
     const user = await requireUser();
@@ -155,7 +155,7 @@ export async function removeSpotifyLink(id: string) {
 export async function updateMyGame(g: { enabled: boolean; title: string | null; frame: string | null }) {
   return attempt(async () => {
     const user = await requireUser();
-    // A crown (ver_96) is worn through wearCrown, which checks you still hold it.
+    // A crown is worn through wearCrown, which checks you still hold it.
     if (g.title?.startsWith("crown|")) {
       if (g.title !== user.gameTitle) throw new UserError("Pick the crown in Crowns you hold.");
     } else if (g.title || g.frame) {
@@ -175,7 +175,7 @@ export async function updateMyGame(g: { enabled: boolean; title: string | null; 
   });
 }
 
-/** Wear a crown you hold (ver_96). Losing it later puts back the title you wore before. */
+/** Wear a crown you hold. Losing it later puts back the title you wore before. */
 export async function wearCrown(titleId: string) {
   return attempt(async () => {
     const user = await requireUser();
@@ -190,7 +190,7 @@ export async function wearCrown(titleId: string) {
 }
 
 /**
- * Crown notes showed (ver_96). ver_140: only the notes that showed are marked seen; the
+ * Crown notes showed. ver_140: only the notes that showed are marked seen; the
  * rest wait until you open their umbrella.
  */
 export async function ackCrowns(shown: { took: string[]; lost: string[] }) {
@@ -216,7 +216,7 @@ export async function setQuestMap(enabled: boolean) {
   });
 }
 
-/** Seasonal quest maps (ver_98): dress maps up for the time of year, or keep the plain green map. */
+/** Seasonal quest maps: dress maps up for the time of year, or keep the plain green map. */
 export async function setSeasonalMaps(enabled: boolean) {
   return attempt(async () => {
     const user = await requireUser();
@@ -304,7 +304,7 @@ export async function removeAvatar() {
   });
 }
 
-/** Arrange menu order (ver_93): your own order for the left menu links. An empty order is the default. */
+/** Arrange menu order: your own order for the left menu links. An empty order is the default. */
 export async function saveMyNavOrder(order: unknown) {
   return attempt(async () => {
     const user = await requireUser();
@@ -316,7 +316,7 @@ export async function saveMyNavOrder(order: unknown) {
   });
 }
 
-/** Which folding cards on Your account and Mini game sections stay open (ver_96). */
+/** Which folding cards on Your account and Mini game sections stay open. */
 export async function setOpenCards(ids: string[]) {
   return attempt(async () => {
     const user = await requireUser();

@@ -1,6 +1,6 @@
 import type { TestData } from "@/lib/test-data";
 
-/** The case page's read-only Test data table (ver_138). */
+/** The case page's read-only Test data table. */
 export function TestDataView({ data }: { data: TestData }) {
   const n = data.rows.length;
   return (

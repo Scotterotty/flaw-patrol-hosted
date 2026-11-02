@@ -408,7 +408,7 @@ export function rowsToCases(rows: string[][], mapping: ColumnMapping, source: Im
     const typeText = cell(row, "type");
     const rawType = typeText.toLowerCase();
     const type: CaseType = /auto/.test(rawType) || (!rawType && automationId) ? "AUTOMATED" : "MANUAL";
-    // TestRail's Type (Functional, Negative…) is more than Manual or Automated: keep it as a tag (ver_91).
+    // TestRail's Type (Functional, Negative…) is more than Manual or Automated: keep it as a tag.
     const typeTags = typeText && !/^(manual|auto(mated|mation)?)$/i.test(typeText.trim()) ? [`type: ${typeText.trim()}`] : [];
 
     const description = cell(row, "description");

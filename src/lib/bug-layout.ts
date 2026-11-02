@@ -1,4 +1,4 @@
-// Bug templates (ver_119): a list of templates per umbrella (or per test cycle outside one),
+// Bug templates: a list of templates per umbrella (or per test cycle outside one),
 // built right in Flaw Patrol. Each one is a title shape and a list of headings, and each
 // heading says where its text comes from. Pure, so the settings editor, the bug form, the
 // server and the tests share it.
@@ -330,7 +330,7 @@ export const acceptOf = (types: string) =>
 /** "Oct 31, 2026, 6:14 PM PDT" in the reporter's own time zone (persona check: times say their zone). */
 export function nowCell(d = new Date(), locale?: string) {
   try {
-    // dateStyle can't be mixed with timeZoneName (it throws), so the parts are named one by one (ver_125).
+    // dateStyle can't be mixed with timeZoneName (it throws), so the parts are named one by one.
     return d.toLocaleString(locale, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
   } catch {
     return d.toISOString();

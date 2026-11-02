@@ -34,7 +34,7 @@ const TYPE_TONE: Record<string, string> = {
   bug: "bg-red-50 text-red-800 ring-red-200",
 };
 
-/** The Jira issue type, as a small labeled badge (ver_89). */
+/** The Jira issue type, as a small labeled badge. */
 export function TypeBadge({ type, className }: { type: string; className?: string }) {
   return <span className={cx("inline-block rounded px-1.5 py-px text-[11px] font-medium whitespace-nowrap ring-1 ring-inset", TYPE_TONE[type.toLowerCase()] ?? "bg-slate-50 text-slate-700 ring-slate-200", className)}>{type}</span>;
 }
@@ -67,7 +67,7 @@ export function StoryRows({
   canEdit: boolean;
   library: PickCase[];
   folders: { id: string; label: string }[];
-  /** Back from writing steps (ver_96): the requirement to show opened, and what was made. */
+  /** Back from writing steps: the requirement to show opened, and what was made. */
   openKey?: string;
   flash?: string;
 }) {
@@ -237,7 +237,7 @@ function LinkedChip({ row }: { row: CoverageRow }) {
 }
 
 /**
- * Cases for KEY (ver_96): write new cases or a charter that come out linked to the
+ * Cases for KEY: write new cases or a charter that come out linked to the
  * requirement, or tick existing ones. New cases opens first when nothing tests it yet.
  */
 function CasesBox({ projectId, projectKey, row, tab: firstTab, library, folders, onClose }: { projectId: string; projectKey: string; row: CoverageRow; tab: BoxTab; library: PickCase[]; folders: { id: string; label: string }[]; onClose: () => void }) {
@@ -503,7 +503,7 @@ function ExistingCases({ projectId, row, library, onClose, onNew }: { projectId:
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const others = library.filter((c) => !has.has(c.id));
-  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  // Forgiving search: exact matches, then close ones under their own label.
   const found = forgivingFilter(others, q, (c) => `${c.key} ${c.title} ${c.folder}`);
   const list = [...found.exact, ...found.close];
   const closeStart = found.close.length ? found.exact.length : -1;

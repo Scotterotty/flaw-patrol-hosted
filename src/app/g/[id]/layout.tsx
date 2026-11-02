@@ -14,10 +14,10 @@ import { gateInfo } from "@/lib/tools-data";
 export default async function GroupLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireUser();
-  // The umbrella and the glossary menu are asked for together (ver_120).
+  // The umbrella and the glossary menu are asked for together.
   const [u, glossary] = await Promise.all([loadUmbrella(id, user), glossaryMenu(user.id)]);
   if (!u) {
-    // An umbrella they aren't on (ver_115): say what it is and offer Ask to join.
+    // An umbrella they aren't on: say what it is and offer Ask to join.
     const hub = await db.projectGroup.findUnique({ where: { id }, select: { hubProjectId: true } });
     if (hub?.hubProjectId) return notOnTeam(`/g/${id}`);
     return children;

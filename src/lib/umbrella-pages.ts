@@ -19,7 +19,7 @@ export async function hubCounts(u: Umbrella, userId: string) {
   return { mine, critical, flagged };
 }
 
-/** The umbrella's latest RC at a glance, such as "RC 22 · 1 of 3 done": counted, not the whole report (ver_100). */
+/** The umbrella's latest RC at a glance, such as "RC 22 · 1 of 3 done": counted, not the whole report. */
 export const rcGlance = (u: Umbrella) =>
   rcGlanceLine(
     [u.hub.id, ...u.projects.map((p) => p.id)],
@@ -35,7 +35,7 @@ export async function shortcutChoices(u: Umbrella, release: string | Promise<str
   const g = `/g/${u.group.id}`;
   const hub = `/p/${u.hub.key}`;
   const n = (count: number, word: string) => `${count} ${word}`;
-  // The release line can still be loading (ver_100): it's waited for alongside this page's own queries.
+  // The release line can still be loading: it's waited for alongside this page's own queries.
   const [runs, saved, rc] = await Promise.all([
     db.testRun.findMany({ where: { projectId: { in: u.current.map((p) => p.id) }, state: "ACTIVE" }, orderBy: { createdAt: "desc" }, select: { projectId: true, number: true, name: true } }),
     db.savedReport.findMany({ where: { projectId: { in: [u.hub.id, ...u.current.map((p) => p.id)] }, shared: true }, select: { projectId: true, name: true, query: true } }),

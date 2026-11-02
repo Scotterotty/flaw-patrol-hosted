@@ -16,7 +16,7 @@ const splitDomains = (text: string) =>
     .filter(Boolean);
 
 /**
- * Workspace settings → Bug templates (ver_96): bug layouts shared with everyone whose email
+ * Workspace settings → Bug templates: bug layouts shared with everyone whose email
  * ends a certain way. Each is one saved copy that umbrellas and test cycles point at.
  */
 export function WorkspaceBugTemplates({ list, sources, joinDomains }: { list: SharedListItem[]; sources: ShareSources; joinDomains: string }) {

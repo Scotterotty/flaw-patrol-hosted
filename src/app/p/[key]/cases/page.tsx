@@ -45,17 +45,17 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
   const sp = await searchParams;
   const { project, user, who } = await projectAccess(key);
   if (sp.type === "EXPLORATORY") redirect(`/p/${project.key}/charters${sp.persona ? `?persona=${sp.persona}` : ""}`);
-  // Who runs each case (ver_95): automation runs Automated cases and any case linked to a test.
+  // Who runs each case: automation runs Automated cases and any case linked to a test.
   const byAutomation: Prisma.TestCaseWhereInput = { OR: [{ type: "AUTOMATED" }, { AND: [{ automationId: { not: null } }, { automationId: { not: "" } }] }] };
   const q = sp.q?.trim();
   const pickedTags = (sp.tag ?? "").split(",").map((t) => t.trim()).filter(Boolean);
   const canTag = sp.archived !== "1" && can(who, "case:edit");
-  // Everything that doesn't depend on the filters is asked for at once (ver_120), not one after another.
+  // Everything that doesn't depend on the filters is asked for at once, not one after another.
   const umbrellaP = hubGroupId(project.id).then((id) => (id ? loadUmbrella(id, user) : null));
   const early = Promise.all([
     umbrellaP,
     project.groupId ? db.projectGroup.findUnique({ where: { id: project.groupId }, select: { name: true, hub: { select: { key: true } } } }) : null,
-    // Charter-only folders (like Bug bashes) belong on the Charters page (ver_94).
+    // Charter-only folders (like Bug bashes) belong on the Charters page.
     db.folder.findMany({ where: { projectId: project.id }, select: { id: true, parentId: true, name: true } }).then(async (all) => ({ all, charterOnly: await charterOnlyFolderIds(project.id, all) })),
     db.testCase.groupBy({ by: ["folderId"], where: { projectId: project.id, archived: false, type: { not: "EXPLORATORY" } }, _count: true }),
     db.testCase.groupBy({ by: ["folderId"], where: { projectId: project.id, archived: false, type: { not: "EXPLORATORY" }, ...byAutomation }, _count: true }),
@@ -104,7 +104,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
       ...(tagHits.length ? [{ tags: { hasSome: tagHits } }] : []),
     ];
   }
-  // Tags (ver_96): ?tag=Web,Login shows cases with all of them. A search for "web" or "[WEB]" also finds the tag.
+  // Tags: ?tag=Web,Login shows cases with all of them. A search for "web" or "[WEB]" also finds the tag.
   if (pickedTags.length) {
     const real = pickedTags.map((t) => allTags.find((x) => x.tag.toLowerCase() === t.toLowerCase())?.tag ?? t);
     where.tags = { hasEvery: real };
@@ -117,7 +117,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
   if (sp.persona) where.personaId = sp.persona;
   if (sp.flagged === "1") where.flag = { not: null };
   if (sp.flagged === "flaky") where.id = { in: [...flaky.keys()] };
-  // Regression only (ver_93): passed last release on a platform and fails there now.
+  // Regression only: passed last release on a platform and fails there now.
   if (sp.flagged === "regression") where.id = { in: [...(regressed ?? [])] };
   if (platform) where.suites = { some: { suiteId: { in: platform.suiteIds } } };
   if (platform) splitWhere.suites = where.suites;
@@ -166,7 +166,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
     db.testCase.count({ where: { ...where, archived: false } }),
     db.testCase.count({ where: { ...where, archived: true } }),
   ])]);
-  // Close matches (ver_96): "chekout" finds Checkout cases, under their own label after the exact ones.
+  // Close matches: "chekout" finds Checkout cases, under their own label after the exact ones.
   const closeStart = cases.length;
   if (q && page === 1 && total < ENOUGH_EXACT && cleanQuery(q).length > 1) {
     const rest: Prisma.TestCaseWhereInput = { ...where, OR: undefined };
@@ -184,7 +184,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
   const [members, suites, flaggedCount, personas, tagColors, bracketRows, areaInput, jiraOn, runFields, ownLeft] = await later;
   // Shared library: which platforms run each case, and its last result on each.
   const onPlatforms = new Map<string, { name: string; color: string; status: ResultStatus | null }[]>();
-  // Each case automation runs: its latest automated result (ver_95). Fetched with the platforms' results (ver_120).
+  // Each case automation runs: its latest automated result. Fetched with the platforms' results.
   const autoIds = cases.filter((c) => c.type === "AUTOMATED" || c.automationId).map((c) => c.id);
   const autoLastP = autoIds.length
     ? db.testResult.findMany({ where: { caseId: { in: autoIds }, run: { automated: true } }, orderBy: { createdAt: "desc" }, distinct: ["caseId"], select: { caseId: true, status: true, createdAt: true } })
@@ -212,7 +212,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
   const autoLast = await autoLastP;
   const autoOf = new Map(autoLast.map((r) => [r.caseId, { status: r.status, at: r.createdAt.toISOString() }]));
   const sharedBy = u ? u.projects.filter((p) => !p.archivedAt).length : 0;
-  // Moving stuck cases is offered only where they live: on this test cycle's Cases left here page (ver_89, not the library header).
+  // Moving stuck cases is offered only where they live: on this test cycle's Cases left here page (not the library header).
   const ownCount = parent?.hub ? ownLeft : 0;
   // A test cycle under an umbrella writes new cases into the umbrella's Case library.
   const newCase = (extra: string) => (parent?.hub ? `/p/${parent.hub.key}/cases/new${extra ? `?${extra}` : ""}` : `/p/${project.key}/cases/new${folder || extra ? `?${[extra, folder && `folder=${folder.id}`].filter(Boolean).join("&")}` : ""}`);
@@ -220,7 +220,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
   const heading = sp.folder === "unfiled" ? "Unfiled" : folder ? folder.name : u ? `${u.group.name} case library` : "All test cases";
   const filtered = Boolean(q || sp.tag || sp.priority || runsBy || sp.flagged || sp.persona || platform);
   const bracketCount = bracketRows.filter((c) => hasBracketTitle(c.title)).length;
-  // Area tags (ver_102): offered once the [brackets] are done, since they follow the platform tag
+  // Area tags: offered once the [brackets] are done, since they follow the platform tag
   // (or, with no platforms set up, the case's one [bracket] tag, ver_105).
   const areaWords = areaInput && !bracketCount ? findAreaWords(areaInput[0], areaInput[1]) : [];
   const keep = (extra: Record<string, string | undefined>) => {

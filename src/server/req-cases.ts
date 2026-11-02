@@ -7,7 +7,7 @@ import { requireProjectAction } from "@/lib/session";
 import { attempt, UserError } from "./result";
 import { saveCase } from "./cases";
 
-// New cases from a requirement (ver_96): the Requirements page's Cases for KEY box writes
+// New cases from a requirement: the Requirements page's Cases for KEY box writes
 // new cases or a charter that come out already linked to the requirement.
 
 const keySchema = z

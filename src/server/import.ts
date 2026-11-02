@@ -50,10 +50,10 @@ export async function importCases(projectId: string, folderId: string | null, ra
     let targetFolderId = folderId;
     const cases = z.array(importedCaseSchema).max(MAX_IMPORT, `Import at most ${MAX_IMPORT} cases at a time`).parse(rawCases);
     const sharedDefs = z.array(importedSharedSchema).max(MAX_IMPORT).parse(rawShared);
-    // Area tags (ver_102): the words after the platform the preview turned into tags, and new ones left unticked.
+    // Area tags: the words after the platform the preview turned into tags, and new ones left unticked.
     const areaList = z.array(z.string().trim().min(1).max(24)).max(500);
     const area = z.object({ words: areaList, skip: areaList }).parse(rawArea);
-    // "Have these cases been run before?" (ver_107): yes means runs don't tag them New.
+    // "Have these cases been run before?": yes means runs don't tag them New.
     const runBefore = z.boolean().parse(rawRunBefore);
     if (!cases.length) throw new UserError("There are no cases to import.");
     if (targetFolderId && !(await db.folder.findFirst({ where: { id: targetFolderId, projectId } }))) {
@@ -127,13 +127,13 @@ export async function importCases(projectId: string, folderId: string | null, ra
           }
         }
 
-        // "[WEB] - Sign in" comes in as the tag Web and the title "Sign in" (ver_96).
+        // "[WEB] - Sign in" comes in as the tag Web and the title "Sign in".
         const platformNames = await knownTagNamesFor(projectId);
         const areaCtx = await areaContextFor(projectId);
         areaCtx.known.push(...area.words);
         for (const raw of cases) {
           const split = splitBracketTitle(raw.title, { platforms: platformNames });
-          // With no platforms, only the [bracket] tag leads (ver_105), as in the preview.
+          // With no platforms, only the [bracket] tag leads, as in the preview.
           const lead = areaCtx.platforms.length ? normalizeTags([...split.tags, ...raw.tags]) : split.tags;
           const withArea = applyAreaWord(split.title, lead, area.words, areaCtx);
           const c = { ...raw, title: withArea?.title ?? split.title };

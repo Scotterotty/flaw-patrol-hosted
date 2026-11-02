@@ -14,7 +14,7 @@ import { Button, Card, cx, ErrorText } from "./ui";
 type Range = "today" | "week" | "release";
 
 /**
- * + Attach wrap-ups (ver_96): pick bug bash reports and exploring wrap-ups to carry on
+ * + Attach wrap-ups: pick bug bash reports and exploring wrap-ups to carry on
  * this report. Today comes first, made for the daily report.
  */
 export function AttachWrapUps({ scope, prefKey, pick, count, release }: { scope: WrapScope; prefKey: string; pick: WrapPick; count: number; release?: string }) {

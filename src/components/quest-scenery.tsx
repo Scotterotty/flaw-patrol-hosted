@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { MAP_H, MAP_W, seeded, type QuestMap } from "@/lib/quest";
 import type { SeasonId } from "@/lib/seasons";
 
-// Seasonal scenery for the quest map (ver_98). Scenery only: the trail, encounters,
+// Seasonal scenery for the quest map. Scenery only: the trail, encounters,
 // pawns and XP are the same in every season. Fixed colors, since each season has its
 // own ground (Halloween is dusk). Animation is gentle and stops for reduced motion.
 

@@ -15,7 +15,7 @@ const TONE: Record<string, Tone> = { signin: "orange", people: "blue", settings:
 
 /** Workspace settings → Activity log: admin and security events, newest first. */
 export async function ActivityLog({ filters, spelling }: { filters: ActivityFilters; spelling: Spelling }) {
-  // On the viewer's clock (ver_137), not the server's UTC.
+  // On the viewer's clock, not the server's UTC.
   const zone = await viewerZone();
   const where = activityWhere(filters);
   const take = pageSize(filters);
@@ -26,7 +26,7 @@ export async function ActivityLog({ filters, spelling }: { filters: ActivityFilt
     db.projectGroup.findMany({ where: { hubProjectId: { not: null } }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     db.workspace.findUnique({ where: { id: 1 }, select: { activityKeepDays: true } }),
   ]);
-  // Close matches (ver_96): "pasword" finds password changes, under their own label.
+  // Close matches: "pasword" finds password changes, under their own label.
   const q = filters.q?.trim() ?? "";
   const close =
     q && total < ENOUGH_EXACT && cleanQuery(q).length > 1

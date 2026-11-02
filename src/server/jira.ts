@@ -78,7 +78,7 @@ export async function saveJiraConfig(projectId: string, input: z.input<typeof co
     const client = new JiraClient({ ...data, siteUrl: normalizeSite(data.siteUrl), token });
     const who = await client.check();
     const row = { siteUrl: normalizeSite(data.siteUrl), email: data.email, tokenEncrypted: seal(token), jiraProjectKey: data.jiraProjectKey, issueType: data.issueType };
-    // A new connection reads its severity names from a field called Severity, when the bug screen has one (ver_91).
+    // A new connection reads its severity names from a field called Severity, when the bug screen has one.
     const severity = existing?.severity ? undefined : await detectSeverity(client);
     await db.jiraConfig.upsert({ where: { projectId }, create: { projectId, ...row, ...(severity && { severity }) }, update: { ...row, ...(severity && { severity }) } });
     revalidatePath(`/p/${project.key}`, "layout");
@@ -97,7 +97,7 @@ async function detectSeverity(client: JiraClient): Promise<SeverityConfig | null
   return { fieldId: f.id, fieldName: f.name, values, critical: values.slice(0, Math.min(2, values.length - 1)) };
 }
 
-/** Settings → Jira → Severity field (ver_91): the bug screen's fields that have a list of values. */
+/** Settings → Jira → Severity field: the bug screen's fields that have a list of values. */
 export async function jiraSeverityFields(projectId: string) {
   return wrap(async () => {
     await requireProjectAction(projectId, "jira:manage");
@@ -152,7 +152,7 @@ async function entryRelease(entry: { run: { id: string; release: string; project
   return foundInRelease({ run: entry.run.release, bash: bash?.release, cycle: entry.run.project.rcName });
 }
 
-/** Found-in version (ver_141) for a new bug from this entry, or null when the setting is off. */
+/** Found-in version for a new bug from this entry, or null when the setting is off. */
 async function foundInFor(client: JiraClient, entry: Entry): Promise<FoundInDraft | null> {
   const cfg = parseFoundIn(client.creds.foundIn);
   if (!cfg) return null;
@@ -178,7 +178,7 @@ async function applyFoundIn(client: JiraClient, entryId: string, projectId: stri
   return match?.name ?? value;
 }
 
-/** The bug box's Found in line (ver_141): the version picked for you and Jira's list, or null when it's off. */
+/** The bug box's Found in line: the version picked for you and Jira's list, or null when it's off. */
 export async function previewFoundIn(projectId: string, entryId: string) {
   return wrap(async () => {
     await requireProjectAction(projectId, "run:execute");
@@ -191,7 +191,7 @@ export async function previewFoundIn(projectId: string, entryId: string) {
 
 const foundInSchema = z.object({ field: z.enum(["versions", "fixVersions"]).nullable() });
 
-/** Settings → Jira → Found-in version (ver_141): whether the field is on the create screen, and Jira's versions. */
+/** Settings → Jira → Found-in version: whether the field is on the create screen, and Jira's versions. */
 export async function checkFoundIn(projectId: string, field: "versions" | "fixVersions") {
   return wrap(async () => {
     await requireProjectAction(projectId, "jira:manage");
@@ -315,20 +315,20 @@ const bugSchema = z.object({
   summary: z.string().trim().max(250).default(""),
   severity: severitySchema.default(DEFAULT_SEVERITY),
   stepIndex: z.number().int().min(0).nullable(),
-  /** A whole-case bug's first failed step (ver_124): its steps and Expected go in the description. */
+  /** A whole-case bug's first failed step: its steps and Expected go in the description. */
   focus: z.number().int().min(0).nullable().default(null),
   actual: z.string().max(10000).default(""),
   attachmentIds: z.array(z.string()).max(20).default([]),
   /** Stories of the case to link the new bug to, with Jira's "relates to". */
   stories: z.array(z.string().max(30)).max(10).default([]),
-  /** Regression flag (ver_93): add the Jira label and the passed-in / fails-in builds line. */
+  /** Regression flag: add the Jira label and the passed-in / fails-in builds line. */
   regression: z.boolean().default(false),
-  /** Send to Jira (ver_91): the bug saved here before Jira was connected, which becomes the new issue. */
+  /** Send to Jira: the bug saved here before Jira was connected, which becomes the new issue. */
   fromDefectId: z.string().optional(),
-  /** Sentry errors (ver_96): a section at the end of the description. */
+  /** Sentry errors: a section at the end of the description. */
   sentry: z.array(z.unknown()).max(20).default([]),
   template: templateSchema.optional(),
-  /** Found-in version (ver_141): left out = the release picked for you, null or "" = leave it out. */
+  /** Found-in version: left out = the release picked for you, null or "" = leave it out. */
   foundIn: z.string().trim().max(255).nullable().optional(),
   imported: z
     .object({
@@ -652,7 +652,7 @@ async function rememberAnswers(userId: string, current: unknown, b: TemplateBug)
 }
 
 /** When Jira isn't connected: record the defect here only. */
-/** The release a bug saved here (no Jira) was found in (ver_141), from its run entry. */
+/** The release a bug saved here (no Jira) was found in, from its run entry. */
 async function localRelease(projectId: string, entryId: string | undefined) {
   if (!entryId) return "";
   const entry = await db.runEntry.findFirst({ where: { id: entryId, run: { projectId } }, select: { run: { select: { id: true, release: true, project: { select: { rcName: true } } } } } });
@@ -674,7 +674,7 @@ export async function createLocalDefect(projectId: string, input: { title: strin
 }
 
 /**
- * Report a bug without Jira (ver_124, persona audit #4): the summary and the What happened text,
+ * Report a bug without Jira (persona audit #4): the summary and the What happened text,
  * filled from the run's details and the failed step, for the tester to change before saving.
  */
 export async function previewLocalBug(projectId: string, entryId: string, stepIndex: number | null, actual: string, focus: number | null = null) {
@@ -696,7 +696,7 @@ export async function refreshFromJira(projectId: string) {
   });
 }
 
-/** Refresh from Jira on the umbrella's Bugs page (ver_91): every test cycle it can see. */
+/** Refresh from Jira on the umbrella's Bugs page: every test cycle it can see. */
 export async function refreshFromJiraMany(projectIds: string[]) {
   return wrap(async () => {
     let refreshed = 0;
@@ -726,7 +726,7 @@ export async function previewJiraBug(projectId: string, entryId: string, stepInd
     const template = t && client ? templateDefaults(t, entry, ctx, await client.createMeta().catch(() => null), user.bugProfile) : null;
     const imp = client ? await importedOf(projectId) : null;
     const imported = imp && client ? importedDraft(imp, entry, ctx, await client.createMeta().catch(() => null)) : null;
-    // Nothing failed and nothing written (ver_124): an empty summary with a hint, never just the case's title.
+    // Nothing failed and nothing written: an empty summary with a hint, never just the case's title.
     const blank = ctx.failedIndex === null && !actual.trim();
     return { summary: blank ? "" : defaultSummary(ctx), body: bugText(reporter?.found === false ? { ...ctx, reportedBy: user.name ?? user.email } : ctx), reporter, template, imported, scale: client?.scale ?? PLAIN_SCALE };
   });
@@ -797,7 +797,7 @@ export async function saveBugTemplate(projectId: string, input: z.input<typeof s
     // The detailed layout replaces an imported one; turning the template off keeps the import for later.
     const old = parseTemplateSettings((await db.jiraConfig.findUnique({ where: { projectId }, select: { bugTemplate: true } }))?.bugTemplate);
     const clientTag = data.clientTag.replace(/^\[|\]$/g, "").toUpperCase();
-    // With a company template picked (ver_96), only this place's defaults change; the layout stays shared.
+    // With a company template picked, only this place's defaults change; the layout stays shared.
     const bugTemplate = opts.keepShared ? { ...old, clientTag, team: data.team, clients: data.clients, olyEnv: data.olyEnv } : { ...data, imported: data.on ? null : old.imported, clientTag };
     const done = await db.jiraConfig.updateMany({ where: { projectId }, data: { bugTemplate, ...(!opts.keepShared && { sharedTemplateId: null }) } });
     if (!done.count) throw new UserError("Connect Jira first.");
@@ -846,7 +846,7 @@ export async function readBugTemplate(projectId: string, input: string) {
   });
 }
 
-/** Settings → Bug templates → New template → Copy a Jira bug's layout (ver_119). */
+/** Settings → Bug templates → New template → Copy a Jira bug's layout. */
 export async function readBugLayout(projectId: string, input: string) {
   return wrap(async () => {
     const project = await db.project.findUniqueOrThrow({ where: { id: projectId }, select: { id: true, key: true, groupId: true } });
@@ -940,7 +940,7 @@ export async function setPlainLayout(projectId: string) {
   });
 }
 
-// ---- Bug templates (ver_119) ----
+// ---- Bug templates ----
 
 /** The template a test cycle's bug uses, from its umbrella's list. */
 async function layoutOf(projectId: string, templateId: string) {
@@ -1002,11 +1002,11 @@ const templatedSchema = z.object({
   regression: z.boolean().default(false),
   sentry: z.array(z.unknown()).max(20).default([]),
   fromDefectId: z.string().optional(),
-  /** A bug from a bug bash (ver_125): its saved layout is used, as it was when it was logged. */
+  /** A bug from a bug bash: its saved layout is used, as it was when it was logged. */
   bashItemId: z.string().max(40).optional(),
   /** Lines that go under the headings, like where in the bash it was found. */
   notes: z.array(z.object({ name: z.string().max(120), text: z.string().max(10000) })).max(6).default([]),
-  /** Found-in version (ver_141): left out = the release picked for you, null or "" = leave it out. */
+  /** Found-in version: left out = the release picked for you, null or "" = leave it out. */
   foundIn: z.string().trim().max(255).nullable().optional(),
 });
 
@@ -1140,7 +1140,7 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
     if (data.stories.length) {
       const own = await db.runEntry.findFirst({ where: { id: entryId }, select: { testCase: { select: { jiraStories: true } } } });
       const failed: string[] = [];
-      // A bash bug relates to what its area was testing (ver_125); a run's bug to its case's stories.
+      // A bash bug relates to what its area was testing; a run's bug to its case's stories.
       for (const story of data.stories.filter((k) => fromBash || own?.testCase.jiraStories.includes(k))) await client.relate(key, story).catch(() => failed.push(story));
       if (failed.length) linkError = `${key} was created, but Jira wouldn't link it to ${failed.join(", ")}.`;
     }
@@ -1157,7 +1157,7 @@ const rowSchema = z.object({
 });
 
 /**
- * I saw it again (ver_119): one more row in a bug's growing table. The automatic cells come
+ * I saw it again: one more row in a bug's growing table. The automatic cells come
  * filled in from the person's run and browser; with Jira connected the Jira bug's table updates too.
  */
 export async function addBugRow(projectId: string, input: z.input<typeof rowSchema>) {
@@ -1180,7 +1180,7 @@ export async function addBugRow(projectId: string, input: z.input<typeof rowSche
       if (client) {
         try {
           if (files.length) await client.attach(defect.externalKey, files.map((f) => ({ fileName: f.fileName, contentType: f.contentType, data: f.data })));
-          // Only the table changes (ver_126): the rest of the description stays as Jira has it, edits made there included.
+          // Only the table changes: the rest of the description stays as Jira has it, edits made there included.
           const now = await client.getDescription(defect.externalKey);
           await client.setDescription(defect.externalKey, addRowToAdf(now, answers[at], row), { asIs: true });
         } catch (e) {

@@ -2,7 +2,7 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { DigestKind } from "./digest-settings";
 
-// The Stop link in a digest email (ver_132): who and which kind, signed with AUTH_SECRET so
+// The Stop link in a digest email: who and which kind, signed with AUTH_SECRET so
 // nobody can stop someone else's emails by changing the link. No sign-in needed to use it.
 
 const sign = (body: string) => {

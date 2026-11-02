@@ -7,7 +7,7 @@ import { saveMyNavOrder } from "@/server/account";
 import { useNavOrder } from "./nav-order";
 import { Button, ErrorText } from "./ui";
 
-/** Account → Appearance: whether your left menu is in your own order, and a way back to the default (ver_93). */
+/** Account → Appearance: whether your left menu is in your own order, and a way back to the default. */
 export function MenuOrderReset() {
   const router = useRouter();
   const mine = !isDefaultOrder(useNavOrder());

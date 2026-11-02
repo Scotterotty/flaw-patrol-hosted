@@ -10,7 +10,7 @@ import { Modal } from "./modal";
 import { useSpell } from "./spelling";
 import { Button, Card, cx, ErrorText, Field, InfoTip, Input, Select } from "./ui";
 
-/** New charter ▾ (ver_93): write your own, or start from a tour or checklist. */
+/** New charter ▾: write your own, or start from a tour or checklist. */
 export function NewCharterMenu({ projectKey, teamCount }: { projectKey: string; teamCount: number }) {
   const [open, setOpen] = useState(false);
   return (
@@ -35,7 +35,7 @@ export function NewCharterMenu({ projectKey, teamCount }: { projectKey: string; 
 }
 
 /**
- * The gallery (ver_93): pick a tour or checklist, see the charter it makes, name the area,
+ * The gallery: pick a tour or checklist, see the charter it makes, name the area,
  * and Use this charter opens the charter form filled in, ready to save.
  */
 export function TemplateGallery({
@@ -51,7 +51,7 @@ export function TemplateGallery({
   templates: CharterTemplateInfo[];
   personas: { id: string; name: string; emoji: string }[];
   canManage: boolean;
-  /** From a requirement's New charter tab (ver_96): the charter gets linked to it. */
+  /** From a requirement's New charter tab: the charter gets linked to it. */
   story?: string;
 }) {
   // Built-in tours and checklists follow the reader's US/UK English; the team's own stay as written.
@@ -114,7 +114,7 @@ export function TemplateGallery({
                       onClick={() => pick(x.id)}
                       className={cx("rounded-lg border px-3 py-2 text-left", x.id === cur ? "border-accent-500 bg-accent-50 ring-1 ring-accent-500" : "border-slate-200 bg-surface hover:border-slate-300")}
                     >
-                      {/* The plain line leads; the tour's name is small (ver_94). */}
+                      {/* The plain line leads; the tour's name is small. */}
                       <b className="block text-sm font-medium text-slate-900">{x.short}</b>
                       <span className="block text-[11px] text-slate-500">{x.name}</span>
                     </button>
@@ -208,7 +208,7 @@ export function TemplateGallery({
   );
 }
 
-/** Save as template (ver_93), on a charter's page: leads and admins. */
+/** Save as template, on a charter's page: leads and admins. */
 export function SaveAsTemplate({ projectId, charter, title }: { projectId: string; title: string; charter: { with: string; discover: string; minutes: number; prompts: string[]; explore: string } }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(title.replace(/:.*$/, "").slice(0, 120));

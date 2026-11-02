@@ -1,5 +1,5 @@
 /**
- * Step timings printed in the terminal window (ver_100), off unless Flaw Patrol is started
+ * Step timings printed in the terminal window, off unless Flaw Patrol is started
  * with FP_TIMING=1 (in .env, or set in the terminal first). Nothing shows in the app.
  */
 export const timingOn = () => process.env.FP_TIMING === "1";

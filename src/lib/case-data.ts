@@ -17,7 +17,7 @@ export async function sharedStepDefs(projectId: string, alsoIds: string[] = []):
 }
 
 /**
- * Folders that hold only charters, like "Bug bashes" (ver_94). The Case library and the
+ * Folders that hold only charters, like "Bug bashes". The Case library and the
  * case editor's Folder list leave them out; the charters live on the Charters page.
  */
 export async function charterOnlyFolderIds(projectId: string, folders: FolderRow[]): Promise<Set<string>> {

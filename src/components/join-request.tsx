@@ -11,7 +11,7 @@ import { answerJoinRequest, askToJoin, cancelJoinRequest } from "@/server/join-r
 import { Avatar } from "./avatar";
 import { Button, buttonClass, ErrorText, Select } from "./ui";
 
-// Ask to join (ver_115): the buttons on "You're not on this team yet", the home page's
+// Ask to join: the buttons on "You're not on this team yet", the home page's
 // "Waiting to join", and the requests at the top of Settings → Members.
 
 /** "Demo Admin and Dana Lead will see it." */

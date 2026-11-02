@@ -9,7 +9,7 @@ import { domainList, emailInDomains, emailTrusted, GUID, type Profile } from "./
 
 export { domainList, emailInDomains, emailTrusted, GUID };
 
-// Company sign-ins set from Workspace settings → Sign-in (ver_92). Each company
+// Company sign-ins set from Workspace settings → Sign-in. Each company
 // fills in its own Microsoft, Google or single sign-on details, so nothing needs
 // a code change or a hosted server. Settings in .env still work and win.
 
@@ -52,7 +52,7 @@ export async function savedProviders(): Promise<SignInProvider[]> {
       return [];
     }
   };
-  // ver_129: every page asks for this before anything else, so after the first time it answers
+  // Every page asks for this before anything else, so after the first time it answers
   // from the last list at once and reads a fresh one in the background. Changes here call
   // forgetSavedProviders, and sign-in itself reads the provider fresh.
   if (cache) {

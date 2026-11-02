@@ -70,7 +70,7 @@ describe("rollUp and fillChecks", () => {
   });
 });
 
-// ver_110: heading rows are never counted as steps, and real steps always are.
+// Heading rows are never counted as steps, and real steps always are.
 describe("headingRows", () => {
   const entering = { id: "e", name: "ENTERING SPACES", version: 1 };
   const assets = { id: "a", name: "ASSETS PANEL", version: 1 };

@@ -18,7 +18,7 @@ export type SentrySaved = {
 };
 
 /**
- * Settings → Sentry (ver_96): Connect to Sentry in three steps. Sign in with a read-only
+ * Settings → Sentry: Connect to Sentry in three steps. Sign in with a read-only
  * token, pick projects and an environment, then say how a run's build matches a release.
  */
 export function SentryPanel({ projectId, saved, fields, canManage }: { projectId: string; saved: SentrySaved | null; fields: { id: string; name: string }[]; canManage: boolean }) {

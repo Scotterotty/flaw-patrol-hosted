@@ -8,7 +8,7 @@ import { cleanEmail, DIGEST_KINDS, joinAnd, type DigestSettings } from "@/lib/di
 import { deleteEmailGroup, saveDigest, saveEmailGroup, sendDigestSample, setCycleDigest, turnOffDigest, type DigestTarget } from "@/server/digests";
 import { Button, Card, cx, ErrorText, InfoTip, Input } from "./ui";
 
-// Email digests (ver_132): umbrella Settings → Email digests, a test cycle's choice, and
+// Email digests: umbrella Settings → Email digests, a test cycle's choice, and
 // Workspace settings → Email → Email groups. One group editor serves all three.
 
 const groupLine = (g: GroupView) => {

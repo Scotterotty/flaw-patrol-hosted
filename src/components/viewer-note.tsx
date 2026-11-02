@@ -6,7 +6,7 @@ import { askForMemberAccess } from "@/server/join-requests";
 import { ErrorText } from "./ui";
 
 /**
- * At the top of every page for a Viewer (ver_124, persona audit #6): what they can do here,
+ * At the top of every page for a Viewer (persona audit #6): what they can do here,
  * who can change it, and Ask for Member access. ✕ hides it on this device until their role changes.
  */
 export function ViewerNote({ projectId, teamId, team, admins, asked }: { projectId: string; teamId: string; team: string; admins: string; asked: boolean }) {

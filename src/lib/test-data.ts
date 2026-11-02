@@ -1,7 +1,7 @@
 import type { ResultStatus } from "@prisma/client";
 import { z } from "zod";
 
-// Test data (ver_138): an optional small table under a case's steps. Each column name is a
+// Test data: an optional small table under a case's steps. Each column name is a
 // {{blank}} in the steps, and the case runs once per row with that row's values filled in.
 // Pure, so the editor, the server actions, the snapshot and the runner all share it.
 

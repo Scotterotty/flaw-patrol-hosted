@@ -14,14 +14,14 @@ import { Button, cx, ErrorText, Field, InfoTip, Input, Select } from "./ui";
 
 type Area = { name: string; template: string | null; links?: BashLink[] };
 
-/** Start a bug bash from the Risk board (ver_96): its requirements, riskiest first; High ones ticked. */
+/** Start a bug bash from the Risk board: its requirements, riskiest first; High ones ticked. */
 export type RiskPreset = { name: string; picks: { key: string; title: string; url: string; level: "High" | "Med" | "Low"; cases: number }[] };
 
 /**
- * Start a bug bash (ver_93): name, length and areas, about 20 seconds. Everything else
+ * Start a bug bash: name, length and areas, about 20 seconds. Everything else
  * has a default under More options. Then a link to share, a QR code and a Slack post.
  */
-/** The box's area ideas and choices, fetched when it opens or is about to (ver_120). Boxes on one page share it. */
+/** The box's area ideas and choices, fetched when it opens or is about to. Boxes on one page share it. */
 function useStartBox(projectId: string) {
   return useLazy(`bash:${projectId}`, async () => {
     const r = await startBoxFor(projectId);
@@ -46,7 +46,7 @@ export function StartBashButton({
   variant?: "primary" | "secondary";
   size?: "sm" | "md";
   again?: { name: string; areas: string[]; minutes: number };
-  /** No button of its own (ver_95): Start a run's "Bug bash" kind opens it. */
+  /** No button of its own: Start a run's "Bug bash" kind opens it. */
   hideButton?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -91,7 +91,7 @@ export function StartBashAuto({ projectId }: { projectId: string }) {
   );
 }
 
-/** Until its data arrives (ver_120) the box takes a Name and How long; the area ideas show a spinner. */
+/** Until its data arrives the box takes a Name and How long; the area ideas show a spinner. */
 const NO_DATA: StartBoxData = { homeId: "", homeKey: "", homeName: "", cycles: [], defaultCycleId: "", suggestions: [], last: null, templates: [], slackChannels: 0, bugTemplates: [], bugTemplateDefault: null };
 
 function StartBashForm({
@@ -127,7 +127,7 @@ function StartBashForm({
   const [slackPick, setSlack] = useState<boolean | null>(null);
   const slack = slackPick ?? data.slackChannels > 0;
   const [fun, setFun] = useState(false);
-  // Bug template (ver_125): the team's default until someone picks; "" is the plain one-line bug.
+  // Bug template: the team's default until someone picks; "" is the plain one-line bug.
   const [tplPick, setTpl] = useState<string | null>(null);
   const bugTemplateId = tplPick ?? data.bugTemplateDefault ?? "";
   const [error, setError] = useState<string | null>(null);
@@ -265,7 +265,7 @@ function StartBashForm({
         )}
       </div>
       {data.cycles.length > 1 && (
-        // Up front (ver_94): a bash only counts toward a release when someone picks its test cycle.
+        // Up front: a bash only counts toward a release when someone picks its test cycle.
         <fieldset>
           <legend className="mb-1.5 text-xs font-semibold text-slate-600">Where should its results go?</legend>
           <div className="space-y-1.5">

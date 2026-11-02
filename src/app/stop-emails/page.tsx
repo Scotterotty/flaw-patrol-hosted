@@ -8,7 +8,7 @@ export const metadata = { title: "Stop these emails" };
 const WHAT = { run: "run summary emails", bash: "bug bash summary emails", rc: "release testing done emails" } as const;
 
 /**
- * The Stop link in a digest email (ver_132). No sign-in needed. It asks first, so a mail
+ * The Stop link in a digest email. No sign-in needed. It asks first, so a mail
  * program that opens links to check them doesn't stop the emails by itself.
  */
 export default async function StopEmailsPage({ searchParams }: { searchParams: Promise<{ t?: string }> }) {

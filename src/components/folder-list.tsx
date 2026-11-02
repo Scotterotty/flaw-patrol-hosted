@@ -17,7 +17,7 @@ export function inFolder(folders: ListFolder[], picked: string) {
 }
 
 /**
- * The Case library's folders beside the cases (ver_99, folder picker option B): short
+ * The Case library's folders beside the cases (folder picker option B): short
  * names indented under their parent, with case counts. Clicking one shows its cases.
  */
 export function FolderList({ folders, cases, value, onChange }: { folders: ListFolder[]; cases: { folderId: string | null }[]; value: string; onChange: (id: string) => void }) {

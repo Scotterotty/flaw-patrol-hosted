@@ -1,6 +1,6 @@
 "use client";
 
-// The bug form for a bug template (ver_119): title parts, each heading as the template says,
+// The bug form for a bug template: title parts, each heading as the template says,
 // tables with their automatic cells, file headings, and what's still needed before reporting.
 
 import type { Severity } from "@prisma/client";

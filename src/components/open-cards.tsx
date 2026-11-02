@@ -8,14 +8,14 @@ type Ctx = { isOpen: (id: string) => boolean; toggle: (id: string) => void; setM
 const OpenCards = createContext<Ctx | null>(null);
 
 /**
- * Which folding cards and sections this person keeps open (ver_96), saved on their account
+ * Which folding cards and sections this person keeps open, saved on their account
  * so it's the same on every computer. Used by the Account page and the Mini game sections.
  */
 export function OpenCardsProvider({ initial, children }: { initial: string[]; children: ReactNode }) {
   const [open, setOpen] = useState(() => new Set(initial));
   // The latest set, so quick clicks build on each other without reading it inside setOpen.
   const current = useRef(open);
-  // Saved straight away (ver_97): with a short wait, leaving the page right after a click lost it.
+  // Saved straight away: with a short wait, leaving the page right after a click lost it.
   // Next runs server actions one at a time, so quick clicks still save in order.
   // The save happens here, outside setOpen: React can run a setOpen updater while it renders,
   // and starting a server action there updates the Router mid-render (a console error Scott saw on Your account).
@@ -60,7 +60,7 @@ export function useOpenCards() {
 }
 
 /**
- * One card on Your account, folded to a line that says what's set (ver_96). A link that
+ * One card on Your account, folded to a line that says what's set. A link that
  * ends in one of its hashes (#jira…) opens it and puts you in its first box.
  */
 export function AccountCard({ id, title, summary, pill, children }: { id: string; title: string; summary: ReactNode; pill?: ReactNode; children: ReactNode }) {

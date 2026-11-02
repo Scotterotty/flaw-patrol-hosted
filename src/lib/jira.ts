@@ -20,7 +20,7 @@ export type JiraIssue = {
   type: string;
   parent: string | null;
   points?: number | null;
-  /** Found-in version (ver_141): the names in the picked version field, when that setting is on. */
+  /** Found-in version: the names in the picked version field, when that setting is on. */
   foundIn?: string | null;
 };
 
@@ -66,7 +66,7 @@ export function jiraValue(f: MetaField, v: FieldValue): unknown {
 export const UNREADABLE_TOKEN =
   "The saved Jira API token can't be read here. It was saved with a different AUTH_SECRET (from another copy of Flaw Patrol, or an older .env). Paste the API token again in Settings → Jira, and give every copy that shares this database the same AUTH_SECRET.";
 
-export type JiraCreds = { siteUrl: string; email: string; token: string; jiraProjectKey: string; issueType: string; /** Settings → Jira → Severity field (ver_91). */ severity?: unknown; /** Settings → Jira → Found-in version (ver_141). */ foundIn?: unknown };
+export type JiraCreds = { siteUrl: string; email: string; token: string; jiraProjectKey: string; issueType: string; /** Settings → Jira → Severity field. */ severity?: unknown; /** Settings → Jira → Found-in version. */ foundIn?: unknown };
 
 export async function jiraFor(projectId: string): Promise<JiraClient | null> {
   // A project in an umbrella uses the umbrella's Jira unless it has its own.
@@ -118,15 +118,15 @@ export class JiraClient {
   constructor(readonly creds: JiraCreds) {}
 
   /**
-   * Regression flag (ver_93): labels to add to the next issue filed (dropped if Jira won't take
+   * Regression flag: labels to add to the next issue filed (dropped if Jira won't take
    * them), and lines put first in its description, like "Passed in Web RC 21 (build 4790)…".
    */
   labels: string[] = [];
   leadLines: string[] = [];
-  /** Blocks put last in the description, like the Sentry errors section (ver_96). */
+  /** Blocks put last in the description, like the Sentry errors section. */
   tailBlocks: object[] = [];
   /**
-   * Found-in version (ver_141): the version for the next issue filed. known is false when Jira
+   * Found-in version: the version for the next issue filed. known is false when Jira
    * has no version by that name, so it goes in the description instead of the field.
    */
   foundIn: { field: FoundInField; label: string; value: string; known: boolean } | null = null;
@@ -164,7 +164,7 @@ export class JiraClient {
     return (text ? JSON.parse(text) : undefined) as T;
   }
 
-  /** The team's severity names, from Settings → Jira → Severity field (ver_91). */
+  /** The team's severity names, from Settings → Jira → Severity field. */
   get scale() {
     return scaleOf(parseSeverityConfig(this.creds.severity));
   }
@@ -187,7 +187,7 @@ export class JiraClient {
     return found;
   }
 
-  /** The site's story points field ("Story Points" or "Story point estimate"), for the Risk board (ver_93). */
+  /** The site's story points field ("Story Points" or "Story point estimate"), for the Risk board. */
   pointsField() {
     const site = normalizeSite(this.creds.siteUrl);
     let found = pointsFields.get(site);
@@ -356,7 +356,7 @@ export class JiraClient {
     return Promise.all(res.issues.map((i) => this.toIssue(i)));
   }
 
-  /** Stories (ver_82): issues of the given types, by key or words, in one project or anywhere. */
+  /** Stories: issues of the given types, by key or words, in one project or anywhere. */
   async searchStories(cfg: { project: string; types: string[] }, text: string) {
     const q = text.replace(/["\\]/g, " ").trim();
     const where = storyScope(cfg, this.creds.jiraProjectKey);
@@ -364,7 +364,7 @@ export class JiraClient {
     return this.search(q ? `${where} AND (${key}text ~ "${q}*") ORDER BY updated DESC` : `${where} ORDER BY updated DESC`, 10);
   }
 
-  /** Requirements (ver_89): the issue types the requirement project has, for Settings. Sub-task types are left out. */
+  /** Requirements: the issue types the requirement project has, for Settings. Sub-task types are left out. */
   async issueTypes(project: string) {
     type T = { name: string; subtask?: boolean; hierarchyLevel?: number };
     const list = project === "*" ? await this.call<T[]>("/rest/api/3/issuetype") : ((await this.call<{ issueTypes?: T[] }>(`/rest/api/3/project/${encodeURIComponent(project)}`)).issueTypes ?? []);
@@ -404,7 +404,7 @@ export class JiraClient {
     return list.filter((v) => !v.archived).map((v) => v.name).reverse();
   }
 
-  /** The bug project's versions (ver_141), newest first, with whether each is released. Archived ones are left out. */
+  /** The bug project's versions, newest first, with whether each is released. Archived ones are left out. */
   async versionList(): Promise<JiraVersion[]> {
     const list = await this.call<{ name: string; released?: boolean; archived?: boolean }[]>(`/rest/api/3/project/${encodeURIComponent(this.creds.jiraProjectKey)}/versions`);
     return list
@@ -453,7 +453,7 @@ export class JiraClient {
     const optional: Record<string, { name: string; value: unknown }> = {
       ...(sev ? { [sev]: { name: "Severity", value: { value: this.scale.labels[input.severity] } } } : {}),
       ...(this.labels.length ? { labels: { name: "Labels", value: this.labels } } : {}),
-      // Found-in version (ver_141), unless the bug's own layout fills the same field.
+      // Found-in version, unless the bug's own layout fills the same field.
       ...(found?.known ? { [found.field]: { name: found.label, value: [{ name: found.value }] } } : {}),
       ...input.fields,
     };
@@ -596,7 +596,7 @@ export async function refreshDefectStatuses(projectId: string, force = false) {
           externalPriority: issue.priority || null,
           // Jira's Severity field is the source of truth when the site has one.
           ...(issue.severity && { severity: issue.severity }),
-          // Found-in version (ver_141): a version set in Jira comes back here. An empty field keeps
+          // Found-in version: a version set in Jira comes back here. An empty field keeps
           // what was filed, since a release Jira didn't have is only in the description.
           ...(issue.foundIn && { foundIn: issue.foundIn }),
           syncedAt: new Date(),

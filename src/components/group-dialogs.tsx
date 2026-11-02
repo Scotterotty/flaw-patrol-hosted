@@ -22,7 +22,7 @@ export function EditGroupButton({ group, choices, label = "Edit group", umbrella
   );
 }
 
-/** Rename an existing group, describe it, tick its projects, or delete it. Umbrellas can't be deleted, only archived (ver_126). */
+/** Rename an existing group, describe it, tick its projects, or delete it. Umbrellas can't be deleted, only archived. */
 export function GroupDialog({ group, choices, umbrella = false, onClose }: { group: GroupInfo; choices: GroupChoice[]; umbrella?: boolean; onClose: () => void }) {
   const router = useRouter();
   const [name, setName] = useState(group?.name ?? "");

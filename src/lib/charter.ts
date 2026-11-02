@@ -24,7 +24,7 @@ export const charterSchema = z.object({
   discover: z.string().trim().max(2000).default(""),
   minutes: z.number().int().min(5).max(480).default(60),
   reminders: z.array(reminderSchema).max(MAX_REMINDERS).default([]),
-  /** Things to try, from a tour or checklist (ver_93). Ticking one in a session logs "Covered". */
+  /** Things to try, from a tour or checklist. Ticking one in a session logs "Covered". */
   prompts: z.array(z.string().trim().min(1).max(300)).max(30).default([]),
 });
 export type Charter = z.output<typeof charterSchema>;
@@ -61,7 +61,7 @@ export function missionLine(c: Charter) {
 
 export const NOTE_KINDS = ["note", "bug", "question", "idea"] as const;
 export type NoteKind = (typeof NOTE_KINDS)[number];
-/** What a log line can be: a note kind, or a prompt someone ticked (ver_93). */
+/** What a log line can be: a note kind, or a prompt someone ticked. */
 export const LOG_KINDS = [...NOTE_KINDS, "covered"] as const;
 export type LogKind = (typeof LOG_KINDS)[number];
 export const NOTE_LABEL: Record<LogKind, string> = { note: "Note", bug: "Bug", question: "Question", idea: "Idea", covered: "Covered" };

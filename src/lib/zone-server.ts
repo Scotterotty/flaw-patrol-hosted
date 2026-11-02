@@ -12,7 +12,7 @@ export async function viewerZone() {
   }
 }
 
-/** A report's date range on the viewer's clock, in their Language setting (ver_137). */
+/** A report's date range on the viewer's clock, in their Language setting. */
 export async function reportRange(from: Date, to: Date, typed: { from?: string; to?: string }, spelling: Spelling) {
   const d = rangeDays(from, to, typed, await viewerZone());
   return dateRange(d.from, d.to, spelling);

@@ -1,5 +1,5 @@
 /**
- * The "What's new" window after sign-in (ver_88). Add one entry at the TOP in
+ * The "What's new" window after sign-in. Add one entry at the TOP in
  * every build, in the same plain words as the release notes, one line each.
  * Builds with no entry don't pop up. Never write secret features here.
  *
@@ -21,6 +21,18 @@ export type WhatsNewItem = {
 export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
+  {
+    version: 142,
+    date: "2026-11-02",
+    items: [
+      {
+        kind: "better",
+        title: "More security checks behind the scenes",
+        text: "New tests make sure people who aren't signed in, aren't on the team or don't have the role are turned away from every page, action and file. Nothing changes in how you sign in or work.",
+        who: "workspace",
+      },
+    ],
+  },
   {
     version: 141,
     date: "2026-11-02",

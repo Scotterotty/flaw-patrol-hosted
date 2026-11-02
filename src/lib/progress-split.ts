@@ -1,7 +1,7 @@
 import type { ResultStatus } from "@prisma/client";
 import { countStatuses, STATUSES, totals, type StatusCounts } from "./status";
 
-// Manual vs automated progress (ver_95). Reports never add the two together: hand
+// Manual vs automated progress. Reports never add the two together: hand
 // testing counts every case in every manual run, while automation counts each
 // automated case once, by its latest result, so repeat runs don't inflate it.
 

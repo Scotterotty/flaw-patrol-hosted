@@ -11,7 +11,7 @@ const Tile = ({ label, value, note, testId }: { label: string; value: string | n
   </div>
 );
 
-/** Reports → the one-line answer and four tiles above the tabs (ver_124, persona audit #10). */
+/** Reports → the one-line answer and four tiles above the tabs (persona audit #10). */
 export function ReportSummaryBar({ summary }: { summary: ReportSummary }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {

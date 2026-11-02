@@ -6,7 +6,7 @@ import { setCrownNames } from "@/server/umbrella";
 import { Button, ErrorText, Input } from "./ui";
 
 /**
- * Mini game crowns (ver_96): an optional crown name per platform, so "Web" can read
+ * Mini game crowns: an optional crown name per platform, so "Web" can read
  * "Ruler of the Web". Blank keeps "Ruler of <platform>".
  */
 export function CrownNamesPanel({ groupId, platforms, canEdit }: { groupId: string; platforms: { name: string; crownName?: string }[]; canEdit: boolean }) {

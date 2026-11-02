@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 
-// Download all files (ver_93): one result's screenshots, videos and replays as a zip.
+// Download all files: one result's screenshots, videos and replays as a zip.
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   const userId = session?.user?.id;
@@ -17,7 +17,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const zip = new JSZip();
   const seen = new Set<string>();
   for (const a of result.attachments) {
-    // Retried tests (ver_95): each attempt's files go in their own folder.
+    // Retried tests: each attempt's files go in their own folder.
     const tries = new Set(result.attachments.map((x) => x.attempt ?? 1)).size;
     let name = tries > 1 && a.attempt ? `attempt-${a.attempt}/${a.fileName}` : a.fileName;
     for (let i = 2; seen.has(name); i++) name = name.replace(/(-\d+)?(\.[^.]+)?$/, `-${i}$2`);

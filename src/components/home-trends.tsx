@@ -4,7 +4,7 @@ import { loadHomeTrends } from "@/lib/home-trends";
 import { platformColor, type Umbrella } from "@/lib/umbrella";
 import { HomeTrendsBox } from "./home-trends-box";
 
-/** How testing is going (ver_131) on an umbrella's home. Streams in after the rest of the page. */
+/** How testing is going on an umbrella's home. Streams in after the rest of the page. */
 export async function HomeTrends({ u, userId, startHref }: { u: Umbrella; userId: string; startHref: string | null }) {
   const [data, me] = await Promise.all([loadHomeTrends(u.hub.id, u.projects.map((p) => p.id)), db.user.findUnique({ where: { id: userId }, select: { openCards: true } })]);
   const platforms = u.platforms.map((p) => ({ name: p.name, color: platformColor(u.platforms, p.name) }));

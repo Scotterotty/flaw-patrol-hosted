@@ -17,7 +17,7 @@ export type CrownChange = {
   sub: string;
 };
 
-/** How long a crown note stays (ver_140), unless you point at it or tab into it. */
+/** How long a crown note stays, unless you point at it or tab into it. */
 export const CROWN_NOTE_MS = 10_000;
 
 const under = (path: string, prefix: string) => path === prefix || path.startsWith(`${prefix}/`);
@@ -28,8 +28,8 @@ const showsHere = (c: CrownChange, path: string) => (c.paths ? c.paths.some((p) 
 type Note = { key: string; changes: CrownChange[] };
 
 /**
- * Mini game crowns (ver_96): a one-time note when you take a crown or someone takes yours.
- * ver_140: a note only shows inside its own umbrella (Keeper of Words, the team's, shows in
+ * Mini game crowns: a one-time note when you take a crown or someone takes yours.
+ * A note only shows inside its own umbrella (Keeper of Words, the team's, shows in
  * any), crowns taken in the same umbrella at once share one note, and notes close after 10
  * seconds. Notes that haven't shown yet wait for their umbrella; no email or Slack.
  */

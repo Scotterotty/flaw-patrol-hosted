@@ -2,7 +2,7 @@ import type { ResultStatus } from "@prisma/client";
 import { headingRows } from "./step-checks";
 import { rowResults } from "./test-data";
 
-// History pips for cases run with test data (ver_138): each saved result's rows, from the steps
+// History pips for cases run with test data: each saved result's rows, from the steps
 // the run snapshotted (each tagged with its row) and the step results saved with it.
 
 /** Each row's result for one saved result, or null when that run had no test data. */

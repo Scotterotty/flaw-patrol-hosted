@@ -18,7 +18,7 @@ export function TakeCase({
 }: {
   /** A half-done session you came back to (ver_54 audit #1): said in this bar, not a second banner. */
   resume?: { text: string; onResume?: () => void } | null;
-  /** An exploratory session has notes, not steps (ver_89). */
+  /** An exploratory session has notes, not steps. */
   session?: boolean;
   projectId: string;
   entryId: string;

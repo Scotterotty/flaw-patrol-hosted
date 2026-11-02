@@ -232,6 +232,26 @@ by hand; `run-sheet` and `ver82` need `next dev`.
 code is in a GitHub repository. Set `PW_CHROMIUM_PATH` to use an already
 installed Chromium for the browser tests.
 
+## Who may do what (authorization)
+
+`src/middleware.ts` only checks that a sign-in cookie exists, so signed-out
+visitors land on Sign in. It is a redirect, not a lock. The rule is:
+
+- Every page, server action and API route checks who is asking **on the server**:
+  pages with `projectAccess` / `requireUser`, server actions with
+  `requireProjectAction` (or `requireUser` plus their own check), and API routes
+  with `auth()` / `currentUser()` plus a team membership check. CI uploads check
+  their token instead.
+- Someone signed out gets Sign in or 401. Someone signed in who isn't on the team
+  gets Not found (or Ask to join on pages). A role below what the Roles card
+  allows gets "You don't have permission to do that."
+
+Tests keep this true: `src/server/authorization-rules.test.ts` reads the code
+and fails when a server action or route skips the check (the few open ones,
+like signing in and invite links, are listed there with their reason);
+`src/app/api/route-access.test.ts` and `src/lib/session.test.ts` check that
+signed-out people, people outside the team and lower roles are refused.
+
 ## Layout
 
 ```

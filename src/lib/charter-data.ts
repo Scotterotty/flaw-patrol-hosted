@@ -18,12 +18,12 @@ export async function teamTemplates(homeId: string) {
   return rows.map(teamTemplate);
 }
 
-/** The Charters page list (ver_93): every charter, with its persona, time box and last session. */
+/** The Charters page list: every charter, with its persona, time box and last session. */
 export async function charterRows(projectId: string, opts: { archived?: boolean; q?: string; persona?: string } = {}) {
   const q = opts.q?.trim();
   const cases = await db.testCase.findMany({
-    // Persona filter (ver_96): a persona's id, or "none".
-    // A bug bash's area charters stay with the bash, off this list (ver_124).
+    // Persona filter: a persona's id, or "none".
+    // A bug bash's area charters stay with the bash, off this list.
     where: { projectId, type: "EXPLORATORY", archived: !!opts.archived, ...NOT_BASH_CASE, ...(opts.persona ? { personaId: opts.persona === "none" ? null : opts.persona } : {}) },
     orderBy: { number: "asc" },
     select: {
@@ -58,7 +58,7 @@ export async function charterRows(projectId: string, opts: { archived?: boolean;
       close: false,
     };
   });
-  // Forgiving search (ver_96): exact matches, then close ones marked `close`.
+  // Forgiving search: exact matches, then close ones marked `close`.
   const found = forgivingFilter(rows, q ?? "", (c) => `${c.title} ${c.persona?.name ?? ""}`);
   return [...found.exact, ...found.close.map((c) => ({ ...c, close: true }))];
 }

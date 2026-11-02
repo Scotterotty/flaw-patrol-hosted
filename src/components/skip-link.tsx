@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * "Skip to content" (ver_87, A4): the first Tab stop on every page. Hidden until it has focus;
+ * "Skip to content" (A4): the first Tab stop on every page. Hidden until it has focus;
  * Enter moves focus to the page's main area, so the next Tab lands on its first button.
  */
 export function SkipLink() {

@@ -124,7 +124,7 @@ export function BugTemplateForm({
   options: TemplateOptions;
   severity: Severity;
   setSeverity: (s: Severity) => void;
-  /** The team's severity names (ver_91). */
+  /** The team's severity names. */
   scale?: SeverityScale;
   files: File_[];
   include: Set<string>;

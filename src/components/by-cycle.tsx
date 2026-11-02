@@ -8,7 +8,7 @@ import { pct, totals } from "@/lib/status";
 
 /**
  * One row per test cycle: how its runs in range are going. Hand testing and
- * automation get their own rows (ver_95), so automation never reads as manual progress.
+ * automation get their own rows, so automation never reads as manual progress.
  */
 export function ByCycle({ runs, colorOf }: { runs: RunRow[]; colorOf: (platform: string) => string }) {
   const cycles = new Map<string, { key: string; name: string; platform: string; runs: RunRow[] }>();

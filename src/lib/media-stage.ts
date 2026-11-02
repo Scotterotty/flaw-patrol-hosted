@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Media } from "./automation-media";
 
-// Screenshots, videos and replays wait here (ver_93) between dropping a zip or pulling a
+// Screenshots, videos and replays wait here between dropping a zip or pulling a
 // GitHub run and pressing Save, so the browser doesn't send them twice. One folder per
 // upload on the server's own disk, cleared after a day.
 

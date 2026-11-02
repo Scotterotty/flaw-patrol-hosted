@@ -51,7 +51,7 @@ export function SuiteEditor({
   const byId = useMemo(() => new Map(cases.map((c) => [c.id, c])), [cases]);
   const selectedSet = new Set(selected);
   const inPicked = inFolder(folders, folder);
-  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  // Forgiving search: exact matches, then close ones under their own label.
   const found = forgivingFilter(
     cases.filter((c) => inPicked(c) && !(tag && !c.tags.includes(tag))),
     q,
@@ -63,7 +63,7 @@ export function SuiteEditor({
   const tickable = closeStart > 0 ? found.exact : visible;
   const allOn = tickable.length > 0 && tickable.every((c) => selectedSet.has(c.id));
   const folderName = folder ? (folders.find((f) => f.id === folder)?.name ?? "Not in a folder") : "All cases";
-  // What's still needed before Create suite works (ver_99).
+  // What's still needed before Create suite works.
   const todo = [!name.trim() && "Name the suite", !selected.length && "Add at least one case"].filter(Boolean) as string[];
 
   const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));

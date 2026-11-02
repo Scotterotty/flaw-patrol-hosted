@@ -10,9 +10,9 @@ import { useOpenCard } from "./open-cards";
 import { cx, ErrorText } from "./ui";
 
 /**
- * Account → Appearance → Loading spinners (ver_108): tick the ones you like. Long waits play
+ * Account → Appearance → Loading spinners: tick the ones you like. Long waits play
  * one of them at random; with none ticked you get the plain ring. Open to everyone.
- * Folds to one line (ver_123): what you ticked, small still pictures of up to 4, and "N of 13".
+ * Folds to one line: what you ticked, small still pictures of up to 4, and "N of 13".
  * Starts closed; open or closed is saved on your account like the other folding cards.
  */
 export function SpinnerPicker({ initial, pawn }: { initial: SpinnerId[]; pawn: string }) {

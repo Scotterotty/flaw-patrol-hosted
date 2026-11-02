@@ -15,7 +15,7 @@ const when = (iso: string) => {
 };
 
 /**
- * In the runner under a Failed or Blocked step (ver_96): the errors Sentry caught while
+ * In the runner under a Failed or Blocked step: the errors Sentry caught while
  * you were on it. Tick the ones that belong to this problem; they go into the bug box
  * and stay with the step result.
  */

@@ -23,7 +23,7 @@ const statusEnum = z.enum(["UNTESTED", "PASSED", "FAILED", "BLOCKED", "RETEST", 
 
 const resultSchema = z.object({
   status: statusEnum.exclude(["UNTESTED"]),
-  // checks: one result per check inside a shared step (ver_97, src/lib/step-checks.ts).
+  // checks: one result per check inside a shared step (src/lib/step-checks.ts).
   stepResults: z.array(z.object({ status: statusEnum, actual: z.string().max(10000).default(""), checks: z.array(statusEnum).max(500).optional() })).max(1000),
   comment: z.string().max(10000).default(""),
   elapsedSec: z.number().int().min(0).max(86400 * 7).nullable().default(null),
@@ -45,7 +45,7 @@ const resultSchema = z.object({
     )
     .max(50)
     .default([]),
-  /** Sentry errors ticked under Failed or Blocked steps (ver_96). */
+  /** Sentry errors ticked under Failed or Blocked steps. */
   sentry: z.array(z.unknown()).max(40).default([]),
 });
 export type ResultInput = z.input<typeof resultSchema>;
@@ -133,14 +133,14 @@ export async function submitResult(projectId: string, entryId: string, input: Re
       return result;
     });
 
-    // No revalidatePath here (ver_111): it made the response re-draw the case being left.
+    // No revalidatePath here: it made the response re-draw the case being left.
     // The runner refreshes after plain Save, and Save and next loads the next case fresh.
     queueSheetSync(entry.run);
     // Every case now has a result: the runner offers to close the run.
     const runDone = entry.run.state === "ACTIVE" && (await db.runEntry.count({ where: { runId: entry.runId, status: { in: OPEN } } })) === 0;
-    // Slack alerts look things up first, so they run after the response goes out (ver_111).
+    // Slack alerts look things up first, so they run after the response goes out.
     after(() => alertsForResult({ cycle: project, resultId: result.id, status: data.status, comment: data.comment, tester: user.name ?? user.email, entryId, wasOpen: OPEN.includes(entry.status), runDone }).catch((e) => console.warn("Slack alerts failed", e)));
-    // Mini game crowns (ver_96) are counted again after the response goes out.
+    // Mini game crowns are counted again after the response goes out.
     after(() => refreshCrownsFor(projectId));
     return { resultId: result.id, runId: entry.runId, runDone, quest: quests ? await questMoments(entry.runId, entryId, result.createdAt) : [] };
   });
@@ -237,9 +237,9 @@ const ALLOWED = /^(image\/(png|jpeg|gif|webp)|text\/plain|application\/(pdf|json
 /** Upload evidence while testing; it is linked to the result when the result is submitted. */
 export async function uploadAttachment(projectId: string, form: FormData) {
   return attempt(async () => {
-    // Viewers attach screenshots to bug bash bugs (ver_94); a file only joins a result someone can record.
+    // Viewers attach screenshots to bug bash bugs; a file only joins a result someone can record.
     const { user } = await requireProjectAction(projectId, "bash:join").catch(async (e) => {
-      // Someone outside the team in a bug bash (ver_115) can attach to their bugs there.
+      // Someone outside the team in a bug bash can attach to their bugs there.
       const bashId = form.get("bashId");
       if (!(e instanceof Forbidden) || typeof bashId !== "string") throw e;
       const me = await requireUser();

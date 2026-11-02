@@ -8,8 +8,9 @@ import { projectAccess } from "@/lib/session";
 export const metadata = { title: "Step-by-step replay" };
 
 /**
- * A Playwright replay (trace), opened inside Flaw Patrol (ver_93) with Playwright's own
- * viewer, shipped in public/trace-viewer. The file never leaves this server.
+ * A Playwright replay (trace), opened inside Flaw Patrol with Playwright's own
+ * viewer, copied into public/trace-viewer after npm install (scripts/copy-trace-viewer.mjs).
+ * The file never leaves this server.
  */
 export default async function ReplayPage({ params }: { params: Promise<{ key: string; id: string }> }) {
   const { key, id } = await params;

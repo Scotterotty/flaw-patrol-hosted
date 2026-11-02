@@ -21,7 +21,7 @@ export default async function HomePage() {
   const user = await requireUser();
   const t = startTiming("Umbrellas page");
   const mine = user.isAdmin ? {} : { members: { some: { userId: user.id } } };
-  // Everything the page needs before its cards, sent together (ver_100).
+  // Everything the page needs before its cards, sent together.
   const [
     projects,
     runTotals,
@@ -242,7 +242,7 @@ export default async function HomePage() {
 }
 
 /**
- * Someone signed in who isn't on any team yet (ver_115, audit findings #2 and #3): their
+ * Someone signed in who isn't on any team yet (audit findings #2 and #3): their
  * requests to join, or how to get added, with making an umbrella as a small link.
  */
 async function WaitingHome({ userId, make }: { userId: string; make: React.ReactNode }) {

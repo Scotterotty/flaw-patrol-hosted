@@ -6,7 +6,7 @@ import type { PartId } from "@/lib/report-parts";
 
 type Viewer = { id: string; isAdmin: boolean; name?: string | null; email: string };
 
-/** Lets the boxes inside offer + Add to report (ver_101), when this person can make reports. */
+/** Lets the boxes inside offer + Add to report, when this person can make reports. */
 export async function AddPartsHere({ homeId, user, who, base, children }: { homeId: string; user: Viewer; who: Who; base: string; children: ReactNode }) {
   const reports = await addTargets(homeId, user, who);
   if (!reports) return <>{children}</>;

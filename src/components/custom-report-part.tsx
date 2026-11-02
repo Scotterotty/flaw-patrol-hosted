@@ -11,7 +11,7 @@ import { headingOf, ownLabel, partOf, tabLabel, type PartId, type ReportPart } f
 import { countStatuses, STATUSES, type StatusCounts } from "@/lib/status";
 import { platformColor, type Platform } from "@/lib/umbrella";
 
-// One part of a custom report (ver_101), drawn with the same view as on its Reports tab.
+// One part of a custom report, drawn with the same view as on its Reports tab.
 
 const sum = (list: StatusCounts[]) => countStatuses(list.flatMap((c) => STATUSES.flatMap((s) => Array(c[s]).fill(s))));
 

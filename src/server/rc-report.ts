@@ -22,7 +22,7 @@ export async function saveRcReport(input: { release: string; hide: string[]; add
     const { release, hide, add, bashes } = schema.parse(input);
     const prefs = readPrefs(user.rcReport);
     const picks = { ...prefs.picks, [releaseKey(release)]: { hide, add, ...(bashes ? { bashes } : {}) } };
-    // Keep the rest of the prefs, like attached wrap-ups (ver_96).
+    // Keep the rest of the prefs, like attached wrap-ups.
     await db.user.update({ where: { id: user.id }, data: { rcReport: { ...prefs, release, picks } as Prisma.InputJsonValue } });
     revalidatePath("/", "layout");
     return {};

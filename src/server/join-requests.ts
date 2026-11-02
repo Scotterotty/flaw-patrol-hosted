@@ -12,7 +12,7 @@ import { alertJoinRequest } from "@/lib/slack";
 import { syncUmbrellaMembers } from "@/lib/umbrella";
 import { attempt, UserError } from "./result";
 
-// Ask to join (ver_115): someone signed in opens a link to a team they aren't on and asks.
+// Ask to join: someone signed in opens a link to a team they aren't on and asks.
 // The team's admins see it at the top of Settings → Members (and a dot on their avatar), and
 // Slack hears about it when alerts are set up. Add gives them the role picked; Ignore drops it.
 
@@ -81,7 +81,7 @@ export async function answerJoinRequest(requestId: string, input: z.input<typeof
 }
 
 /**
- * A Viewer asks for Member access (ver_124, persona audit #6). It goes in the same list as
+ * A Viewer asks for Member access (persona audit #6). It goes in the same list as
  * Ask to join, so admins answer both in one place: Add with Member (or any role) changes theirs.
  */
 export async function askForMemberAccess(projectId: string, path: string) {

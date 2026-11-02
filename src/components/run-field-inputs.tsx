@@ -4,8 +4,8 @@ import type { RunField } from "@/lib/run-fields";
 import { Field, Input } from "./ui";
 
 /**
- * The umbrella's run fields in a run form (ver_89). CSP version keeps its old box id.
- * A pick list is a text box with its choices as suggestions (ver_99), so a value
+ * The umbrella's run fields in a run form. CSP version keeps its old box id.
+ * A pick list is a text box with its choices as suggestions, so a value
  * nobody has added yet (a brand-new CSP version) can just be typed.
  */
 export function RunFieldInputs({ fields, values, prefix, editing = false }: { fields: RunField[]; values?: Record<string, string>; prefix: string; editing?: boolean }) {

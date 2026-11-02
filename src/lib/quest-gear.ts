@@ -72,7 +72,7 @@ export function autoSlotFor(itemId: string, gear: GearSnapshot, touched: readonl
   return SLOTS.map((s) => s.id).find((s) => fitsOf(itemId).includes(s) && !gear[s] && !touched.includes(s)) ?? null;
 }
 
-/** Free pawns, then the four that unlock from the quests themselves. "My picture" (ver_95) is your profile picture. */
+/** Free pawns, then the four that unlock from the quests themselves. "My picture" is your profile picture. */
 export const PAWNS = [
   { id: "photo", emoji: "🖼️", label: "My picture" },
   { id: "classic", emoji: "♟️", label: "Classic" },
@@ -95,7 +95,7 @@ export const PAWNS = [
 export type PawnId = (typeof PAWNS)[number]["id"];
 export const pawnOf = (id: string | null | undefined) => PAWNS.find((p) => p.id === id) ?? PAWNS[1];
 
-/** The profile picture a "My picture" pawn shows (ver_95). */
+/** The profile picture a "My picture" pawn shows. */
 export const photoUrl = (userId: string, avatarAt: Date | string | null | undefined) => (avatarAt ? `/api/avatars/${userId}?v=${new Date(avatarAt).getTime()}` : null);
 
 /** Pawn colors. "accent" follows each viewer's theme. */

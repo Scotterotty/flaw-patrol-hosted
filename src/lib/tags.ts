@@ -1,4 +1,4 @@
-// Bracket tags (ver_96): "[WEB] - Hub - Space List" becomes the tag Web and the title
+// Bracket tags: "[WEB] - Hub - Space List" becomes the tag Web and the title
 // "Hub - Space List". Only leading [X] tokens count; brackets later in a title stay text.
 
 const MAX_TAG = 24;

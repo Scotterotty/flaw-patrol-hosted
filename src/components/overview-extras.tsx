@@ -17,15 +17,15 @@ export function InviteTeam({
   alone = true,
   nudge,
 }: {
-  /** The before-invite reminder (ver_96), for admins until they choose what roles can do. */
+  /** The before-invite reminder, for admins until they choose what roles can do. */
   nudge?: ReactNode;
-  /** Only one person is on it. After an invite the card stays (showing who joined) until Done (ver_94). */
+  /** Only one person is on it. After an invite the card stays (showing who joined) until Done. */
   alone?: boolean;
   projectId: string;
   projectName: string;
-  /** Workspace settings → Email is set up (ver_92): invites go out by email. */
+  /** Workspace settings → Email is set up: invites go out by email. */
   canEmail?: boolean;
-  /** In an umbrella (ver_91): people join the umbrella, so they get every test cycle in it. */
+  /** In an umbrella: people join the umbrella, so they get every test cycle in it. */
   umbrella?: { id: string; name: string; hubId: string } | null;
 }) {
   const router = useRouter();

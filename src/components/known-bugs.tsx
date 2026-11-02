@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { KnownBug } from "@/lib/known-bugs";
 import { Button, cx } from "./ui";
 
-// Known bugs (ver_96): bugs found on this case in earlier runs, above the steps, with
+// Known bugs: bugs found on this case in earlier runs, above the steps, with
 // Still happens and Didn't happen. Both undo with one click until the case is saved.
 
 export type KnownCheck = "still" | "gone";

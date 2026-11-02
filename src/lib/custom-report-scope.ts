@@ -9,7 +9,7 @@ import { newestRcNames } from "./story-coverage";
 import { libraryProjectIds, loadUmbrella } from "./umbrella";
 import { filterWords, type CustomScope } from "./custom-report-data";
 
-// Custom reports (ver_101): the scope of a test cycle's or an umbrella's Custom reports tab.
+// Custom reports: the scope of a test cycle's or an umbrella's Custom reports tab.
 
 type Viewer = { id: string; isAdmin: boolean; name?: string | null; email: string };
 type Cycle = { id: string; key: string; name: string; groupId: string | null; platform: string; rcName: string };

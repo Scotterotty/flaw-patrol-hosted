@@ -3,7 +3,7 @@ import { noteCounts, parseCharter, parsePersona, parseSessionLog } from "./chart
 import { db } from "./db";
 import { releaseKey } from "./rc-status";
 
-// Wrap-ups (ver_96): bug bash reports and exploring sessions you can attach to Release
+// Wrap-ups: bug bash reports and exploring sessions you can attach to Release
 // status and every Reports tab. They never touch a pass rate; they show as their own
 // section, "Exploring and bug bashes · Not counted in pass rates".
 

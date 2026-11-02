@@ -23,7 +23,7 @@ export default async function EditCasePage({ params, searchParams }: { params: P
   const c = await loadCase(project.id, number);
   const steps = parseCaseSteps(c.versions[0]?.steps);
   const ctx = await editorContext(project.id, sharedStepIdsIn(steps), c.personaId, c.type === "EXPLORATORY");
-  // Create and write steps on the Requirements page (ver_96): the other new cases wait in `queue`.
+  // Create and write steps on the Requirements page: the other new cases wait in `queue`.
   const story = sp.req && /^[A-Z][A-Z0-9_]*-\d+$/.test(sp.req) ? sp.req : null;
   const rest = (sp.queue ?? "").split(",").filter((n) => /^\d+$/.test(n));
   const total = Math.max(Number(sp.total) || 1, rest.length + 1);

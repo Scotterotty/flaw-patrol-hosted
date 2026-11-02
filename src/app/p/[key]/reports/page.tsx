@@ -53,7 +53,7 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
   const sp = await searchParams;
   const { project, user, who } = await projectAccess(key);
   const view: View = (VIEWS.find((v) => v.id === sp.view)?.id ?? "status") as View;
-  // Run kinds come from the umbrella (ver_95); a test cycle outside one has none.
+  // Run kinds come from the umbrella; a test cycle outside one has none.
   const kindGroup = await umbrellaOf(project);
   const f = parseFilters(sp);
   const library = await libraryProjectIds(project);
@@ -62,7 +62,7 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
     db.testSuite.findMany({ where: { projectId: { in: library } }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     releaseOptions(project.id),
     db.savedReport.findMany({ where: { projectId: project.id, OR: [{ shared: true }, { createdById: user.id }] }, orderBy: { name: "asc" } }),
-    // Priority, Folder and Tag on every tab but Regression and Session findings (ver_139).
+    // Priority, Folder and Tag on every tab but Regression and Session findings.
     view === "regression" || view === "findings" ? null : caseFilterOptions(project.id),
   ]);
   const findingOpts = view === "findings" ? await findingOptions(project.id) : null;
@@ -74,7 +74,7 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
   const stepCounts = sum(runs.map((r) => r.steps));
   const scope = f.runNumber ? `Run R${f.runNumber}` : f.release ? `Release ${f.release}` : f.allTime ? "All time" : await reportRange(f.from, f.to, sp, await mySpelling());
 
-  // Attach wrap-ups (ver_96): bug bashes and exploring carried on this report, outside its pass rates.
+  // Attach wrap-ups: bug bashes and exploring carried on this report, outside its pass rates.
   const wrapKey = reportsWrapKey(`/p/${project.key}/reports`);
   const wrapPick = wrapPickOf(user.rcReport, wrapKey);
   const wrapUps = await attachedWrapUps([project.id], wrapPick, wrapPick.auto ? (f.release ? await releaseStart([project.id], f.release) : f.from) : null);
@@ -134,7 +134,7 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
           To
           <Input type="date" name="to" defaultValue={day(f.to)} className="mt-0.5 w-40" />
         </label>
-        {/* No suites yet (ver_118): no filter with only All suites. */}
+        {/* No suites yet: no filter with only All suites. */}
         {suites.length > 0 && (
           <Select name="suite" defaultValue={f.suiteId ?? ""} className="w-auto" aria-label="Suite">
             <option value="">All suites</option>
@@ -191,14 +191,14 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
         )}
       </AutoFilterForm>
 
-      {/* The one-line answer (ver_124, persona audit #10), following the dates and filters. */}
+      {/* The one-line answer (persona audit #10), following the dates and filters. */}
       {view !== "regression" && runs.length > 0 && <ReportSummaryBar summary={await summaryFor(project.id, f, runs, caseFilterWords(scope, f))} />}
 
       <ScrollTabs label="Report views" className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200">
         {VIEWS.map((v) => (
           <Link
             key={v.id}
-            // Your filters stay when you switch tabs (ver_139).
+            // Your filters stay when you switch tabs.
             href={`?${qs({ view: v.id })}`}
             className={cx("-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap", view === v.id ? "border-accent-600 font-medium text-accent-700" : "border-transparent text-slate-600 hover:text-slate-900")}
           >

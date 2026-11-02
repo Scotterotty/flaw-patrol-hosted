@@ -11,7 +11,7 @@ export type Action =
   | "library:move" // move a test cycle's own cases into the umbrella's Case library
   | "import"
   | "project:manage" // test cycle name and description
-  | "project:separate" // keep a test cycle's members separate from its umbrella's (ver_96)
+  | "project:separate" // keep a test cycle's members separate from its umbrella's
   | "members:manage" // members and roles: always admins only
   | "jira:manage" // Jira connection, bug template, Slack alerts, GitHub repos
   | "project:group" // put the project in a project group or take it out
@@ -22,26 +22,26 @@ export type Action =
   | "run:delete"
   | "run:import" // import a run from a sheet, upload or pull automation results
   | "run:execute" // record results, raise defects, attach evidence
-  | "risk:move" // move requirements on the Risk board (ver_93)
+  | "risk:move" // move requirements on the Risk board
   | "defect:edit"
   | "umbrella:shortcuts" // umbrellas (role on the hub): change the shortcuts on its Projects-page card
   | "umbrella:rc" // start the next release: one new project per platform
   | "umbrella:manage" // platforms and their suites
-  | "umbrella:fields" // run fields: the extra details runs ask for (ver_89)
+  | "umbrella:fields" // run fields: the extra details runs ask for
   | "cycle:create" // umbrellas (role on the hub): make a new test cycle under it
   | "cycle:archive" // archive test cycles
   | "umbrella:archive" // archive the umbrella with its projects, or restore it
-  | "bash:join" // join a bug bash, log bugs in it and attach screenshots: Viewers too (ver_94)
-  | "case:flag" // flag a case that needs attention, with a note: Viewers too (ver_94)
-  | "glossary:edit" // add, answer and edit Glossary terms (ver_113); anyone, Viewers too, can read and ask
-  | "bugtemplate:edit" // make and edit bug templates (ver_119)
-  | "bugtemplate:delete"; // delete bug templates (ver_119): admins by default
+  | "bash:join" // join a bug bash, log bugs in it and attach screenshots: Viewers too
+  | "case:flag" // flag a case that needs attention, with a note: Viewers too
+  | "glossary:edit" // add, answer and edit Glossary terms; anyone, Viewers too, can read and ask
+  | "bugtemplate:edit" // make and edit bug templates
+  | "bugtemplate:delete"; // delete bug templates: admins by default
 
-// Viewers (ver_94) see everything, flag cases and join bug bashes; nothing in the Roles grid.
+// Viewers see everything, flag cases and join bug bashes; nothing in the Roles grid.
 const RANK: Record<Role, number> = { VIEWER: 0, TESTER: 1, LEAD: 2, ADMIN: 3 };
 
 /**
- * The rows of the "What can they do" card (ver_82, opened up in ver_96). Each umbrella,
+ * The rows of the "What can they do" card (opened up in ver_96). Each umbrella,
  * and each test cycle that isn't in one, picks a preset or ticks the table. `std` is the
  * minimum role under Everyone (the default), `tight` under Tighter. `locked` rows stay
  * admin-only.
@@ -78,7 +78,7 @@ export const ROLE_ROWS: { id: string; group: string; label: string; actions: Act
   { id: "archcycles", group: "Archive and delete", label: "Archive test cycles and the umbrella", actions: ["cycle:archive", "umbrella:archive"], std: "ADMIN", tight: "ADMIN", archive: true },
 ];
 
-// Moving a test cycle into or out of a (pre-umbrella) project group: anyone (ver_96).
+// Moving a test cycle into or out of a (pre-umbrella) project group: anyone.
 const NEEDS = { "project:group": "TESTER", "bash:join": "VIEWER", "case:flag": "VIEWER" } as Record<Action, Role>;
 for (const row of ROLE_ROWS) for (const a of row.actions) NEEDS[a] = row.std;
 
@@ -165,7 +165,7 @@ const SHORT_WORDS: Record<string, string> = {
 const listOf = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 
 /**
- * What each role can do in one paragraph, written from ROLE_ROWS (ver_91), so the summary
+ * What each role can do in one paragraph, written from ROLE_ROWS, so the summary
  * can't disagree with the grid under it or with Getting Started.
  */
 export function roleSummary(rules?: RoleRules | null): string {

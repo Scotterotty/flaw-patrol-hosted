@@ -9,7 +9,7 @@ import { RARITY_STYLE } from "./rarity";
 import { Button, Card, cx } from "./ui";
 
 /**
- * The Quest map page's "Your pawn" card (ver_94): your pawn as it walks on every
+ * The Quest map page's "Your pawn" card: your pawn as it walks on every
  * map, with Change gear (the equip screen in a panel) and Change pawn. The
  * Account "Dress your pawn" link and the find pop-up land here with ?gear=1.
  */

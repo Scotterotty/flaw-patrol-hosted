@@ -8,7 +8,7 @@ import type { ReportData } from "@/components/bash-report";
 /** The bash on a /p/KEY/bashes/ID page, for someone who can see the project. */
 export async function bashPageData(key: string, id: string) {
   const { project, user, who, guest } = await projectAccessOrGuest(key);
-  // A guest (ver_115) sees only the bash their link opened.
+  // A guest sees only the bash their link opened.
   if (guest && guest.bashId !== id) notFound();
   const full = await loadBashFull(id);
   if (!full || full.bash.projectId !== project.id) notFound();
@@ -27,7 +27,7 @@ export function reportData(r: BashReport, file?: ReportData["file"]): ReportData
     seen: 1 + b.plusOnes.length,
     key: b.bug ? (b.bug.externalKey ?? `D-${b.bug.number}`) : "",
     url: b.bug?.externalUrl ?? null,
-    // ver_94: unfiled bugs stay on the report, tagged, with Jira's reason.
+    // Unfiled bugs stay on the report, tagged, with Jira's reason.
     unfiled: b.bug || !wrapped ? null : b.review === "skip" ? ("left" as const) : ("not-filed" as const),
     why: b.fileError,
     attachments: b.attachments,

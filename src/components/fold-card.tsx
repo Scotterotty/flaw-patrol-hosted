@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Card, cx } from "./ui";
 
 /**
- * A card that folds to one line (ver_96): chevron, title, a one-line summary of what's
+ * A card that folds to one line: chevron, title, a one-line summary of what's
  * set inside, and an optional pill on the right. Used by the Account page, the Mini game
  * sections and "What can they do". The caller owns the open state.
  */

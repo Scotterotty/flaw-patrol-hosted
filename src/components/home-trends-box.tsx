@@ -20,7 +20,7 @@ const fmt = (n: number) => n.toLocaleString("en-US");
 const plural = (n: number, w: string, many = `${w}s`) => `${fmt(n)} ${n === 1 ? w : many}`;
 
 /**
- * How testing is going (ver_131) on an umbrella's home: pass rate by release or by week,
+ * How testing is going on an umbrella's home: pass rate by release or by week,
  * manual and automated apart, with the Flaky and Keeps failing lists. Hide, and how many
  * releases to show, are saved for this person only.
  */
@@ -49,7 +49,7 @@ export function HomeTrendsBox({
 
   const all = mode === "release" ? data.release : data.week;
   const shown = count ? all.slice(-count) : all;
-  // By build (ver_133): one bar per automated run.
+  // By build: one bar per automated run.
   const builds = count ? data.build.slice(-buildCount(count)) : data.build;
   const empty = !data.release.length && !data.week.some((p) => p.manCases + p.autoCases);
   // The tiles read the newest release, or the newest week with results.
@@ -228,7 +228,7 @@ export function HomeTrendsBox({
 /** "Nov 1, 1:05 PM PST", in the viewer's own time zone. */
 const timeOf = (iso: string, zone?: string) => new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short", timeZone: zone });
 
-/** By build (ver_133): the newest automated run, and how the last ones went, in one line. */
+/** By build: the newest automated run, and how the last ones went, in one line. */
 function BuildHealth({ points }: { points: BuildPoint[] }) {
   const zone = useZone();
   const last = points.at(-1);

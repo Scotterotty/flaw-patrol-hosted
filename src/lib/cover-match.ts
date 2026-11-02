@@ -1,4 +1,4 @@
-// "Might already cover this" (ver_96): cases whose titles share the words that matter with a
+// "Might already cover this": cases whose titles share the words that matter with a
 // requirement or a new case's title, so nobody writes the same case twice.
 
 const SKIP = new Set(["the", "and", "for", "with", "from", "that", "this", "into", "when", "can", "not", "are", "its", "you", "your", "our", "has", "have", "should", "able", "new", "use", "make", "test", "case", "cases", "check", "verify", "works", "work"]);

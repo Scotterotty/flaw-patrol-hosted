@@ -13,9 +13,9 @@ export type HistoryRun = {
   comment: string;
   testerName: string;
   caseVersion: number;
-  /** Test data (ver_138): each row's result, or null when that run had none. */
+  /** Test data: each row's result, or null when that run had none. */
   rows?: ResultStatus[] | null;
-  /** `heading` marks a shared step's heading row, which takes no result (ver_110). */
+  /** `heading` marks a shared step's heading row, which takes no result. */
   steps: { number: string; action: string; status: ResultStatus; actual: string; heading?: boolean }[];
   defects: {
     stepIndex: number | null;
@@ -24,7 +24,7 @@ export type HistoryRun = {
   attachments: { id: string; fileName: string }[];
 };
 
-/** Regression note (ver_93): "See what RC 21 looked like" opens that result in the history panel. */
+/** Regression note: "See what RC 21 looked like" opens that result in the history panel. */
 export const SHOW_HISTORY_EVENT = "flaw-patrol:show-history";
 
 /** "Bug still occurs" hands a past run to the runner on the same page. */

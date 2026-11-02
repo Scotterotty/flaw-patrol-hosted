@@ -7,7 +7,7 @@ import { renderMail, type Mail } from "./mail-render";
 
 export { renderMail, type Mail };
 
-// Workspace settings → Email (ver_92). Each company points Flaw Patrol at its own
+// Workspace settings → Email. Each company points Flaw Patrol at its own
 // mail server; until then mailMode is "off" and invites are copied by hand.
 
 export const MAIL_PRESETS = {

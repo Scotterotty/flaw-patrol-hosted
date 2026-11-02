@@ -1,4 +1,4 @@
-// Settings → Jira → Requirements (ver_82, renamed from Stories in ver_89). Shared by server code and the settings form.
+// Settings → Jira → Requirements (renamed from Stories in ver_89). Shared by server code and the settings form.
 
 /**
  * `types`: the Jira issue types that count as requirements (loaded from Jira since ver_89).

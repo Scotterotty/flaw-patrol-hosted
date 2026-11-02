@@ -38,7 +38,7 @@ export function WhatsNewLine({ i, showMe, onGo }: { i: WhatsNewItem; showMe?: bo
 }
 
 /**
- * The What's new window (ver_88): opens over whatever page you land on, once per
+ * The What's new window: opens over whatever page you land on, once per
  * version. Got it, ✕, Esc and a click outside all mark it seen.
  */
 export function WhatsNewWindow({ entries }: { entries: WhatsNewEntry[] }) {

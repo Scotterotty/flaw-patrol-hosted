@@ -1,4 +1,4 @@
-// Which files in a GitHub artifact hold the results (ver_85). A pattern without a
+// Which files in a GitHub artifact hold the results. A pattern without a
 // slash matches the file's own name in any folder ("*.xml"); one with a slash
 // matches the whole path ("reports/**/*.xml"). Several patterns: comma separated.
 

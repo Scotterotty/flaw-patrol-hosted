@@ -17,8 +17,8 @@ import { joinRequestsFor } from "@/lib/link-access-server";
 
 export async function TopBar({ user, project }: { user: { id: string; name: string | null; email: string; avatarAt: Date | null; gameEnabled?: boolean; gameTitle?: string | null; gameFrame?: string | null; isAdmin?: boolean }; project?: { key: string; name: string; group?: { id: string; name: string } | null; hub?: string } }) {
   const badge = badgeOf(user);
-  // Ask to join (ver_115): a dot on admins' avatars while someone is waiting.
-  // The join dot, the sign-in secret reminder and the live bug bash pill are asked for together (ver_120).
+  // Ask to join: a dot on admins' avatars while someone is waiting.
+  // The join dot, the sign-in secret reminder and the live bug bash pill are asked for together.
   const [joins, secret, live, me] = await Promise.all([
     joinRequestsFor({ id: user.id, isAdmin: !!user.isAdmin }).catch(() => ({ count: 0, href: null })),
     secretSoon(!!user.isAdmin),
@@ -71,7 +71,7 @@ export async function TopBar({ user, project }: { user: { id: string; name: stri
   );
 }
 
-// Workspace admins get a reminder 14 days before a company sign-in's secret expires (ver_92).
+// Workspace admins get a reminder 14 days before a company sign-in's secret expires.
 async function secretSoon(admin: boolean) {
   if (!admin) return null;
   const soon = await db.signInProvider
@@ -90,7 +90,7 @@ function SecretBanner({ soon: p }: { soon: { id: string; label: string; secretEx
   );
 }
 
-// A bug bash on now in this umbrella (ver_93): "🐞 Bug bash live · Join" on every page in it.
+// A bug bash on now in this umbrella: "🐞 Bug bash live · Join" on every page in it.
 async function liveBashFor(projectKey: string) {
   const p = await db.project.findUnique({ where: { key: projectKey }, select: { id: true, key: true, groupId: true } });
   if (!p) return null;

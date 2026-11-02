@@ -2,7 +2,7 @@ import "server-only";
 import { jiraFor, type JiraIssue } from "./jira";
 import { jiraConfigFor } from "./umbrella";
 
-// Jira stories (ver_82): cases store only story keys; titles and Jira statuses are
+// Jira stories: cases store only story keys; titles and Jira statuses are
 // read from Jira when a page opens and kept for 10 minutes.
 
 import { DEFAULT_STORIES, parseStoriesConfig } from "./stories-config";

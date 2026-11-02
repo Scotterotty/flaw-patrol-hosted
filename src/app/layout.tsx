@@ -112,11 +112,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const user = await currentUser();
   const spotify = parseSpotifyLinks(user?.spotifyLinks);
   const spelling = await mySpelling();
-  // Your time zone (ver_137), saved by your browser, so server-drawn times are on your clock.
+  // Your time zone, saved by your browser, so server-drawn times are on your clock.
   const zone = await viewerZone();
-  // What's new after sign-in (ver_88): versions this person hasn't closed yet.
+  // What's new after sign-in: versions this person hasn't closed yet.
   const whatsNew = user && (user.whatsNewSeen ?? 0) < BUILD ? unseenFor(user.whatsNewSeen, await viewerOf(user)) : [];
-  // Mini game crowns (ver_96): tell players once when they take or lose one.
+  // Mini game crowns: tell players once when they take or lose one.
   const crowns = user?.gameEnabled ? await crownChanges(user).catch(() => null) : null;
   return (
     <html
@@ -130,10 +130,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       data-motion={user?.reduceMotion ? "reduce" : undefined}
       data-contrast={user?.strongContrast ? "more" : undefined}
       data-links={user?.underlineLinks ? "underline" : undefined}
-      // Color vision (ver_96): another status palette, and shapes and patterns on statuses.
+      // Color vision: another status palette, and shapes and patterns on statuses.
       data-vision={user && user.colorVision !== "standard" ? user.colorVision : undefined}
       data-shapes={user && shapesOn(user.colorVision, user.visionShapes) ? "on" : undefined}
-      // Loading spinners (ver_108): the ones you ticked, and your quest pawn for Pawn hop.
+      // Loading spinners: the ones you ticked, and your quest pawn for Pawn hop.
       data-spinners={cleanSpinners(user?.spinners).join(" ")}
       data-pawn={pawnEmoji(user?.questPawn)}
       style={fontVars(user?.fontBody ?? "poppins", user?.fontHeading ?? "bungee")}
@@ -152,12 +152,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             ) : (
               children
             );
-            // Glossary (ver_113): underlines and Look it up on every page once you're signed in.
+            // Glossary: underlines and Look it up on every page once you're signed in.
             return user ? <GlossaryProvider underline={user.glossaryUnderline}>{page}</GlossaryProvider> : page;
           })()}
           {user?.gameEnabled && user.questMap && <QuestToaster />}
           {crowns && crowns.changes.length > 0 && <CrownToaster changes={crowns.changes} />}
-          {/* Your spinner whenever something takes more than a third of a second (ver_116). */}
+          {/* Your spinner whenever something takes more than a third of a second. */}
           <BusyCorner />
           {whatsNew.length > 0 && <WhatsNewWindow entries={whatsNew} />}
           </NavOrderProvider>

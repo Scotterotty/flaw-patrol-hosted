@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "fs";
 import path from "path";
 
-// Dropdowns size to their longest choice (ver_134): a fixed width like w-28
+// Dropdowns size to their longest choice: a fixed width like w-28
 // cut "Member" to "Membe" in Poppins. A fixed width is only allowed as a
 // minimum (min-w-*) next to w-auto, so long names still grow to fit.
 const walk = (dir: string): string[] =>

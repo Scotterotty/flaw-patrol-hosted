@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { cx } from "./ui";
 
-/** List | Risk board (ver_93): two views of the same Jira requirements. */
+/** List | Risk board: two views of the same Jira requirements. */
 export function RequirementsViews({ base, current, release }: { base: string; current: "list" | "risk"; release?: string }) {
   const q = release ? `?release=${encodeURIComponent(release)}` : "";
   const tab = (id: "list" | "risk", label: string, href: string) => (

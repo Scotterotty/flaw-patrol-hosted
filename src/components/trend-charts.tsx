@@ -75,7 +75,7 @@ export function PassRateOverTime({ buckets }: { buckets: TrendBucket[] }) {
   );
 }
 
-/** Hand testing and automation as two lines (ver_95), so automation never lifts the manual pass rate. */
+/** Hand testing and automation as two lines, so automation never lifts the manual pass rate. */
 export function SplitPassRate({ buckets }: { buckets: TrendBucket[] }) {
   const n = buckets.length;
   const x = (i: number) => pad.l + (n === 1 ? 0 : (i * (W - pad.l - pad.r)) / (n - 1));

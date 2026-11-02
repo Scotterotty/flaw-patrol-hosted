@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button, cx, Input } from "./ui";
 
 /**
- * Pick a platform, or make a new one (ver_99). Nothing is picked to start with.
+ * Pick a platform, or make a new one. Nothing is picked to start with.
  * A new name joins the umbrella's platforms when the test cycle is made
  * (addUmbrellaProject), so it shows up everywhere platforms are picked.
  */

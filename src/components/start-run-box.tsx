@@ -21,7 +21,7 @@ type What = "all" | "suite" | "cases";
 export type RunBoxPreset = { what: "all" } | { what: "suite"; suiteId: string } | { what: "cases"; caseIds: string[] };
 
 /**
- * "Start a run" (ver_76): one box everywhere. Pick what to run from the library
+ * "Start a run": one box everywhere. Pick what to run from the library
  * (all of it, a suite, or ticked cases), then the test cycles to run it in.
  * The box loads its choices when it opens.
  */
@@ -46,17 +46,17 @@ export function StartRunBox({
   defaultName?: string;
   initialOpen?: boolean;
   disabled?: boolean;
-  /** An exploratory charter: the box says "Start session" (ver_89). */
+  /** An exploratory charter: the box says "Start session". */
   session?: boolean;
   /** Opens by itself when the page link has ?start=<this> (ver_95: the setup card's Start a run). */
   openParam?: string;
 }) {
   const [open, setOpen] = useState(initialOpen && !disabled);
-  // Starting and opening the run (ver_108): the box stays up and can't be closed until the run page shows.
+  // Starting and opening the run: the box stays up and can't be closed until the run page shows.
   const [busy, setBusy] = useState(false);
   const params = useSearchParams();
   const asked = params.get("start");
-  // Release filled in when the release box's "Start a run instead" opened this (ver_137).
+  // Release filled in when the release box's "Start a run instead" opened this.
   const [release, setRelease] = useState("");
   useEffect(() => {
     if (openParam && asked === openParam && !disabled) {
@@ -144,7 +144,7 @@ function Box({
   return <Form opts={opts} preset={preset} defaultName={defaultName} session={session} initialRelease={release} onClose={onClose} onBusy={onBusy} />;
 }
 
-/** A Viewer who opens the box (ver_137): why they can't, and the way up, not a dead end. */
+/** A Viewer who opens the box: why they can't, and the way up, not a dead end. */
 function ViewerAsk({ scope, line }: { scope: RunBoxScope; line: string }) {
   const [state, setState] = useState<"idle" | "asking" | "asked">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -201,16 +201,16 @@ function Form({
 }) {
   const opts = loaded;
   const router = useRouter();
-  // What kind of run (ver_95), asked first in an umbrella. A charter session skips it.
+  // What kind of run, asked first in an umbrella. A charter session skips it.
   const askKind = !!opts.umbrella && !session && opts.kinds.length > 0;
   const [kinds, setKinds] = useState(opts.kinds);
   const [kindId, setKindId] = useState<string | null>(askKind ? null : "");
   const kind = kinds.find((k) => k.id === kindId);
-  // "+ New test cycle" (ver_95): made when you press Start, with this run in it.
+  // "+ New test cycle": made when you press Start, with this run in it.
   const [newCycle, setNewCycle] = useState<{ open: boolean; name: string; platform: string }>({ open: !!opts.newCycle?.empty && !!opts.newCycle.canCreate, name: "", platform: "" });
   const makingCycle = newCycle.open && !!newCycle.name.trim();
   const [pending, start] = useTransition();
-  // Which Start button was pressed, and the run that's opening (ver_108).
+  // Which Start button was pressed, and the run that's opening.
   const [pressed, setPressed] = useState<"plain" | "test" | null>(null);
   const [opening, setOpening] = useState<{ what: string; cases: number; runs: number } | null>(null);
   const busy = pending || !!opening;
@@ -221,7 +221,7 @@ function Form({
   const [what, setWhat] = useState<What | null>(preset?.what ?? null);
   const [suiteId, setSuiteId] = useState(preset?.what === "suite" ? preset.suiteId : "");
   const [picked, setPicked] = useState<string[]>(preset?.what === "cases" ? preset.caseIds.filter((id) => opts.cases.some((c) => c.id === id)) : []);
-  // Nothing ticked for you (Scott, ver_99), except the test cycle the box was opened from (ver_85).
+  // Nothing ticked for you (Scott, ver_99), except the test cycle the box was opened from.
   const [cycles, setCycles] = useState<string[]>(opts.hereId && opts.cycles.some((c) => c.id === opts.hereId) ? [opts.hereId] : []);
   const [q, setQ] = useState("");
   const [folder, setFolder] = useState("");
@@ -231,12 +231,12 @@ function Form({
   const [more, setMore] = useState(false);
   const [assignee, setAssignee] = useState("");
   const [release, setRelease] = useState(initialRelease ?? "");
-  // "Use each test cycle's own" release, when the ticked test cycles have different ones (ver_99).
+  // "Use each test cycle's own" release, when the ticked test cycles have different ones.
   const [cycleRelease, setCycleRelease] = useState(false);
   // Bumped as run fields are typed in, so the still-needed list keeps up.
   const [, setTyped] = useState(0);
   const presetName = defaultName ?? (preset?.what === "suite" ? `${opts.suites.find((s) => s.id === preset.suiteId)?.name ?? "Suite"} ${today()}` : preset?.what === "cases" ? `Picked cases ${today()}` : "");
-  // The name box starts empty; the gray name is used if it's left blank (ver_99).
+  // The name box starts empty; the gray name is used if it's left blank.
   const [typedName, setName] = useState("");
 
   const suite = opts.suites.find((s) => s.id === suiteId);
@@ -244,14 +244,14 @@ function Form({
   const onlyCycle = what === "suite" && suite && !suite.shared && opts.cycles.some((c) => c.id === suite.ownerId) ? suite.ownerId : null;
   const ticked = cycles.filter((id) => !onlyCycle || id === onlyCycle);
   const chosen = opts.cycles.filter((c) => ticked.includes(c.id));
-  // Each ticked test cycle's release, offered as a "Use 2.1" suggestion, never filled in (ver_99).
+  // Each ticked test cycle's release, offered as a "Use 2.1" suggestion, never filled in.
   const rcs = [...new Set(chosen.map((c) => c.rcName.trim()).filter(Boolean))];
   const autoName = kind ? `${kind.name} ${today()}` : what === "all" ? `Full library ${today()}` : what === "suite" ? `${suite?.name ?? "Suite"} ${today()}` : what === "cases" ? `Picked cases ${today()}` : "";
   const samePick = !!preset && what === preset.what && (preset.what !== "suite" || suiteId === preset.suiteId);
   const grayName = samePick && presetName ? presetName : autoName;
   const name = typedName.trim() || grayName;
 
-  // Forgiving search (ver_96): exact matches, then close ones under their own label.
+  // Forgiving search: exact matches, then close ones under their own label.
   const { visible, closeStart } = useMemo(() => {
     const inPicked = inFolder(opts.folders, folder);
     const found = forgivingFilter(
@@ -264,11 +264,11 @@ function Form({
   // Tick all takes the exact matches only, when there are some.
   const tickable = closeStart > 0 ? visible.slice(0, closeStart) : visible;
   const pickedSet = new Set(picked);
-  // New cases (ver_96): a button to tick the ones shown, and a reminder for ones left out of picked folders.
+  // New cases: a button to tick the ones shown, and a reminder for ones left out of picked folders.
   const newShown = tickable.filter((c) => opts.news[c.id] === "new" && !pickedSet.has(c.id));
   const pickedFolders = new Set(opts.cases.filter((c) => pickedSet.has(c.id)).map((c) => c.folderId));
   const leftOut = opts.cases.filter((c) => opts.news[c.id] === "new" && !pickedSet.has(c.id) && pickedFolders.has(c.folderId));
-  // No cases anywhere the box can pick from (ver_118).
+  // No cases anywhere the box can pick from.
   const noCases = opts.allCount === 0 && opts.cases.length === 0;
   const count = what === "all" ? opts.allCount : what === "suite" ? (suite?.cases ?? 0) : what === "cases" ? picked.length : 0;
   const members = chosen.length === 1 ? chosen[0].members : [];
@@ -283,7 +283,7 @@ function Form({
       if (!startKind(id)) router.push(id === "rc" ? `/g/${opts.umbrella!.id}?start=rc` : `/p/${opts.umbrella!.hubKey}/bashes?bash=start`);
       return;
     }
-    // A kind's usual suite is offered as "Use it" under What to run, not picked for you (ver_99).
+    // A kind's usual suite is offered as "Use it" under What to run, not picked for you.
     setKindId(id);
   };
   const usual = kind?.suiteId ? opts.suites.find((x) => x.id === kind.suiteId) : undefined;
@@ -309,7 +309,7 @@ function Form({
   const ready = todo.every(([ok]) => ok);
   const submit = (goTest: boolean) => {
     if (!what) return;
-    // Outside the transition, so the pressed button and the strip show straight away (ver_116).
+    // Outside the transition, so the pressed button and the strip show straight away.
     setPressed(goTest ? "test" : "plain");
     start(async () => {
       setError(null);
@@ -338,9 +338,9 @@ function Form({
       });
       if (!res.ok) return setError(res.error);
       const [first] = res.runs;
-      // The box stays up with "Opening it…" until the next page shows (ver_108).
+      // The box stays up with "Opening it…" until the next page shows.
       setOpening({ what: res.runs.length === 1 ? `R${first.number} ${name}` : `${res.runs.length} ${session ? "sessions" : "runs"}`, cases: count, runs: res.runs.length });
-      // Handed to someone else (ver_85): land on the run page with a link to send them.
+      // Handed to someone else: land on the run page with a link to send them.
       // "Opening…" lasts until the next page replaces this one. Already on that page (a runs
       // list): it just updates, so the box goes now.
       const to = res.runs.length === 1 ? `/p/${first.key}/runs/${first.number}${goTest ? "/execute" : handed ? `?handed=${assignee}` : ""}` : opts.umbrella ? `/g/${opts.umbrella.id}/runs` : `/p/${first.key}/runs`;
@@ -369,7 +369,7 @@ function Form({
   return (
     <div className="space-y-4" onInput={() => setTyped((t) => t + 1)}>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
-      {/* Your spinner from the moment you press Start (ver_116), then "Opening it…" (ver_108). */}
+      {/* Your spinner from the moment you press Start, then "Opening it…". */}
       {(opening || (pending && pressed)) && (
         <BusyStrip testId={opening ? "run-opening" : "run-making"}>
           {opening ? <OpeningRun {...opening} session={session} /> : <MakingRun what={name.trim() || autoName} cases={count} runs={Math.max(1, chosen.length + (makingCycle ? 1 : 0))} session={session} />}
@@ -415,7 +415,7 @@ function Form({
           </p>
         )}
         {noCases ? (
-          // Nothing to run yet (ver_118): one note instead of "All 0 active cases".
+          // Nothing to run yet: one note instead of "All 0 active cases".
           <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900" data-testid="run-no-cases">
             <p>There are no test cases here yet, so there&apos;s nothing to run.</p>
             {(opts.canCases || opts.canImport) && (
@@ -501,7 +501,7 @@ function Form({
                 </option>
               ))}
             </Select>
-            {/* Option B of the Tick all mockup (ver_93): a real button by the filters, not a footer link. */}
+            {/* Option B of the Tick all mockup: a real button by the filters, not a footer link. */}
             {(() => {
               const allOn = tickable.length > 0 && tickable.every((c) => pickedSet.has(c.id));
               const ids = new Set(tickable.map((c) => c.id));
@@ -742,7 +742,7 @@ function Form({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-3">
-        {/* What's still needed (ver_99), so it's clear why Start is grayed out. */}
+        {/* What's still needed, so it's clear why Start is grayed out. */}
         <ul className="space-y-0.5 text-xs" aria-live="polite" data-testid="run-todo">
           {todo.map(([ok, text]) => (
             <li key={text} className={ok ? "text-slate-700" : "text-slate-500"}>
@@ -785,7 +785,7 @@ function Form({
   );
 }
 
-/** A pressed Start button (ver_108): a small plain ring and what's happening. */
+/** A pressed Start button: a small plain ring and what's happening. */
 function Working({ opening }: { opening: boolean }) {
   return (
     <span className="inline-flex items-center gap-1.5">
@@ -795,7 +795,7 @@ function Working({ opening }: { opening: boolean }) {
   );
 }
 
-/** "Making Web smoke…" (ver_116), while Flaw Patrol makes the run. */
+/** "Making Web smoke…", while Flaw Patrol makes the run. */
 function MakingRun({ what, cases, runs, session }: { what: string; cases: number; runs: number; session?: boolean }) {
   const one = runs === 1;
   return (
@@ -811,7 +811,7 @@ function MakingRun({ what, cases, runs, session }: { what: string; cases: number
   );
 }
 
-/** "R14 Web smoke is ready. Opening it…" (ver_108), up until the run page shows. */
+/** "R14 Web smoke is ready. Opening it…", up until the run page shows. */
 function OpeningRun({ what, cases, runs, session }: { what: string; cases: number; runs: number; session?: boolean }) {
   const one = runs === 1;
   return (
@@ -840,8 +840,8 @@ function OpeningRun({ what, cases, runs, session }: { what: string; cases: numbe
 type Kind = RunBoxOptions["kinds"][number];
 
 /**
- * "What kind of run?" (ver_95): Smoke test, Release candidate, the umbrella's own kinds,
- * Bug bash and "+ New kind…". A kind's usual suite is offered under What to run (ver_99).
+ * "What kind of run?": Smoke test, Release candidate, the umbrella's own kinds,
+ * Bug bash and "+ New kind…". A kind's usual suite is offered under What to run.
  */
 function KindStep({
   kinds,
@@ -909,7 +909,7 @@ function KindStep({
             key={k.id}
             type="button"
             onClick={() => onPick(k.id)}
-            // Release candidate and Bug bash start getting their boxes ready before the click (ver_120).
+            // Release candidate and Bug bash start getting their boxes ready before the click.
             {...(k.id === "rc" || k.id === "bash" ? prefetchOn(() => startPrefetch(k.id as "rc" | "bash")) : {})}
             className="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-accent-500 hover:bg-slate-50">
             <span className="block text-sm font-medium text-slate-900">
@@ -947,7 +947,7 @@ function KindStep({
                   ))}
               </Select>
             ) : (
-              // No suites yet (ver_118): a plain line instead of a list with only None.
+              // No suites yet: a plain line instead of a list with only None.
               <p id="rb-kind-suite" className="flex h-9 items-center text-sm text-slate-500" data-testid="no-suites-optional">
                 No suites yet. That&apos;s fine, it&apos;s optional.
               </p>

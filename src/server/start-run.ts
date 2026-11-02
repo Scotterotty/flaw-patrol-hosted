@@ -21,7 +21,7 @@ import { attempt, UserError } from "./result";
 import { addUmbrellaProject } from "./umbrella";
 import { createRun } from "./runs";
 
-// The Start a run box (ver_76): pick what to run from the library (all of it, a
+// The Start a run box: pick what to run from the library (all of it, a
 // suite, or ticked cases), then the test cycles to run it in, one run in each.
 
 export type RunBoxScope = { projectKey: string } | { groupId: string };
@@ -30,7 +30,7 @@ export type RunBoxCycle = { id: string; key: string; name: string; color: string
 
 const viewerLine = (team: string) => `You're a Viewer in ${team}. Ask an admin for Member access to start runs.`;
 
-/** The Start a run box's Ask for Member access (ver_137), for a Viewer who opened it: asks in the umbrella's team. */
+/** The Start a run box's Ask for Member access, for a Viewer who opened it: asks in the umbrella's team. */
 export async function askAccessFromRunBox(scope: RunBoxScope, path: string) {
   const user = await requireUser();
   let projectId: string | null = null;
@@ -72,7 +72,7 @@ export async function runBoxOptions(scope: RunBoxScope) {
     } else throw new UserError("This umbrella isn't available.");
 
     // An umbrella with no test cycles yet has nowhere to run: step 2 of the box offers to
-    // make the first one (ver_82), for whoever the Roles card lets add a test cycle.
+    // make the first one, for whoever the Roles card lets add a test cycle.
     // (Non-admins only see their own test cycles here, so count them all.)
     const empty = !!umbrella && !cycles.length && !(await db.project.count({ where: { groupId: umbrella.group.id, archivedAt: null } }));
     // Since ver_95 step 2 always ends with "+ New test cycle", made when you press Start.
@@ -83,7 +83,7 @@ export async function runBoxOptions(scope: RunBoxScope) {
     const roles = await db.projectMember.findMany({ where: { userId: user.id, projectId: { in: cycles.map((c) => c.id) } }, select: { projectId: true, role: true } });
     const roleOf = new Map<string, Role>(roles.map((r) => [r.projectId, r.role]));
     cycles = cycles.filter((c) => can({ role: user.isAdmin ? "ADMIN" : (roleOf.get(c.id) ?? null), rules }, "run:create"));
-    // A Viewer gets the way up instead of a dead end (ver_137); the box offers Ask for Member access.
+    // A Viewer gets the way up instead of a dead end; the box offers Ask for Member access.
     if (!cycles.length && !empty && !newCycle?.canCreate && umbrella?.who.role === "VIEWER") throw new UserError(viewerLine(umbrella.group.name));
     if (!cycles.length && !empty && !newCycle?.canCreate) throw new UserError(umbrella ? `You can't start runs in any ${umbrella.group.name} test cycle yet. Ask an admin to add you to one.` : "You can't start runs here.");
 
@@ -100,12 +100,12 @@ export async function runBoxOptions(scope: RunBoxScope) {
       db.testCase.count({ where: { projectId: umbrella ? umbrella.hub.id : library.id, archived: false, ...NOT_BASH_CASE } }),
     ]);
     const colorOf = (platform: string) => (umbrella ? platformColor(umbrella.platforms, platform) : "#94a3b8");
-    // Run kinds (ver_95): what kind of run it is, asked first in an umbrella.
-    // Without Bug bashes (ver_128) the Bug bash kind isn't offered.
+    // Run kinds: what kind of run it is, asked first in an umbrella.
+    // Without Bug bashes the Bug bash kind isn't offered.
     const kinds = umbrella ? parseRunKinds(umbrella.group.runKinds).filter((k) => !k.hidden && (k.id !== "bash" || toolsOn(umbrella.group.tools).includes("bashes"))) : [];
     return {
       umbrella: umbrella ? { id: umbrella.group.id, name: umbrella.group.name, hubKey: umbrella.hub.key } : null,
-      // The test cycle the box was opened from, ticked for you (ver_85).
+      // The test cycle the box was opened from, ticked for you.
       hereId: here?.id ?? null,
       newCycle,
       kinds: kinds.map((k) => ({ id: k.id, name: k.name, suiteId: k.suiteId, builtIn: k.builtIn })),
@@ -114,18 +114,18 @@ export async function runBoxOptions(scope: RunBoxScope) {
       // The latest release-candidate test cycle, for the kind's line ("carries over from Demo RC 1").
       lastCycle: umbrella ? (umbrella.current.find((p) => p.rcName)?.rcName || umbrella.current[0]?.name || "") : "",
       meId: user.id,
-      // Run fields (ver_89): the umbrella's, or CSP version for a test cycle outside one.
+      // Run fields: the umbrella's, or CSP version for a test cycle outside one.
       runFields: umbrella ? parseRunFields(umbrella.group.runFields) : [CSP_FIELD],
       cycles: cycles.map((c, i): RunBoxCycle => ({ id: c.id, key: c.key, name: c.name, color: colorOf(c.platform), current: c.current, rcName: c.rcName, members: assignable(members[i]).map((m) => ({ id: m.id, name: m.name })) })),
       allCount,
-      // Whether the "Make a suite", "Write the first case" and "Import cases" links show (ver_118).
+      // Whether the "Make a suite", "Write the first case" and "Import cases" links show.
       canSuites: umbrella ? can(umbrella.who, "suite:manage") : true,
       canCases: umbrella ? can(umbrella.who, "case:edit") : true,
       canImport: umbrella ? can(umbrella.who, "import") : true,
       tagColors: await tagColorsFor(library.id),
       suites: suites.map((s) => ({ id: s.id, name: s.name, cases: s._count.cases, ownerId: s.projectId, shared: !!umbrella && s.projectId !== here?.id })),
       ...picker,
-      // New and Updated cases (ver_96), by case id.
+      // New and Updated cases, by case id.
       news: await libraryCaseNews(picker.cases.map((c) => c.id)),
     };
   });
@@ -145,13 +145,13 @@ const startSchema = z.object({
   description: z.string().max(5000).default(""),
   assigneeId: z.string().nullable().default(null),
   fields: z.record(z.string(), z.string().max(200)).default({}),
-  /** "Use each test cycle's own" release (ver_99): a blank release otherwise stays blank. */
+  /** "Use each test cycle's own" release: a blank release otherwise stays blank. */
   cycleRelease: z.boolean().default(false),
-  /** The run kind picked first (ver_95). */
+  /** The run kind picked first. */
   runKind: z.string().trim().max(40).default(""),
 });
 
-/** Start one run in each ticked test cycle. Each test cycle's own release only when asked for (ver_99). */
+/** Start one run in each ticked test cycle. Each test cycle's own release only when asked for. */
 export async function startRuns(input: z.input<typeof startSchema>) {
   return attempt(async () => {
     const data = startSchema.parse(input);
@@ -167,7 +167,7 @@ export async function startRuns(input: z.input<typeof startSchema>) {
         // The whole library is the umbrella's Case library; outside an umbrella, the project's own cases.
         const ids = data.what === "all" ? (u && !u.isHub ? [u.hub.id] : [project.id]) : await libraryProjectIds(project);
         const cases = await db.testCase.findMany({
-          // The whole library never takes in a bug bash's area charters (ver_124).
+          // The whole library never takes in a bug bash's area charters.
           where: { projectId: { in: ids }, archived: false, ...(data.what === "cases" ? { id: { in: data.caseIds } } : NOT_BASH_CASE) },
           orderBy: [{ projectId: "asc" }, { number: "asc" }],
           select: { id: true },
@@ -233,7 +233,7 @@ const kindSchema = z.object({
   suiteId: z.string().nullable().default(null),
 });
 
-/** "+ New kind…" in Start a run (ver_95): added to the umbrella and used at once. Anyone who can start runs can add one. */
+/** "+ New kind…" in Start a run: added to the umbrella and used at once. Anyone who can start runs can add one. */
 export async function addRunKind(groupId: string, input: z.input<typeof kindSchema>) {
   return attempt(async () => {
     const data = kindSchema.parse(input);
@@ -262,7 +262,7 @@ const kindsSchema = z.array(
   }),
 );
 
-/** Umbrella Settings → Run kinds (ver_95): rename or hide Smoke test and Release candidate, add, edit or remove custom kinds. */
+/** Umbrella Settings → Run kinds: rename or hide Smoke test and Release candidate, add, edit or remove custom kinds. */
 export async function setRunKinds(groupId: string, input: z.input<typeof kindsSchema>) {
   return attempt(async () => {
     const list = kindsSchema.parse(input);

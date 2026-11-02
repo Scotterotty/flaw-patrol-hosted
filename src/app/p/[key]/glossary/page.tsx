@@ -8,7 +8,7 @@ import { projectAccess } from "@/lib/session";
 
 export const metadata = { title: "Glossary" };
 
-/** Glossary (ver_113): the team's words and what they mean. One list for everyone, in every menu. */
+/** Glossary: the team's words and what they mean. One list for everyone, in every menu. */
 export default async function GlossaryRoute({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ term?: string; edit?: string }> }) {
   const { key } = await params;
   const sp = await searchParams;

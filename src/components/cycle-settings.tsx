@@ -38,7 +38,7 @@ function Chip({ chip }: { chip: CycleChip }) {
 }
 
 /**
- * Umbrella Settings → Test cycles (ver_117): one row per test cycle with its Team, Jira and Slack,
+ * Umbrella Settings → Test cycles: one row per test cycle with its Team, Jira and Slack,
  * each marked Same as the umbrella or Its own. Change opens that test cycle's choices right below
  * the row, one row at a time. Test cycles under an umbrella have no settings page of their own.
  */
@@ -53,7 +53,7 @@ export function CycleSettingsTable({
   umbrella: string;
   canArchive: boolean;
   addButton?: ReactNode;
-  /** Viewers read View, not Change (ver_137), like the rest of the page. */
+  /** Viewers read View, not Change, like the rest of the page. */
   canChange?: boolean;
 }) {
   const [open, setOpen] = useState<string | null>(null);

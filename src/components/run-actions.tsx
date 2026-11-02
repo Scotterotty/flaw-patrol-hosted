@@ -10,7 +10,7 @@ import { Button } from "./ui";
 type Ask = { open: number; total: number; names: string[] };
 
 /**
- * Close run, asking first when cases haven't been tested (ver_137). One click as before when
+ * Close run, asking first when cases haven't been tested. One click as before when
  * every case has a result, and for automated runs. Returns the click handler and the question box.
  */
 function useCloseRun(projectId: string, runId: string, onClosed?: () => void) {

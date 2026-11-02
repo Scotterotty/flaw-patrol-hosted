@@ -4,7 +4,7 @@ import { globMatch } from "./github-glob";
 import { openZip, readEntry, zipBudget, ZipLimitError } from "./zip-limits";
 import { buildSteps, pickAnnotation, type BuildSteps, type RawJob } from "./github-steps";
 
-// Pull from GitHub (ver_85): read a repo's workflow runs and download the test
+// Pull from GitHub: read a repo's workflow runs and download the test
 // results their artifacts hold. Flaw Patrol only ever reads from GitHub, with a
 // fine-grained token that can read Actions on the repo.
 
@@ -87,7 +87,7 @@ export class GitHubClient {
     return r.workflows.filter((w) => w.state === "active").map((w) => ({ id: String(w.id), name: w.name, path: w.path }));
   }
 
-  /** Open and recently closed pull requests, newest activity first (ver_96, bug bash links). */
+  /** Open and recently closed pull requests, newest activity first (bug bash links). */
   async pulls(count = 30): Promise<GitHubPull[]> {
     const r = await this.get<{ number: number; title: string; state: string; merged_at: string | null; html_url: string; user?: { login?: string } }[]>(`/repos/${this.fullName}/pulls?state=all&sort=updated&direction=desc&per_page=${count}`);
     return r.map((p) => ({ number: p.number, title: p.title, state: p.merged_at ? "merged" : p.state, url: p.html_url, author: p.user?.login ?? "" }));
@@ -118,7 +118,7 @@ export class GitHubClient {
     return { id: String(w.id), number: w.run_number, title: (w.display_title ?? "").split("\n")[0], branch: w.head_branch ?? "", createdAt: w.created_at, status: w.status, conclusion: w.conclusion, url: w.html_url };
   }
 
-  /** Build steps (ver_89): each job's own steps, and GitHub's error line for the one that broke. Same Actions read token. */
+  /** Build steps: each job's own steps, and GitHub's error line for the one that broke. Same Actions read token. */
   async steps(runId: string, finished: boolean): Promise<BuildSteps> {
     const cacheKey = `${this.fullName}|${runId}`;
     const hit = stepCache.get(cacheKey);
@@ -146,7 +146,7 @@ export class GitHubClient {
     return (await this.resultsWithMedia(runId, glob, false)).files;
   }
 
-  /** The results files, plus the artifacts' screenshots, videos and replays when asked (ver_93). */
+  /** The results files, plus the artifacts' screenshots, videos and replays when asked. */
   async resultsWithMedia(runId: string, glob: string, withMedia: boolean) {
     const list = (await this.artifacts(runId)).filter((a) => !a.expired);
     if (!list.length) throw new GitHubError("This run has no results file left. GitHub deletes artifacts after the repo's retention period.");

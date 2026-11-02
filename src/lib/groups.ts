@@ -10,7 +10,7 @@ export async function canManageGroups(user: Viewer) {
 }
 
 /**
- * Who may make a new umbrella (ver_97): everyone except Viewers. Someone who is only
+ * Who may make a new umbrella: everyone except Viewers. Someone who is only
  * ever a Viewer can't; someone on no team yet can, and becomes the new umbrella's Admin.
  */
 export async function canMakeUmbrellas(user: Viewer) {
@@ -19,7 +19,7 @@ export async function canMakeUmbrellas(user: Viewer) {
   return !roles.length || roles.some((r) => r.role !== "VIEWER");
 }
 
-/** The ones among these projects the viewer may move in or out of a group: those where they are more than a Viewer (ver_96). */
+/** The ones among these projects the viewer may move in or out of a group: those where they are more than a Viewer. */
 export async function groupableProjectIds(user: Viewer, ids: string[]) {
   if (!ids.length) return [];
   const rows = await db.project.findMany({

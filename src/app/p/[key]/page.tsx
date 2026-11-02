@@ -67,7 +67,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
   ]);
   const kinds = parseRunKinds(umbrella?.group.runKinds);
   const live = await runLive(runs.map((r) => r.id), now);
-  // 🧭 Explored, last 30 days (ver_96): exploring isn't in the pass rate, so it gets its own tile.
+  // 🧭 Explored, last 30 days: exploring isn't in the pass rate, so it gets its own tile.
   const explored = await db.testResult.findMany({
     where: { run: { projectId: project.id }, entry: { kind: "EXPLORATORY" }, createdAt: { gte: month.from } },
     select: { elapsedSec: true, sessionLog: true },
@@ -78,7 +78,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
   }, { bugs: 0, questions: 0 });
   const exploredSec = explored.reduce((n, r) => n + (r.elapsedSec ?? 0), 0);
   const libraryCount = umbrella && !umbrella.isHub ? await db.testCase.count({ where: { projectId: umbrella.hub.id, archived: false, ...NOT_BASH_CASE } }) : 0;
-  // A live bug bash gets its own tile instead of counting as a run (ver_124). Only while one is live.
+  // A live bug bash gets its own tile instead of counting as a run. Only while one is live.
   const liveBash = await db.bugBash.findFirst({ where: { projectId: project.id, ...LIVE_BASH(now) }, orderBy: { startsAt: "desc" }, select: { id: true, name: true, endsAt: true } });
 
   const open = runs.map((r) => {

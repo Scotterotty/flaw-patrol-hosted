@@ -36,7 +36,7 @@ export function liveRowOf(e: EntryBits, meId: string): LiveRow {
   };
 }
 
-/** Every row of a run, for open run pages to update in place without reloading (ver_112). */
+/** Every row of a run, for open run pages to update in place without reloading. */
 export async function liveRowsFor(runId: string, meId: string): Promise<LiveRow[]> {
   const entries = await db.runEntry.findMany({
     where: { runId },

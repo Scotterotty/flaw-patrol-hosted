@@ -11,7 +11,7 @@ import { SevChip, useBashUpload } from "./bash";
 import { AnswerTables, NeedsTag, seenHere, TemplateFields } from "./bash-template";
 import { Button, cx, ErrorText } from "./ui";
 
-// Live finds (ver_96): the panel on Log a bug that fills in as people log, so nobody logs the
+// Live finds: the panel on Log a bug that fills in as people log, so nobody logs the
 // same thing twice. A find you open stays put: new finds from others wait behind a bar
 // until you show them or close it.
 
@@ -95,7 +95,7 @@ export function LiveFinds({
   // Half-typed additions, by find: kept in state here, so refreshes never touch them.
   const [typed, setTyped] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
-  // What's being typed to fill in a bug's missing headings (ver_125), by find.
+  // What's being typed to fill in a bug's missing headings, by find.
   const [filling, setFilling] = useState<Record<string, BashValues>>({});
   const [shots, setShots] = useState<Record<string, { id: string; fileName: string }[]>>({});
   const upload = useBashUpload(projectId, bashId, setError);
@@ -110,7 +110,7 @@ export function LiveFinds({
   const [shownAt, setShownAt] = useState<Set<string> | null>(null);
   const anchor = useRef<{ id: string; top: number } | null>(null);
   const [newSince, setNewSince] = useState(0);
-  // After Add to it / Answer (ver_121): the find closes, a green line says it worked, the row glows.
+  // After Add to it / Answer: the find closes, a green line says it worked, the row glows.
   const [done, setDone] = useState<{ id: string; text: string } | null>(null);
   useEffect(() => {
     if (!done) return;
@@ -543,7 +543,7 @@ export function AddLink({ bashId, onPick }: { bashId: string; onPick: (l: BashLi
 }
 
 /**
- * What you're testing (ver_96): the area's links and the whole bash's. Whoever started it can
+ * What you're testing: the area's links and the whole bash's. Whoever started it can
  * edit them, here or on the board (which lists every area).
  */
 export function WhatYoureTesting({

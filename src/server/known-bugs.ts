@@ -6,7 +6,7 @@ import { requireProjectAction } from "@/lib/session";
 import { attempt, UserError } from "./result";
 
 /**
- * Still happens / Didn't happen on a known bug (ver_96), or null to undo. Recorded for this
+ * Still happens / Didn't happen on a known bug, or null to undo. Recorded for this
  * run's case only; it never changes Jira.
  */
 export async function checkKnownBug(projectId: string, entryId: string, defectId: string, outcome: "still" | "gone" | null) {

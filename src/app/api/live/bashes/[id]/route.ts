@@ -4,7 +4,7 @@ import { bashGuestOk } from "@/lib/link-access-server";
 import { currentUser } from "@/lib/session";
 import { bashTick } from "@/server/bashes";
 
-// A bug bash's fingerprint (ver_93): who's in where, and every line logged. The board and
+// A bug bash's fingerprint: who's in where, and every line logged. The board and
 // the bash runner poll it; each look also sends the 10-minute warning when it's due.
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await currentUser();
@@ -21,7 +21,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     },
   });
   if (!bash) return new Response(null, { status: 404 });
-  // People outside the team who may be in this bash (ver_115) see it too.
+  // People outside the team who may be in this bash see it too.
   if (!user.isAdmin && !(await db.projectMember.findUnique({ where: { projectId_userId: { projectId: bash.projectId, userId: user.id } } })) && !(await bashGuestOk(id, user.id))) return new Response(null, { status: 404 });
   await bashTick(id).catch(() => {});
   const hash = createHash("sha1").update(`${bash.endedAt?.getTime() ?? ""}|${bash.wrappedAt?.getTime() ?? ""}`);

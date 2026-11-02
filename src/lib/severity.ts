@@ -2,7 +2,7 @@ import type { Severity } from "@prisma/client";
 import { z } from "zod";
 
 // Bug severities. Flaw Patrol keeps five levels, most severe first; what each is
-// called comes from the connected Jira's severity field (ver_91), or a plain
+// called comes from the connected Jira's severity field, or a plain
 // Critical / Major / Minor / Trivial list when there's no Jira or no such field.
 
 export const SEVERITIES: Severity[] = ["SHOWSTOPPER", "CRITICAL", "PROBLEMATIC", "MINOR", "ENHANCEMENT"];
@@ -10,7 +10,7 @@ export const SEVERITIES: Severity[] = ["SHOWSTOPPER", "CRITICAL", "PROBLEMATIC",
 /** One team's A to E scale, as their Jira spells it: the built-in default before ver_91. */
 export const AE_VALUES = ["A - Showstopper", "B - Critical", "C - Problematic", "D - Minor", "E - Enhancement"];
 
-/** Settings → Jira → Severity field (ver_91): the Jira field, its values in order, and which count as critical. */
+/** Settings → Jira → Severity field: the Jira field, its values in order, and which count as critical. */
 export type SeverityConfig = { fieldId: string | null; fieldName: string; values: string[]; critical: string[] };
 
 export function parseSeverityConfig(v: unknown): SeverityConfig | null {

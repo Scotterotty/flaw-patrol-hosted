@@ -24,7 +24,7 @@ import { Button, Card, cx, ErrorText, InfoTip, Textarea } from "./ui";
 
 /**
  * Seconds left until `iso`, ticking every second. Null until the page is running in the
- * browser (ver_94): the server's clock differs, and that mismatch made React redo the page
+ * browser: the server's clock differs, and that mismatch made React redo the page
  * and drop the first tap.
  */
 export function useSecondsLeft(iso: string) {
@@ -86,7 +86,7 @@ const initials = (name: string) =>
     .join("");
 
 /** Join: pick an area, Start exploring. Nobody needs to know what a charter or a run is. */
-/** Uploads files into the bash (ver_125), for a template heading or a missing screenshot. */
+/** Uploads files into the bash, for a template heading or a missing screenshot. */
 export function useBashUpload(projectId: string, bashId: string, setError: (e: string) => void) {
   return useCallback(
     async (list: File[]) => {
@@ -105,7 +105,7 @@ export function useBashUpload(projectId: string, bashId: string, setError: (e: s
   );
 }
 
-/** "Bugs use: UI bug" (ver_125). Whoever started it can switch; bugs already logged keep theirs. */
+/** "Bugs use: UI bug". Whoever started it can switch; bugs already logged keep theirs. */
 function BugsUse({ bash, onError }: { bash: BashView; onError: (e: string) => void }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -213,7 +213,7 @@ export function JoinPicker({ bash, onCancel }: { bash: BashView; onCancel?: () =
 const KIND_LABEL: Record<ItemKind, string> = { bug: "Bug", question: "Question", note: "Note", idea: "Idea", covered: "Covered" };
 
 /**
- * The bash runner (ver_93, ver_96): Live finds on the left, Log a bug in the middle (press B
+ * The bash runner (ver_96): Live finds on the left, Log a bug in the middle (press B
  * to jump to it, one line is enough), and the clock, your area and what you're testing on
  * the right. As you type it checks everyone's finds and offers to add to one instead.
  */
@@ -228,7 +228,7 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
   const [severity, setSeverity] = useState<BashSeverity>("PROBLEMATIC");
   const [kind, setKind] = useState<"bug" | "question" | "note" | "idea">("bug");
   const [files, setFiles] = useState<{ id: string; fileName: string }[]>([]);
-  // Bug template (ver_125): the bash's, unless this person picks another for their bugs.
+  // Bug template: the bash's, unless this person picks another for their bugs.
   const [tplPick, setTplPick] = useState<string | null>(null);
   const tplId = tplPick ?? bash.bugTemplateId ?? "";
   const tpl = kind === "bug" ? (bash.bugTemplates.find((t) => t.id === tplId) ?? null) : null;
@@ -306,13 +306,13 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
       const sent = text;
       const r = await logBashItem(bash.id, { kind, text, details, severity, attachmentIds: files.map((f) => f.id), templateId: tpl?.id ?? null, values: tpl ? values : {}, seen: seenHere() });
       if (!r.ok) return setError(r.error);
-      // Only clear what was sent: anything typed while it saved stays (ver_96).
+      // Only clear what was sent: anything typed while it saved stays.
       setText((t) => (t === sent ? "" : t));
       setDetails("");
       setShowDetails(false);
       setFiles([]);
       setValues({});
-      // Always say it worked (ver_121), not only when it was filed too.
+      // Always say it worked, not only when it was filed too.
       const said = r.needs.length && !r.filed ? `${KIND_LABEL[kind]} logged. It's at the top of Live finds, marked Needs ${r.needs.length}.` : `${KIND_LABEL[kind]} logged. It's at the top of Live finds.`;
       setNote(r.filed ? (r.filed.startsWith("Logged") ? r.filed : `${said} Filed as ${r.filed}.`) : said);
       void reload();
@@ -537,7 +537,7 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
 /** The bash board: one countdown, who's where, and the bug list as it grows. */
 export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin?: boolean }) {
   const router = useRouter();
-  // Join right here on the board (ver_121): the steps strip, then the area cards in place.
+  // Join right here on the board: the steps strip, then the area cards in place.
   const canJoin = !bash.me.areaId && bash.phase !== "wrapped" && bash.phase !== "ended";
   const [joining, setJoining] = useState(openJoin && canJoin);
   const [show, setShow] = useState<string>("all");
@@ -545,7 +545,7 @@ export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin
   const [pending, start] = useTransition();
   const [ending, setEnding] = useState(false);
   const bugs = bash.items.filter((i) => i.kind === "bug" && !i.mergedIntoId);
-  // The board lists every kind of find (ver_96), filtered by kind as well as by area.
+  // The board lists every kind of find, filtered by kind as well as by area.
   const finds = bash.items.filter((i) => i.kind !== "covered" && !i.mergedIntoId);
   const shown = finds.filter((b) => (kind === "all" || b.kind === kind) && (show === "all" || (show === "mine" ? b.byId === bash.me.id : b.areaId === show)));
   const plusOnes = finds.reduce((n, b) => n + b.plusOnes.length, 0);
@@ -579,7 +579,7 @@ export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin
             </Button>
           )}
           {bash.isOwner && bash.phase === "live" && ending && (
-            // In-page confirm (ver_94), not a browser pop-up.
+            // In-page confirm, not a browser pop-up.
             <span role="alert" className="flex flex-wrap items-center gap-2 rounded-md bg-amber-50 px-2 py-1 text-sm text-amber-900">
               End the bash now? Everyone&apos;s finds are kept.
               <Button
@@ -750,7 +750,7 @@ export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin
 }
 
 /**
- * File this bug… (ver_94): the usual bug box, filled in from a bash bug that isn't
+ * File this bug…: the usual bug box, filled in from a bash bug that isn't
  * in Jira yet, at wrap-up or on the report. Filing it marks the bash bug filed.
  */
 export function FileBashBug({ bug, projectId, entryId, jiraConnected }: { bug: { id: string; text: string; details: string; severity: Severity; attachments: { id: string; fileName: string; contentType: string }[] }; projectId: string; entryId: string | null; jiraConnected: boolean }) {
@@ -797,7 +797,7 @@ export function UnfiledTag({ left, why }: { left: boolean; why?: string }) {
 }
 
 /**
- * Wrap up (ver_93, ver_94): whoever started it reviews the bugs, +1s already rolled in.
+ * Wrap up (ver_94): whoever started it reviews the bugs, +1s already rolled in.
  * Untick File it to leave a bug out, adjust severity, merge duplicates, then file and
  * wrap up. If Jira refuses any, the screen stays with the reason and File this bug….
  */
@@ -806,12 +806,12 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
   const [ticked, setTicked] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  // A tick or severity shows at once; the server catches up on refresh (ver_94).
+  // A tick or severity shows at once; the server catches up on refresh.
   const [mine, setMine] = useState<Record<string, { review?: "file" | "skip"; severity?: BashSeverity }>>({});
   const bugs = useMemo(() => bash.items.filter((i) => i.kind === "bug" && !i.mergedIntoId).map((i) => ({ ...i, ...mine[i.id] })), [bash.items, mine]);
   const toFile = bugs.filter((b) => b.review === "file" && !b.bug);
   const failed = toFile.filter((b) => b.fileError);
-  // Held back for a template's must-haves (ver_125) apart from bugs Jira refused.
+  // Held back for a template's must-haves apart from bugs Jira refused.
   const held = failed.filter((b) => isNeedsLine(b.fileError));
   const refused = failed.filter((b) => !isNeedsLine(b.fileError));
   const notReady = toFile.filter((b) => b.template?.needs.length);
@@ -841,7 +841,7 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
       const r = await wrapUpBash(bash.id, anyway);
       if (!r.ok) return setError(r.error);
       if (!r.wrapped) return router.refresh();
-      // A full page load: the wrapped bash page redirects to its report while a soft push races it and can stall on Filing… (ver_94).
+      // A full page load: the wrapped bash page redirects to its report while a soft push races it and can stall on Filing….
       window.location.assign(`/p/${bash.homeKey}/bashes/${bash.id}/report`);
     });
   const plural = (n: number) => `${n} ${n === 1 ? "bug" : "bugs"}`;

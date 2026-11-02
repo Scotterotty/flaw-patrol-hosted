@@ -7,7 +7,7 @@ import { cx, EmptyState } from "./ui";
 
 /**
  * Reports › Requirements: coverage of a Jira release's requirements, one column per test cycle.
- * Opens on the release the newest test cycles test (`rcNames`), or All when Jira has none by that name (ver_87).
+ * Opens on the release the newest test cycles test (`rcNames`), or All when Jira has none by that name.
  */
 export async function StoryReport({
   projectId,
@@ -26,7 +26,7 @@ export async function StoryReport({
   rcNames: string[];
   base: string;
   scopeNote: string;
-  /** One Export menu, as on Run reports (ver_91). */
+  /** One Export menu, as on Run reports. */
   exportTo?: { url: string; cycle: boolean; preparedBy: string };
 }) {
   const all = await storyReleases(projectId);

@@ -74,7 +74,7 @@ export type ExpandedStep = PlainStep & {
   number: string;
   /** Set when this step came from a shared step. */
   shared?: { id: string; name: string; version: number };
-  /** Test data (ver_138): which row of the case's table this step belongs to, from 0. */
+  /** Test data: which row of the case's table this step belongs to, from 0. */
   row?: number;
   /** Test data: the values filled into this step from its row, shown in blue in the runner. */
   vals?: string[];
@@ -128,7 +128,7 @@ export function cleanSteps(items: CaseStepItem[]): CaseStepItem[] {
 }
 
 /**
- * Steps for a run of a case with test data (ver_138): the case's steps once per row, with that
+ * Steps for a run of a case with test data: the case's steps once per row, with that
  * row's values filled into the {{blanks}}. With no test data, the same as expandSteps.
  */
 export function expandForRun(items: CaseStepItem[], defs: Map<string, SharedStepDef>, data: TestData | null): ExpandedStep[] {

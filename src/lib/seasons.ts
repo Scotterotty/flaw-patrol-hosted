@@ -1,4 +1,4 @@
-// Seasonal quest maps (ver_98): the map's scenery dresses up for the time of year.
+// Seasonal quest maps: the map's scenery dresses up for the time of year.
 // Weather, nature and fun only, nothing religious. The look comes from the day the
 // run started, so an old run keeps its season. Same dates for everyone (UTC).
 
