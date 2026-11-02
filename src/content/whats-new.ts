@@ -22,6 +22,32 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 137,
+    date: "2026-11-01",
+    items: [
+      {
+        kind: "better",
+        title: "Every run marked with a release counts toward it",
+        text: "A Smoke test or your own kind of run with Release 2.1 now shows on 2.1's Release status, and each column names the kind of run. Leave Release blank to keep a run out.",
+        link: "/g/{umbrella}/rc",
+      },
+      {
+        kind: "better",
+        title: "Start a run instead",
+        text: "Typing a release that already has test cycles in Release candidate points you to Start a run, with the release filled in.",
+      },
+      {
+        kind: "better",
+        title: "Invites say who invited you and sign you straight in",
+        text: "New people see who invited them and to what, type the name the team will see, choose a password, and land on their home page.",
+        who: "lead",
+      },
+      { kind: "better", title: "Close run asks first when cases haven't been tested", text: "It says how many and whose lists they come off. Closing a run where every case has a result is still one click." },
+      { kind: "fix", title: "Viewers aren't offered in Assign lists, and don't hit dead ends", text: "No Import cases shortcut or Start a run button for Viewers, and test cycle rows in Settings say View." },
+      { kind: "fix", title: "Times on your own clock", text: "Bug bash reports, the Reports date range and the Activity log show your time zone and follow your Language setting." },
+    ],
+  },
+  {
     version: 136,
     date: "2026-11-01",
     items: [
