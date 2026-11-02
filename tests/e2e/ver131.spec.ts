@@ -73,9 +73,11 @@ test("How testing is going shows manual and automated apart, picks how many, and
   // More releases, remembered after a reload.
   await box.getByTestId("trends-count").selectOption({ label: "All releases" });
   await expect(box.getByTestId("trends-point")).toHaveCount(8);
-  // By week works too.
+  // By week works too. The newest results can fall in last week when the run starts just after
+  // Monday 00:00 UTC, so any week label counts; what matters is it's no longer by release.
   await box.getByRole("button", { name: "By week" }).click();
-  await expect(box.getByTestId("trends-tile-man")).toContainText("this week");
+  await expect(box.getByTestId("trends-tile-man")).toContainText(/this week|last week|week of/);
+  await expect(box.getByTestId("trends-tile-man")).not.toContainText("RC 8");
 
   // Hide folds it to one line that still shows both pass rates.
   await box.getByTestId("trends-fold").click();
