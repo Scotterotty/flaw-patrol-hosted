@@ -83,6 +83,24 @@ export async function addCasesToSuite(projectId: string, suiteId: string, caseId
   });
 }
 
+/** Change only a suite's name. Saves a new version noted as a rename, so old runs keep the name they ran under. */
+export async function renameSuite(projectId: string, suiteId: string, name: string) {
+  return attempt(async () => {
+    const { project, user } = await requireProjectAction(projectId, "suite:manage");
+    const next = z.string().trim().min(1, "Give the suite a name.").max(200, "Keep the name under 200 characters.").parse(name);
+    const suite = await db.testSuite.findFirst({ where: { id: suiteId, projectId }, select: { name: true } });
+    if (!suite) throw new UserError("Suite not found.");
+    if (suite.name === next) return { name: next };
+    await db.$transaction(async (tx) => {
+      await tx.testSuite.update({ where: { id: suiteId }, data: { name: next } });
+      await snapshot(tx, suiteId, user, `Renamed from "${suite.name}", cases unchanged`);
+    });
+    await logActivity({ actor: user, kind: "settings", action: `Renamed suite "${suite.name}" to "${next}"`, project });
+    revalidatePath(`/p/${project.key}`, "layout");
+    return { name: next };
+  });
+}
+
 export async function setSuiteArchived(projectId: string, suiteId: string, archived: boolean) {
   return attempt(async () => {
     const { project, user } = await requireProjectAction(projectId, "library:archive");
