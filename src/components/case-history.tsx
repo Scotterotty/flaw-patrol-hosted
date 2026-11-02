@@ -4,7 +4,7 @@ import type { ResultStatus } from "@prisma/client";
 import Link from "next/link";
 import { badgeOf } from "@/lib/game";
 import { db } from "@/lib/db";
-import { relativeTime } from "@/lib/format";
+import { count, minutesSpent, relativeTime } from "@/lib/format";
 import { isFlaky } from "@/lib/run-history";
 import { countStatuses, pct, STATUS_LABEL, totals } from "@/lib/status";
 import { parseSessionLog } from "@/lib/charter";
@@ -77,7 +77,7 @@ export async function CaseHistory({ caseId, charter, canRun = true }: { caseId: 
           <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
             <HistoryStrip statuses={[...results].reverse().map((r) => ({ status: r.status, title: `${r.automated ? "🤖 " : ""}R${r.run.number} ${r.run.name}: ${STATUS_LABEL[r.status].toLowerCase()}`, href: runHref(r) }))} max={30} />
             <span>
-              {results.length} runs · {pct(t.passRate)} passed
+              {count(results.length, "run")} · {pct(t.passRate)} passed
               {lastPass ? ` · last passed ${relativeTime(lastPass.createdAt, spelling)}` : " · never passed"}
             </span>
             {flaky && <span className="rounded bg-amber-50 px-1.5 py-0.5 font-medium text-amber-800 ring-1 ring-amber-200">Flaky</span>}
@@ -143,7 +143,7 @@ export async function CaseHistory({ caseId, charter, canRun = true }: { caseId: 
                     </td>
                     <td className="hidden px-4 py-2 text-xs whitespace-nowrap text-slate-600 md:table-cell">
                       {session ? (
-                        `Session${r.elapsedSec !== null ? ` · ${Math.round(r.elapsedSec / 60)} min` : ""}`
+                        `Session${r.elapsedSec !== null ? ` · ${minutesSpent(r.elapsedSec)}` : ""}`
                       ) : (
                         <>
                           {steps.PASSED} passed{steps.FAILED ? `, ${steps.FAILED} failed` : ""}

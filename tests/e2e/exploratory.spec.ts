@@ -112,7 +112,7 @@ test("a charter with a persona runs as a timed session with a log, bugs and an o
   await page.reload();
   await expect(log.getByRole("listitem")).toHaveCount(4);
   await expect(page.getByText(/Picked up where you left off/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Keep exploring" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Keep exploring" }).first()).toBeVisible();
 
   // Finish exploring (ver_96): no pass or fail, just what was covered; it's saved as Explored.
   await page.getByRole("button", { name: "Finish exploring" }).click();

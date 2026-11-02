@@ -285,12 +285,13 @@ export function RunEntries({
           </span>
         )}
       </div>
+      {/* On phones (ver_54 audit #13) each row turns into a card: the case on top, then priority, status and its button, so nothing is cut off at the edge. */}
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-surface shadow-sm">
-        <table className="w-full text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
-            <tr>
+        <table className="w-full text-sm max-sm:block">
+          <thead className={cx("border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 max-sm:block", !canSelect && "max-sm:hidden")}>
+            <tr className="max-sm:flex">
               {canSelect && (
-                <th className="w-8 px-3 py-2">
+                <th className="w-8 px-3 py-2 max-sm:w-auto">
                   <input
                     type="checkbox"
                     aria-label="Select all shown"
@@ -307,19 +308,22 @@ export function RunEntries({
                       })
                     }
                   />
+                  <span aria-hidden className="ml-2 font-medium sm:hidden">
+                    Select all
+                  </span>
                 </th>
               )}
-              <th className="px-3 py-2 font-medium">Case</th>
-              <th className="w-20 px-3 py-2 font-medium">Priority</th>
+              <th className="px-3 py-2 font-medium max-sm:hidden">Case</th>
+              <th className="w-20 px-3 py-2 font-medium max-sm:hidden">Priority</th>
               <th className="hidden w-36 px-3 py-2 font-medium md:table-cell">Assigned to</th>
-              <th className="w-24 px-3 py-2 font-medium">Status</th>
+              <th className="w-24 px-3 py-2 font-medium max-sm:hidden">Status</th>
               {hasKnown && <th className="hidden px-3 py-2 font-medium whitespace-nowrap lg:table-cell">Known bugs</th>}
-              <th className="w-16 px-3 py-2">
+              <th className="w-16 px-3 py-2 max-sm:hidden">
                 <span className="sr-only">Actions</span>
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 max-sm:block">
             {shown.map((r, i) => (
               <Fragment key={r.id}>
               {i === closeStart && (
@@ -330,9 +334,9 @@ export function RunEntries({
                   </td>
                 </tr>
               )}
-              <tr className="hover:bg-slate-50">
+              <tr className="hover:bg-slate-50 max-sm:flex max-sm:flex-wrap max-sm:items-center max-sm:gap-x-2 max-sm:gap-y-1.5 max-sm:px-3 max-sm:py-2.5">
                 {canSelect && (
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2 max-sm:order-3 max-sm:p-0">
                     <input
                       type="checkbox"
                       aria-label={`Select ${r.caseKey}`}
@@ -348,7 +352,7 @@ export function RunEntries({
                     />
                   </td>
                 )}
-                <td className="px-3 py-2">
+                <td className="px-3 py-2 max-sm:order-first max-sm:basis-full max-sm:p-0">
                   <Link href={`/p/${projectKey}/runs/${runNumber}/execute?entry=${r.id}`} className="hover:underline">
                     <span className="font-mono text-xs text-slate-500">{r.caseKey}</span> <TagPills tags={r.tags} colors={tagColors} hits={tagHits(query, r.tags)} /> <span className="font-medium text-slate-900">{r.title}</span>
                   </Link>
@@ -378,7 +382,7 @@ export function RunEntries({
                     )}
                   </p>
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-3 py-2 max-sm:order-1 max-sm:p-0">
                   <span className="inline-flex flex-wrap gap-1">
                     <PriorityBadge priority={r.priority} />
                     {r.charter && <TypeBadge type="EXPLORATORY" />}
@@ -393,7 +397,7 @@ export function RunEntries({
                   ) : (
                     <span className="text-slate-400">Unassigned</span>
                   )}</td>
-                <td className="px-3 py-2">
+                <td className="px-3 py-2 max-sm:order-2 max-sm:p-0">
                   <StatusChip status={r.status} />
                   {r.progress ? (
                     <StepProgress steps={r.progress} lastChange={r.lastChange} />
@@ -410,8 +414,11 @@ export function RunEntries({
                     ) : null}
                   </td>
                 )}
-                <td className="px-3 py-2 text-right">
-                  <Link href={`/p/${projectKey}/runs/${runNumber}/execute?entry=${r.id}`} className="text-xs font-medium text-accent-700 hover:underline">
+                <td className="px-3 py-2 text-right max-sm:order-4 max-sm:ml-auto max-sm:p-0">
+                  <Link
+                    href={`/p/${projectKey}/runs/${runNumber}/execute?entry=${r.id}`}
+                    className="text-xs font-medium text-accent-700 hover:underline max-sm:inline-block max-sm:rounded-md max-sm:bg-accent-600 max-sm:px-3 max-sm:py-1.5 max-sm:text-sm max-sm:text-white max-sm:hover:no-underline"
+                  >
                     {r.status === "UNTESTED" ? "Test" : r.status === "IN_PROGRESS" ? "Continue" : "Retest"}
                   </Link>
                 </td>

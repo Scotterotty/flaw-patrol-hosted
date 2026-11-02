@@ -14,7 +14,10 @@ export function TakeCase({
   me,
   closed,
   session,
+  resume,
 }: {
+  /** A half-done session you came back to (ver_54 audit #1): said in this bar, not a second banner. */
+  resume?: { text: string; onResume?: () => void } | null;
   /** An exploratory session has notes, not steps (ver_89). */
   session?: boolean;
   projectId: string;
@@ -27,7 +30,7 @@ export function TakeCase({
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const mine = assignee?.id === me;
-  if (closed && !assignee) return null;
+  if (closed && !assignee && !resume) return null;
 
   const act = (take: boolean, over = false) =>
     start(async () => {
@@ -45,15 +48,21 @@ export function TakeCase({
     >
       {assignee ? (
         mine ? (
-          <span>You&apos;re testing this case, so teammates see it&apos;s taken.</span>
+          <span>{session ? (resume ? "You're exploring this." : "You're exploring this, so teammates see it's taken.") : "You're testing this case, so teammates see it's taken."}</span>
         ) : (
           <span className="flex min-w-0 items-center gap-1.5">
             <PersonLabel person={assignee} size={18} />
-            <span>is on this case.</span>
+            <span>is on this {session ? "session" : "case"}.</span>
           </span>
         )
-      ) : (
+      ) : resume ? null : (
         <span>{closed ? "Nobody took this case." : session ? "Write a note to start exploring. Your teammates will see you're on this session." : "Mark a step to start testing. Your teammates will see you're on this case."}</span>
+      )}
+      {resume && <span data-testid="resume-note">{resume.text}</span>}
+      {!closed && resume?.onResume && (
+        <Button size="sm" variant="primary" onClick={resume.onResume} className="ml-auto">
+          Keep exploring
+        </Button>
       )}
       {!closed && assignee && !mine && (
         <Button size="sm" disabled={pending} onClick={() => act(true, true)} className="ml-auto">
@@ -61,13 +70,21 @@ export function TakeCase({
         </Button>
       )}
       {!closed && mine && (
-        <Button size="sm" disabled={pending} onClick={() => act(false)} className="ml-auto">
+        <Button size="sm" disabled={pending} onClick={() => act(false)} className={resume?.onResume ? undefined : "ml-auto"}>
           Stop testing
         </Button>
       )}
       {!closed && mine && (
         <p className="w-full text-xs text-slate-500" data-testid="stop-testing-help">
-          <b>Stop testing</b> frees this case so someone else can test it. Your marks so far are kept, and you can come back and pick it up again.
+          {session ? (
+            <>
+              <b>Stop testing</b> frees this session so someone else can pick it up. Your notes are kept, and you can come back to it.
+            </>
+          ) : (
+            <>
+              <b>Stop testing</b> frees this case so someone else can test it. Your marks so far are kept, and you can come back and pick it up again.
+            </>
+          )}
         </p>
       )}
       {error && <div className="w-full text-xs"><ErrorText onDismiss={() => setError(null)}>{error}</ErrorText></div>}

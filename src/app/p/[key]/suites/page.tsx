@@ -2,7 +2,7 @@ import Link from "next/link";
 import { StatusBar } from "@/components/status";
 import { Card, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { db } from "@/lib/db";
-import { relativeTime } from "@/lib/format";
+import { count, relativeTime } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { projectAccess, mySpelling } from "@/lib/session";
 import { umbrellaOf } from "@/lib/umbrella";
@@ -73,7 +73,7 @@ export default async function SuitesPage({ params, searchParams }: { params: Pro
                     {s.projectId !== project.id && <span className="ml-2 rounded-full bg-accent-50 px-2 py-0.5 text-xs font-medium text-accent-700">Shared</span>}
                   </p>
                   <p className="truncate text-sm text-slate-500">
-                    {s._count.cases} cases · {s._count.runs} runs{s.description ? ` · ${s.description}` : ""}
+                    {count(s._count.cases, "case")} · {count(s._count.runs, "run")}{s.description ? ` · ${s.description}` : ""}
                   </p>
                 </div>
                 <div className="text-xs text-slate-500">

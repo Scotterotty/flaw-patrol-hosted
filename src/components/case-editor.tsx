@@ -656,14 +656,11 @@ export function CaseEditor(props: CaseEditorProps) {
             }}
             onCreated={(p) => setPersonas((list) => [...list, p].sort((a, b) => a.name.localeCompare(b.name)))}
           />
-          <section aria-label="Reminders" className="mt-4">
-            <h3 className="text-sm font-medium text-slate-700">
-              Reminders{" "}
-              <span className="font-normal text-slate-500">
-                (optional) · go off during every session of this charter
-              </span>
-            </h3>
-            <div className="mt-1.5">
+          {/* Its own box like Mission, so it doesn't read as a footnote (ver_54 audit #7). */}
+          <section aria-label="Reminders" className="mt-4 rounded-lg border border-slate-200 bg-surface p-5 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-800">Reminders</h2>
+            <p className="text-xs text-slate-500">Optional. They go off during every session of this charter.</p>
+            <div className="mt-3">
               <ReminderRows
                 idPrefix="charter-reminder"
                 reminders={charter.reminders}
@@ -1418,12 +1415,11 @@ function PromptRows({ prompts, onChange }: { prompts: string[]; onChange: (p: st
     setDraft("");
   };
   return (
-    <section aria-label="Prompts" className="mt-4">
-      <h3 className="text-sm font-medium text-slate-700">
-        Prompts <span className="font-normal text-slate-500">(optional) · things to try, ticked off during the session</span>
-      </h3>
+    <section aria-label="Prompts" className="mt-4 rounded-lg border border-slate-200 bg-surface p-5 shadow-sm">
+      <h2 className="text-sm font-semibold text-slate-800">Prompts</h2>
+      <p className="text-xs text-slate-500">Optional. Things to try, ticked off during the session.</p>
       {prompts.length > 0 && (
-        <ul className="mt-1.5 space-y-1">
+        <ul className="mt-3 space-y-1">
           {prompts.map((p, i) => (
             <li key={`${i}-${p}`} className="flex items-center gap-2">
               <span aria-hidden className="text-slate-400">☐</span>

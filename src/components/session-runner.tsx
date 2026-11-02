@@ -1,10 +1,11 @@
 "use client";
 
 import { dateTime } from "@/lib/spelling";
+import { count } from "@/lib/format";
 import type { ResultStatus } from "@prisma/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ComponentProps } from "react";
 import type { CaseFlagInfo } from "@/lib/case-flag";
 import { clock, NOTE_KINDS, NOTE_LABEL, noteCounts, type Charter, type LogKind, type NoteKind, type PersonaInfo, type Reminder, type SessionNote } from "@/lib/charter";
 import { holdLive } from "@/lib/live-hold";
@@ -21,6 +22,7 @@ import { CharterView } from "./charter-view";
 import { DefectChip, FileChip } from "./runner";
 import { ReminderBanner, SessionReminders, useReminderAlerts } from "./reminders";
 import { StatusChip } from "./status";
+import { TakeCase } from "./take-case";
 import { Button, cx, ErrorText, InfoTip, Textarea } from "./ui";
 
 type Attachment = SessionNote["attachments"][number];
@@ -73,10 +75,10 @@ export function SessionRunner({
   previous,
   jiraConnected,
   runDefects,
-  takeBar = null,
+  take = null,
 }: {
-  /** The "You're on this case" bar, above the charter so it scrolls with it. */
-  takeBar?: ReactNode;
+  /** Who's on this session. Its bar sits above the charter and scrolls with it, and also says when you picked up a half-done session (ver_54 audit #1). */
+  take?: Omit<ComponentProps<typeof TakeCase>, "session" | "resume"> | null;
   projectId: string;
   projectKey: string;
   runNumber: number;
@@ -132,6 +134,11 @@ export function SessionRunner({
     setElapsed(base.current);
   }, [now]);
   const started = elapsed > 0 || running || notes.length > 0;
+  // Said in the take bar until the clock moves again (ver_54 audit #1).
+  const resumeText =
+    resumed && draft && entry.draftBy && !ending && !running && elapsed === draft.elapsedSec
+      ? `Picked up where ${entry.draftBy.mine ? "you" : entry.draftBy.name} left off ${entry.draftBy.ago}, timer paused at ${clock(draft.elapsedSec)}.`
+      : null;
 
   // Reminders go off by the session clock: the charter's, plus the tester's own for this session.
   const [ownReminders, setOwnReminders] = useState<Reminder[]>(draft?.reminders ?? []);
@@ -294,7 +301,13 @@ export function SessionRunner({
 
   return (
     <div className="min-w-0 flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1 bigtext:overflow-visible bigtext:pr-0">
-      {takeBar && <div className="mb-3">{takeBar}</div>}
+      {take ? (
+        <div className="mb-3">
+          <TakeCase {...take} session resume={resumeText ? { text: resumeText, onResume: running || runClosed ? undefined : play } : null} />
+        </div>
+      ) : (
+        resumeText && <p className="mb-3 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">{resumeText}</p>
+      )}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs text-slate-500">
@@ -312,12 +325,30 @@ export function SessionRunner({
         </div>
       </div>
 
-      {runClosed && <p className="mb-3 rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700">This run is closed. Reopen it to keep exploring.</p>}
-      {resumed && draft && entry.draftBy && !ending && (
-        <p className="mb-3 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
-          Picked up where {entry.draftBy.mine ? "you" : entry.draftBy.name} left off {entry.draftBy.ago}. The timer is paused at {clock(draft.elapsedSec)}.
-        </p>
+      {/* Phones and narrow windows (ver_54 audit #12): the timer panel sits below the log, so a small bar keeps time in view. */}
+      {!ending && (
+        <div data-testid="phone-timer" className="sticky top-12 z-30 mb-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-surface px-3 py-2 shadow-sm lg:top-0 xl:hidden">
+          <span className={cx("text-xl font-semibold tabular-nums", over ? "text-orange-700" : "text-slate-900")}>{over ? `+${clock(-left)}` : clock(left)}</span>
+          <span className="text-xs text-slate-500">{over ? "over" : "left"}</span>
+          <span className="ml-auto flex gap-2">
+            {running ? (
+              <Button size="sm" onClick={pause} aria-label="Pause the timer">
+                Pause
+              </Button>
+            ) : (
+              <Button size="sm" disabled={runClosed} onClick={play} aria-label={started ? "Keep exploring from the timer bar" : "Start exploring from the timer bar"}>
+                {started ? "Resume" : "Start"}
+              </Button>
+            )}
+            {started && (
+              <Button size="sm" variant="primary" disabled={runClosed} onClick={end} aria-label="Finish exploring from the timer bar">
+                Finish
+              </Button>
+            )}
+          </span>
+        </div>
       )}
+      {runClosed && <p className="mb-3 rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700">This run is closed. Reopen it to keep exploring.</p>}
       {previous && !draft && <PreviousSessionNote previous={previous} />}
       {!ending &&
         reminders.alerts.map((a) => (
@@ -344,7 +375,7 @@ export function SessionRunner({
                   Finish exploring
                 </h2>
                 <span className="text-xs text-slate-500 tabular-nums">
-                  {Math.round(elapsed / 60)} of {Math.round(limit / 60)} min used
+                  {elapsed > 0 && elapsed < 60 ? "Under 1" : Math.round(elapsed / 60)} of {Math.round(limit / 60)} min used
                 </span>
               </div>
               <p className="mt-2 flex flex-wrap gap-1.5 text-xs">
@@ -560,7 +591,7 @@ export function SessionRunner({
             />
           )}
           <section aria-label="Mission" className="rounded-lg border border-slate-200 bg-surface p-4 shadow-sm">
-            <CharterView charter={entry.charter} persona={entry.persona} hidePrompts />
+            <CharterView charter={entry.charter} persona={entry.persona} hidePrompts hideReminders />
             {entry.preconditions && (
               <p className="mt-3 border-t border-slate-100 pt-2 text-sm whitespace-pre-wrap wrap-anywhere text-slate-700">
                 <span className="block text-xs font-medium text-slate-500">Setup</span>
@@ -610,7 +641,7 @@ function PreviousSessionNote({ previous }: { previous: PreviousSession }) {
       <span suppressHydrationWarning>{dateTime(new Date(previous.createdAt), spelling)}</span>
       {previous.elapsedSec !== null && ` · ${clock(previous.elapsedSec)}`}
       <span className="block text-xs text-slate-500">
-        {c.note} notes, {c.bug} bugs, {c.question} questions, {c.idea} ideas. Starting again records a new session.
+        {count(c.note, "note")}, {count(c.bug, "bug")}, {count(c.question, "question")}, {count(c.idea, "idea")}. Starting again records a new session.
       </span>
       {previous.comment && <span className="block text-xs text-slate-500">“{previous.comment}”</span>}
       <span className="sr-only">{STATUS_LABEL[previous.status]}</span>

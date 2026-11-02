@@ -9,7 +9,7 @@ import { BugsOverTime, PassRateOverTime, ReleaseTrends, ResultsOverTime, SplitPa
 import { Badge, Card, cx, EmptyState } from "@/components/ui";
 import { NOTE_KINDS, NOTE_LABEL, type NoteKind } from "@/lib/charter";
 import type { sessionFindings, FindingTotals } from "@/lib/findings";
-import { relativeTime } from "@/lib/format";
+import { count, relativeTime } from "@/lib/format";
 import type { caseHealth, defectReport, RunKind, RunRow, runReport, StepHistory, suiteReport, testerReport, Trends } from "@/lib/reports";
 import { manualLine, splitProgress } from "@/lib/progress-split";
 import { mySpelling } from "@/lib/session";
@@ -132,7 +132,7 @@ export function FindingsView({
         <Tile label="Bugs" value={String(t.bugs)} />
         <Tile label="Open questions" value={String(t.openQuestions)} sub={`of ${t.questions}`} />
         <Tile label="Ideas" value={String(t.ideas)} />
-        <Tile label="Time explored" value={hours ? `${hours}h ${mins}m` : `${mins}m`} />
+        <Tile label="Time explored" value={t.seconds > 0 && t.seconds < 60 ? "Under 1 min" : hours ? `${hours}h ${mins}m` : `${mins}m`} />
       </div>
       <nav aria-label="Finding types" className="flex flex-wrap gap-1.5">
         <Link href={`?${qs({ kinds: undefined, open: undefined })}`} className={chip(!kinds.length && !openOnly)} aria-current={!kinds.length && !openOnly ? "true" : undefined}>
@@ -195,7 +195,7 @@ function SplitBars({ manual, auto, autoAll, autoRuns }: { manual: StatusCounts |
     <div className="space-y-4">
       {manual && (
         <div>
-          <p className="mb-1 text-xs font-medium text-slate-700">✋ Manual testing · {totals(manual).total} cases</p>
+          <p className="mb-1 text-xs font-medium text-slate-700">✋ Manual testing · {count(totals(manual).total, "case")}</p>
           <StatusBar counts={manual} height="h-3" />
           <div className="mt-1.5">
             <StatusLegend counts={manual} />
@@ -204,13 +204,13 @@ function SplitBars({ manual, auto, autoAll, autoRuns }: { manual: StatusCounts |
       )}
       {auto && (
         <div>
-          <p className="mb-1 text-xs font-medium text-slate-700">🤖 Automated tests · {totals(auto).total} cases (latest result)</p>
+          <p className="mb-1 text-xs font-medium text-slate-700">🤖 Automated tests · {count(totals(auto).total, "case")} (latest result)</p>
           <StatusBar counts={auto} height="h-3" />
           <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
             <StatusLegend counts={auto} />
             {autoRuns > 1 && (
               <span className="text-xs text-slate-500">
-                Across all {autoRuns} runs: {autoAll.PASSED} passed, {autoAll.FAILED} failed ({pct(all.passRate)})
+                Across {autoRuns === 1 ? "1 run" : `all ${autoRuns} runs`}: {autoAll.PASSED} passed, {autoAll.FAILED} failed ({pct(all.passRate)})
               </span>
             )}
           </div>
@@ -285,7 +285,7 @@ export function StatusView({ suiteKey, runs, suites, kind, only }: { suiteKey: s
                   <Link href={`/p/${suiteKey}/suites/${s.id}`} className="font-medium hover:underline">
                     {s.name}
                   </Link>{" "}
-                  <span className="text-xs text-slate-500">v{s.version} · {s.cases} cases</span>
+                  <span className="text-xs text-slate-500">v{s.version} · {count(s.cases, "case")}</span>
                 </td>
                 <td className="px-4 py-2 tabular-nums">{s.runs}</td>
                 <td className="px-4 py-2">
@@ -390,7 +390,7 @@ export function StepsView({ runs, stepCounts, failing, moreHref, only }: { runs:
             ).map(([label, counts]) => (
               <div key={label}>
                 <p className="mb-1 text-xs font-medium text-slate-700">
-                  {label} · {totals(counts).tested} steps
+                  {label} · {count(totals(counts).tested, "step")}
                 </p>
                 <StatusBar counts={counts} height="h-3" />
                 <div className="mt-1.5">

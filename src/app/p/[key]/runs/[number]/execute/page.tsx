@@ -191,16 +191,14 @@ export default async function ExecutePage({
   const done = run.entries.filter((e) => !isOpen(e.status)).length;
 
   // Above the case title, inside the part that scrolls, so it never covers Flag or the timer (ver_87).
-  const takeBar = (
-    <TakeCase
-      projectId={project.id}
-      entryId={entry.id}
-      assignee={entry.assigneeId ? (people.get(entry.assigneeId) ?? { id: entry.assigneeId, name: "Someone" }) : null}
-      me={user.id}
-      closed={run.state === "COMPLETED"}
-      session={!!entry.charter}
-    />
-  );
+  const take = {
+    projectId: project.id,
+    entryId: entry.id,
+    assignee: entry.assigneeId ? (people.get(entry.assigneeId) ?? { id: entry.assigneeId, name: "Someone" }) : null,
+    me: user.id,
+    closed: run.state === "COMPLETED",
+  };
+  const takeBar = <TakeCase {...take} session={!!entry.charter} />;
   return (
     <div className="mx-auto flex max-w-[110rem] flex-col gap-5 lg:flex-row bigtext:flex-col">
       <LiveRefresh url={`/api/live/runs/${run.id}`} rows renderedAt={renderedAt} />
@@ -297,7 +295,7 @@ export default async function ExecutePage({
             runDefects={runDefects}
             nextEntryId={next?.id ?? null}
             keepQuery={keep}
-            takeBar={takeBar}
+            take={take}
             entry={{
               id: entry.id,
               caseKey: caseKey(entry.testCase.project.key, entry.testCase.number),

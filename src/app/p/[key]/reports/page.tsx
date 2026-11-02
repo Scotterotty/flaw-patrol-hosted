@@ -1,4 +1,5 @@
 import { AddPartsHere } from "@/components/add-part-bar";
+import { ScrollTabs } from "@/components/scroll-tabs";
 import { AttachWrapUps, WrapUpsSection } from "@/components/wrap-ups";
 import { attachedWrapUps, releaseStart, reportsWrapKey, wrapPickOf } from "@/lib/wrap-ups";
 import { KindSelect } from "@/components/kind-select";
@@ -232,7 +233,7 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
       {/* The one-line answer (ver_124, persona audit #10), following the dates and filters. */}
       {view !== "regression" && runs.length > 0 && <ReportSummaryBar summary={await summaryFor(project.id, f, runs, scope)} />}
 
-      <nav className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200">
+      <ScrollTabs label="Report views" className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200">
         {VIEWS.map((v) => (
           <Link
             key={v.id}
@@ -242,7 +243,7 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
             {v.label}
           </Link>
         ))}
-      </nav>
+      </ScrollTabs>
 
       <AddPartsHere homeId={project.id} user={user} who={who} base={`/p/${project.key}/reports/custom`}>
       <div id="report-body">

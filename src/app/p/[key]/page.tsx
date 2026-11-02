@@ -8,7 +8,7 @@ import { Badge, Card, cx, LinkButton, PageHeader } from "@/components/ui";
 import { flagLabel } from "@/lib/case-flag";
 import { db } from "@/lib/db";
 import { mailOn } from "@/lib/mail";
-import { caseKey, relativeTime } from "@/lib/format";
+import { capitalize, caseKey, count, minutesSpent, relativeTime } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { caseHealth, trends } from "@/lib/reports";
 import { projectAccess, mySpelling } from "@/lib/session";
@@ -76,7 +76,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
     const c = noteCounts(parseSessionLog(r.sessionLog));
     return { bugs: acc.bugs + c.bug, questions: acc.questions + c.question };
   }, { bugs: 0, questions: 0 });
-  const exploredMin = Math.round(explored.reduce((n, r) => n + (r.elapsedSec ?? 0), 0) / 60);
+  const exploredSec = explored.reduce((n, r) => n + (r.elapsedSec ?? 0), 0);
   const libraryCount = umbrella && !umbrella.isHub ? await db.testCase.count({ where: { projectId: umbrella.hub.id, archived: false, ...NOT_BASH_CASE } }) : 0;
   // A live bug bash gets its own tile instead of counting as a run (ver_124). Only while one is live.
   const liveBash = await db.bugBash.findFirst({ where: { projectId: project.id, ...LIVE_BASH(now) }, orderBy: { startsAt: "desc" }, select: { id: true, name: true, endsAt: true } });
@@ -109,7 +109,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
     <div className="mx-auto max-w-6xl">
       <PageHeader
         title={project.name}
-        subtitle={project.description || "Overview"}
+        subtitle={project.description || undefined}
         actions={can(who, "run:create") && <StartRunBox scope={{ projectKey: project.key }} />}
       />
 
@@ -143,11 +143,11 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
             href={`/p/${project.key}/bashes/${liveBash.id}`}
           />
         )}
-        <Tile label="Pass rate, last 30 days" value={pct(monthRate)} note={`${trend.results} results${explored.length ? " · exploring not counted" : ""}`} href={`/p/${project.key}/reports?view=trends`} />
+        <Tile label="Pass rate, last 30 days" value={pct(monthRate)} note={`${count(trend.results, "result")}${explored.length ? " · exploring not counted" : ""}`} href={`/p/${project.key}/reports?view=trends`} />
         {explored.length > 0 && (
           <Tile
             label="🧭 Explored, last 30 days"
-            value={exploredMin >= 60 ? `${Math.floor(exploredMin / 60)} h ${exploredMin % 60} min` : `${exploredMin} min`}
+            value={capitalize(minutesSpent(exploredSec))}
             note={`${explored.length} ${explored.length === 1 ? "session" : "sessions"} · ${exploredFinds.bugs} ${exploredFinds.bugs === 1 ? "bug" : "bugs"} · ${exploredFinds.questions} ${exploredFinds.questions === 1 ? "question" : "questions"}`}
             href={`/p/${project.key}/runs`}
           />

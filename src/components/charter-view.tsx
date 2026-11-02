@@ -24,7 +24,8 @@ export function timeBoxLabel(minutes: number) {
 }
 
 /** A charter's mission laid out as Explore / With / To discover / Time limit. */
-export function CharterView({ charter, persona, className, hidePrompts }: { charter: Charter; persona?: PersonaInfo | null; className?: string; hidePrompts?: boolean }) {
+/** hideReminders: during a session they're in the Timer panel already, so they show once (ver_54 audit #2). */
+export function CharterView({ charter, persona, className, hidePrompts, hideReminders }: { charter: Charter; persona?: PersonaInfo | null; className?: string; hidePrompts?: boolean; hideReminders?: boolean }) {
   const rows: [string, string][] = [
     ["Explore", charter.explore],
     ["With", charter.with],
@@ -40,7 +41,7 @@ export function CharterView({ charter, persona, className, hidePrompts }: { char
       ))}
       <dt className="text-xs font-medium text-slate-500">Time limit</dt>
       <dd className="text-slate-800">{timeBoxLabel(charter.minutes)}</dd>
-      {charter.reminders.length > 0 && (
+      {charter.reminders.length > 0 && !hideReminders && (
         <>
           <dt className="text-xs font-medium text-slate-500">Reminders</dt>
           <dd>

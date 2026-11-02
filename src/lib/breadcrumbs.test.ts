@@ -23,6 +23,10 @@ describe("crumbsFor", () => {
     expect(labels("/p/OKO/suites/new", oko)).toEqual(["Umbrellas", "OKO Web", "Test suites", "New"]);
   });
 
+  it("names Import a run, not Rimport", () => {
+    expect(labels("/p/OKO/runs/import", oko)).toEqual(["Umbrellas", "OKO Web", "Test runs", "Import a run"]);
+  });
+
   it("uses the name a page gives itself", () => {
     const names = { "/p/OKO/runs/22": "Smoke", "/p/OKO/suites/abc": "Checkout regression" };
     expect(crumbsFor("/p/OKO/runs/22/execute", oko, names).map((c) => c.label)).toEqual(["Umbrellas", "OKO Web", "Test runs", "R22 Smoke", "Execute"]);

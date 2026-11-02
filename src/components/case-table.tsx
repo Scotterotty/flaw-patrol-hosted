@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { Fragment, useState, useTransition } from "react";
 import { CloseMatchesLabel } from "./close-matches";
 import { CASES_MIME, dragChip, type DraggedCases } from "@/lib/case-drag";
-import { caseKey, relativeTime } from "@/lib/format";
+import { caseKey, count, relativeTime } from "@/lib/format";
 import { STATUS_LABEL, STATUS_STYLE } from "@/lib/status";
 import { moveCases, setCasesArchived } from "@/server/cases";
 import { addCasesToSuite } from "@/server/suites";
@@ -117,7 +117,7 @@ export function CaseTable({
               onChange={(e) => {
                 const v = e.target.value;
                 if (!v) return;
-                run(() => moveCases(projectId, ids, v === "__none" ? null : v), (n) => `Moved ${n} cases.`);
+                run(() => moveCases(projectId, ids, v === "__none" ? null : v), (n) => `Moved ${count(n, "case")}.`);
               }}
             >
               <option value="">Move to folder…</option>
@@ -166,7 +166,7 @@ export function CaseTable({
                 if (!suiteId) return;
                 start(async () => {
                   const res = await addCasesToSuite(projectId, suiteId, ids);
-                  setMessage(res.ok ? `Added ${res.added} cases to the suite.` : res.error);
+                  setMessage(res.ok ? `Added ${count(res.added, "case")} to the suite.` : res.error);
                   router.refresh();
                 });
               }}
@@ -206,7 +206,7 @@ export function CaseTable({
               onClick={() =>
                 run(
                   () => setCasesArchived(projectId, ids, !archivedView),
-                  (n) => (archivedView ? `Restored ${n} cases.` : `Archived ${n} cases. Find them on the Archived tab.`),
+                  (n) => (archivedView ? `Restored ${count(n, "case")}.` : `Archived ${count(n, "case")}. Find them on the Archived tab.`),
                 )
               }
             >

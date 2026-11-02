@@ -24,7 +24,7 @@ import {
   type ImportField,
   type ImportSource,
 } from "@/lib/csv-import";
-import { PRIORITY_LABEL } from "@/lib/format";
+import { count, PRIORITY_LABEL } from "@/lib/format";
 import { findAreaWords, applyAreaWord, type AreaContext } from "@/lib/area-tags";
 import { splitBracketTitle } from "@/lib/tags";
 import { importCases } from "@/server/import";
@@ -537,7 +537,7 @@ export function CsvImporter({
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
               <div>
                 <h2 className="text-sm font-semibold text-slate-800">
-                  Preview: {result.cases.length} cases, {result.cases.reduce((n, c) => n + c.steps.length, 0)} steps
+                  Preview: {count(result.cases.length, "case")}, {count(result.cases.reduce((n, c) => n + c.steps.length, 0), "step")}
                   {result.shared.length > 0 && `, ${result.shared.length} shared ${result.shared.length === 1 ? "step" : "steps"}`}
                 </h2>
                 <p className="text-xs text-slate-500">Click a case to see its steps as they&apos;ll be numbered.</p>
@@ -560,7 +560,7 @@ export function CsvImporter({
                   title={needsName ? "Name the new folder first" : runBefore === null ? "Answer “Have these cases been run before?” first" : undefined}
                   onClick={doImport}
                 >
-                  {pending ? "Importing…" : intoLabel ? `Import ${result.cases.length} cases into "${intoLabel}"` : `Import ${result.cases.length} cases`}
+                  {pending ? "Importing…" : intoLabel ? `Import ${count(result.cases.length, "case")} into "${intoLabel}"` : `Import ${count(result.cases.length, "case")}`}
                 </Button>
               </span>
             </div>

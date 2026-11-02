@@ -23,3 +23,15 @@ export function relativeTime(date: Date, spelling: Spelling = "us", now = new Da
 export function normalizeTags(tags: string[]): string[] {
   return [...new Set(tags.map((t) => t.trim()).filter(Boolean))].slice(0, 30);
 }
+
+/** "1 result", "2 results": a count with its word, never "1 results" (ver_54 audit #10). */
+export const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** Whole minutes for a time spent, but "under 1 min" for a few seconds instead of "0 min" (ver_54 audit #11). */
+export function minutesSpent(sec: number): string {
+  if (sec > 0 && sec < 60) return "under 1 min";
+  const m = Math.round(sec / 60);
+  return m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}` : `${m} min`;
+}
+
+export const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

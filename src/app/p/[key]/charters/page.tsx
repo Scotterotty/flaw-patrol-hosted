@@ -12,7 +12,7 @@ import { db } from "@/lib/db";
 import { relativeTime } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { mySpelling, projectAccess } from "@/lib/session";
-import { caseKey } from "@/lib/format";
+import { caseKey, count } from "@/lib/format";
 
 export const metadata = { title: "Charters" };
 
@@ -148,7 +148,7 @@ export default async function ChartersPage({ params, searchParams }: { params: P
                           <Link href={`/p/${r.key}/cases/${r.number}`} className="hover:underline">
                             <span className="font-mono text-xs text-slate-500">{caseKey(r.key, r.number)}</span> <span className="font-medium text-slate-900">{r.title}</span>
                           </Link>
-                          {r.prompts > 0 && <span className="ml-2 text-[11px] text-slate-500">{r.prompts} prompts</span>}
+                          {r.prompts > 0 && <span className="ml-2 text-[11px] text-slate-500">{count(r.prompts, "prompt")}</span>}
                         </td>
                         <td className="px-4 py-2 text-slate-700">{r.persona ? `${r.persona.emoji} ${r.persona.name}` : <span className="text-slate-400">Nobody in particular</span>}</td>
                         <td className="px-4 py-2 text-slate-700">{r.minutes} min</td>
