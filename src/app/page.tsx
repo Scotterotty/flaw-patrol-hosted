@@ -2,7 +2,7 @@ import { type GroupChoice } from "@/components/group-dialogs";
 import { ProjectsBrowser } from "@/components/projects-browser";
 import { LIVE_BASH, NOT_BASH_CASE, NOT_BASH_RUN } from "@/lib/bash-cases";
 import { cookies } from "next/headers";
-import { parseUmbrellaSort, UMBRELLA_SORT_COOKIE } from "@/lib/project-list";
+import { parseUmbrellaSort, UMBRELLA_SORT_COOKIE, YOUR_WORK_COOKIE } from "@/lib/project-list";
 import { TopBar } from "@/components/top-bar";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { db } from "@/lib/db";
@@ -88,7 +88,8 @@ export default async function HomePage() {
           entries: { where: { assigneeId: user.id }, select: { status: true } },
         },
         orderBy: { createdAt: "desc" },
-        take: 8,
+        // Show all lists every run; this only guards against a runaway list.
+        take: 100,
       }),
       cookies(),
     ]),
@@ -125,17 +126,19 @@ export default async function HomePage() {
   // Projects made before umbrellas (or moved out of one) sit under their own heading.
   const loose = projects.some((p) => !p.groupId || !umbrellaIds.has(p.groupId));
 
-  const yourWork = myRuns.map((r) => ({
-    href: `/p/${r.project.key}/runs/${r.number}/execute?mine=1`,
-    run: `R${r.number} ${r.name}`,
-    cycle: r.project.name,
-    left: r.entries.filter(
-      (e) =>
-        e.status === "UNTESTED" ||
-        e.status === "RETEST" ||
-        e.status === "IN_PROGRESS",
-    ).length,
-  }));
+  const waiting = (st: string) =>
+    st === "UNTESTED" || st === "RETEST" || st === "IN_PROGRESS";
+  // Runs you already started come first, then the newest.
+  const yourWork = myRuns
+    .map((r) => ({
+      href: `/p/${r.project.key}/runs/${r.number}/execute?mine=1`,
+      run: r.name,
+      number: r.number,
+      cycle: r.project.name,
+      left: r.entries.filter((e) => waiting(e.status)).length,
+      started: r.entries.some((e) => e.status !== "UNTESTED"),
+    }))
+    .sort((a, b) => Number(b.started) - Number(a.started));
 
   t.done();
   const subtitle =
@@ -174,6 +177,7 @@ export default async function HomePage() {
           <ProjectsBrowser
             subtitle={subtitle}
             yourWork={yourWork}
+            yourWorkOpen={sortCookie.get(YOUR_WORK_COOKIE)?.value === "all"}
             newButton={maker ? <NewUmbrellaButton choices={choices} /> : null}
             sort={parseUmbrellaSort(
               sortCookie.get(UMBRELLA_SORT_COOKIE)?.value,

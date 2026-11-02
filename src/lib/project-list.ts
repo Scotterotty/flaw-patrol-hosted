@@ -81,6 +81,10 @@ export const UMBRELLA_SORTS: { value: UmbrellaSort; label: string }[] = [
   { value: "az", label: "A to Z" },
 ];
 export const UMBRELLA_SORT_COOKIE = "fp-umbrella-sort";
+/** "all" when the viewer opened every row of Your work on the Umbrellas page. */
+export const YOUR_WORK_COOKIE = "fp-your-work";
+/** Your work shows this many runs until Show all. */
+export const YOUR_WORK_SHORT = 3;
 export const parseUmbrellaSort = (v: string | undefined): UmbrellaSort => (v === "recent" || v === "az" ? v : "mine");
 
 export type UmbrellaItem = { id: string; name: string; starred: boolean; position: number | null; /** Latest result, bug, run or case change, ms. */ activity: number | null };

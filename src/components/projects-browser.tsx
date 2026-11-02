@@ -10,7 +10,8 @@ import { setGroupsHidden, setGroupStarred } from "@/server/groups";
 import { setUmbrellaArchived } from "@/server/umbrella";
 import { setArchived, setHidden, setProjectOrder, setStarred } from "@/server/projects";
 import { UmbrellaCard, type UmbrellaCardData } from "./umbrella-ui";
-import { Button, buttonClass, Card, cx, ErrorText, InfoTip, Input, PageHeader, Select } from "./ui";
+import { YourWork, type YourWorkRow } from "./your-work";
+import { Button, cx, ErrorText, InfoTip, Input, PageHeader, Select } from "./ui";
 import { type ProjectCardData, type GroupCardData, type Item, type CardActions, type Sortable, GroupCard, OrganizeCard, CardMenu } from "./project-cards";
 export { type ProjectCardData, type GroupCardData } from "./project-cards";
 
@@ -29,7 +30,9 @@ export type UmbrellaEntry = UmbrellaCardData &
 type Props = {
   subtitle: string;
   /** Runs with cases assigned to the viewer that still need testing. */
-  yourWork?: { href: string; run: string; cycle: string; left: number }[];
+  yourWork?: YourWorkRow[];
+  /** The viewer opened every row last time. */
+  yourWorkOpen?: boolean;
   /** New umbrella, for everyone but Viewers. */
   newButton: React.ReactNode;
   sort: UmbrellaSort;
@@ -47,6 +50,7 @@ type Props = {
 export function ProjectsBrowser({
   subtitle,
   yourWork = [],
+  yourWorkOpen = false,
   newButton,
   sort: savedSort,
   umbrellaCards,
@@ -318,39 +322,7 @@ export function ProjectsBrowser({
       <div className="space-y-6">
         <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
 
-        {yourWork.length > 0 && (
-          <Card className="ring-accent-500/30">
-            <h2 className="px-4 pt-3 text-sm font-semibold text-slate-900">
-              Your work
-            </h2>
-            <ul className="divide-y divide-slate-100">
-              {yourWork.map((w, i) => (
-                <li
-                  key={w.href}
-                  className="flex flex-wrap items-center gap-3 px-4 py-2.5"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="font-medium text-slate-900">{w.run}</span>
-                    <span className="text-sm text-slate-500">
-                      {" "}
-                      · {w.cycle} · {w.left} {w.left === 1 ? "case" : "cases"}{" "}
-                      waiting
-                    </span>
-                  </span>
-                  <Link
-                    href={w.href}
-                    className={buttonClass(
-                      i === 0 ? "primary" : "secondary",
-                      "sm",
-                    )}
-                  >
-                    Test my cases
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        )}
+        <YourWork rows={yourWork} open={yourWorkOpen} />
 
         {showSearch && (
           <div className="flex flex-wrap items-center gap-2">
