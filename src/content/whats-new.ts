@@ -22,6 +22,24 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 149,
+    date: "2026-11-02",
+    items: [
+      {
+        kind: "better",
+        title: "Hand testing shows in Reports as soon as it starts",
+        text: "Cases you've started but not finished now count as In progress on Reports → Execution status, the runs table, exports and Release status. They stay out of pass rates until you save a result.",
+        link: "/g/{umbrella}/reports",
+      },
+      {
+        kind: "better",
+        title: "By run on Overview",
+        text: "How testing is going's By build is now By run: runs you test by hand get striped bars next to the automated builds, with how much of each is done. Pick Both, ✋ Manual or 🤖 Automated; your pick is remembered.",
+        link: "/g/{umbrella}",
+      },
+    ],
+  },
+  {
     version: 148,
     date: "2026-11-02",
     items: [
