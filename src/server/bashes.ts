@@ -6,7 +6,7 @@ import { Prisma, type Severity } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity";
-import { linkSchema, logSchema, parseAreas, seenSchema, valuesSchema, parseLinks, phaseOf, plusOnesOf, sevRank, startSchema, webLink, type BashArea, type BashLink, type StartInput } from "@/lib/bash";
+import { cleanPlatform, cleanPlatforms, onPlatform, linkSchema, logSchema, parseAreas, seenSchema, valuesSchema, parseLinks, phaseOf, plusOnesOf, sevRank, startSchema, webLink, type BashArea, type BashLink, type StartInput } from "@/lib/bash";
 import { open } from "@/lib/crypto";
 import { GitHubClient } from "@/lib/github";
 import { jiraFor } from "@/lib/jira";
@@ -88,7 +88,7 @@ async function bashTemplate(runProjectId: string, id: string | null) {
 }
 
 /** The run's details and a person's automatic table cells, for a bug in this area. */
-async function bashFill(bash: Awaited<ReturnType<typeof loadBash>>, areaId: string, who: string, seen?: z.input<typeof seenSchema>) {
+async function bashFill(bash: Awaited<ReturnType<typeof loadBash>>, areaId: string, who: string, seen?: z.input<typeof seenSchema>, platform = "") {
   const area = parseAreas(bash.areas).find((a) => a.id === areaId);
   const entry = await db.runEntry.findFirst({ where: { runId: bash.run.id, caseId: area?.caseId ?? "" }, select: { id: true } });
   const ctx = entry ? (await bugContext(bash.run.projectId, entry.id, null, "")).ctx : null;
@@ -96,11 +96,12 @@ async function bashFill(bash: Awaited<ReturnType<typeof loadBash>>, areaId: stri
   const auto: AutoCells = {
     now: s.now || nowCell(),
     build: [ctx?.build, ctx?.fields?.find((f) => /csp/i.test(f.name))?.value].filter(Boolean).join(" · ") || ctx?.release || "",
-    env: ctx?.environment ?? "",
+    // The platform the person said they're on leads (ver_146); the run's environment follows.
+    env: [platform, ctx?.environment].filter(Boolean).join(" · "),
     device: s.device,
     who,
   };
-  return { env: ctx ? sectionText("env", ctx) : "", auto };
+  return { env: [platform && `Platform: ${platform}`, ctx ? sectionText("env", ctx) : ""].filter(Boolean).join("\n"), auto };
 }
 
 /** Start a bug bash: a charter per area, one run in the test cycle, and a Slack post. */
@@ -177,7 +178,7 @@ export async function startBugBash(homeId: string, input: StartInput) {
           },
         });
         return tx.bugBash.create({
-          data: { projectId: home.id, runId: run.id, name: data.name, release: cycle.rcName, minutes: data.minutes, startsAt, endsAt, areas: areas as Prisma.InputJsonValue, collectFirst: data.collectFirst, slack: data.slack, funExtras: data.funExtras, bugTemplateId: bugTemplate?.id ?? null, createdById: user.id, createdBy: by },
+          data: { projectId: home.id, runId: run.id, name: data.name, release: cycle.rcName, minutes: data.minutes, startsAt, endsAt, areas: areas as Prisma.InputJsonValue, collectFirst: data.collectFirst, slack: data.slack, funExtras: data.funExtras, bugTemplateId: bugTemplate?.id ?? null, platforms: cleanPlatforms(data.platforms), createdById: user.id, createdBy: by },
         });
       },
       { timeout: 60_000 },
@@ -230,13 +231,17 @@ export async function bashTick(bashId: string) {
   }
 }
 
-/** Join, or switch area: pick an area and start exploring. */
-export async function joinBash(bashId: string, areaId: string) {
+/**
+ * Join, or switch area or platform: pick an area and start exploring. The platform is
+ * optional (ver_146): left out keeps what you said before, "" means you'd rather not say.
+ */
+export async function joinBash(bashId: string, areaId: string, platform?: string) {
   return attempt(async () => {
     const { bash, user } = await requireIn(bashId);
     if (!parseAreas(bash.areas).some((a) => a.id === areaId)) throw new UserError("That area isn't in this bash.");
     if (phaseOf(bash) === "wrapped") throw new UserError("This bash is over and wrapped up.");
-    await db.bashPerson.upsert({ where: { bashId_userId: { bashId, userId: user.id } }, create: { bashId, userId: user.id, name: nameOf(user), areaId }, update: { areaId } });
+    const p = platform === undefined ? undefined : cleanPlatform(platform);
+    await db.bashPerson.upsert({ where: { bashId_userId: { bashId, userId: user.id } }, create: { bashId, userId: user.id, name: nameOf(user), areaId, platform: p ?? "" }, update: { areaId, ...(p !== undefined && { platform: p }) } });
     refresh(bash.project.key);
     return {};
   });
@@ -256,11 +261,11 @@ export async function logBashItem(bashId: string, input: z.input<typeof logSchem
     const tpl = data.kind === "bug" ? await bashTemplate(bash.run.projectId, data.templateId) : null;
     let kept = {};
     if (tpl) {
-      const fill = await bashFill(bash, me.areaId, nameOf(user), data.seen);
+      const fill = await bashFill(bash, me.areaId, nameOf(user), data.seen, me.platform);
       const answers = bashAnswers(tpl.layout, await ownFiles(data.values, bash.run.projectId, user.id), { env: fill.env, actual: data.details || data.text }, fill.auto);
       kept = { templateId: tpl.id, templateName: tpl.name, layout: tpl.layout as unknown as Prisma.InputJsonValue, answers: answers as unknown as Prisma.InputJsonValue };
     }
-    const item = await db.bashItem.create({ data: { bashId, areaId: me.areaId, kind: data.kind, text: data.text, details: data.details, severity: data.severity as Severity, byId: user.id, byName: nameOf(user), ...kept } });
+    const item = await db.bashItem.create({ data: { bashId, areaId: me.areaId, kind: data.kind, text: data.text, details: data.details, severity: data.severity as Severity, byId: user.id, byName: nameOf(user), platform: me.platform, ...kept } });
     const fileIds = [...data.attachmentIds, ...Object.values(data.values).flatMap((v) => v.files.map((f) => f.id))];
     if (fileIds.length) await db.attachment.updateMany({ where: { id: { in: fileIds }, projectId: bash.run.projectId, uploadedById: user.id, resultId: null }, data: { bashItemId: item.id } });
     const needs = tpl ? await itemNeeds(item.id) : [];
@@ -339,12 +344,14 @@ export async function plusOneBash(itemId: string, on: boolean, seen?: z.input<ty
     const others = before.filter((p) => p.id !== user.id);
     const t = itemTemplate(item);
     const had = before.length !== others.length;
+    // Where they saw it too: the platform they said they're on, if any (ver_146).
+    const platform = on ? ((await db.bashPerson.findUnique({ where: { bashId_userId: { bashId: item.bashId, userId: user.id } }, select: { platform: true } }))?.platform ?? "") : "";
     let answers = t?.answers;
     if (t && !item.defectId && t.answers.some((a) => a.growing)) {
-      if (on && !had) answers = withSeenRow(t.answers, (await bashFill(bash, item.areaId, nameOf(user), seen)).auto);
+      if (on && !had) answers = withSeenRow(t.answers, (await bashFill(bash, item.areaId, nameOf(user), seen, platform)).auto);
       if (!on && had) answers = withoutSeenRow(t.answers, nameOf(user));
     }
-    await db.bashItem.update({ where: { id: itemId }, data: { plusOnes: (on ? [...others, { id: user.id, name: nameOf(user) }] : others) as Prisma.InputJsonValue, ...(answers && t && answers !== t.answers && { answers: answers as unknown as Prisma.InputJsonValue }) } });
+    await db.bashItem.update({ where: { id: itemId }, data: { plusOnes: (on ? [...others, { id: user.id, name: nameOf(user), ...(platform && { platform }) }] : others) as Prisma.InputJsonValue, ...(answers && t && answers !== t.answers && { answers: answers as unknown as Prisma.InputJsonValue }) } });
     refresh(bash.project.key);
     return {};
   });
@@ -511,7 +518,7 @@ export async function mergeBashItems(itemIds: string[]) {
     const [keep, ...rest] = [...items].sort((a, b) => sevRank(a.severity) - sevRank(b.severity) || a.createdAt.getTime() - b.createdAt.getTime());
     const people = new Map(plusOnesOf(keep.plusOnes).map((p) => [p.id, p]));
     for (const r of rest) {
-      if (r.byId && r.byId !== keep.byId) people.set(r.byId, { id: r.byId, name: r.byName });
+      if (r.byId && r.byId !== keep.byId) people.set(r.byId, { id: r.byId, name: r.byName, platform: r.platform });
       for (const p of plusOnesOf(r.plusOnes)) if (p.id !== keep.byId) people.set(p.id, p);
     }
     await db.$transaction([
@@ -546,6 +553,10 @@ async function fileItem(bash: Awaited<ReturnType<typeof loadBash>>, itemId: stri
   const entry = await db.runEntry.findFirst({ where: { runId: bash.run.id, caseId: area?.caseId ?? "" }, select: { id: true } });
   if (!entry) throw new UserError("That area's charter isn't in the run anymore.");
   const seen = plusOnesOf(item.plusOnes);
+  // Where it was seen (ver_146): "by Ana on Unity. Also seen by Raj on Web". No platform, no change.
+  const foundIn = `${bash.name}, area ${area?.name ?? ""}, by ${item.byName}${onPlatform(item.platform)}${seen.length ? `. Also seen by ${seen.map((p) => `${p.name}${onPlatform(p.platform)}`).join(", ")}` : ""}`;
+  // Plain bugs get the platform as a [bracket] tag in front, like a run's bug; templates follow their own title setting.
+  const tagged = (title: string) => (item.platform ? `[${item.platform}] ${title}` : title);
   // Additions and what was being tested: PRs and pages in the description, Jira issues as "relates to".
   const adds = await db.bashItem.findMany({ where: { replyToId: item.id, kind: "add" }, orderBy: { createdAt: "asc" }, select: { byName: true, text: true } });
   const links = [...(area?.links ?? []), ...parseLinks(bash.links)];
@@ -553,7 +564,7 @@ async function fileItem(bash: Awaited<ReturnType<typeof loadBash>>, itemId: stri
     item.details || item.text,
     adds.length ? `Added during the bash:\n${adds.map((a) => `- ${a.byName}: ${a.text}`).join("\n")}` : "",
     links.some((l) => l.kind !== "jira") ? `What was being tested:\n${links.filter((l) => l.kind !== "jira").map((l) => `- ${l.key}${l.title ? ` ${l.title}` : ""}: ${l.url}`).join("\n")}` : "",
-    `Found in the bug bash ${bash.name}, area ${area?.name ?? ""}, by ${item.byName}${seen.length ? `. Also seen by ${seen.map((p) => p.name).join(", ")}` : ""}.`,
+    `Found in the bug bash ${foundIn}.`,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -569,7 +580,7 @@ async function fileItem(bash: Awaited<ReturnType<typeof loadBash>>, itemId: stri
       templateId: item.templateId ?? "bash",
       bashItemId: item.id,
       summary: item.text.slice(0, 200),
-      platform: "",
+      platform: item.platform,
       area: area?.name ?? "",
       build: "",
       severity: item.severity,
@@ -581,19 +592,19 @@ async function fileItem(bash: Awaited<ReturnType<typeof loadBash>>, itemId: stri
       notes: [
         adds.length ? { name: "Added during the bash", text: adds.map((a) => `- ${a.byName}: ${a.text}`).join("\n") } : null,
         links.some((l) => l.kind !== "jira") ? { name: "What was being tested", text: links.filter((l) => l.kind !== "jira").map((l) => `- ${l.key}${l.title ? ` ${l.title}` : ""}: ${l.url}`).join("\n") } : null,
-        { name: "Found in", text: `The bug bash ${bash.name}, area ${area?.name ?? ""}, by ${item.byName}${seen.length ? `. Also seen by ${seen.map((p) => p.name).join(", ")}` : ""}.` },
+        { name: "Found in", text: `The bug bash ${foundIn}.` },
       ].filter((n): n is { name: string; text: string } => !!n),
     });
     if (!r.ok) throw new UserError(r.error);
     defectId = r.defect.id;
     key = r.defect.externalKey ?? `D-${r.defect.number}`;
   } else if (await jiraConfigFor(bash.run.projectId)) {
-    const r = await fileJiraBug(bash.run.projectId, entry.id, { summary: item.text.slice(0, 250), severity: item.severity, stepIndex: null, actual, attachmentIds: item.attachments.map((a) => a.id), stories });
+    const r = await fileJiraBug(bash.run.projectId, entry.id, { summary: tagged(item.text).slice(0, 250), severity: item.severity, stepIndex: null, actual, attachmentIds: item.attachments.map((a) => a.id), stories });
     if (!r.ok) throw new UserError(r.error);
     defectId = r.defect.id;
     key = r.defect.externalKey ?? `D-${r.defect.number}`;
   } else {
-    const r = await createLocalDefect(bash.run.projectId, { title: item.text, severity: item.severity, entryId: entry?.id, foundIn: bash.release });
+    const r = await createLocalDefect(bash.run.projectId, { title: tagged(item.text), severity: item.severity, entryId: entry?.id, foundIn: bash.release });
     if (!r.ok) throw new UserError(r.error);
     defectId = r.defect.id;
     key = `D-${r.defect.number}`;

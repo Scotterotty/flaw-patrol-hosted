@@ -1,7 +1,9 @@
 import "server-only";
 import { notFound } from "next/navigation";
 import { can } from "./permissions";
+import { db } from "./db";
 import { bashReport, bashView, loadBashFull, type BashReport } from "./bash-summary";
+import { seenOn } from "./bash";
 import { projectAccessOrGuest } from "./session";
 import type { ReportData } from "@/components/bash-report";
 
@@ -12,7 +14,13 @@ export async function bashPageData(key: string, id: string) {
   if (guest && guest.bashId !== id) notFound();
   const full = await loadBashFull(id);
   if (!full || full.bash.projectId !== project.id) notFound();
-  return { project, user, who, guest: !!guest, full, view: bashView(full, { id: user.id, canManage: !guest && can(who, "run:manage") }) };
+  // Someone joining again gets the platform they picked last time, if this bash offers it (ver_146).
+  let lastPlatform = "";
+  if (full.bash.platforms.length && !full.bash.people.some((p) => p.userId === user.id)) {
+    const last = await db.bashPerson.findFirst({ where: { userId: user.id, platform: { not: "" }, bash: { projectId: project.id } }, orderBy: { joinedAt: "desc" }, select: { platform: true } });
+    lastPlatform = full.bash.platforms.find((p) => p.toLowerCase() === last?.platform.toLowerCase()) ?? "";
+  }
+  return { project, user, who, guest: !!guest, full, view: bashView(full, { id: user.id, canManage: !guest && can(who, "run:manage"), lastPlatform }) };
 }
 
 export function reportData(r: BashReport, file?: ReportData["file"]): ReportData {
@@ -25,6 +33,7 @@ export function reportData(r: BashReport, file?: ReportData["file"]): ReportData
     areaId: b.areaId,
     byName: b.byName,
     seen: 1 + b.plusOnes.length,
+    platforms: seenOn(b),
     key: b.bug ? (b.bug.externalKey ?? `D-${b.bug.number}`) : "",
     url: b.bug?.externalUrl ?? null,
     // Unfiled bugs stay on the report, tagged, with Jira's reason.
@@ -69,6 +78,7 @@ export function reportData(r: BashReport, file?: ReportData["file"]): ReportData
     })),
     vsLast: r.vsLast,
     byArea: r.byArea,
+    byPlatform: r.byPlatform,
     worst: r.worst.map(bug),
     coverage: r.coverage,
   };

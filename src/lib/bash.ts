@@ -76,6 +76,8 @@ export const startSchema = z.object({
   funExtras: z.boolean().default(false),
   /** The bug template bugs use; null is the plain one-line bug. */
   bugTemplateId: z.string().max(40).nullable().default(null),
+  /** Platforms people can say they're on when they join; empty means nobody is asked (ver_146). */
+  platforms: z.array(z.string()).max(20).default([]),
 });
 export type StartInput = z.input<typeof startSchema>;
 
@@ -153,9 +155,74 @@ export function similarBugs<T extends { text: string }>(text: string, items: T[]
     .map((x) => x.it);
 }
 
-export function plusOnesOf(v: unknown): { id: string; name: string }[] {
-  return Array.isArray(v) ? v.filter((p) => p && typeof p.id === "string").map((p) => ({ id: p.id, name: String(p.name ?? "") })) : [];
+export function plusOnesOf(v: unknown): { id: string; name: string; platform: string }[] {
+  return Array.isArray(v) ? v.filter((p) => p && typeof p.id === "string").map((p) => ({ id: p.id, name: String(p.name ?? ""), platform: typeof p.platform === "string" ? p.platform : "" })) : [];
 }
+
+// Platforms (ver_146): optional, never required. Anyone joining a bash can say which platform
+// they're testing on; each find keeps the one it was logged on, and a +1 keeps where it was seen.
+
+/** A platform name as typed: trimmed, single spaces, at most 40 characters. */
+export function cleanPlatform(v: unknown) {
+  return typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, 40) : "";
+}
+
+/** A list of platform names without blanks or repeats (case doesn't matter), at most 12. */
+export function cleanPlatforms(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  const out: string[] = [];
+  for (const raw of v) {
+    const p = cleanPlatform(raw);
+    if (p && !out.some((x) => x.toLowerCase() === p.toLowerCase())) out.push(p);
+  }
+  return out.slice(0, 12);
+}
+
+/** Every platform a bug was seen on: where it was logged first, then each +1's, without repeats. */
+export function seenOn(bug: { platform: string; plusOnes: { platform: string }[] }) {
+  return cleanPlatforms([bug.platform, ...bug.plusOnes.map((p) => p.platform)]);
+}
+
+/**
+ * Bugs by platform for the report: a bug seen on two platforms counts on both. Counts bugs,
+ * never people. Bugs nobody gave a platform go last as "Didn't say" (platform "").
+ */
+export function bugsByPlatform(bugs: { platform: string; severity: Severity | string; plusOnes: { platform: string }[] }[], order: string[] = []) {
+  const rows = new Map<string, { platform: string; bugs: number; high: number; onlyHere: number; elsewhere: number }>();
+  const row = (name: string) => {
+    const key = name.toLowerCase();
+    if (!rows.has(key)) rows.set(key, { platform: name, bugs: 0, high: 0, onlyHere: 0, elsewhere: 0 });
+    return rows.get(key)!;
+  };
+  for (const name of cleanPlatforms(order)) row(name);
+  for (const b of bugs) {
+    const on = seenOn(b);
+    for (const name of on.length ? on : [""]) {
+      const r = row(name);
+      r.bugs++;
+      if (b.severity === "CRITICAL" || b.severity === "SHOWSTOPPER") r.high++;
+      if (on.length > 1) r.elsewhere++;
+      else r.onlyHere++;
+    }
+  }
+  const list = [...rows.values()];
+  // The bash's own order first, then any typed ones by count, then "Didn't say".
+  const rank = (r: { platform: string }) => {
+    if (r.platform === "") return 1e6;
+    const i = order.findIndex((o) => o.toLowerCase() === r.platform.toLowerCase());
+    return i < 0 ? 1000 : i;
+  };
+  return list.filter((r) => r.bugs > 0 || r.platform !== "").sort((a, b) => rank(a) - rank(b) || b.bugs - a.bugs || a.platform.localeCompare(b.platform));
+}
+
+/** "Web 7, Unity 4, Unreal 1" for the summary line, or "" when no bug has a platform. */
+export function platformLine(rows: { platform: string; bugs: number }[]) {
+  const named = rows.filter((r) => r.platform && r.bugs > 0);
+  return named.length ? named.map((r) => `${r.platform} ${r.bugs}`).join(", ") : "";
+}
+
+/** "on Web" for the Found in line, or "" when nobody said. */
+export const onPlatform = (p: string) => (p ? ` on ${p}` : "");
 
 /** "1:00–2:00 PM" style times for the report. */
 export function timeRange(start: Date, end: Date, clock: { spelling?: Spelling; zone?: string } = {}) {

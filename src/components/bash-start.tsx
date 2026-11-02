@@ -92,7 +92,7 @@ export function StartBashAuto({ projectId }: { projectId: string }) {
 }
 
 /** Until its data arrives the box takes a Name and How long; the area ideas show a spinner. */
-const NO_DATA: StartBoxData = { homeId: "", homeKey: "", homeName: "", cycles: [], defaultCycleId: "", suggestions: [], last: null, templates: [], slackChannels: 0, bugTemplates: [], bugTemplateDefault: null };
+const NO_DATA: StartBoxData = { homeId: "", homeKey: "", homeName: "", cycles: [], defaultCycleId: "", suggestions: [], last: null, templates: [], slackChannels: 0, bugTemplates: [], bugTemplateDefault: null, platforms: [], askPlatform: false };
 
 function StartBashForm({
   data: loaded,
@@ -130,6 +130,18 @@ function StartBashForm({
   // Bug template: the team's default until someone picks; "" is the plain one-line bug.
   const [tplPick, setTpl] = useState<string | null>(null);
   const bugTemplateId = tplPick ?? data.bugTemplateDefault ?? "";
+  // Platforms (ver_146): on with the umbrella's (or last bash's) list until someone changes it.
+  const [askPick, setAsk] = useState<boolean | null>(null);
+  const askPlatform = askPick ?? data.askPlatform;
+  const [platPick, setPlats] = useState<string[] | null>(null);
+  const platforms = platPick ?? data.platforms;
+  const [platDraft, setPlatDraft] = useState("");
+  const addPlatform = (n: string) => {
+    const v = n.replace(/\s+/g, " ").trim().slice(0, 40);
+    if (!v || platforms.some((p) => p.toLowerCase() === v.toLowerCase()) || platforms.length >= 12) return;
+    setPlats([...platforms, v]);
+    setAsk(true);
+  };
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [done, setDone] = useState<{ id: string; key: string; posted: string[]; later: boolean } | null>(null);
@@ -151,7 +163,8 @@ function StartBashForm({
       if (later) at.setHours(Number(later.split(":")[0]), Number(later.split(":")[1]), 0, 0);
       const startsAt = later ? at.toISOString() : "";
       const all = draft.trim() && !has(draft) ? [...areas, { name: draft.trim(), template: null }] : areas;
-      const res = await startBugBash(data.homeId, { name, minutes, areas: all, startsAt, cycleId, collectFirst, slack, funExtras: fun, bugTemplateId: bugTemplateId || null });
+      const plats = platDraft.trim() ? [...platforms, platDraft.trim()] : platforms;
+      const res = await startBugBash(data.homeId, { name, minutes, areas: all, startsAt, cycleId, collectFirst, slack, funExtras: fun, bugTemplateId: bugTemplateId || null, platforms: askPlatform ? plats : [] });
       if (!res.ok) return setError(res.error);
       setDone({ id: res.id, key: res.key, posted: res.posted, later: !!later });
       router.refresh();
@@ -264,6 +277,53 @@ function StartBashForm({
           </button>
         )}
       </div>
+      {loaded && (
+        <fieldset data-testid="bash-platforms" className="rounded-md border border-slate-200 p-3">
+          <label className="flex items-start gap-2 text-sm font-medium text-slate-800">
+            <input type="checkbox" className="mt-1" checked={askPlatform} onChange={(e) => setAsk(e.target.checked)} />
+            <span>
+              Ask people which platform they&apos;re on
+              <span className="block text-xs font-normal text-slate-500">
+                {askPlatform
+                  ? data.platforms.length && !platPick
+                    ? "Optional for them. Each bug keeps the platform it was found on, and the report counts bugs per platform."
+                    : "Optional for them. Add the platforms you're testing, like Web or iPhone. People can also type their own."
+                  : "Off: nobody is asked. Turn it on to see bugs per platform in the report."}
+              </span>
+            </span>
+          </label>
+          {askPlatform && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 rounded-md border border-slate-300 bg-surface p-1.5">
+              {platforms.map((p) => (
+                <span key={p} className="inline-flex items-center gap-1 rounded-full bg-accent-50 px-2.5 py-0.5 text-sm text-accent-800 ring-1 ring-accent-200 ring-inset">
+                  {p}
+                  <button type="button" aria-label={`Remove platform ${p}`} className="text-accent-700 hover:text-accent-900" onClick={() => setPlats(platforms.filter((x) => x !== p))}>
+                    ×
+                  </button>
+                </span>
+              ))}
+              <input
+                aria-label="Add a platform"
+                className="min-w-40 flex-1 bg-transparent px-1 py-0.5 text-sm outline-none"
+                placeholder={platforms.length ? "Add another" : "Type a platform and press Enter, like Web"}
+                value={platDraft}
+                onChange={(e) => setPlatDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === ",") {
+                    e.preventDefault();
+                    addPlatform(platDraft);
+                    setPlatDraft("");
+                  } else if (e.key === "Backspace" && !platDraft && platforms.length) setPlats(platforms.slice(0, -1));
+                }}
+                onBlur={() => {
+                  addPlatform(platDraft);
+                  setPlatDraft("");
+                }}
+              />
+            </div>
+          )}
+        </fieldset>
+      )}
       {data.cycles.length > 1 && (
         // Up front: a bash only counts toward a release when someone picks its test cycle.
         <fieldset>

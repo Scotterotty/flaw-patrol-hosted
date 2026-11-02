@@ -1120,6 +1120,8 @@ model BugBash {
   funExtras    Boolean      @default(false)
   /// The bug template bugs use; null means the plain one-line bug.
   bugTemplateId String?
+  /// Platforms people can say they're on when they join (ver_146). Empty means nobody is asked.
+  platforms    String[]     @default([])
   /// When the start post, the 10-minute warning and the summary went to Slack.
   slackStartAt DateTime?
   slackWarnAt  DateTime?
@@ -1142,6 +1144,8 @@ model BashPerson {
   userId   String
   name     String
   areaId   String
+  /// The platform they said they're testing on, or "" (optional, ver_146).
+  platform String   @default("")
   joinedAt DateTime @default(now())
 
   @@id([bashId, userId])
@@ -1177,6 +1181,8 @@ model BashItem {
   templateName String       @default("")
   layout       Json?
   answers      Json?
+  /// The platform the person was on when they logged it, or "" (ver_146).
+  platform     String       @default("")
   createdAt    DateTime     @default(now())
   attachments  Attachment[]
 

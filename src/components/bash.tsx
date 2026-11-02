@@ -19,7 +19,7 @@ import { uploadAttachment } from "@/server/results";
 import { BugDialog } from "./bug-dialog";
 import { PromptsCard } from "./session-runner";
 import { takeScreenshot, useCaptureSupport } from "./screen-capture";
-import { Button, Card, cx, ErrorText, InfoTip, Textarea } from "./ui";
+import { Button, Card, cx, ErrorText, InfoTip, Input, Textarea } from "./ui";
 
 
 /**
@@ -148,9 +148,124 @@ function BugsUse({ bash, onError }: { bash: BashView; onError: (e: string) => vo
   );
 }
 
+/** How many people are on each of the bash's platforms now, then any typed ones, then "Didn't say" (""). */
+function onEachPlatform(bash: Pick<BashView, "platforms" | "people">) {
+  const rows = bash.platforms.map((name) => ({ name, people: 0 }));
+  let none = 0;
+  for (const p of bash.people) {
+    if (!p.platform) {
+      none++;
+      continue;
+    }
+    const row = rows.find((r) => r.name.toLowerCase() === p.platform.toLowerCase());
+    if (row) row.people++;
+    else rows.push({ name: p.platform, people: 1 });
+  }
+  return { rows, none };
+}
+
+/**
+ * Which platform are you on? Optional (ver_146): chips for the bash's platforms with how many
+ * people are on each now, the emptiest flagged like areas are, and Other… to type your own.
+ * Comes after the area radios so "the first radio" is still the first area.
+ */
+function PlatformPicker({ bash, value, onChange }: { bash: BashView; value: string; onChange: (v: string) => void }) {
+  const { rows } = onEachPlatform(bash);
+  const listed = (v: string) => bash.platforms.some((p) => p.toLowerCase() === v.toLowerCase());
+  const [other, setOther] = useState(!!value && !listed(value));
+  const fewest = Math.min(...bash.platforms.map((n) => rows.find((r) => r.name === n)?.people ?? 0));
+  const chip = (on: boolean) => cx("rounded-full border px-3 py-1 text-[13px]", on ? "border-accent-600 bg-accent-600 font-medium text-white" : "border-slate-300 bg-surface text-slate-700 hover:border-slate-400");
+  return (
+    <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3" data-testid="join-platform">
+      <p className="text-sm font-medium text-slate-800">
+        Which platform are you on? <span className="text-xs font-normal text-slate-500">Optional</span>
+      </p>
+      <div role="radiogroup" aria-label="Platform" className="mt-2 flex flex-wrap gap-1.5">
+        {bash.platforms.map((name) => {
+          const on = !other && value.toLowerCase() === name.toLowerCase();
+          const n = rows.find((r) => r.name === name)?.people ?? 0;
+          return (
+            <button key={name} type="button" role="radio" aria-checked={on} onClick={() => (setOther(false), onChange(on ? "" : name))} className={chip(on)}>
+              {name} · {n}
+              {n === fewest && bash.platforms.length > 1 && <span className={cx("ml-1", on ? "text-white" : "text-amber-700")}>needs people</span>}
+            </button>
+          );
+        })}
+        <button type="button" role="radio" aria-checked={other} onClick={() => (setOther(!other), onChange(""))} className={chip(other)}>
+          Other…
+        </button>
+      </div>
+      {other && <Input className="mt-2" aria-label="Your platform" placeholder="Like Pixel 8, Chrome" maxLength={40} value={value} onChange={(e) => onChange(e.target.value)} autoFocus />}
+      <p className="mt-1.5 text-xs text-slate-500">The number is how many people are on it now. You can change it any time.</p>
+    </div>
+  );
+}
+
+/** While bashing: the platform you said you're on, and Switch platform (ver_146). Finds already logged keep theirs. */
+function YourPlatform({ bash, areaId, onError }: { bash: BashView; areaId: string; onError: (e: string) => void }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [typing, setTyping] = useState(false);
+  const [draft, setDraft] = useState("");
+  const mine = bash.me.platform;
+  const save = (v: string) =>
+    start(async () => {
+      const r = await joinBash(bash.id, areaId, v);
+      if (!r.ok) return onError(r.error);
+      setTyping(false);
+      router.refresh();
+    });
+  const listed = bash.platforms.some((p) => p.toLowerCase() === mine.toLowerCase());
+  return (
+    <div data-testid="your-platform">
+      <p className="text-xs text-slate-500">Your platform</p>
+      <p className="text-sm font-medium text-slate-900">{mine || "Not set"}</p>
+      <label htmlFor="switch-platform" className="mt-1 block text-xs text-slate-500">
+        Switch platform
+      </label>
+      <select
+        id="switch-platform"
+        className="mt-0.5 h-8 w-full rounded-md border border-slate-300 bg-surface px-2 text-sm"
+        value={typing ? "__other" : mine}
+        disabled={pending || bash.phase === "wrapped"}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v === "__other") return setTyping(true);
+          setTyping(false);
+          save(v);
+        }}
+      >
+        <option value="">Don&apos;t say</option>
+        {bash.platforms.map((p) => (
+          <option key={p} value={p}>
+            {p}
+          </option>
+        ))}
+        {mine && !listed && <option value={mine}>{mine}</option>}
+        <option value="__other">Other…</option>
+      </select>
+      {typing && (
+        <form
+          className="mt-1.5 flex gap-1.5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (draft.trim()) save(draft.trim());
+          }}
+        >
+          <Input aria-label="Your platform" className="h-8" placeholder="Like Pixel 8" maxLength={40} value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus />
+          <Button size="sm" type="submit" disabled={pending || !draft.trim()}>
+            Save
+          </Button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 export function JoinPicker({ bash, onCancel }: { bash: BashView; onCancel?: () => void }) {
   const router = useRouter();
   const [pick, setPick] = useState(bash.me.areaId ?? [...bash.areas].sort((a, b) => a.people.length - b.people.length)[0]?.id ?? "");
+  const [platform, setPlatform] = useState(bash.me.platform);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const fewest = Math.min(...bash.areas.map((a) => a.people.length));
@@ -187,6 +302,7 @@ export function JoinPicker({ bash, onCancel }: { bash: BashView; onCancel?: () =
           Whole bash: <LinkChips links={bash.links} />
         </p>
       )}
+      {bash.platforms.length > 0 && <PlatformPicker bash={bash} value={platform} onChange={setPlatform} />}
       <div className="mt-4 flex items-center justify-between gap-2">
         <span className="text-xs text-slate-500">You can switch areas any time.</span>
         <span className="flex gap-2">
@@ -196,13 +312,13 @@ export function JoinPicker({ bash, onCancel }: { bash: BashView; onCancel?: () =
           disabled={!pick || pending || bash.phase === "wrapped"}
           onClick={() =>
             start(async () => {
-              const r = await joinBash(bash.id, pick);
+              const r = await joinBash(bash.id, pick, bash.platforms.length ? platform.trim() : undefined);
               if (!r.ok) return setError(r.error);
               router.push(`/p/${bash.homeKey}/bashes/${bash.id}/explore`);
             })
           }
         >
-          {pending ? "Joining…" : "Start bashing"}
+          {pending ? "Joining…" : platform.trim() ? `Start bashing on ${platform.trim()}` : "Start bashing"}
         </Button>
         </span>
       </div>
@@ -457,7 +573,16 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
         )}
         {showDetails && !tpl && <Textarea className="mt-2" rows={3} aria-label="Steps and details" value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Steps to see it, what you expected, anything else" />}
         <div className="mt-3 flex items-center justify-between gap-2">
-          <span className="text-xs text-slate-500">Area, time and your name are filled in for you. Everyone in this bash sees what you log.</span>
+          <span className="text-xs text-slate-500">
+            {bash.me.platform ? (
+              <>
+                Area, platform (<b className="font-medium text-slate-700">{bash.me.platform}</b>), time and your name are filled in for you.
+              </>
+            ) : (
+              "Area, time and your name are filled in for you."
+            )}{" "}
+            Everyone in this bash sees what you log.
+          </span>
           <Button variant="primary" disabled={!live || pending || !text.trim()} onClick={log}>
             Log {KIND_LABEL[kind].toLowerCase()}
           </Button>
@@ -496,6 +621,7 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
               ))}
             </select>
           </div>
+          {bash.platforms.length > 0 && <YourPlatform bash={bash} areaId={area.id} onError={setError} />}
           {bash.bugTemplates.length > 0 && <BugsUse bash={bash} onError={setError} />}
           <div>
             <p className="text-xs text-slate-500">In here with you</p>
@@ -535,6 +661,21 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
 }
 
 /** The bash board: one countdown, who's where, and the bug list as it grows. */
+/** The board's "who's on which platform" line, so whoever started it can nudge someone over (ver_146). */
+function OnEachPlatform({ bash }: { bash: BashView }) {
+  const { rows, none } = onEachPlatform(bash);
+  return (
+    <ul className="mb-3 flex flex-wrap gap-1.5 text-xs" aria-label="People on each platform" data-testid="board-platforms">
+      {rows.map((r) => (
+        <li key={r.name} className={cx("rounded-md px-2 py-0.5", r.people ? "bg-slate-100 text-slate-700" : "bg-amber-50 text-amber-800")}>
+          {r.name} · {r.people ? `${r.people} ${r.people === 1 ? "person" : "people"}` : "nobody yet"}
+        </li>
+      ))}
+      {none > 0 && <li className="rounded-md bg-slate-100 px-2 py-0.5 text-slate-500">Didn&apos;t say · {none}</li>}
+    </ul>
+  );
+}
+
 export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin?: boolean }) {
   const router = useRouter();
   // Join right here on the board: the steps strip, then the area cards in place.
@@ -682,7 +823,8 @@ export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-slate-900">{b.text}</span>
                     <span className="block text-xs text-slate-500">
-                      {areaName(b.areaId)} · {b.byName} · {time(b.at)}
+                      {areaName(b.areaId)} · {b.byName}
+                      {b.platform && ` · ${b.platform}`} · {time(b.at)}
                       {b.adds.length > 0 && (b.kind === "question" ? " · Answered" : ` · ${b.adds.length} added`)}
                     </span>
                   </span>
@@ -707,6 +849,7 @@ export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin
           )}
           <Card className="p-4">
             <h2 className="mb-2 text-sm font-semibold text-slate-800">Who&apos;s where</h2>
+            {bash.platforms.length > 0 && <OnEachPlatform bash={bash} />}
             {bash.people.length === 0 ? (
               <p className="text-sm text-slate-500">
                 Nobody has joined yet.{" "}
@@ -728,6 +871,7 @@ export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin
                     <span className="flex size-6 items-center justify-center rounded-full bg-accent-100 text-[10px] font-semibold text-accent-800">{initials(p.name)}</span>
                     <span className="min-w-0 flex-1 truncate">
                       {p.name} · {areaName(p.areaId)}
+                      {p.platform && <span className="text-slate-500"> · {p.platform}</span>}
                     </span>
                     <span className="text-xs text-slate-500 tabular-nums">{counts.get(p.id) ?? 0}</span>
                   </li>

@@ -1,11 +1,11 @@
 import "server-only";
-import { parseAreas, phaseOf, type BashLink } from "./bash";
+import { cleanPlatforms, parseAreas, phaseOf, type BashLink } from "./bash";
 import { BUILT_IN } from "./charter-templates";
 import { charterHome, teamTemplates } from "./charter-data";
 import { loadBugTemplates } from "./bug-templates-data";
 import { db } from "./db";
 import { storyInfo } from "./stories";
-import { umbrellaOf } from "./umbrella";
+import { parsePlatforms, umbrellaOf } from "./umbrella";
 
 // What the Start a bug bash box and the Bug bashes page need.
 
@@ -22,6 +22,9 @@ export type StartBoxData = {
   /** Bug templates: the team's list and the default one; null is the plain one-line bug. */
   bugTemplates: { id: string; name: string; hint: string }[];
   bugTemplateDefault: string | null;
+  /** Platforms (ver_146): the list to offer and whether "Ask people which platform they're on" starts on. */
+  platforms: string[];
+  askPlatform: boolean;
 };
 
 /** Where a project's bashes live: the umbrella's hub, or the project itself. */
@@ -35,7 +38,7 @@ export async function startBoxData(project: { id: string; key: string; name: str
     u
       ? db.project.findMany({ where: { groupId: u.group.id, archivedAt: null, id: { not: u.hub.id } }, orderBy: { createdAt: "desc" }, select: { id: true, name: true, rcName: true, platform: true } })
       : Promise.resolve([]),
-    db.bugBash.findFirst({ where: { projectId: home.id }, orderBy: { createdAt: "desc" }, select: { name: true, areas: true } }),
+    db.bugBash.findFirst({ where: { projectId: home.id }, orderBy: { createdAt: "desc" }, select: { name: true, areas: true, platforms: true } }),
     // Suggestions: risky requirements first, then the library's top folders and its charters' areas.
     db.riskRating.findMany({ where: { projectId: home.id }, orderBy: { movedAt: "desc" }, take: 40, select: { issueKey: true, likelihood: true, impact: true } }).then(async (risky) => {
       const hot = risky.filter((r) => r.likelihood * r.impact >= 6);
@@ -59,6 +62,9 @@ export async function startBoxData(project: { id: string; key: string; name: str
   for (const s of stories) add(s.title, true, `High on the Risk board (${s.key})`, { kind: "jira", key: s.key, title: s.title, url: s.url ?? "" });
   for (const f of folders) add(f.name, false, "A Case library folder");
   for (const c of charters) add(c.title, false, "An existing charter");
+  // Platforms: the umbrella's when it has them, else the ones the last bash asked about.
+  const fromUmbrella = u ? cleanPlatforms(parsePlatforms(u.group.platforms).map((p) => p.name)) : [];
+  const fromLast = cleanPlatforms(last?.platforms ?? []);
   return {
     homeId: homeRow.id,
     homeKey: homeRow.key,
@@ -72,6 +78,8 @@ export async function startBoxData(project: { id: string; key: string; name: str
     slackChannels,
     bugTemplates: bugTemplates?.templates.map((t) => ({ id: t.id, name: t.name, hint: t.hint })) ?? [],
     bugTemplateDefault: bugTemplates?.defaultId || null,
+    platforms: fromUmbrella.length ? fromUmbrella : fromLast,
+    askPlatform: fromUmbrella.length > 0 || fromLast.length > 0,
   };
 }
 

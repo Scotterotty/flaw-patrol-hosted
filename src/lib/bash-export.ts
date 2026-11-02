@@ -1,6 +1,7 @@
 import "server-only";
 import ExcelJS from "exceljs";
 import { PDFDocument, StandardFonts } from "pdf-lib";
+import { seenOn } from "./bash";
 import type { BashReport } from "./bash-summary";
 import { MUTED, PdfWriter, safe, type Cell } from "./report-export";
 
@@ -11,6 +12,8 @@ const keyOf = (b: BashReport["bugs"][number]) => (b.bug ? (b.bug.externalKey ?? 
 
 export function bashTables(r: BashReport): { label: string; rows: Cell[][] }[] {
   const area = (id: string) => r.areas.find((a) => a.id === id)?.name ?? "";
+  // Platforms (ver_146): a "Seen on" column and a table, only when someone gave a platform.
+  const plat = r.byPlatform.length > 0;
   return [
     {
       label: "Summary",
@@ -27,8 +30,15 @@ export function bashTables(r: BashReport): { label: string; rows: Cell[][] }[] {
         ...(r.vsLast ? [[`Bugs vs ${r.vsLast.name}`, `${r.vsLast.diff >= 0 ? "+" : ""}${r.vsLast.diff}`] as Cell[]] : []),
       ],
     },
-    { label: "Bugs", rows: [["Bug", "Key", "Severity", "Area", "Logged by", "Also seen by"], ...r.bugs.map((b) => [b.text, keyOf(b) || (b.review === "skip" ? "Left out" : r.bash.wrappedAt ? "Not filed" : ""), r.sevNames[b.severity], area(b.areaId), b.byName, b.plusOnes.map((p) => p.name).join(", ")])] },
+    {
+      label: "Bugs",
+      rows: [
+        ["Bug", "Key", "Severity", "Area", "Logged by", "Also seen by", ...(plat ? ["Seen on"] : [])],
+        ...r.bugs.map((b) => [b.text, keyOf(b) || (b.review === "skip" ? "Left out" : r.bash.wrappedAt ? "Not filed" : ""), r.sevNames[b.severity], area(b.areaId), b.byName, b.plusOnes.map((p) => p.name).join(", "), ...(plat ? [seenOn(b).join(", ")] : [])]),
+      ],
+    },
     { label: "Bugs by area", rows: [["Area", "Bugs", "Links"], ...r.byArea.map((a) => [a.name, a.bugs, (r.areas.find((x) => x.id === a.id)?.links ?? []).map((l) => `${l.key} ${l.url}`.trim()).join("; ")])] },
+    ...(plat ? [{ label: "Bugs by platform", rows: [["Platform", "Bugs", "High or Blocker", "Only seen here", "Also seen elsewhere"], ...r.byPlatform.map((p) => [p.platform || "Didn't say", p.bugs, p.high, p.onlyHere, p.elsewhere])] as Cell[][] }] : []),
     {
       label: "Everything found",
       rows: [

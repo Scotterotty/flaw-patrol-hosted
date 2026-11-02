@@ -18,6 +18,8 @@ export type ReportBug = {
   areaId: string;
   byName: string;
   seen: number;
+  /** Platforms it was seen on (ver_146), first where it was logged. */
+  platforms: string[];
   key: string;
   url: string | null;
   /** Not in Jira: the filing failed, or someone left it out at wrap-up. */
@@ -66,6 +68,8 @@ export type ReportData = {
   finds: ReportFind[];
   vsLast: { name: string; diff: number } | null;
   byArea: { id: string; name: string; bugs: number }[];
+  /** Bugs per platform (ver_146); empty when nobody gave a platform. Counts bugs, never people. */
+  byPlatform: { platform: string; bugs: number; high: number; onlyHere: number; elsewhere: number }[];
   worst: ReportBug[];
   coverage: { id: string; name: string; prompts: number; covered: number; untouched: string[]; notes: number }[];
 };
@@ -260,6 +264,35 @@ export function BashReportView({ r }: { r: ReportData }) {
             )}
           </Card>
         </div>
+        {r.byPlatform.length > 0 && (
+          <Card className="overflow-x-auto p-4" data-testid="bash-by-platform">
+            <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+              Bugs by platform <InfoTip text="Where each bug was found, and where people saw it too. A bug seen on two platforms counts on both." />
+            </h2>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-slate-500">
+                  <th className="py-1 pr-3 font-medium">Platform</th>
+                  <th className="px-3 py-1 font-medium">Bugs</th>
+                  <th className="px-3 py-1 font-medium">High or Blocker</th>
+                  <th className="px-3 py-1 font-medium">Only seen here</th>
+                  <th className="px-3 py-1 font-medium">Also seen elsewhere</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 tabular-nums">
+                {r.byPlatform.map((p) => (
+                  <tr key={p.platform || "none"}>
+                    <td className={cx("py-1.5 pr-3", p.platform ? "font-medium text-slate-900" : "text-slate-500")}>{p.platform || "Didn't say"}</td>
+                    <td className="px-3 py-1.5">{p.bugs}</td>
+                    <td className="px-3 py-1.5">{p.high}</td>
+                    <td className="px-3 py-1.5">{p.onlyHere}</td>
+                    <td className="px-3 py-1.5">{p.elsewhere}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        )}
         <Card className="p-4">
           <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-800">
             What got covered <InfoTip text="Prompts ticked in each area, from its tour or checklist. Areas with a blank charter count notes instead." />
@@ -285,7 +318,10 @@ export function BashReportView({ r }: { r: ReportData }) {
                     {b.text}
                     {b.unfiled && <UnfiledTag left={b.unfiled === "left"} why={b.why} />}
                   </td>
-                  <td className="px-2 py-1.5 text-xs text-slate-600">{area(b.areaId)}</td>
+                  <td className="px-2 py-1.5 text-xs text-slate-600">
+                    {area(b.areaId)}
+                    {b.platforms.length > 0 && <span className="block text-slate-500">{b.platforms.join(", ")}</span>}
+                  </td>
                   <td className="px-4 py-1.5 text-xs text-slate-600">
                     {b.byName}
                     {b.seen > 1 && ` +${b.seen - 1}`}

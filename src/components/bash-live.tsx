@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import type { Severity } from "@prisma/client";
-import { LINK_KIND_LABEL, similarBugs, type BashLink } from "@/lib/bash";
+import { cleanPlatforms, LINK_KIND_LABEL, seenOn, similarBugs, type BashLink } from "@/lib/bash";
 import type { BashFinds, LiveFind } from "@/lib/bash-live";
 import { addToBashItem, deleteBashItem, editBashItem, fillBashItem, plusOneBash, searchBashLinks, setBashLinks } from "@/server/bashes";
 import { listWords } from "@/lib/bug-layout";
@@ -65,6 +65,9 @@ type Scope = "area" | "all" | "mine";
  * The panel. `draft` is what's typed in Log a bug: finds that look like it float up, amber.
  * `openId` is lifted so Log a bug's "Open it" can open a look-alike here.
  */
+/** Platforms people +1'd a find on, besides the one it was logged on. */
+const alsoOn = (i: { platform: string; plusOnes: { platform: string }[] }) => seenOn(i).filter((p) => p.toLowerCase() !== i.platform.toLowerCase());
+
 export function LiveFinds({
   bashId,
   data,
@@ -90,6 +93,9 @@ export function LiveFinds({
 }) {
   const [scope, setScope] = useState<Scope>("area");
   const [kind, setKind] = useState<"all" | FindKind>("all");
+  // Platform filter (ver_146): offered once any find has a platform. "" shows every platform.
+  const [plat, setPlat] = useState("");
+  const platformsSeen = cleanPlatforms(data.items.flatMap((i) => seenOn(i)));
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   // Half-typed additions, by find: kept in state here, so refreshes never touch them.
@@ -142,12 +148,13 @@ export function LiveFinds({
     if (scope === "area" && it.areaId !== areaId) setScope("all");
     if (scope === "mine" && it.byId !== meId) setScope("all");
     if (kind !== "all" && it.kind !== kind) setKind("all");
+    if (plat && !seenOn(it).some((p) => p.toLowerCase() === plat.toLowerCase())) setPlat("");
     setFolded(false);
     // Only when a different find opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openId]);
 
-  const inScope = data.items.filter((i) => (scope === "all" || (scope === "area" ? i.areaId === areaId : i.byId === meId)) && (kind === "all" || i.kind === kind));
+  const inScope = data.items.filter((i) => (scope === "all" || (scope === "area" ? i.areaId === areaId : i.byId === meId)) && (kind === "all" || i.kind === kind) && (!plat || seenOn(i).some((p) => p.toLowerCase() === plat.toLowerCase())));
   const held = shownAt ? inScope.filter((i) => !shownAt.has(i.id) && i.byId !== meId) : [];
   const visible = inScope.filter((i) => !held.includes(i));
   // Look-alikes of what's being typed float up, but never while a find is open (it would move).
@@ -236,6 +243,16 @@ export function LiveFinds({
                 {k === "all" ? "All" : `${FIND_LABEL[k]}s`}
               </button>
             ))}
+            {platformsSeen.length > 0 && (
+              <select aria-label="Show platform" className="ml-auto h-6 rounded border border-slate-300 bg-surface px-1 text-[11px] text-slate-700" value={plat} onChange={(e) => setPlat(e.target.value)}>
+                <option value="">All platforms</option>
+                {platformsSeen.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
         <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
@@ -295,7 +312,9 @@ export function LiveFinds({
                         {scope !== "area" && <span>· {area}</span>}
                         {i.kind === "bug" && <SevChip s={i.severity as Severity} />}
                         {!i.bug && <NeedsTag t={i.template} />}
-                        {i.plusOnes.length > 0 && <span title={i.plusOnes.map((p) => p.name).join(", ")}>+{i.plusOnes.length}</span>}
+                        {i.platform && <span className="rounded bg-slate-100 px-1.5 py-px text-[11px] font-medium text-slate-600">{i.platform}</span>}
+                        {i.plusOnes.length > 0 && <span title={i.plusOnes.map((p) => `${p.name}${p.platform ? ` on ${p.platform}` : ""}`).join(", ")}>+{i.plusOnes.length}</span>}
+                        {alsoOn(i).length > 0 && <span>· Seen on {alsoOn(i).join(", ")}{i.platform ? " too" : ""}</span>}
                         {i.kind === "question" ? i.adds.length > 0 && <span className="font-semibold text-emerald-700">Answered</span> : i.adds.length > 0 && <span>{i.adds.length} added</span>}
                         {i.bug && <span className="font-mono text-red-700">{i.bug.key}</span>}
                       </span>

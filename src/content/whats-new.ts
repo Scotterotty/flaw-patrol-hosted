@@ -22,6 +22,27 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 146,
+    date: "2026-11-02",
+    items: [
+      {
+        kind: "new",
+        title: "Say which platform you're on in a bug bash",
+        text: "When you join a bug bash, you can pick the platform you're testing on, like Web or iPhone, or type your own. It's optional. Each bug keeps the platform it was found on, +1 I see it too keeps yours, and you can switch platform under Your area.",
+      },
+      {
+        kind: "new",
+        title: "Bugs by platform on the bug bash report",
+        text: "The board shows how many people are on each platform, so you can see which one nobody is testing. The report counts bugs per platform, and filed bugs say where they were found.",
+      },
+      {
+        kind: "better",
+        title: "Choose the platforms when you start a bug bash",
+        text: "Start a bug bash fills in your umbrella's platforms. Add or remove some, or untick Ask people which platform they're on to skip it.",
+      },
+    ],
+  },
+  {
     version: 145,
     date: "2026-11-02",
     items: [

@@ -1,5 +1,5 @@
 import "server-only";
-import { parseAreas, parseLinks, phaseOf, plusOnesOf, sevRank, timeRange } from "./bash";
+import { bugsByPlatform, cleanPlatforms, parseAreas, parseLinks, phaseOf, platformLine, plusOnesOf, sevRank, timeRange } from "./bash";
 import { dayName, type Spelling } from "./spelling";
 import { parseCharter } from "./charter";
 import { findTemplate } from "./bash-template";
@@ -39,6 +39,7 @@ export async function loadBashFull(bashId: string) {
     severity: i.severity,
     byId: i.byId,
     byName: i.byName,
+    platform: i.platform,
     plusOnes: plusOnesOf(i.plusOnes),
     review: i.review,
     fileError: i.fileError,
@@ -107,6 +108,8 @@ export async function bashReport(bashId: string, clock: { spelling?: Spelling; z
     plusOnes: bugs.reduce((n, b) => n + b.plusOnes.length, 0),
     vsLast: previous ? { name: previous.name, diff: counted.length - previous.items.length } : null,
     byArea,
+    // Bugs per platform (ver_146): counts bugs, never people. Empty when nobody gave a platform.
+    byPlatform: counted.some((b) => b.platform || b.plusOnes.some((p) => p.platform)) ? bugsByPlatform(counted, bash.platforms) : [],
     worst,
     coverage,
   };
@@ -123,6 +126,7 @@ export async function bashSummaryLine(bashId: string) {
   return [
     `${r.people} ${r.people === 1 ? "person" : "people"} found ${r.bugs.length} ${r.bugs.length === 1 ? "bug" : "bugs"} in ${length}${r.high ? ` (${r.high} High or Blocker)` : ""}.`,
     top?.bugs ? `Most in ${top.name} (${top.bugs}).` : "",
+    platformLine(r.byPlatform) ? `By platform: ${platformLine(r.byPlatform)}.` : "",
     worst ? `Worst: ${worst.bug?.externalKey ?? (worst.bug ? `D-${worst.bug.number}` : "")} ${worst.text}`.replace(/\s+/g, " ").trim() : "",
     r.questions || r.notes || r.ideas
       ? `Also ${[r.questions && `${r.questions} ${r.questions === 1 ? "question" : "questions"}${r.unanswered ? ` (${r.unanswered} not answered)` : ""}`, r.notes && `${r.notes} ${r.notes === 1 ? "note" : "notes"}`, r.ideas && `${r.ideas} ${r.ideas === 1 ? "idea" : "ideas"}`].filter(Boolean).join(", ")}.`
@@ -133,7 +137,7 @@ export async function bashSummaryLine(bashId: string) {
 }
 
 /** What the bash screens need, with plain strings for times. */
-export function bashView(full: BashFull, me: { id: string; canManage: boolean }) {
+export function bashView(full: BashFull, me: { id: string; canManage: boolean; lastPlatform?: string }) {
   const { bash } = full;
   const mine = bash.people.find((p) => p.userId === me.id);
   return {
@@ -156,9 +160,11 @@ export function bashView(full: BashFull, me: { id: string; canManage: boolean })
     runHref: bash.run ? `/p/${bash.run.project.key}/runs/${bash.run.number}` : null,
     areas: full.areas.map((a) => ({ id: a.id, name: a.name, template: a.template, prompts: a.charter?.prompts ?? [], charterHref: a.charter ? `/p/${a.charter.key}/cases/${a.charter.number}` : null, people: a.people, links: a.links })),
     links: full.links,
-    people: bash.people.map((p) => ({ id: p.userId, name: p.name, areaId: p.areaId })),
+    people: bash.people.map((p) => ({ id: p.userId, name: p.name, areaId: p.areaId, platform: p.platform })),
+    // Platforms people can say they're on (ver_146); empty means nobody is asked.
+    platforms: cleanPlatforms(bash.platforms),
     items: full.items.map((i) => ({ ...i, at: i.at.toISOString(), adds: i.adds.map((a) => ({ ...a, at: a.at.toISOString() })) })),
-    me: { id: me.id, areaId: mine?.areaId ?? null },
+    me: { id: me.id, areaId: mine?.areaId ?? null, platform: mine ? mine.platform : (me.lastPlatform ?? "") },
   };
 }
 export type BashView = ReturnType<typeof bashView>;
