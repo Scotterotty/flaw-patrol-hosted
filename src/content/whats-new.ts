@@ -22,6 +22,22 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 139,
+    date: "2026-11-01",
+    items: [
+      {
+        kind: "better",
+        title: "Priority, Folder and Tag on every Reports tab",
+        text: "Pick them on any tab and they stay picked when you switch tabs. The summary line says what it's counting. Session findings has Tag only.",
+      },
+      {
+        kind: "better",
+        title: "Reports no longer compare people",
+        text: "The People tab and the Tester filter are gone, from Custom reports and exports too. Reports show how the product is doing, not who did the most.",
+      },
+    ],
+  },
+  {
     version: 138,
     date: "2026-11-01",
     items: [
