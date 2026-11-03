@@ -138,7 +138,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       data-pawn={pawnEmoji(user?.questPawn)}
       style={fontVars(user?.fontBody ?? "poppins", user?.fontHeading ?? "bungee")}
     >
-      <body className="min-h-screen font-sans antialiased">
+      {/* Browser extensions (Testim, Grammarly…) add attributes to body before React loads; don't warn about those. */}
+      <body className="min-h-screen font-sans antialiased" suppressHydrationWarning>
         <SkipLink />
         <SpellingProvider spelling={spelling} zone={zone}>
           <ZoneCookie zone={zone} />
