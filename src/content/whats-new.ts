@@ -22,6 +22,19 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 151,
+    date: "2026-11-02",
+    items: [
+      {
+        kind: "new",
+        title: "Keep a test cycle in Current",
+        text: "Pin a test cycle with 📌 Keep in Current and it stays in Current, even after a newer test cycle for its platform is made. Use ⋯ on its row in Test cycles, or its row in Settings. Build health starts pinned.",
+        who: "lead",
+        link: "/g/{umbrella}/projects",
+      },
+    ],
+  },
+  {
     version: 150,
     date: "2026-11-02",
     items: [
