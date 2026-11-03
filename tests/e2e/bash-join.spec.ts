@@ -56,7 +56,7 @@ test("join on the bash page, log a find, add to it and it closes", async ({ page
   await live.getByRole("button", { name: "Add to it" }).click();
   await expect(live.getByTestId("find-open")).toHaveCount(0);
   await expect(live.getByTestId("find-done")).toContainText(`Added to "Coupon field is tiny ${TAG}"`);
-  await expect(live.getByText("1 added")).toBeVisible();
+  await expect(live.getByText("1 note", { exact: true })).toBeVisible();
 
   // Close closes it too.
   await live.getByRole("button", { name: new RegExp(`Coupon field is tiny ${TAG}`) }).click();

@@ -22,6 +22,22 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 160,
+    date: "2026-11-03",
+    items: [
+      {
+        kind: "better",
+        title: "Calmer bug bash finds",
+        text: "Each find in Live finds and on the board now reads in plain words: \"2 see it\", \"1 note\" and \"On Unity, Web\". How bad it is sits on the right of every row, so you can scan down it.",
+      },
+      {
+        kind: "fix",
+        title: "Easier-to-see drag handle",
+        text: "The handle you drag to resize a panel now has a line and grip dots you can see, and it sits in the middle of the panel instead of near the bottom.",
+      },
+    ],
+  },
+  {
     version: 159,
     date: "2026-11-03",
     items: [

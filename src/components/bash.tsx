@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { Severity } from "@prisma/client";
-import { BASH_SEVERITIES, sevLabel, similarBugs, type BashSeverity, type ItemKind } from "@/lib/bash";
+import { BASH_SEVERITIES, seenOn, sevLabel, similarBugs, type BashSeverity, type ItemKind } from "@/lib/bash";
 import type { BashView } from "@/lib/bash-summary";
 import { clock } from "@/lib/charter";
 import { startsIn, whenLabel } from "@/lib/bash-schedule";
@@ -17,7 +17,7 @@ import { bashAnswers, isNeedsLine, isShot, needsOf, valuesOf, type BashValues } 
 import { listWords } from "@/lib/bug-layout";
 import { TemplatePicker } from "./templated-bug-form";
 import { AnswerTables, FilledForYou, NeedsTag, seenHere, TemplateFields } from "./bash-template";
-import { FIND_LABEL, KindTag, LinkChips, LiveFinds, useLiveFinds, WhatYoureTesting, type FindKind, type LiveData } from "./bash-live";
+import { FIND_LABEL, FindCounts, KindTag, LinkChips, LiveFinds, useLiveFinds, WhatYoureTesting, type FindKind, type LiveData } from "./bash-live";
 import { uploadAttachment } from "@/server/results";
 import { BugDialog } from "./bug-dialog";
 import { PromptsCard } from "./session-runner";
@@ -828,14 +828,14 @@ export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin
                   {b.kind === "bug" ? <SevChip s={b.severity} /> : <KindTag kind={b.kind as FindKind} />}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-slate-900">{b.text}</span>
-                    <span className="block text-xs text-slate-500">
-                      {areaName(b.areaId)} · {b.byName}
-                      {b.platform && ` · ${b.platform}`} · {time(b.at)}
-                      {b.adds.length > 0 && (b.kind === "question" ? " · Answered" : ` · ${b.adds.length} added`)}
+                    <span className="flex flex-wrap items-center justify-between gap-x-3 text-xs text-slate-500">
+                      <span className="min-w-0">
+                        {areaName(b.areaId)} · {b.byName} · {time(b.at)}
+                        {seenOn(b).length > 0 && ` · On ${seenOn(b).join(", ")}`}
+                      </span>
+                      <FindCounts find={{ ...b, by: b.byName, bugKey: b.bug ? (b.bug.externalKey ?? `D-${b.bug.number}`) : null }} />
                     </span>
                   </span>
-                  {b.plusOnes.length > 0 && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700" title={b.plusOnes.map((p) => p.name).join(", ")}>+{b.plusOnes.length}</span>}
-                  {b.bug && <span className="font-mono text-xs text-red-700">{b.bug.externalKey ?? `D-${b.bug.number}`}</span>}
                 </li>
               ))}
             </ul>

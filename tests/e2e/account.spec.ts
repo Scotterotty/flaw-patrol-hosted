@@ -19,7 +19,7 @@ test("people can change their own name", async ({ page }) => {
   await openAll();
   await page.getByRole("textbox", { name: "Your name" }).fill("Demo Admin Renamed");
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByText("Saved")).toBeVisible();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.locator('header button[aria-haspopup="menu"]')).toContainText("Demo Admin Renamed");
   await openAll();
@@ -27,7 +27,7 @@ test("people can change their own name", async ({ page }) => {
   // Put it back for the other tests.
   await page.getByRole("textbox", { name: "Your name" }).fill("Demo Admin");
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByText("Saved")).toBeVisible();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
 
   await page.goto("/");
   const project = await page.locator('main a[href^="/p/"]').first().getAttribute("href");

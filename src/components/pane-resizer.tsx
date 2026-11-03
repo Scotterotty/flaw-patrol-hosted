@@ -207,20 +207,27 @@ export function PaneResizer({
       onKeyDown={onKeyDown}
       className={`group z-10 hidden w-3 shrink-0 cursor-col-resize touch-none ${from === "xl" ? "xl:block" : "lg:block"} ${place} bigtext:hidden focus-visible:outline-none ${className}`}
     >
+      {/* A thin line you can always see (ver_160), brighter on hover or drag. */}
       <span
         aria-hidden
-        className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 rounded bg-transparent transition-colors group-hover:bg-accent-400 group-hover:delay-150 group-focus-visible:bg-accent-500 group-data-dragging:bg-accent-500"
+        className="absolute inset-y-2 left-1/2 w-0.5 -translate-x-1/2 rounded bg-slate-200 transition-colors group-hover:bg-accent-400 group-hover:delay-150 group-focus-visible:bg-accent-500 group-data-dragging:bg-accent-500"
       />
-      <span
-        aria-hidden
-        className="sticky top-1/2 left-0 mx-auto block h-8 w-2.5 rounded-full bg-slate-300 opacity-70 transition-opacity group-hover:bg-accent-500 group-hover:opacity-100 group-focus-visible:bg-accent-500 group-focus-visible:opacity-100 group-data-dragging:bg-accent-500 group-data-dragging:opacity-100"
-      >
-        {/* Only while dragging: how to undo it (Scott picked this one hint, Nov 2). */}
+      {/* The grip sits in the middle of the panel, or mid-screen when the panel is taller than the screen (ver_160). */}
+      <span aria-hidden className="pointer-events-none sticky top-0 flex h-full max-h-screen items-center justify-center">
         <span
-          data-testid="pane-drag-hint"
-          className={`pointer-events-none absolute top-1/2 hidden -translate-y-1/2 rounded-md bg-slate-900 px-2 py-1 text-xs font-medium whitespace-nowrap text-white shadow group-data-dragging:block ${onLeft ? "right-full mr-2" : "left-full ml-2"}`}
+          data-testid="pane-grip"
+          className="relative grid h-11 w-3 content-center justify-items-center gap-1 rounded-full bg-slate-400 transition-colors group-hover:bg-accent-500 group-focus-visible:bg-accent-500 group-data-dragging:bg-accent-500"
         >
-          Double-click to reset · Esc to cancel
+          <i className="size-1 rounded-full bg-surface" />
+          <i className="size-1 rounded-full bg-surface" />
+          <i className="size-1 rounded-full bg-surface" />
+          {/* Only while dragging: how to undo it (Scott picked this one hint, Nov 2). */}
+          <span
+            data-testid="pane-drag-hint"
+            className={`pointer-events-none absolute top-1/2 hidden -translate-y-1/2 rounded-md bg-slate-900 px-2 py-1 text-xs font-medium whitespace-nowrap text-white shadow group-data-dragging:block ${onLeft ? "right-full mr-2" : "left-full ml-2"}`}
+          >
+            Double-click to reset · Esc to cancel
+          </span>
         </span>
       </span>
     </div>

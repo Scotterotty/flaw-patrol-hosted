@@ -25,6 +25,41 @@ const KIND_TONE: Record<FindKind, string> = {
   idea: "bg-violet-50 text-violet-800 ring-violet-200",
 };
 
+/**
+ * The counts at the end of a find's row, in words (ver_160): "2 see it" (whoever logged it
+ * plus each +1), "1 note" (things people added) or "Answered", and the filed bug's key.
+ * Shown only when there's something to count. Shared by Live finds and the board.
+ */
+export function FindCounts({ find }: { find: { kind: string; by: string; platform: string; plusOnes: { name: string; platform: string }[]; adds: unknown[]; bugKey?: string | null } }) {
+  const seeing = find.kind === "question" || !find.plusOnes.length ? 0 : find.plusOnes.length + 1;
+  const who = [find, ...find.plusOnes].map((p) => `${"by" in p ? p.by : p.name}${p.platform ? ` on ${p.platform}` : ""}`).join(", ");
+  if (!seeing && !find.adds.length && !find.bugKey) return null;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-3 text-slate-600" data-testid="find-counts">
+      {seeing > 0 && (
+        <span className="inline-flex items-center gap-1 whitespace-nowrap" title={who}>
+          <svg aria-hidden viewBox="0 0 24 24" className="size-3.5 fill-none stroke-current stroke-2">
+            <circle cx="9" cy="8" r="3.5" />
+            <path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.8c1.6.8 2.6 2.5 3 5.2" />
+          </svg>
+          {seeing} see it
+        </span>
+      )}
+      {find.kind === "question"
+        ? find.adds.length > 0 && <span className="font-semibold text-emerald-700">Answered</span>
+        : find.adds.length > 0 && (
+            <span className="inline-flex items-center gap-1 whitespace-nowrap">
+              <svg aria-hidden viewBox="0 0 24 24" className="size-3.5 fill-none stroke-current stroke-2">
+                <path d="M4 5h16v11H9l-5 4z" />
+              </svg>
+              {find.adds.length} {find.adds.length === 1 ? "note" : "notes"}
+            </span>
+          )}
+      {find.bugKey && <span className="font-mono text-red-700">Filed {find.bugKey}</span>}
+    </span>
+  );
+}
+
 export function KindTag({ kind, className }: { kind: FindKind; className?: string }) {
   return <span className={cx("inline-block w-[4.5rem] shrink-0 rounded px-1.5 py-0.5 text-center text-[11px] font-semibold ring-1 ring-inset", KIND_TONE[kind], className)}>{FIND_LABEL[kind]}</span>;
 }
@@ -65,8 +100,6 @@ type Scope = "area" | "all" | "mine";
  * The panel. `draft` is what's typed in Log a bug: finds that look like it float up, amber.
  * `openId` is lifted so Log a bug's "Open it" can open a look-alike here.
  */
-/** Platforms people +1'd a find on, besides the one it was logged on. */
-const alsoOn = (i: { platform: string; plusOnes: { platform: string }[] }) => seenOn(i).filter((p) => p.toLowerCase() !== i.platform.toLowerCase());
 
 export function LiveFinds({
   bashId,
@@ -295,29 +328,28 @@ export function LiveFinds({
               const area = data.areas.find((a) => a.id === i.areaId)?.name ?? "";
               return (
                 <li key={i.id} data-row={i.id} className={cx("px-3 py-2 text-sm transition-colors duration-[2000ms]", isAlike ? "bg-amber-50" : done?.id === i.id ? "bg-emerald-50" : fresh(i.id) ? "bg-accent-50" : open ? "bg-slate-50" : "")}>
-                  <button type="button" className="flex w-full items-start gap-2 text-left" aria-expanded={open} onClick={() => {
+                  <button type="button" className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-2.5 gap-y-0.5 text-left" aria-expanded={open} onClick={() => {
                       setDone(null);
                       setOpenId(open ? null : i.id);
                     }}>
                     <KindTag kind={i.kind} className="mt-0.5" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-slate-900">
-                        {fresh(i.id) && !mine && <span className="mr-1 rounded bg-accent-600 px-1 py-px text-[10px] font-semibold text-white uppercase">New</span>}
-                        {isAlike && <span className="mr-1 rounded bg-amber-200 px-1 py-px text-[10px] font-semibold text-amber-900">Looks like yours</span>}
-                        {i.text}
+                    <span className="min-w-0 text-slate-900 [overflow-wrap:anywhere]">
+                      {fresh(i.id) && !mine && <span className="mr-1 rounded bg-accent-600 px-1 py-px text-[10px] font-semibold text-white uppercase">New</span>}
+                      {isAlike && <span className="mr-1 rounded bg-amber-200 px-1 py-px text-[10px] font-semibold text-amber-900">Looks like yours</span>}
+                      {i.text}
+                    </span>
+                    {/* Severity is its own column on the right, lined up on every row (ver_160). */}
+                    <span className="mt-0.5 flex justify-end gap-1" data-testid="find-right">
+                      {!i.bug && <NeedsTag t={i.template} />}
+                      {i.kind === "bug" && <SevChip s={i.severity as Severity} />}
+                    </span>
+                    <span className="col-span-2 col-start-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-xs text-slate-500" data-testid="find-meta">
+                      <span className="min-w-0">
+                        <b className="font-medium text-slate-700">{mine ? "You" : i.byName}</b> · {ago(i.at, now)}
+                        {scope !== "area" && area && ` · ${area}`}
+                        {seenOn(i).length > 0 && ` · On ${seenOn(i).join(", ")}`}
                       </span>
-                      <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500">
-                        <b className="font-medium text-slate-700">{mine ? "You" : i.byName}</b>
-                        <span>{ago(i.at, now)}</span>
-                        {scope !== "area" && <span>· {area}</span>}
-                        {i.kind === "bug" && <SevChip s={i.severity as Severity} />}
-                        {!i.bug && <NeedsTag t={i.template} />}
-                        {i.platform && <span className="rounded bg-slate-100 px-1.5 py-px text-[11px] font-medium text-slate-600">{i.platform}</span>}
-                        {i.plusOnes.length > 0 && <span title={i.plusOnes.map((p) => `${p.name}${p.platform ? ` on ${p.platform}` : ""}`).join(", ")}>+{i.plusOnes.length}</span>}
-                        {alsoOn(i).length > 0 && <span>· Seen on {alsoOn(i).join(", ")}{i.platform ? " too" : ""}</span>}
-                        {i.kind === "question" ? i.adds.length > 0 && <span className="font-semibold text-emerald-700">Answered</span> : i.adds.length > 0 && <span>{i.adds.length} added</span>}
-                        {i.bug && <span className="font-mono text-red-700">{i.bug.key}</span>}
-                      </span>
+                      <FindCounts find={{ ...i, by: i.byName, bugKey: i.bug?.key }} />
                     </span>
                   </button>
                   {open && (
