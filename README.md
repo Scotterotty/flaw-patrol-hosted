@@ -160,7 +160,7 @@ Needs only [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
 1. Unzip the code and open a terminal in the unzipped folder.
 2. Run `docker compose up --build`. The first run downloads and builds for a few minutes.
-3. When the log says "Ready", open http://localhost:3000.
+3. When the log says "Ready", open http://localhost:6767.
 4. Sign in with your email and choose a password. The first person to sign in
    becomes the admin. Create a project, then add cases or import a file.
 

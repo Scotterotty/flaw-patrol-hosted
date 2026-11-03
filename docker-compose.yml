@@ -1,4 +1,4 @@
-# `docker compose up` starts the database and the app at http://localhost:3000.
+# `docker compose up` starts the database and the app at http://localhost:6767.
 # For local trials only; see README for hosting.
 services:
   db:
@@ -25,7 +25,7 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "6767:6767"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/testmgmt
       AUTH_SECRET: local-trial-secret-change-me-for-anything-real

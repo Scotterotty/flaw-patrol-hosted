@@ -8,5 +8,5 @@ COPY scripts/copy-trace-viewer.mjs ./scripts/
 RUN npm ci
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-EXPOSE 3000
-CMD ["sh", "-c", "npx prisma migrate deploy && if [ \"$SEED_DEMO\" = \"true\" ]; then npm run db:seed; fi && npx next dev -H 0.0.0.0 -p 3000"]
+EXPOSE 6767
+CMD ["sh", "-c", "npx prisma migrate deploy && if [ \"$SEED_DEMO\" = \"true\" ]; then npm run db:seed; fi && npx next dev -H 0.0.0.0 -p 6767"]
