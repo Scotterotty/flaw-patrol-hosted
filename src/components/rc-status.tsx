@@ -323,6 +323,7 @@ function Column({ c, now, auto, scale }: { c: RcColumn; now: Date | null; auto: 
       <div className="text-3xl font-semibold text-slate-900">{percent(c)}%</div>
       <div className="text-xs text-slate-500">
         {c.platform ? "No manual run yet" : c.done === 0 && c.total > 0 ? `0 of ${c.total} tested by hand` : `${c.done} of ${c.total} cases run${now ? ` · +${ranToday(c, now)} today` : ""}`}
+        {!c.platform && !!c.counts.IN_PROGRESS && <span data-testid="rc-in-progress"> · {c.counts.IN_PROGRESS} in progress</span>}
       </div>
       {c.runs.length > 1 && (
         <div className="mt-0.5 text-[11px] text-slate-500" data-testid="rc-column-runs">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fillChecks, headingRows, rollUp, stepChecks, withoutHeadings } from "./step-checks";
+import { fillChecks, headingRows, isSectionTitle, readSteps, rollUp, saysNoExpected, stepChecks, withoutHeadings } from "./step-checks";
 import { resultSteps } from "./result-steps";
 
 const shared = { id: "s", name: "Comments", version: 1 };
@@ -100,15 +100,49 @@ describe("headingRows", () => {
 
   it("never treats a real step as a heading", () => {
     const steps = [
-      // Not from a shared step: capitals or not, it takes a result.
-      { number: "1", action: "CHECK THE LOGO", expected: "" },
-      { number: "2", action: "Open Settings", expected: "" },
+      // Not from a shared step: a short instruction with no expected result still takes a result.
+      { number: "1", action: "Open Settings", expected: "" },
+      { number: "2", action: "Type koala", expected: "" },
       // From a shared step but with an Expected, or ending in a full stop, or a short line that doesn't open the shared step.
       { number: "3.1", action: "LOG IN", expected: "You are signed in.", shared: entering },
       { number: "3.2", action: "Press Enter.", expected: "", shared: entering },
       { number: "3.3", action: "Owned By You", expected: "", shared: entering },
     ];
     expect(headingRows(steps).size).toBe(0);
+  });
+
+  it("treats a step with nothing to check as a section title", () => {
+    const steps = [
+      { number: "", action: "SIGN IN / OUT STEPS", expected: "–" },
+      { number: "1", action: "Sign in with a valid account.", expected: "The home page opens." },
+      { number: "", action: "CHECK THE LOGO", expected: "" },
+      { number: "", action: "Account settings", expected: "N/A" },
+      { number: "2", action: "Change your name and save.", expected: "The new name shows." },
+    ];
+    expect([...headingRows(steps)]).toEqual([0, 2, 3]);
+    expect(readSteps(steps)[0]).toEqual({ kind: "heading", text: "SIGN IN / OUT STEPS" });
+  });
+
+  it("keeps a section title only when a step with an expected result comes after it", () => {
+    // The last step, and a plain checklist with no expected results, stay steps.
+    expect(headingRows([{ number: "1", action: "Open the app", expected: "It opens" }, { number: "2", action: "CLOSE THE APP", expected: "-" }]).size).toBe(0);
+    expect(headingRows([{ number: "1", action: "LOG IN", expected: "" }, { number: "2", action: "LOG OUT", expected: "" }]).size).toBe(0);
+    // Test data: a title needs a checked step in its own row.
+    const rows = [
+      { number: "", action: "SEARCH", expected: "-", row: 0 },
+      { number: "1", action: "Search for a.", expected: "Results show.", row: 0 },
+      { number: "", action: "SEARCH", expected: "-", row: 1 },
+    ];
+    expect([...headingRows(rows)]).toEqual([0]);
+  });
+
+  it("keeps sentences, several lines and a real Expected as steps", () => {
+    expect(isSectionTitle([{ action: "Click Save.", expected: "-" }, { action: "x", expected: "y" }], 0)).toBe(false);
+    expect(isSectionTitle([{ action: "LOG IN\nWITH SSO", expected: "" }, { action: "x", expected: "y" }], 0)).toBe(false);
+    expect(isSectionTitle([{ action: "LOG IN", expected: "You are in" }, { action: "x", expected: "y" }], 0)).toBe(false);
+    expect(saysNoExpected(" — ")).toBe(true);
+    expect(saysNoExpected("n/a")).toBe(true);
+    expect(saysNoExpected("None shown")).toBe(false);
   });
 
   it("copes with missing or odd saved steps", () => {

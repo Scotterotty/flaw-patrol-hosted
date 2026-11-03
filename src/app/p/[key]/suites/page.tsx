@@ -1,11 +1,13 @@
 import Link from "next/link";
+import { MoreMenu } from "@/components/more-menu";
 import { StatusBar } from "@/components/status";
+import { ArchiveSuiteButton, RenameSuiteButton } from "@/components/suite-actions";
 import { Card, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { db } from "@/lib/db";
 import { count, relativeTime } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { projectAccess, mySpelling } from "@/lib/session";
-import { umbrellaOf } from "@/lib/umbrella";
+import { hubGroupId, umbrellaOf } from "@/lib/umbrella";
 import { countStatuses, pct, totals } from "@/lib/status";
 
 export const metadata = { title: "Test suites" };
@@ -28,6 +30,14 @@ export default async function SuitesPage({ params, searchParams }: { params: Pro
       runs: { where: { projectId: project.id }, orderBy: { number: "desc" }, take: 1, include: { entries: { select: { status: true } } } },
     },
   });
+
+  // Each of this project's own suites gets a ⋯ menu to rename (and archive, for people allowed to).
+  // Shared umbrella suites are renamed in the umbrella.
+  const manage = can(who, "suite:manage");
+  const canArchive = can(who, "library:archive");
+  const allNames = manage ? (await db.testSuite.findMany({ where: { projectId: project.id }, select: { id: true, name: true } })) : [];
+  const hubOf = manage ? await hubGroupId(project.id) : null;
+  const sharedWith = hubOf ? await db.project.count({ where: { groupId: hubOf, archivedAt: null, id: { not: project.id } } }) : 0;
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -66,7 +76,8 @@ export default async function SuitesPage({ params, searchParams }: { params: Pro
             const last = s.runs[0];
             const counts = last ? countStatuses(last.entries.map((e) => e.status)) : null;
             return (
-              <Link key={s.id} href={`/p/${project.key}/suites/${s.id}`} className="grid gap-2 px-4 py-3 hover:bg-slate-50 sm:grid-cols-[1fr_16rem]">
+              <div key={s.id} className="flex items-center gap-2 hover:bg-slate-50">
+              <Link href={`/p/${project.key}/suites/${s.id}`} className="grid min-w-0 flex-1 gap-2 px-4 py-3 sm:grid-cols-[1fr_16rem]">
                 <div className="min-w-0">
                   <p className="font-medium text-slate-900">
                     {s.name}
@@ -89,6 +100,22 @@ export default async function SuitesPage({ params, searchParams }: { params: Pro
                   )}
                 </div>
               </Link>
+              {manage && s.projectId === project.id && (
+                <div className="pr-3">
+                  <MoreMenu label="⋯" caret={false} size="sm" ariaLabel={`Actions for ${s.name}`} title="Rename or archive">
+                    <RenameSuiteButton
+                      projectId={project.id}
+                      suiteId={s.id}
+                      name={s.name}
+                      otherNames={allNames.filter((n) => n.id !== s.id).map((n) => n.name)}
+                      sharedWith={sharedWith}
+                      look="menu"
+                    />
+                    {canArchive && <ArchiveSuiteButton projectId={project.id} suiteId={s.id} archived={s.archived} />}
+                  </MoreMenu>
+                </div>
+              )}
+              </div>
             );
           })}
         </Card>

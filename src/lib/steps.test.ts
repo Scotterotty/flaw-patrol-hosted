@@ -45,6 +45,23 @@ describe("expandSteps", () => {
   });
 });
 
+describe("section titles", () => {
+  it("gives a section title no number, and the steps under it count on", () => {
+    const steps = expandSteps(
+      [
+        { kind: "step", action: "SIGN IN / OUT STEPS", expected: "–" },
+        { kind: "step", action: "Sign in.", expected: "Home opens." },
+        { kind: "step", action: "Sign out.", expected: "Sign-in page shows." },
+        { kind: "step", action: "ACCOUNT SETTINGS", expected: "" },
+        { kind: "step", action: "Change your name.", expected: "It shows." },
+        { kind: "step", action: "CLOSE THE APP", expected: "-" },
+      ],
+      new Map(),
+    );
+    expect(steps.map((s) => s.number)).toEqual(["", "1", "2", "", "3", "4"]);
+  });
+});
+
 describe("cleanSteps", () => {
   it("drops blank plain steps only", () => {
     expect(

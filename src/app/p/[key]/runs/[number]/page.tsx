@@ -63,7 +63,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   const run = await timing.step("run and its cases", db.testRun.findUnique({
     where: { projectId_number: { projectId: project.id, number: n } },
     include: {
-      suite: { select: { id: true, name: true, project: { select: { key: true } } } },
+      suite: { select: { id: true, name: true, project: { select: { key: true } }, versions: { select: { version: true, name: true } } } },
       entries: {
         orderBy: { position: "asc" },
         include: {
@@ -75,6 +75,9 @@ export default async function RunPage({ params, searchParams }: { params: Promis
     },
   }));
   if (!run) notFound();
+  // A suite renamed since this run shows the name the run used, next to today's name.
+  const ranAs = run.suite && run.suiteVersion ? run.suite.versions.find((v) => v.version === run.suiteVersion)?.name : undefined;
+  const thenCalled = ranAs && ranAs !== run.suite?.name ? ranAs : null;
   if (run.automated) return <AutomatedRun project={project} runId={run.id} who={who} />;
   const entryRefs = run.entries.map((e) => ({ id: e.id, caseId: e.caseId, steps: e.steps }));
   const [members, defectLinks, releases, sort, runFields, knownMap, news, slack, flaky, reg, sentryOn, tagColors] = await Promise.all([
@@ -159,6 +162,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
                 <Link key="suite" href={`/p/${run.suite.project.key}/suites/${run.suite.id}`} className="hover:underline">
                   {run.suite.name}
                   {run.suiteVersion ? ` v${run.suiteVersion}` : ""}
+                  {thenCalled && <span data-testid="suite-then-called"> (then called {thenCalled})</span>}
                 </Link>
               ),
               run.build && `Build ${run.build}`,

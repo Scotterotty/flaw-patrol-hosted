@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { cx } from "@/components/ui";
-import { buildCount, buildHealth, TREND_COUNTS, type BuildPoint, type HomeTrendsData, type TrendCase, type TrendCount, type TrendPoint } from "@/lib/home-trends-calc";
+import { buildCount, buildHealth, runBars, TREND_COUNTS, type BuildPoint, type HomeTrendsData, type RunsShown, type TrendCase, type TrendCount, type TrendPoint } from "@/lib/home-trends-calc";
 import { saveHomeTrendPrefs } from "@/server/home-trends";
 
 type Mode = "release" | "week" | "build";
@@ -34,24 +34,31 @@ export function HomeTrendsBox({
   data: HomeTrendsData;
   platforms: Platform[];
   groupId: string;
-  initial: { hidden: boolean; count: TrendCount };
+  initial: { hidden: boolean; count: TrendCount; runs: RunsShown };
   startHref: string | null;
 }) {
   const g = `/g/${groupId}`;
   const enoughReleases = data.release.length >= 2;
-  const [mode, setMode] = useState<Mode>(enoughReleases ? "release" : "week");
+  const anyResults = data.week.some((p) => p.manCases + p.autoCases);
+  const anyRuns = data.build.length + data.manualRuns.length > 0;
+  // A run just started has no results yet: open on By run so it still shows.
+  const [mode, setMode] = useState<Mode>(enoughReleases ? "release" : anyResults || !anyRuns ? "week" : "build");
   const [split, setSplit] = useState(false);
   const [kind, setKind] = useState<Kind>(data.hasManual ? "man" : "auto");
   const [list, setList] = useState<"flaky" | "failing">(data.flakyTotal || !data.failingTotal ? "flaky" : "failing");
   const [hidden, setHidden] = useState(initial.hidden);
   const [count, setCount] = useState<TrendCount>(initial.count);
-  const save = (next: { hidden: boolean; count: number }) => void saveHomeTrendPrefs(next);
+  const bothRuns = data.build.length > 0 && data.manualRuns.length > 0;
+  // Both, or one kind; with only one kind of run there's nothing to pick.
+  const [runsShown, setRunsShown] = useState<RunsShown>(initial.runs);
+  const runsKind: RunsShown = bothRuns ? runsShown : data.manualRuns.length ? "man" : "auto";
+  const save = (next: { hidden: boolean; count: number; runs?: RunsShown }) => void saveHomeTrendPrefs({ runs: runsShown, ...next });
 
   const all = mode === "release" ? data.release : data.week;
   const shown = count ? all.slice(-count) : all;
-  // By build: one bar per automated run.
-  const builds = count ? data.build.slice(-buildCount(count)) : data.build;
-  const empty = !data.release.length && !data.week.some((p) => p.manCases + p.autoCases);
+  // By run: one bar per run, the newest of each kind.
+  const builds = runBars(data, runsKind, count ? buildCount(count) : null);
+  const empty = !data.release.length && !anyResults && !anyRuns;
   // The tiles read the newest release, or the newest week with results.
   const withData = all.filter((p) => p.manCases + p.autoCases > 0);
   const last = withData.at(-1);
@@ -60,7 +67,8 @@ export function HomeTrendsBox({
   const usedPlatforms = platforms.filter((p) => all.some((x) => x.plat[p.name]));
   const canSplit = usedPlatforms.length > 1;
   const both = data.hasManual && data.hasAuto;
-  const unit = mode === "release" ? "release" : mode === "week" ? "week" : "build";
+  const unit = mode === "release" ? "release" : mode === "week" ? "week" : "run";
+  const om = data.openManual;
 
   const fold = () => {
     const next = !hidden;
@@ -70,9 +78,14 @@ export function HomeTrendsBox({
 
   const summary = (
     <span className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-sm text-slate-600" data-testid="trends-summary">
-      {data.hasManual && (
-        <span>
-          ✋ Manual <b className="text-slate-900 tabular-nums">{pctOf(last?.man ?? null)}</b>
+      {(data.hasManual || !!om?.inProgress) && (
+        <span data-testid="trends-summary-manual">
+          ✋ Manual{" "}
+          {data.hasManual ? <b className="text-slate-900 tabular-nums">{pctOf(last?.man ?? null)}</b> : ":"}
+          {/* Open runs tested by hand: finished and started cases, never who did them. */}
+          {om && om.finished > 0 && ` · ${fmt(om.finished)} of ${fmt(om.total)} finished`}
+          {om && om.inProgress > 0 && <b className="text-slate-900"> · {fmt(om.inProgress)} in progress</b>}
+          {!data.hasManual && " no results yet"}
         </span>
       )}
       {data.hasAuto && (
@@ -108,9 +121,24 @@ export function HomeTrendsBox({
                 options={[
                   { id: "release", label: "By release", disabled: !enoughReleases, title: enoughReleases ? undefined : "Needs two releases with results" },
                   { id: "week", label: "By week" },
-                  { id: "build", label: "By build", disabled: !data.build.length, title: data.build.length ? "Each automated run on its own" : "Needs an automated run" },
+                  { id: "build", label: "By run", disabled: !anyRuns, title: anyRuns ? "Each manual run and each automated build" : "Needs a run" },
                 ]}
               />
+              {mode === "build" && bothRuns && (
+                <Seg
+                  label="Which runs"
+                  value={runsShown}
+                  onChange={(v) => {
+                    setRunsShown(v as RunsShown);
+                    save({ hidden, count, runs: v as RunsShown });
+                  }}
+                  options={[
+                    { id: "both", label: "Both" },
+                    { id: "man", label: "✋ Manual" },
+                    { id: "auto", label: "🤖 Automated" },
+                  ]}
+                />
+              )}
               <select
                 aria-label="How many to show"
                 data-testid="trends-count"
@@ -124,7 +152,7 @@ export function HomeTrendsBox({
               >
                 {TREND_COUNTS.map((c) => (
                   <option key={c} value={c}>
-                    {c ? `Last ${mode === "build" ? buildCount(c) : c} ${unit}s` : `All ${unit}s`}
+                    {c ? `Last ${mode === "build" ? buildCount(c) : c} ${unit}s${mode === "build" && runsKind === "both" ? " of each" : ""}` : `All ${unit}s`}
                   </option>
                 ))}
               </select>
@@ -163,12 +191,18 @@ export function HomeTrendsBox({
           ) : (
             mode === "build" ? (
               <>
-                <BuildHealth points={builds} />
+                <ManualHealth points={builds.filter((p) => p.manual)} />
+                <BuildHealth points={builds.filter((p) => !p.manual)} />
                 <div className="grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
                   <div className="relative min-w-0 border-b border-slate-200 p-4 lg:border-r lg:border-b-0">
-                    <h3 className="text-sm font-semibold text-slate-900">Pass rate by build</h3>
-                    <p className="mt-0.5 mb-2 text-xs text-slate-500">
-                      Automated runs only: each GitHub pull or upload, with a release or not. {count && data.build.length > builds.length ? `Last ${builds.length} builds.` : `All ${plural(builds.length, "build")}.`} Click a bar to open that run.
+                    <h3 className="text-sm font-semibold text-slate-900">Pass rate by run</h3>
+                    <p className="mt-0.5 mb-2 text-xs text-slate-500" data-testid="by-run-note">
+                      {runsKind === "man"
+                        ? "Runs tested by hand, with how much of each is done."
+                        : runsKind === "auto"
+                          ? "Automated runs only: each GitHub pull or upload, with a release or not."
+                          : "Every run tested by hand and every GitHub pull or upload. Manual and automated are never added together."}{" "}
+                      {count && data.build.length + data.manualRuns.length > builds.length ? `Newest ${plural(builds.length, "run")}.` : `All ${plural(builds.length, "run")}.`} Bug bashes left out. Click a bar to open that run.
                     </p>
                     <BuildBars points={builds} />
                   </div>
@@ -254,14 +288,44 @@ function BuildHealth({ points }: { points: BuildPoint[] }) {
   );
 }
 
-/** One bar per automated run, newest on the right; a failed test turns its bar red. */
+/** By run: the newest run tested by hand, finished and started, in one line. */
+function ManualHealth({ points }: { points: BuildPoint[] }) {
+  const zone = useZone();
+  const last = points.at(-1);
+  if (!last?.manual) return null;
+  const m = last.manual;
+  return (
+    <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 border-b border-slate-200 px-4 py-3 text-sm" data-testid="manual-health">
+      <b className="text-slate-900">
+        Last manual run: ✋ {[m.release, `${last.platform ? `${last.platform} ` : ""}${last.label}`].filter(Boolean).join(" · ")}
+      </b>
+      <span className={cx("rounded px-1.5 py-px text-xs font-medium", last.failed ? "bg-st-failed-soft text-st-failed-ink" : last.rate === null ? "bg-slate-100 text-slate-600" : "bg-st-passed-soft text-st-passed-ink")}>
+        {last.rate === null ? "No results yet" : `${fmt(last.passed)} of ${fmt(last.passed + last.failed)} finished passed`}
+      </span>
+      <span className="text-slate-500">
+        {fmt(m.finished)} of {fmt(m.total)} done{m.inProgress ? ` · ${fmt(m.inProgress)} in progress` : ""}
+      </span>
+      <span className="text-slate-500" suppressHydrationWarning>
+        {timeOf(last.at, zone)}
+      </span>
+    </div>
+  );
+}
+
+const donePct = (m: NonNullable<BuildPoint["manual"]>) => (m.total ? Math.round((m.finished / m.total) * 100) : 0);
+
+/** One bar per run, newest on the right; a failed test turns its bar red. Hand runs are striped and say how much is done. */
 function BuildBars({ points }: { points: BuildPoint[] }) {
   const every = Math.ceil(points.length / 12);
+  const hasManual = points.some((p) => p.manual);
   return (
     <div>
       <div className="flex h-36 items-end gap-1 border-b border-slate-200" role="list" aria-label="Pass rate per build" data-testid="build-bars">
         {points.map((p) => {
-          const tip = `${p.name || p.label}: ${p.rate === null ? "no tests ran" : `${p.passed} of ${p.passed + p.failed} passed`}`;
+          const m = p.manual;
+          const tip = m
+            ? `${[m.release, p.platform, p.label].filter(Boolean).join(" · ")} (${p.name}): ${p.passed} passed, ${p.failed} failed, ${m.inProgress} in progress, ${m.total - m.finished - m.inProgress} not started`
+            : `${p.name || p.label}: ${p.rate === null ? "no tests ran" : `${p.passed} of ${p.passed + p.failed} passed`}`;
           return (
             <Link
               key={p.runId}
@@ -269,13 +333,18 @@ function BuildBars({ points }: { points: BuildPoint[] }) {
               role="listitem"
               aria-label={tip}
               title={`${tip} · open the run`}
-              data-testid="build-bar"
+              data-testid={m ? "manual-bar" : "build-bar"}
               className="group flex h-full max-w-12 min-w-0 flex-1 items-end"
             >
-              <span
-                className={cx("block w-full rounded-t-sm group-hover:opacity-80", p.rate === null ? "h-full" : p.failed ? "bg-st-failed" : "bg-st-passed")}
-                style={p.rate === null ? { background: HATCH } : { height: `${Math.max(4, Math.round(p.rate * 100))}%` }}
-              />
+              {m && p.rate === null ? (
+                // Started, nothing finished: an empty outline so the run still shows.
+                <span className="block h-full w-full rounded-t-sm border border-dashed border-blue-400 group-hover:opacity-80" />
+              ) : (
+                <span
+                  className={cx("block w-full rounded-t-sm group-hover:opacity-80", p.rate === null ? "h-full" : p.failed ? "bg-st-failed" : "bg-st-passed")}
+                  style={p.rate === null ? { background: HATCH } : { height: `${Math.max(4, Math.round(p.rate * 100))}%`, ...(m ? { backgroundImage: STRIPES } : {}) }}
+                />
+              )}
             </Link>
           );
         })}
@@ -287,6 +356,16 @@ function BuildBars({ points }: { points: BuildPoint[] }) {
           </span>
         ))}
       </div>
+      {/* Under a hand run that isn't finished: how much of it is done. */}
+      {points.some((p) => p.manual && donePct(p.manual) < 100) && (
+        <div className="flex gap-1 text-[10px] font-medium text-blue-700 tabular-nums" data-testid="done-row">
+          {points.map((p) => (
+            <span key={p.runId} className="max-w-12 min-w-0 flex-1 truncate text-center">
+              {p.manual && donePct(p.manual) < 100 ? `${donePct(p.manual)}%` : ""}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1 text-xs text-slate-600">
         <span className="inline-flex items-center gap-1.5">
           <i className="inline-block size-2.5 rounded-xs bg-st-passed" /> All passed
@@ -297,12 +376,24 @@ function BuildBars({ points }: { points: BuildPoint[] }) {
         <span className="inline-flex items-center gap-1.5">
           <i className="inline-block size-2.5 rounded-xs" style={{ background: HATCH }} /> No tests ran
         </span>
+        {hasManual && (
+          <>
+            <span className="inline-flex items-center gap-1.5">
+              <i className="inline-block size-2.5 rounded-xs bg-slate-400" style={{ backgroundImage: STRIPES }} /> Striped = tested by hand
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <i className="inline-block size-2.5 rounded-xs border border-dashed border-blue-400" /> Started, nothing finished
+            </span>
+            {points.some((p) => p.manual && donePct(p.manual) < 100) && <span className="text-blue-700">Blue % under a bar = how much of that hand run is done</span>}
+          </>
+        )}
         <span>Times in your time zone</span>
       </div>
     </div>
   );
 }
 
+const STRIPES = "repeating-linear-gradient(135deg, transparent 0 4px, rgb(255 255 255 / 0.35) 4px 7px)";
 const HATCH = "repeating-linear-gradient(45deg, var(--color-slate-300) 0 3px, transparent 3px 6px)";
 
 function weekBefore(key: string) {

@@ -13,7 +13,7 @@ export async function sendToJiraData(defects: { id: string; projectId: string; n
   if (!defects.length) return out;
   const links = await db.defectLink.findMany({
     where: { defectId: { in: defects.map((d) => d.id) } },
-    select: { defectId: true, stepIndex: true, result: { select: { id: true, entryId: true, comment: true, stepResults: true, createdAt: true, run: { select: { projectId: true } } } } },
+    select: { defectId: true, stepIndex: true, result: { select: { id: true, entryId: true, comment: true, stepResults: true, createdAt: true, run: { select: { projectId: true } }, entry: { select: { steps: true } } } } },
   });
   const files = await db.attachment.findMany({
     where: { resultId: { in: links.map((l) => l.result.id) } },
@@ -27,16 +27,20 @@ export async function sendToJiraData(defects: { id: string; projectId: string; n
       .sort((a, b) => a.result.createdAt.getTime() - b.result.createdAt.getTime())[0];
     if (!link) continue;
     const steps = Array.isArray(link.result.stepResults) ? (link.result.stepResults as { actual?: string }[]) : [];
+    // Section titles take no number, so a step's number can differ from its place.
+    const caseSteps = Array.isArray(link.result.entry.steps) ? (link.result.entry.steps as { number?: string }[]) : [];
+    const numberOf = (i: number) => caseSteps[i]?.number || String(i + 1);
     const actual = link.stepIndex !== null ? (steps[link.stepIndex]?.actual ?? "") : link.result.comment;
     out.set(d.id, {
       projectId: d.projectId,
       defect: { id: d.id, label: d.label, title: d.title, severity: d.severity },
       entryId: link.result.entryId,
       stepIndex: link.stepIndex,
+      stepNumber: link.stepIndex === null ? undefined : numberOf(link.stepIndex),
       actual: actual || link.result.comment,
       attachments: files
         .filter((f) => f.resultId === link.result.id && (link.stepIndex === null || f.stepIndex === link.stepIndex || f.stepIndex === null))
-        .map((f) => ({ id: f.id, fileName: f.fileName, contentType: f.contentType, label: f.stepIndex === null ? "Whole case" : `Step ${f.stepIndex + 1}` })),
+        .map((f) => ({ id: f.id, fileName: f.fileName, contentType: f.contentType, label: f.stepIndex === null ? "Whole case" : `Step ${numberOf(f.stepIndex)}` })),
     });
   }
   return out;

@@ -5,7 +5,22 @@ import { useMenuPlace } from "./menu-place";
 import { Button, cx } from "./ui";
 
 /** A "More" button that holds the less common actions, so the main ones stand out. */
-export function MoreMenu({ children, label = "More", title }: { children: React.ReactNode; label?: string; title?: string }) {
+export function MoreMenu({
+  children,
+  label = "More",
+  title,
+  ariaLabel,
+  caret = true,
+  size,
+}: {
+  children: React.ReactNode;
+  label?: string;
+  title?: string;
+  /** A spoken name when the label is only a symbol, like "⋯". */
+  ariaLabel?: string;
+  caret?: boolean;
+  size?: "sm" | "md";
+}) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -23,8 +38,14 @@ export function MoreMenu({ children, label = "More", title }: { children: React.
   }, [open]);
   return (
     <div ref={box} className="relative">
-      <Button aria-expanded={open} aria-haspopup="menu" title={title} onClick={() => setOpen((o) => !o)}>
-        {label} <span aria-hidden className="ml-1 text-xs">▾</span>
+      <Button aria-expanded={open} aria-haspopup="menu" aria-label={ariaLabel} title={title} size={size} onClick={() => setOpen((o) => !o)}>
+        {label}
+        {caret && (
+          <>
+            {" "}
+            <span aria-hidden className="ml-1 text-xs">▾</span>
+          </>
+        )}
       </Button>
       <div
         ref={list}

@@ -42,7 +42,8 @@ export default async function UmbrellaRunsPage({ params, searchParams }: { param
 
   if (sp.mine === "1") {
     const runs = await db.testRun.findMany({
-      where: { projectId: { in: ids }, state: "ACTIVE", entries: { some: { assigneeId: user.id, status: { in: ["UNTESTED", "RETEST", "IN_PROGRESS"] } } } },
+      // Work left in an archived test cycle or umbrella stays out until it's restored.
+      where: { projectId: { in: u.group.archivedAt ? [] : all.filter((p) => !p.archivedAt && ids.includes(p.id)).map((p) => p.id) }, state: "ACTIVE", entries: { some: { assigneeId: user.id, status: { in: ["UNTESTED", "RETEST", "IN_PROGRESS"] } } } },
       orderBy: { createdAt: "desc" },
       include: { project: { select: { key: true, name: true } }, entries: { where: { assigneeId: user.id }, select: { status: true } } },
     });

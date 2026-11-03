@@ -8,7 +8,7 @@ import { NewRunButton } from "@/components/new-run";
 import { StartRunBox } from "@/components/start-run-box";
 import { HistoryStrip, StatusBar, StatusChip } from "@/components/status";
 import { MoreMenu } from "@/components/more-menu";
-import { ArchiveSuiteButton } from "@/components/suite-actions";
+import { ArchiveSuiteButton, RenameSuiteButton } from "@/components/suite-actions";
 import { Badge, Card, EmptyState, LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
 import { caseKey, relativeTime } from "@/lib/format";
@@ -47,6 +47,13 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
   // Shared suites can be run here but not changed here.
   const manage = can(who, "suite:manage") && !shared;
   const members = await projectMembers(project.id);
+  // For the Rename box: the project's other suite names (same-name warning) and, for an umbrella's
+  // own suite, how many test cycles also run it.
+  const otherNames = manage
+    ? (await db.testSuite.findMany({ where: { projectId: project.id, id: { not: suite.id } }, select: { name: true } })).map((s) => s.name)
+    : [];
+  const sharedWith = manage && hubOf ? await db.project.count({ where: { groupId: hubOf, archivedAt: null, id: { not: project.id } } }) : 0;
+  const rename = { projectId: project.id, suiteId: suite.id, name: suite.name, otherNames, sharedWith };
   // Every run of this suite, grouped by release, for the RC table.
   const allRuns = await db.testRun.findMany({
     where: { suiteId: suite.id, projectId: project.id },
@@ -96,9 +103,12 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
       <CrumbName href={`/p/${project.key}/suites/${suite.id}`} label={suite.name} />
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
-            {suite.name} {suite.archived && <Badge tone="orange">Archived</Badge>}
-          </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
+              {suite.name} {suite.archived && <Badge tone="orange">Archived</Badge>}
+            </h1>
+            {manage && <RenameSuiteButton {...rename} look="pencil" />}
+          </div>
           {shared && (
             <p className="mt-1 text-sm text-accent-700">
               Shared suite from {umbrellaName}.{" "}
@@ -114,11 +124,10 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
         <div className="flex flex-wrap gap-2">
           {manage && (
             <>
-              {can(who, "library:archive") && (
-                <MoreMenu>
-                  <ArchiveSuiteButton projectId={project.id} suiteId={suite.id} archived={suite.archived} />
-                </MoreMenu>
-              )}
+              <MoreMenu>
+                <RenameSuiteButton {...rename} look="menu" />
+                {can(who, "library:archive") && <ArchiveSuiteButton projectId={project.id} suiteId={suite.id} archived={suite.archived} />}
+              </MoreMenu>
               <LinkButton href={`/p/${project.key}/suites/${suite.id}/edit`}>Edit cases</LinkButton>
             </>
           )}

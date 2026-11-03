@@ -64,8 +64,10 @@ test("imports a qTest test run CSV with shared blocks", async ({ page }) => {
   await expect(page.getByLabel("Where is this file from?")).toHaveValue("qtest");
   await expect(page.getByLabel("Put back line breaks qTest's CSV export removed")).toBeChecked();
   await expect(page.getByText("Preview: 2 cases, 7 steps, 1 shared step")).toBeVisible();
+  // "LOGIN UNIQUE STEPS" has nothing to check, so it shows as a section title and takes no number.
+  await expect(page.getByTestId("section-titles-note")).toContainText("1 row with nothing to check");
   await page.getByRole("button", { name: /PQ-1/ }).click();
-  await expect(page.getByText("3.2")).toBeVisible();
+  await expect(page.getByText("2.2")).toBeVisible();
   await page.getByLabel(/Yes, we've run them before/).check();
   await page.getByRole("button", { name: "Import 2 cases" }).click();
   await expect(page.getByText("Imported 2 test cases")).toBeVisible();
@@ -73,7 +75,8 @@ test("imports a qTest test run CSV with shared blocks", async ({ page }) => {
   await page.goto(`/p/${key}/cases/1`);
   await expect(page.getByRole("heading", { name: "Login", exact: true })).toBeVisible();
   await expect(page.getByText("PQ-1", { exact: true })).toBeVisible();
-  await expect(page.getByText("3.2", { exact: true })).toBeVisible();
+  await expect(page.getByText("2.2", { exact: true })).toBeVisible();
+  await expect(page.getByRole("rowheader", { name: "LOGIN UNIQUE STEPS" })).toBeVisible();
   await expect(page.getByText("A user can sign in.")).toBeVisible();
 
   await page.goto(`/p/${key}/cases?q=PQ-2`);

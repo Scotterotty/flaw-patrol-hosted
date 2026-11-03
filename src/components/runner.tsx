@@ -15,7 +15,7 @@ import type { Draft } from "@/lib/run-draft";
 import { mapHistorySteps, SHOW_HISTORY_EVENT, STILL_OCCURS_EVENT, type HistoryRun } from "@/lib/run-history";
 import { relativeTime } from "@/lib/format";
 import { deriveCaseStatus, SETTABLE, STATUS_HELP, STATUS_LABEL, STATUS_STYLE } from "@/lib/status";
-import { fillChecks, firstOfShared, rollUp, stepChecks, withoutHeadings } from "@/lib/step-checks";
+import { fillChecks, firstOfShared, readSteps, rollUp, withoutHeadings } from "@/lib/step-checks";
 import { stepLabel as labelOfStep, type ExpandedStep } from "@/lib/steps";
 import { rowLabel, rowResults, rowsLine, type TestData } from "@/lib/test-data";
 import type { LinkedDefect } from "@/server/jira";
@@ -197,12 +197,9 @@ export function Runner({
     };
   }, []);
   const reopened = useRef(saved !== null).current;
-  // Shared steps with several checks in them get a result per check; rows in capitals are headings with no result.
-  const parsed = useMemo(
-    () =>
-      entry.steps.map((s, i) => stepChecks(s, firstOfShared(entry.steps, i))),
-    [entry.steps],
-  );
+  // Shared steps with several checks in them get a result per check; shared step headings and
+  // section titles (a step with nothing to check, like "SIGN IN / OUT STEPS") take no result.
+  const parsed = useMemo(() => readSteps(entry.steps), [entry.steps]);
   const heading = useCallback((i: number) => parsed[i]?.kind === "heading", [parsed]);
   const checkCount = useCallback((i: number) => (parsed[i]?.kind === "checks" ? (parsed[i] as { count: number }).count : 0), [parsed]);
   const [checkResults, setCheckResults] = useState<ResultStatus[][]>(() =>
@@ -1016,6 +1013,21 @@ export function Runner({
                 Shared step: <span className="font-medium">{step.shared!.name}</span> v{step.shared!.version}
               </p>
             );
+            if (read?.kind === "heading" && !firstOfShared(entry.steps, i)) {
+              // A section title: names the steps under it, up to the next title.
+              let under = 0;
+              for (let j = i + 1; j < entry.steps.length && parsed[j]?.kind !== "heading"; j++) if (entry.steps[j].row === step.row) under++;
+              return (
+                <li key={i} data-step={i}>
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b-2 border-slate-300 px-1 pt-4 pb-1">
+                    <h3 className="text-[15px] font-bold tracking-wide text-slate-800 wrap-anywhere">{read.text}</h3>
+                    <span className="text-xs text-slate-500">
+                      {under} {under === 1 ? "step" : "steps"}
+                    </span>
+                  </div>
+                </li>
+              );
+            }
             if (read?.kind === "heading")
               return (
                 <li key={i} data-step={i}>

@@ -4,7 +4,7 @@ import type { Prisma, Priority, ResultStatus } from "@prisma/client";
 import { db } from "./db";
 import { caseKey } from "./format";
 import { countStatuses, totals, type StatusCounts } from "./status";
-import { withoutHeadings } from "./step-checks";
+import { headingRows, withoutHeadings } from "./step-checks";
 import { suiteForCases } from "./suite-match";
 import { bucketKey, bucketKeys, bucketLabel, unitFor, type BucketUnit } from "./trend-buckets";
 
@@ -110,7 +110,13 @@ export type RunRow = {
   caseIds: string[];
   /** Each case's status in the run, for the manual vs automated split. */
   caseStatuses: [string, ResultStatus][];
+  /** Cases someone started (steps ticked, autosaved) but hasn't finished. Never counted in a pass rate. */
+  inProgress: number;
+  /** When the longest-waiting started case was last touched, or null. */
+  oldestDraftAt: Date | null;
 };
+
+
 
 /** Run-by-run execution status, with step outcomes from each case's latest result. */
 export async function runReport(scope: ReportScope, f: ReportFilters): Promise<RunRow[]> {
@@ -124,12 +130,15 @@ export async function runReport(scope: ReportScope, f: ReportFilters): Promise<R
     include: {
       project: { select: { key: true, name: true, platform: true } },
       suite: { select: { name: true } },
-      entries: { where: entry, select: { caseId: true, status: true, steps: true, results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true } } } },
+      entries: { where: entry, select: { caseId: true, status: true, draftAt: true, steps: true, results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true } } } },
       results: { where: narrowed ? { entry } : undefined, select: { defects: { select: { defectId: true } } } },
       bugBash: { select: { id: true } },
     },
   });
-  return runs.map((r) => ({
+  return runs.map((r) => {
+    // Autosave marks a case In progress until its result is saved.
+    const started = r.entries.filter((e) => e.status === "IN_PROGRESS");
+    return {
     bash: !!r.bugBash,
     id: r.id,
     projectKey: r.project.key,
@@ -155,7 +164,10 @@ export async function runReport(scope: ReportScope, f: ReportFilters): Promise<R
     suiteId: r.suiteId,
     caseIds: r.entries.map((e) => e.caseId),
     caseStatuses: r.entries.map((e) => [e.caseId, e.status] as [string, ResultStatus]),
-  }));
+    inProgress: started.length,
+    oldestDraftAt: started.reduce<Date | null>((min, e) => (e.draftAt && (!min || e.draftAt < min) ? e.draftAt : min), null),
+    };
+  });
 }
 
 export type SuiteRow = { id: string; name: string; version: number; runs: number; latest: RunRow | null; cases: number };
@@ -229,9 +241,11 @@ export async function stepHistory(scope: ReportScope, f: ReportFilters): Promise
     const steps = (r.entry.steps as { number: string; action: string; row?: number }[]) ?? [];
     // Test data: a step of a row reads "2 (row 2)", so the row that failed is named.
     const num = (st: { number: string; row?: number }) => (typeof st.row === "number" ? `${st.number} (row ${st.row + 1})` : st.number);
+    // Headings and section titles take no result; an old result saved on one isn't a step's history.
+    const headings = headingRows(steps);
     ((r.stepResults as { status: ResultStatus }[]) ?? []).forEach((s, i) => {
       const step = steps[i];
-      if (!step || s.status === "UNTESTED") return;
+      if (!step || s.status === "UNTESTED" || headings.has(i)) return;
       const key = caseKey(r.entry.testCase.project.key, r.entry.testCase.number);
       const k = `${key}|${step.action.trim().toLowerCase()}`;
       const cur = agg.get(k) ?? {

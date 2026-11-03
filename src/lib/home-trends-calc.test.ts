@@ -1,6 +1,6 @@
 import type { ResultStatus } from "@prisma/client";
 import { describe, expect, it } from "vitest";
-import { buildHealth, homeTrends, trendPrefs, withTrendPrefs, type TrendRow } from "./home-trends-calc";
+import { buildHealth, homeTrends, manualRunPoints, runBars, trendPrefs, withTrendPrefs, type TrendRow } from "./home-trends-calc";
 import { keyCandidates } from "./cycle-key";
 
 let n = 0;
@@ -77,11 +77,11 @@ describe("homeTrends", () => {
 
 describe("trend prefs", () => {
   it("defaults to shown with six, and saves only its own words", () => {
-    expect(trendPrefs([])).toEqual({ hidden: false, count: 6 });
+    expect(trendPrefs([])).toEqual({ hidden: false, count: 6, runs: "both" });
     const saved = withTrendPrefs(["account:look", "trends:ten"], { hidden: true, count: 20 });
     expect(saved).toEqual(["account:look", "trends:hidden", "trends:twenty"]);
-    expect(trendPrefs(saved)).toEqual({ hidden: true, count: 20 });
-    expect(trendPrefs(withTrendPrefs(saved, { hidden: false, count: 0 }))).toEqual({ hidden: false, count: 0 });
+    expect(trendPrefs(saved)).toEqual({ hidden: true, count: 20, runs: "both" });
+    expect(trendPrefs(withTrendPrefs(saved, { hidden: false, count: 0 }))).toEqual({ hidden: false, count: 0, runs: "both" });
     expect(withTrendPrefs(saved, { hidden: false, count: 6 })).toEqual(["account:look"]);
   });
 });
@@ -113,5 +113,52 @@ describe("keyCandidates (ver_133)", () => {
     expect(keyCandidates("LONGUMBRELL", "Build health")[0]).toBe("LONGUMBREL");
     expect(keyCandidates("LONGUMBRELL", "Build health")[1]).toBe("LONGUMBRE2");
     for (const k of keyCandidates("A", "1")) expect(k).toMatch(/^[A-Z][A-Z0-9]{1,9}$/);
+  });
+});
+
+describe("By run with runs tested by hand", () => {
+  const hand = (id: string, at: string, counts: Record<string, number>, open = true) => ({
+    runId: id,
+    href: `/p/W/runs/${id}`,
+    number: Number(id.slice(1)),
+    name: `Run ${id}`,
+    release: "RC 1.4",
+    at: new Date(at),
+    platform: "Web",
+    open,
+    counts,
+  });
+
+  it("makes a bar per hand run with its finished and started cases, and totals the open ones", () => {
+    const { manualRuns, openManual } = manualRunPoints([
+      hand("r3", "2026-11-02T10:00:00Z", { PASSED: 5, FAILED: 1, IN_PROGRESS: 9, UNTESTED: 25 }),
+      hand("r2", "2026-10-20T10:00:00Z", { PASSED: 40 }, false),
+      hand("r4", "2026-11-02T11:00:00Z", { IN_PROGRESS: 2, UNTESTED: 8 }),
+      // Finished but never closed: left out of the open totals.
+      hand("r1", "2026-10-01T10:00:00Z", { PASSED: 12 }),
+    ]);
+    expect(manualRuns.map((p) => p.label)).toEqual(["R1", "R2", "R3", "R4"]);
+    const r3 = manualRuns[2];
+    expect(r3.manual).toEqual({ total: 40, finished: 6, inProgress: 9, release: "RC 1.4" });
+    expect(r3.rate).toBeCloseTo(5 / 6);
+    // Started but nothing finished: no pass rate, still a bar.
+    expect(manualRuns[3].rate).toBeNull();
+    expect(openManual).toEqual({ total: 50, finished: 6, inProgress: 11 });
+  });
+
+  it("keeps the newest of each kind so a busy CI job can't push hand runs off", () => {
+    const build = Array.from({ length: 30 }, (_, i) => ({ runId: `b${i}`, href: "", label: `${i}`, name: "", at: new Date(Date.UTC(2026, 10, 2, i % 24, i)).toISOString(), platform: "", passed: 1, failed: 0, other: 0, rate: 1 }));
+    const { manualRuns } = manualRunPoints([hand("r1", "2026-10-01T00:00:00Z", { PASSED: 1 })]);
+    const both = runBars({ build, manualRuns }, "both", 12);
+    expect(both.length).toBe(13);
+    expect(both[0].runId).toBe("r1");
+    expect(runBars({ build, manualRuns }, "man", 12).map((p) => p.runId)).toEqual(["r1"]);
+    expect(runBars({ build, manualRuns }, "auto", 12).every((p) => !p.manual)).toBe(true);
+  });
+
+  it("remembers Both, Manual or Automated for each person", () => {
+    expect(trendPrefs(withTrendPrefs([], { hidden: false, count: 6, runs: "man" })).runs).toBe("man");
+    expect(trendPrefs(withTrendPrefs(["trends:runs-man"], { hidden: false, count: 6, runs: "both" })).runs).toBe("both");
+    expect(trendPrefs([]).runs).toBe("both");
   });
 });

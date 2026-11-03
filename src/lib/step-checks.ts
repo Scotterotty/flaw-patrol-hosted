@@ -105,6 +105,35 @@ export function fillChecks(checks: ResultStatus[], status: ResultStatus): Result
 export const firstOfShared = (steps: Pick<ExpandedStep, "number" | "shared">[], i: number) =>
   !!steps[i].shared && (i === 0 || steps[i - 1].shared?.id !== steps[i].shared!.id || steps[i - 1].number.split(".")[0] !== steps[i].number.split(".")[0]);
 
+// "-", "–", "—" or "N/A" in Expected: the writer says on purpose there's nothing to check.
+const NONE = /^(?:[-–—]+|n\/?a)$/i;
+/** Expected says there's nothing to check: a dash or N/A. */
+export const saysNoExpected = (expected: string) => NONE.test(expected.trim());
+/** The step has a real expected result. */
+export const hasExpected = (expected: string) => expected.trim() !== "" && !saysNoExpected(expected);
+
+type TitleStep = Pick<ExpandedStep, "action" | "expected"> & { row?: number };
+
+/**
+ * A section title: a step with nothing to check that names the steps below it, like
+ * "SIGN IN / OUT STEPS". It is one line that doesn't end like a sentence, its Expected is a dash
+ * or N/A (or empty when the line is in capitals), and a step with an expected result comes
+ * after it. A last step, or a plain checklist with no expected results at all, stays a step.
+ */
+export function isSectionTitle(steps: TitleStep[], i: number): boolean {
+  const s = steps[i];
+  const action = s.action.trim();
+  if (!action || action.includes("\n") || ends(action)) return false;
+  if (!saysNoExpected(s.expected) && !(s.expected.trim() === "" && allCaps(action))) return false;
+  for (let j = i + 1; j < steps.length; j++) if (steps[j].row === s.row && hasExpected(steps[j].expected)) return true;
+  return false;
+}
+
+/** How each step of a case reads: a heading (shared step heading or section title), checks, or a plain step. */
+export function readSteps(steps: (Pick<ExpandedStep, "action" | "expected" | "number" | "shared"> & { row?: number })[]): (StepChecks | null)[] {
+  return steps.map((s, i) => (isSectionTitle(steps, i) ? { kind: "heading", text: s.action.trim() } : stepChecks(s, firstOfShared(steps, i))));
+}
+
 /**
  * Which rows of a case's steps (a run entry's saved copy) are headings. They take no result, so
  * the runner skips them and nothing that counts steps should count them.
@@ -114,10 +143,10 @@ export function headingRows(steps: unknown): Set<number> {
   if (!Array.isArray(steps)) return out;
   const list = steps.map((s) => {
     const o = (s && typeof s === "object" ? s : {}) as Partial<ExpandedStep>;
-    return { action: String(o.action ?? ""), expected: String(o.expected ?? ""), number: String(o.number ?? ""), shared: o.shared };
+    return { action: String(o.action ?? ""), expected: String(o.expected ?? ""), number: String(o.number ?? ""), shared: o.shared, row: typeof o.row === "number" ? o.row : undefined };
   });
-  list.forEach((s, i) => {
-    if (stepChecks(s, firstOfShared(list, i))?.kind === "heading") out.add(i);
+  readSteps(list).forEach((r, i) => {
+    if (r?.kind === "heading") out.add(i);
   });
   return out;
 }

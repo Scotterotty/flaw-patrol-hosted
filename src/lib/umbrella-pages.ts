@@ -9,8 +9,10 @@ import { OPEN_BUG, type Shortcut, type Umbrella } from "./umbrella";
 /** The numbers on the umbrella home's shortcut row, for one viewer. */
 export async function hubCounts(u: Umbrella, userId: string) {
   const ids = [u.hub.id, ...u.projects.map((p) => p.id)];
+  // My assigned cases skips work left in archived test cycles (and archived umbrellas).
+  const liveIds = u.group.archivedAt ? [] : [u.hub.id, ...u.projects.filter((p) => !p.archivedAt).map((p) => p.id)];
   const [mine, bugs, flagged] = await Promise.all([
-    db.runEntry.count({ where: { assigneeId: userId, status: { in: ["UNTESTED", "RETEST", "IN_PROGRESS"] }, run: { projectId: { in: ids }, state: "ACTIVE" } } }),
+    db.runEntry.count({ where: { assigneeId: userId, status: { in: ["UNTESTED", "RETEST", "IN_PROGRESS"] }, run: { projectId: { in: liveIds }, state: "ACTIVE" } } }),
     db.defect.findMany({ where: { projectId: { in: ids }, ...OPEN_BUG }, select: { id: true, externalKey: true, severity: true } }),
     db.testCase.count({ where: { projectId: u.hub.id, archived: false, flag: { not: null } } }),
   ]);
