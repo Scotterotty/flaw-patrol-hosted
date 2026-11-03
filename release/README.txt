@@ -18,6 +18,9 @@ Start it
      older versions. The first start finds the older .env and offers to copy
      it up to the shared folder (press Enter to accept).
      A .env inside this folder still wins if you put one there.
+     A hidden backup of your settings is also kept in your home folder
+     (.flaw-patrol). If a new version can't find your .env, it offers the
+     backup ("Use them? [Y/n]"), so saved Jira tokens and sign-ins keep working.
      The .env holds your database password: don't share it publicly.
   4. Open http://localhost:3000 once it says Ready.
 

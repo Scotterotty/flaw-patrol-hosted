@@ -6,8 +6,9 @@
 // quickly instead of being built on your first visit to each.
 import { execSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 
 const major = Number(process.versions.node.split(".")[0]);
@@ -18,7 +19,55 @@ if (major < 20) {
 
 const run = (cmd, env) => execSync(cmd, { stdio: "inherit", env: { ...process.env, ...env } });
 
-if (!existsSync(".env") || !/DATABASE_URL="?postgres/.test(readFileSync(".env", "utf8"))) {
+const usable = (f) => existsSync(f) && /DATABASE_URL="?postgres/.test(readFileSync(f, "utf8"));
+// Settings backup: each new version you unzip into a fresh folder has
+// no .env, and a new AUTH_SECRET would lock out saved Jira, GitHub and Slack
+// tokens and sign-ins. So keep a hidden copy in your home folder
+// (~/.flaw-patrol/settings.env) and offer it to every new copy.
+const backupFile = join(homedir(), ".flaw-patrol", "settings.env");
+
+/** Offer the hidden backup to a copy that has no settings yet. Returns where it was copied, or null. */
+async function offerBackup(...targets) {
+  if (!usable(backupFile)) return null;
+  let host = "your database";
+  try {
+    host = new URL(/DATABASE_URL="?([^"\n]+)/.exec(readFileSync(backupFile, "utf8"))[1]).hostname;
+  } catch {}
+  console.log(`\nFound your saved settings from last time (database: ${host}).`);
+  process.stdout.write("Use them? [Y/n] ");
+  const rl = createInterface({ input: process.stdin });
+  const answer = (await rl[Symbol.asyncIterator]().next()).value?.trim().toLowerCase() ?? "";
+  rl.close();
+  if (answer.startsWith("n")) return null;
+  for (const target of targets) {
+    try {
+      copyFileSync(backupFile, target);
+      console.log(`Saved to ${resolve(target)}\n`);
+      return target;
+    } catch {
+      // Not writable: try the next place.
+    }
+  }
+  return null;
+}
+
+/** Keep the hidden backup in step with the settings this copy runs with. Never blocks starting. */
+function saveBackup(from) {
+  try {
+    const text = readFileSync(from, "utf8");
+    if (existsSync(backupFile) && readFileSync(backupFile, "utf8") === text) return;
+    mkdirSync(dirname(backupFile), { recursive: true, mode: 0o700 });
+    writeFileSync(backupFile, text, { mode: 0o600 });
+    chmodSync(backupFile, 0o600);
+    // A dot only hides a folder on Mac and Linux; Windows needs the hidden flag.
+    if (process.platform === "win32") execSync(`attrib +h "${dirname(backupFile)}"`, { stdio: "ignore" });
+  } catch {
+    // No home folder or not writable: everything still works, just without the backup.
+  }
+}
+
+if (!usable(".env")) await offerBackup(".env");
+if (!usable(".env")) {
   console.log("\nPaste your Postgres connection string.");
   console.log("Free option: sign up at https://neon.tech, create a project, and copy the connection string it shows.\n");
   const rl = createInterface({ input: process.stdin });
@@ -52,6 +101,7 @@ if (!existsSync(".env") || !/DATABASE_URL="?postgres/.test(readFileSync(".env", 
   );
   console.log("Saved to .env\n");
 }
+saveBackup(".env");
 
 if (!existsSync("node_modules")) {
   console.log("Installing packages (first run only)…");

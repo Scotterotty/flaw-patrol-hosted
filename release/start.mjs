@@ -4,9 +4,10 @@
 // unzipped beside it shares the same settings. A .env inside this folder wins
 // if there is one. Every run brings the database up to date, then starts the
 // app at http://localhost:3000.
-import { spawn } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 import { createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
-import { copyFileSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
@@ -27,7 +28,56 @@ const wrapper = (d) => /^Flaw_Patrol(_ver_\d+)?$/i.test(basename(d));
 const up = resolve("..");
 const shared = join(wrapper(up) ? resolve("../..") : up, ".env");
 let envFile = [".env", resolve("../.env"), resolve("../../.env")].find(usable);
+// Settings backup: each new version you unzip into a fresh folder has
+// no .env, and a new AUTH_SECRET would lock out saved Jira, GitHub and Slack
+// tokens and sign-ins. So keep a hidden copy in your home folder
+// (~/.flaw-patrol/settings.env) and offer it to every new copy.
+const backupFile = join(homedir(), ".flaw-patrol", "settings.env");
+
+/** Offer the hidden backup to a copy that has no settings yet. Returns where it was copied, or null. */
+async function offerBackup(...targets) {
+  if (!usable(backupFile)) return null;
+  let host = "your database";
+  try {
+    host = new URL(/DATABASE_URL="?([^"\n]+)/.exec(readFileSync(backupFile, "utf8"))[1]).hostname;
+  } catch {}
+  console.log(`\nFound your saved settings from last time (database: ${host}).`);
+  process.stdout.write("Use them? [Y/n] ");
+  const rl = createInterface({ input: process.stdin });
+  const answer = (await rl[Symbol.asyncIterator]().next()).value?.trim().toLowerCase() ?? "";
+  rl.close();
+  if (answer.startsWith("n")) return null;
+  for (const target of targets) {
+    try {
+      copyFileSync(backupFile, target);
+      console.log(`Saved to ${resolve(target)}\n`);
+      return target;
+    } catch {
+      // Not writable: try the next place.
+    }
+  }
+  return null;
+}
+
+/** Keep the hidden backup in step with the settings this copy runs with. Never blocks starting. */
+function saveBackup(from) {
+  try {
+    const text = readFileSync(from, "utf8");
+    if (existsSync(backupFile) && readFileSync(backupFile, "utf8") === text) return;
+    mkdirSync(dirname(backupFile), { recursive: true, mode: 0o700 });
+    writeFileSync(backupFile, text, { mode: 0o600 });
+    chmodSync(backupFile, 0o600);
+    // A dot only hides a folder on Mac and Linux; Windows needs the hidden flag.
+    if (process.platform === "win32") execSync(`attrib +h "${dirname(backupFile)}"`, { stdio: "ignore" });
+  } catch {
+    // No home folder or not writable: everything still works, just without the backup.
+  }
+}
+
+// Saved one folder up when possible, like a first run, so later versions beside this one find it.
+if (!envFile) envFile = await offerBackup(shared, ".env");
 if (!envFile) envFile = (await adoptOlderEnv()) ?? (await firstRun());
+saveBackup(envFile);
 console.log(`Using settings from ${resolve(envFile)}`);
 
 const env = Object.fromEntries(

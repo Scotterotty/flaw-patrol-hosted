@@ -273,8 +273,9 @@ tests/e2e/               Playwright tests
 - Attachments are stored in Postgres (10 MB each) for now; move them to object
   storage when volumes grow. The Jira API token is encrypted with a key derived
   from `AUTH_SECRET`, so keep that secret stable, and give every copy that
-  shares one database the same secret. When unzipping a new version, copy the
-  old `.env` across (or paste the old AUTH_SECRET when `start.mjs` asks).
+  shares one database the same secret. `start.mjs` keeps a hidden copy of
+  your settings in `~/.flaw-patrol/settings.env` and offers it to each new
+  version you unzip, so the secret stays the same (press Enter to accept).
   `start.mjs` warns at startup if a saved token can't be read.
 - The plan named tRPC for the app's internal API; milestone 1 uses Next.js
   server actions instead, which give the same end-to-end types with less code.
