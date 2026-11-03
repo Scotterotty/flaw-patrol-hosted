@@ -175,12 +175,15 @@ detailed error pages). It's for trying Flaw Patrol out, not for hosting.
 ## Host it on a server (Docker)
 
 One always-on copy that everyone opens in the browser, instead of a copy on
-each laptop. The database (for example Neon) stays where it is.
+each laptop. `docker-compose.hosting.yml` runs two containers: Flaw Patrol
+(port 6767) and its own Postgres database, whose data is kept in the
+`flaw-patrol-data` volume. Nothing else is needed.
 
 1. **A server with Docker** that sits behind your company's nginx-proxy.
 2. **Get the code** onto the server.
-3. **Settings:** `cp flaw-patrol.env.example flaw-patrol.env` and fill in
-   `DATABASE_URL` and `AUTH_SECRET` (the same secret as your other copies, so
+3. **Settings:** `cp flaw-patrol.env.example flaw-patrol.env` and fill in a
+   database password (letters and numbers), the same password inside
+   `DATABASE_URL`, and `AUTH_SECRET` (the same secret as your other copies, so
    saved Jira tokens keep working). This file stays on the server: it is never
    built into the image or committed.
 4. **Web address:** in `docker-compose.hosting.yml`, change
@@ -190,32 +193,50 @@ each laptop. The database (for example Neon) stays where it is.
    or result zips and screen recordings fail. Add it before step 6, or restart
    nginx-proxy afterwards: it only reads the file when it rebuilds its settings.
 6. **Start it:** `docker compose -f docker-compose.hosting.yml up -d --build`
-   (about 4 minutes the first time). It applies database changes by itself and
+   (about 4 minutes the first time). It sets up the database by itself and
    restarts after a reboot.
 7. **Open the address and sign in.** On an empty database, the first person to
    sign in becomes the admin.
 
+**Bring over the data from Neon (once, instead of starting empty):** do this
+between steps 5 and 6.
+
+```bash
+docker compose -f docker-compose.hosting.yml up -d db
+docker run --rm postgres:17 pg_dump --no-owner --no-privileges -Fc "<Neon direct address>" > flawpatrol.dump
+docker compose -f docker-compose.hosting.yml exec -T db pg_restore -U flawpatrol -d flawpatrol --no-owner --no-privileges < flawpatrol.dump
+```
+
+Use Neon's address without "-pooler" in it. Then do step 6, and use the
+`AUTH_SECRET` your team already has. After that, people stop using their laptop
+copies, or their changes go to Neon instead.
+
 **Update to a new version:** get the new code, then run the step 6 command again.
+
+**Backups:** `docker compose -f docker-compose.hosting.yml exec -T db pg_dump -U flawpatrol -Fc flawpatrol > backup.dump`.
+Run it on a schedule and keep the files somewhere else.
 
 **Good to know**
 
 - Run one copy only. Uploaded screenshots wait on the server's disk until you
   press Save, so two copies side by side would lose them.
-- Database changes always go through Neon's direct address, even when
-  `DATABASE_URL` is the "-pooler" one (`scripts/docker-start.sh`).
+- The database has no published port and sits on its own private network, so
+  only Flaw Patrol can reach it.
+- `docker compose down -v` deletes the database volume. Leave out `-v`.
 - Docker's health check opens the sign-in page every 30 seconds;
   `docker ps` shows `healthy` or `unhealthy`.
 - CI uploads: make a token in an umbrella's Settings, then TeamCity or GitHub
   sends results to `https://<your address>/api/ci/results`.
 
-Without nginx-proxy, `Dockerfile` runs on its own:
+Without nginx-proxy, `Dockerfile` runs on its own against any Postgres (for
+example Neon; database changes always go through its direct address):
 
 ```bash
 docker build -t flaw-patrol .
-docker run -d --restart unless-stopped -p 3000:3000 --env-file flaw-patrol.env -e AUTH_URL=https://your-site flaw-patrol
+docker run -d --restart unless-stopped -p 6767:6767 --env-file flaw-patrol.env -e AUTH_URL=https://your-site flaw-patrol
 ```
 
-Put HTTPS in front of port 3000 and allow 210 MB uploads there too.
+Put HTTPS in front of port 6767 and allow 210 MB uploads there too.
 
 ## Develop with Node 22
 

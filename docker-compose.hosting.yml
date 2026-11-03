@@ -1,4 +1,5 @@
-# Flaw Patrol on a shared server behind nginx-proxy (README: Host it on a server).
+# Flaw Patrol on a shared server behind nginx-proxy, with its own database
+# (README: Host it on a server).
 #   1. cp flaw-patrol.env.example flaw-patrol.env   and fill it in (stays on the server)
 #   2. Change flawpatrol.magnopus.global below to the address you picked (3 spots)
 #   3. docker compose -f docker-compose.hosting.yml up -d --build
@@ -13,21 +14,52 @@ services:
     restart: unless-stopped
     expose:
       - "6767"
-    # No volumes: everything is kept in the database.
+    # Uploaded files, results and everything else are kept in the database below.
     env_file: flaw-patrol.env
     environment:
       - VIRTUAL_HOST=flawpatrol.magnopus.global
       - VIRTUAL_PORT=6767
-      # The port Flaw Patrol listens on inside the container (IT's pick).
-      - PORT=6767
       # If the proxy gets HTTPS certificates itself (acme-companion), keep this line.
       - LETSENCRYPT_HOST=flawpatrol.magnopus.global
       # The address people open; sign-in and invite links use it.
       - AUTH_URL=https://flawpatrol.magnopus.global
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       default:
+      database:
+
+  # Postgres for Flaw Patrol. Only Flaw Patrol can reach it: it is not on the proxy's
+  # network and has no published port. Its data lives in the flaw-patrol-data volume,
+  # which survives restarts, updates and `docker compose down` (not `down -v`).
+  db:
+    image: postgres:17
+    container_name: flaw-patrol-db
+    restart: unless-stopped
+    env_file: flaw-patrol.env
+    environment:
+      - POSTGRES_USER=flawpatrol
+      - POSTGRES_DB=flawpatrol
+    volumes:
+      - flaw-patrol-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flawpatrol -d flawpatrol"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      database:
+
+volumes:
+  flaw-patrol-data:
+    name: flaw-patrol-data
 
 networks:
+  # IT's nginx-proxy network, so the proxy can reach Flaw Patrol by its web name.
   default:
     name: nginx-proxy_default
     external: true
+  # A private network just for Flaw Patrol and its database.
+  database:
+    name: flaw-patrol-database
