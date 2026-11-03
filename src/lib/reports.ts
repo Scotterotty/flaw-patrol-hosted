@@ -4,7 +4,7 @@ import type { Prisma, Priority, ResultStatus } from "@prisma/client";
 import { db } from "./db";
 import { caseKey } from "./format";
 import { countStatuses, totals, type StatusCounts } from "./status";
-import { withoutHeadings } from "./step-checks";
+import { headingRows, withoutHeadings } from "./step-checks";
 import { suiteForCases } from "./suite-match";
 import { bucketKey, bucketKeys, bucketLabel, unitFor, type BucketUnit } from "./trend-buckets";
 
@@ -241,9 +241,11 @@ export async function stepHistory(scope: ReportScope, f: ReportFilters): Promise
     const steps = (r.entry.steps as { number: string; action: string; row?: number }[]) ?? [];
     // Test data: a step of a row reads "2 (row 2)", so the row that failed is named.
     const num = (st: { number: string; row?: number }) => (typeof st.row === "number" ? `${st.number} (row ${st.row + 1})` : st.number);
+    // Headings and section titles take no result; an old result saved on one isn't a step's history.
+    const headings = headingRows(steps);
     ((r.stepResults as { status: ResultStatus }[]) ?? []).forEach((s, i) => {
       const step = steps[i];
-      if (!step || s.status === "UNTESTED") return;
+      if (!step || s.status === "UNTESTED" || headings.has(i)) return;
       const key = caseKey(r.entry.testCase.project.key, r.entry.testCase.number);
       const k = `${key}|${step.action.trim().toLowerCase()}`;
       const cur = agg.get(k) ?? {

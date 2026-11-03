@@ -87,6 +87,8 @@ export function CsvImporter({
     () => (rows ? rowsToCases(rows, mapping, source, { restoreBreaks, keepWhole, moveExpected, keepLines }) : null),
     [rows, mapping, source, restoreBreaks, keepWhole, moveExpected, keepLines],
   );
+  // Rows that will show as section titles once imported, said in the preview before importing.
+  const titleCount = useMemo(() => (result ? result.cases.reduce((n, c) => n + numberedSteps(c, result.shared).filter((s) => s.title).length, 0) : 0), [result]);
   // Steps with more lines under their name, counted as the file has them (before any are moved),
   // and how many lines each step had, for the preview's keep-a-line buttons.
   const packed = useMemo(() => {
@@ -541,6 +543,12 @@ export function CsvImporter({
                   {result.shared.length > 0 && `, ${result.shared.length} shared ${result.shared.length === 1 ? "step" : "steps"}`}
                 </h2>
                 <p className="text-xs text-slate-500">Click a case to see its steps as they&apos;ll be numbered.</p>
+                {titleCount > 0 && (
+                  <p className="mt-1 text-xs text-slate-600" data-testid="section-titles-note">
+                    {count(titleCount, "row")} with nothing to check (like a line in capitals with no expected result) will show as{" "}
+                    {titleCount === 1 ? "a section title" : "section titles"} for the steps below {titleCount === 1 ? "it" : "them"}, with no result buttons.
+                  </p>
+                )}
                 {typeTagged.length > 0 && (
                   <p className="mt-1 text-xs text-slate-600" data-testid="type-tags-note">
                     The file&apos;s Type values ({typeTagged.slice(0, 4).join(", ")}
@@ -693,12 +701,12 @@ export function CsvImporter({
                                 const chip = flaggedSteps.get(c.row)?.get(k);
                                 return (
                                 <li
-                                  key={s.number}
+                                  key={k}
                                   id={`import-step-${c.row}-${k}`}
                                   className={cx("grid grid-cols-[3rem_1fr_1fr] gap-3 px-3 py-2", chip !== undefined && "bg-amber-50", shownWarning?.caseRow === c.row && shownWarning.step === k && "ring-2 ring-amber-400 ring-inset")}
                                 >
                                   <span className="font-mono text-slate-500">{s.number}</span>
-                                  <span className="whitespace-pre-wrap wrap-anywhere text-slate-800">
+                                  <span className={cx("whitespace-pre-wrap wrap-anywhere text-slate-800", s.title && "font-bold")}>
                                     {s.sharedName && <span className="mb-0.5 block text-[11px] font-medium text-accent-700">Shared: {s.sharedName}</span>}
                                     {s.action}
                                     {chip && <span className="ml-1.5 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-amber-900">{chip}</span>}

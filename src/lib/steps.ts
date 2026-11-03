@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { fillRow, valuesUsed, type TestData } from "./test-data";
+import { isSectionTitle } from "./step-checks";
 
 // Step data shared by the editor, the server actions, CSV import and (later)
 // the execution view. Kept free of database imports so it can run anywhere.
@@ -93,15 +94,19 @@ export function expandSteps(items: CaseStepItem[], defs: Map<string, SharedStepD
     const keep = (n: string) => !columns.includes(n);
     return { params: params.filter((p) => keep(p.name)), given: Object.fromEntries(Object.entries(given).filter(([k]) => keep(k))) };
   };
+  // Which case item each row came from, to number them once section titles are known.
+  const from: number[] = [];
   items.forEach((item, i) => {
     const n = String(i + 1);
     if (item.kind === "step") {
       out.push({ number: n, action: item.action, expected: item.expected });
+      from.push(i);
       return;
     }
     const def = defs.get(item.sharedStepId);
     if (!def) {
       out.push({ number: n, action: "[Missing shared step]", expected: "" });
+      from.push(i);
       return;
     }
     const { params, given } = fromRow(def.parameters, item.params);
@@ -113,8 +118,30 @@ export function expandSteps(items: CaseStepItem[], defs: Map<string, SharedStepD
         expected: fillPlaceholders(s.expected, params, given),
         shared,
       });
+      from.push(i);
     });
   });
+  return numberSteps(out, from);
+}
+
+/**
+ * Number the rows: section titles take no number, so the steps under one count on 1, 2, 3.
+ * Rows of one shared step share their number (3.1, 3.2); a one-row shared step that is only a title has none.
+ */
+function numberSteps(out: ExpandedStep[], from: number[]): ExpandedStep[] {
+  const title = out.map((_, k) => isSectionTitle(out, k));
+  let n = 0;
+  for (let k = 0; k < out.length; ) {
+    let end = k;
+    while (end + 1 < out.length && from[end + 1] === from[k]) end++;
+    const rows = end - k + 1;
+    if (rows === 1 && title[k]) out[k].number = "";
+    else {
+      n++;
+      for (let j = k; j <= end; j++) out[j].number = rows === 1 ? String(n) : `${n}.${j - k + 1}`;
+    }
+    k = end + 1;
+  }
   return out;
 }
 

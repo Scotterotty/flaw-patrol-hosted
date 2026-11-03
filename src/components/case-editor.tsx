@@ -12,6 +12,7 @@ import { BLANK_CHARTER, TIME_BOXES, type Charter } from "@/lib/charter";
 import { ReminderRows } from "./reminders";
 import { caseKey, PRIORITIES, PRIORITY_LABEL } from "@/lib/format";
 import { placeholdersIn, type CaseStepItem, type SharedStepDef } from "@/lib/steps";
+import { hasExpected, isSectionTitle } from "@/lib/step-checks";
 import { saveCase } from "@/server/cases";
 import { skipAreaWord } from "@/server/tags";
 import { linkStory } from "@/server/stories";
@@ -118,6 +119,18 @@ export function CaseEditor(props: CaseEditorProps) {
   const [defs, setDefs] = useState(
     () => new Map(props.sharedSteps.map((d) => [d.id, d])),
   );
+  // Steps that will show as section titles (nothing to check, names the steps below), so the
+  // editor can say so before the case is saved. Shared steps count as steps after them.
+  const titleSteps = useMemo(() => {
+    const flat = items.flatMap((it, i) =>
+      it.kind === "step" ? [{ action: it.action, expected: it.expected, i }] : (defs.get(it.sharedStepId)?.steps ?? []).map((s) => ({ ...s, i: -1 })),
+    );
+    const out = new Set<number>();
+    flat.forEach((f, k) => {
+      if (f.i >= 0 && isSectionTitle(flat, k)) out.add(f.i);
+    });
+    return out;
+  }, [items, defs]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [picker, setPicker] = useState<{ at: number } | null>(null);
   // What the last insert did, said out loud, and the inserted block glows for a moment.
@@ -798,6 +811,14 @@ export function CaseEditor(props: CaseEditorProps) {
                             )
                           }
                         />
+                        {titleSteps.has(index) ? (
+                          <span className="mt-1 inline-block rounded bg-accent-50 px-1.5 py-0.5 text-[11px] font-semibold text-accent-700">
+                            Section title
+                          </span>
+                        ) : (
+                          item.action.trim() !== "" &&
+                          !hasExpected(item.expected) && <span className="mt-1 block text-xs text-slate-500">Step with no expected result</span>
+                        )}
                       </div>
                       <div>
                         <Label className="sr-only">Expected result</Label>
@@ -895,6 +916,10 @@ export function CaseEditor(props: CaseEditorProps) {
               + Insert shared step
             </Button>
           </div>
+          <p className="mt-2 text-xs text-slate-500">
+            <span className="font-medium text-slate-700">Tip:</span> a line in capitals with no expected result (or a dash or N/A as its expected result), like
+            SIGN IN STEPS, becomes a section title for the steps below it.
+          </p>
           <TestDataBox
             value={testData}
             onChange={setTestData}

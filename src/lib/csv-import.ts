@@ -1,5 +1,6 @@
 import type { CaseType, Priority } from "@prisma/client";
 import type { PlainStep } from "./steps";
+import { isSectionTitle } from "./step-checks";
 
 // Turns spreadsheet rows into test cases. Handles the two layouts most tools
 // export: all steps of a case in one cell (one per line, often numbered), and
@@ -526,12 +527,21 @@ export function folderPreview(cases: ImportedCase[]): FolderPreview[] {
 }
 
 /** A case's steps numbered as they'll show after import: 1, 2, then 3.1, 3.2 for a shared block. */
-export function numberedSteps(c: ImportedCase, shared: ImportedShared[]): (PlainStep & { number: string; sharedName?: string })[] {
-  return c.items.flatMap((item, i) => {
-    const n = String(i + 1);
-    if (item.kind === "step") return [{ number: n, action: item.action, expected: item.expected }];
+export function numberedSteps(c: ImportedCase, shared: ImportedShared[]): (PlainStep & { number: string; sharedName?: string; title?: boolean })[] {
+  const rows = c.items.flatMap((item, i) => {
+    if (item.kind === "step") return [{ item: i, action: item.action, expected: item.expected } as { item: number; action: string; expected: string; sharedName?: string }];
     const def = shared.find((s) => s.key === item.key)!;
-    return def.steps.map((s, j) => ({ ...s, number: def.steps.length === 1 ? n : `${n}.${j + 1}`, sharedName: def.name }));
+    return def.steps.map((s) => ({ ...s, item: i, sharedName: def.name }));
+  });
+  // Numbered the way the case will show them: a section title takes no number.
+  let n = 0;
+  return rows.map(({ item, ...s }, k) => {
+    const size = rows.filter((r) => r.item === item).length;
+    const title = size === 1 && isSectionTitle(rows, k);
+    if (title) return { ...s, number: "", title: true };
+    const first = rows.findIndex((r) => r.item === item);
+    if (k === first) n++;
+    return { ...s, number: size === 1 ? String(n) : `${n}.${k - first + 1}` };
   });
 }
 

@@ -62,6 +62,8 @@ export type SendToJiraData = {
   defect: { id: string; label: string; title: string; severity: Severity };
   entryId: string;
   stepIndex: number | null;
+  /** The step's number as the case shows it ("3", "2.1"); section titles take none, so it can differ from its place. */
+  stepNumber?: string;
   actual: string;
   attachments: { id: string; fileName: string; contentType: string; label: string }[];
 };
@@ -86,7 +88,7 @@ export function SendToJiraButton({ data }: { data: SendToJiraData }) {
           projectId={data.projectId}
           entryId={data.entryId}
           stepIndex={data.stepIndex}
-          stepLabel={data.stepIndex === null ? "whole case" : `step ${data.stepIndex + 1}`}
+          stepLabel={data.stepIndex === null ? "whole case" : `step ${data.stepNumber || data.stepIndex + 1}`}
           actual={data.actual}
           attachments={data.attachments}
           jiraConnected

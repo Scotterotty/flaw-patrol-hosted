@@ -210,10 +210,11 @@ describe("qTest test run export", () => {
     ]);
     expect(shared.map((s) => [s.name, s.steps.length])).toEqual([["SEARCH BAR SHARED STEPS", 2]]);
     expect(numberedSteps(cases[0], shared).map((s) => [s.number, s.action.split("\n")[0], s.sharedName ?? ""])).toEqual([
-      ["1", "LOGIN UNIQUE STEPS", ""],
-      ["2", "Sign in", ""],
-      ["3.1", "SEARCH BAR SHARED STEPS", "SEARCH BAR SHARED STEPS"],
-      ["3.2", "Search Bar Interaction", "SEARCH BAR SHARED STEPS"],
+      // A line in capitals with nothing to check is a section title: no number, the steps under it count on.
+      ["", "LOGIN UNIQUE STEPS", ""],
+      ["1", "Sign in", ""],
+      ["2.1", "SEARCH BAR SHARED STEPS", "SEARCH BAR SHARED STEPS"],
+      ["2.2", "Search Bar Interaction", "SEARCH BAR SHARED STEPS"],
     ]);
     expect(cases[0].steps[1]).toEqual({ action: "Sign in\nA user can sign in.\nA user can sign out.", expected: "Not supported by: MOBILE WEB\nUser sees the home page" });
     expect(cases[1].items.map((i) => i.kind)).toEqual(["step", "shared"]);
