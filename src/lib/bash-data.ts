@@ -109,6 +109,8 @@ export async function bashList(homeId: string) {
     people: b._count.people,
     bugs: b._count.items,
     areas: parseAreas(b.areas).length,
+    areaNames: parseAreas(b.areas).map((a) => a.name),
+    minutes: b.minutes,
     run: b.run ? { number: b.run.number, key: b.run.project.key } : null,
   }));
 }

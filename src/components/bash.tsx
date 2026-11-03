@@ -9,6 +9,8 @@ import type { Severity } from "@prisma/client";
 import { BASH_SEVERITIES, sevLabel, similarBugs, type BashSeverity, type ItemKind } from "@/lib/bash";
 import type { BashView } from "@/lib/bash-summary";
 import { clock } from "@/lib/charter";
+import { startsIn, whenLabel } from "@/lib/bash-schedule";
+import { AddToCalendar, ScheduleControls } from "./bash-schedule";
 import { bashBugFiled, coverBashPrompt, endBashEarly, fillBashItem, joinBash, logBashItem, mergeBashItems, plusOneBash, reviewBashItem, setBashTemplate, wrapUpBash } from "@/server/bashes";
 import { bashAnswers, isNeedsLine, isShot, needsOf, valuesOf, type BashValues } from "@/lib/bash-template";
 import { listWords } from "@/lib/bug-layout";
@@ -52,7 +54,7 @@ export function Countdown({ bash, className }: { bash: Pick<BashView, "startsAt"
       router.refresh();
     }
   }, [left, toStart, bash.phase, router]);
-  if (bash.phase === "scheduled") return <span className={className}>Starts in {toStart === null ? "…" : clock(Math.max(0, toStart))}</span>;
+  if (bash.phase === "scheduled") return <span className={className}>Starts in {toStart === null ? "…" : startsIn(toStart)}</span>;
   if (bash.phase !== "live") return <span className={className}>Ended</span>;
   return (
     <span role="timer" aria-live="off" className={cx("tabular-nums", left !== null && left < 600 && "text-orange-700", className)}>
@@ -704,11 +706,13 @@ export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-600">
-          {bash.phase === "scheduled" ? "Starts" : "Started"} {time(bash.startsAt)} by {bash.createdBy} · {bash.people.length} {bash.people.length === 1 ? "person" : "people"}
+          {bash.phase === "scheduled" ? <>Starts {whenLabel(bash.startsAt, zone)}, set up</> : <>Started {time(bash.startsAt)}</>} by {bash.createdBy} · {bash.people.length} {bash.people.length === 1 ? "person" : "people"}
           {bash.bugTemplateId && <> · Bugs use <b className="font-medium text-slate-800" data-testid="board-bugs-use">{bash.bugTemplates.find((t) => t.id === bash.bugTemplateId)?.name ?? "Plain bug"}</b></>}
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Countdown bash={bash} className="mr-2 text-2xl font-semibold text-slate-900" />
+          {bash.phase === "scheduled" && <AddToCalendar bash={{ id: bash.id, name: bash.name, startsAt: bash.startsAt, endsAt: bash.endsAt, areas: bash.areas.map((a) => a.name), by: bash.createdBy, homeKey: bash.homeKey }} />}
+          {bash.phase === "scheduled" && bash.isOwner && <ScheduleControls bashId={bash.id} startsAt={bash.startsAt} homeKey={bash.homeKey} />}
           {bash.phase !== "wrapped" && bash.me.areaId && (
             <Link href={`/p/${bash.homeKey}/bashes/${bash.id}/explore`} className="inline-flex h-9 items-center rounded-md bg-accent-600 px-3 text-sm font-medium text-white hover:bg-accent-700">
               Back to bashing

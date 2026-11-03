@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { Countdown } from "@/components/bash";
 import { StartBashAuto, StartBashButton } from "@/components/bash-start";
+import { AddToCalendar, ScheduleControls } from "@/components/bash-schedule";
+import { whenLabel } from "@/lib/bash-schedule";
+import { viewerZone } from "@/lib/zone-server";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { parseAreas } from "@/lib/bash";
 import { bashHome, bashList } from "@/lib/bash-data";
@@ -18,11 +21,13 @@ export const metadata = { title: "Bug bashes" };
 export default async function BashesPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ bash?: string }> }) {
   const { key } = await params;
   const { bash: auto } = await searchParams;
-  const { project, who } = await projectAccess(key);
+  const { project, who, user } = await projectAccess(key);
   const home = await bashHome(project);
   if (home.id !== project.id) redirect(`/p/${home.key}/bashes${auto ? `?bash=${auto}` : ""}`);
   const list = await bashList(home.id);
   const canStart = can(who, "run:create");
+  const zone = await viewerZone();
+  const length = (m: number) => (m % 60 === 0 ? `${m / 60} ${m === 60 ? "hour" : "hours"}` : `${m} min`);
   const live = list.filter((b) => b.phase === "live" || b.phase === "scheduled" || b.phase === "ended");
   const past = list.filter((b) => b.phase === "wrapped");
   const again = new Map((await db.bugBash.findMany({ where: { id: { in: past.map((p) => p.id) } }, select: { id: true, areas: true, minutes: true, name: true } })).map((b) => [b.id, { name: b.name, minutes: b.minutes, areas: parseAreas(b.areas).map((a) => a.name) }]));
@@ -42,9 +47,15 @@ export default async function BashesPage({ params, searchParams }: { params: Pro
           </span>
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-slate-900">Bug bash · {b.name}</p>
-            <p className="text-xs text-slate-500">
-              Started by {b.createdBy} · {b.people} {b.people === 1 ? "person" : "people"} · {b.areas} {b.areas === 1 ? "area" : "areas"} · {b.bugs} {b.bugs === 1 ? "bug" : "bugs"} so far
-            </p>
+            {b.phase === "scheduled" ? (
+              <p className="text-xs text-slate-500" data-testid="bash-when-line">
+                {whenLabel(b.startsAt, zone)} · {length(b.minutes)} · {b.areas} {b.areas === 1 ? "area" : "areas"} · Set up by {b.createdBy}
+              </p>
+            ) : (
+              <p className="text-xs text-slate-500">
+                Started by {b.createdBy} · {b.people} {b.people === 1 ? "person" : "people"} · {b.areas} {b.areas === 1 ? "area" : "areas"} · {b.bugs} {b.bugs === 1 ? "bug" : "bugs"} so far
+              </p>
+            )}
           </div>
           <Countdown bash={{ startsAt: b.startsAt.toISOString(), endsAt: b.endsAt.toISOString(), phase: b.phase }} className="text-lg font-semibold text-slate-900" />
           {b.phase !== "ended" && (
@@ -52,9 +63,11 @@ export default async function BashesPage({ params, searchParams }: { params: Pro
               Join
             </Link>
           )}
+          {b.phase === "scheduled" && <AddToCalendar bash={{ id: b.id, name: b.name, startsAt: b.startsAt.toISOString(), endsAt: b.endsAt.toISOString(), areas: b.areaNames, by: b.createdBy, homeKey: home.key }} />}
           <Link href={`/p/${home.key}/bashes/${b.id}`} className="inline-flex h-9 items-center rounded-md px-3 text-sm text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50">
             {b.phase === "ended" ? "Open the wrap-up" : "Watch the board"}
           </Link>
+          {b.phase === "scheduled" && (b.createdById === user.id || can(who, "run:manage")) && <ScheduleControls bashId={b.id} startsAt={b.startsAt.toISOString()} homeKey={home.key} />}
         </Card>
       ))}
       <h2 className="mt-6 mb-2 text-sm font-semibold text-slate-800">Past bashes</h2>

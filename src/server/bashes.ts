@@ -28,6 +28,7 @@ import { sectionText } from "@/lib/jira-format";
 import { listWords, nowCell, parseLayout, type AutoCells } from "@/lib/bug-layout";
 import { templateHome } from "@/lib/bug-templates-data";
 import { bashAnswers, itemTemplate, mergeValues, needsLine, needsOf, withoutSeenRow, withSeenRow, type BashValues } from "@/lib/bash-template";
+import { MAX_AHEAD_MS } from "@/lib/bash-schedule";
 import { attempt, UserError } from "./result";
 import { buildEntries } from "./snapshot";
 
@@ -129,6 +130,7 @@ export async function startBugBash(homeId: string, input: StartInput) {
     const team = await teamTemplates((await charterHome(home)).id);
     const now = new Date();
     const startsAt = data.startsAt && new Date(data.startsAt) > now ? new Date(data.startsAt) : now;
+    if (startsAt.getTime() - now.getTime() > MAX_AHEAD_MS) throw new UserError("Pick a start time within the next year.");
     const endsAt = new Date(startsAt.getTime() + data.minutes * 60_000);
     const by = nameOf(user);
 
@@ -188,8 +190,10 @@ export async function startBugBash(homeId: string, input: StartInput) {
     await logActivity({ actor: user, kind: "run", action: `Started the bug bash ${data.name}`, project: { id: cycle.id, name: cycle.name, groupId: cycle.groupId } });
     let posted: string[] = [];
     if (data.slack && startsAt <= now) posted = await slackStart(bash.id);
+    // Scheduled ahead (ver_153): a heads-up now, and the start post with Join when it opens.
+    else if (data.slack) posted = await slackSoon(bash.id, "soon");
     refresh(home.key, cycle.key);
-    return { id: bash.id, key: home.key, posted };
+    return { id: bash.id, key: home.key, posted, by };
   });
 }
 
@@ -209,6 +213,60 @@ async function slackStart(bashId: string) {
   }));
   if (!n) return [];
   return channelNamesFor(b.run.projectId);
+}
+
+/** Slack's own date token, so each person reads the time on their own clock. */
+const slackWhen = (d: Date) => `<!date^${Math.floor(d.getTime() / 1000)}^{date_short_pretty} at {time}|${d.toUTCString().replace(/:00 GMT$/, " UTC")}>`;
+
+/** A scheduled bash's heads-up, its new time, or that it's off. Returns the channel names. */
+async function slackSoon(bashId: string, what: "soon" | "moved" | "cancelled", b0?: { name: string; startsAt: Date; minutes: number; createdBy: string; areas: Prisma.JsonValue; projectKey: string; runProjectId: string }) {
+  const found = b0 ? null : await db.bugBash.findUnique({ where: { id: bashId }, include: { project: { select: { key: true } }, run: { select: { projectId: true } } } });
+  const b = b0 ?? (found?.run && found.slack ? { name: found.name, startsAt: found.startsAt, minutes: found.minutes, createdBy: found.createdBy, areas: found.areas, projectKey: found.project.key, runProjectId: found.run.projectId } : null);
+  if (!b) return [];
+  const areas = parseAreas(b.areas);
+  const n = await postBash(b.runProjectId, (base) =>
+    what === "cancelled"
+      ? { tone: "amber", title: `Bug bash · ${esc(b.name)} is cancelled`, lines: [`It was set for ${slackWhen(b.startsAt)}. Cancelled by ${esc(b.createdBy)}.`] }
+      : {
+          tone: "blue",
+          title: what === "moved" ? `📅 Bug bash · ${esc(b.name)} has a new time` : `📅 Bug bash · ${esc(b.name)} is coming up`,
+          lines: [`Starts ${slackWhen(b.startsAt)}, for ${b.minutes} minutes. ${areas.length} ${areas.length === 1 ? "area" : "areas"}: ${areas.map((a) => esc(a.name)).join(", ")}. Set up by ${esc(b.createdBy)}.`],
+          button: { label: "See the bash", url: `${base}/p/${b.projectKey}/bashes/${bashId}` },
+        },
+  );
+  if (!n) return [];
+  return channelNamesFor(b.runProjectId);
+}
+
+/** Move a bash that hasn't started yet to a new time (ver_153). Same length. */
+export async function rescheduleBash(bashId: string, startsAtIso: string) {
+  return attempt(async () => {
+    const { bash, user } = await requireOwner(bashId);
+    if (phaseOf(bash) !== "scheduled") throw new UserError("It has already started, so its time can't change now.");
+    const startsAt = new Date(z.string().max(40).parse(startsAtIso));
+    const now = new Date();
+    if (Number.isNaN(startsAt.getTime()) || startsAt <= now) throw new UserError("That time has already passed. Pick a later one.");
+    if (startsAt.getTime() - now.getTime() > MAX_AHEAD_MS) throw new UserError("Pick a start time within the next year.");
+    const endsAt = new Date(startsAt.getTime() + bash.minutes * 60_000);
+    await db.bugBash.update({ where: { id: bashId }, data: { startsAt, endsAt } });
+    await logActivity({ actor: user, kind: "run", action: `Moved the bug bash ${bash.name} to a new time`, project: bash.run.project });
+    if (bash.slack) await slackSoon(bashId, "moved").catch(() => {});
+    refresh(bash.project.key, bash.run.project.key);
+    return {};
+  });
+}
+
+/** Call off a bash before it starts (ver_153): the bash and its empty run go. Nothing was logged yet. */
+export async function cancelBash(bashId: string) {
+  return attempt(async () => {
+    const { bash, user } = await requireOwner(bashId);
+    if (phaseOf(bash) !== "scheduled") throw new UserError("It has already started. End it early instead.");
+    await db.$transaction([db.bugBash.delete({ where: { id: bashId } }), db.testRun.delete({ where: { id: bash.run.id } })]);
+    await logActivity({ actor: user, kind: "run", action: `Cancelled the bug bash ${bash.name}`, project: bash.run.project });
+    if (bash.slack) await slackSoon(bashId, "cancelled", { name: bash.name, startsAt: bash.startsAt, minutes: bash.minutes, createdBy: nameOf(user), areas: bash.areas, projectKey: bash.project.key, runProjectId: bash.run.projectId }).catch(() => {});
+    refresh(bash.project.key, bash.run.project.key);
+    return { homeKey: bash.project.key };
+  });
 }
 
 /**

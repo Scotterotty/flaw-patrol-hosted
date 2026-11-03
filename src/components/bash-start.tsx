@@ -9,7 +9,10 @@ import { useEffect, useState, useTransition } from "react";
 import { LENGTHS, releaseHint, type BashLink } from "@/lib/bash";
 import type { StartBoxData } from "@/lib/bash-data";
 import { startBoxFor, startBugBash } from "@/server/bashes";
+import { localBoxes, localInstant, nextHour, startProblem, whenLabel } from "@/lib/bash-schedule";
+import { AddToCalendar, WhenBoxes, type CalendarBash } from "./bash-schedule";
 import { Modal } from "./modal";
+import { useZone } from "./spelling";
 import { Button, cx, ErrorText, Field, InfoTip, Input, Select } from "./ui";
 
 type Area = { name: string; template: string | null; links?: BashLink[] };
@@ -118,7 +121,18 @@ function StartBashForm({
   const isPicked = (key: string) => areas.some((a) => a.links?.some((l) => l.kind === "jira" && l.key === key));
   const [draft, setDraft] = useState("");
   const [more, setMore] = useState(false);
-  const [later, setLater] = useState("");
+  // When? (ver_153): now, or a date and time days ahead.
+  const [later, setLaterOn] = useState(false);
+  const [day, setDay] = useState("");
+  const [time, setTime] = useState("");
+  const pickLater = () => {
+    if (!day) {
+      const b = localBoxes(nextHour());
+      setDay(b.day);
+      setTime(b.time);
+    }
+    setLaterOn(true);
+  };
   // The release it counts toward (ver_152); "" keeps it on its own, the default.
   const [release, setRelease] = useState("");
   const [tours, setTours] = useState(false);
@@ -144,7 +158,7 @@ function StartBashForm({
   };
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const [done, setDone] = useState<{ id: string; key: string; posted: string[]; later: boolean } | null>(null);
+  const [done, setDone] = useState<{ id: string; key: string; posted: string[]; later: CalendarBash | null } | null>(null);
 
   const has = (n: string) => areas.some((a) => a.name.toLowerCase() === n.toLowerCase());
   const addArea = (n: string, links?: BashLink[]) => {
@@ -159,14 +173,17 @@ function StartBashForm({
   const submit = () =>
     start(async () => {
       setError(null);
-      const at = new Date();
-      if (later) at.setHours(Number(later.split(":")[0]), Number(later.split(":")[1]), 0, 0);
-      const startsAt = later ? at.toISOString() : "";
+      const at = later ? localInstant(day, time) : null;
+      if (later) {
+        const problem = startProblem(at);
+        if (problem) return setError(problem);
+      }
+      const startsAt = at ? at.toISOString() : "";
       const all = draft.trim() && !has(draft) ? [...areas, { name: draft.trim(), template: null }] : areas;
       const plats = platDraft.trim() ? [...platforms, platDraft.trim()] : platforms;
       const res = await startBugBash(data.homeId, { name, minutes, areas: all, startsAt, release, collectFirst, slack, funExtras: fun, bugTemplateId: bugTemplateId || null, platforms: askPlatform ? plats : [] });
       if (!res.ok) return setError(res.error);
-      setDone({ id: res.id, key: res.key, posted: res.posted, later: !!later });
+      setDone({ id: res.id, key: res.key, posted: res.posted, later: at ? { id: res.id, name: name.trim(), startsAt: at.toISOString(), endsAt: new Date(at.getTime() + minutes * 60_000).toISOString(), areas: all.map((a) => a.name), by: res.by, homeKey: res.key } : null });
       router.refresh();
       retry();
     });
@@ -193,6 +210,25 @@ function StartBashForm({
             </button>
           ))}
         </div>
+      </fieldset>
+      <fieldset data-testid="bash-when">
+        <legend className="mb-1.5 text-xs font-semibold text-slate-600">When?</legend>
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { on: !later, label: "Now", pick: () => setLaterOn(false) },
+            { on: later, label: "Pick a date and time", pick: pickLater },
+          ].map((c) => (
+            <button key={c.label} type="button" aria-pressed={c.on} onClick={c.pick} className={cx("rounded-full px-3 py-1 text-sm ring-1 ring-inset", c.on ? "bg-accent-600 font-medium text-white ring-accent-600" : "text-slate-700 ring-slate-200 hover:bg-slate-50")}>
+              {c.label}
+            </button>
+          ))}
+        </div>
+        {later && (
+          <div className="mt-2">
+            <WhenBoxes idPrefix="bash-later" day={day} time={time} onDay={setDay} onTime={setTime} />
+            <p className="mt-1 text-xs text-slate-500">It opens by itself then. Everyone sees the time on their own clock.</p>
+          </div>
+        )}
       </fieldset>
       {preset && (
         <fieldset data-testid="risk-picks">
@@ -373,11 +409,6 @@ function StartBashForm({
         </button>
         {more && (
           <div className="mt-2 space-y-3 rounded-md bg-slate-50 p-3">
-            <div className="flex flex-wrap gap-4">
-              <Field label="Starts" htmlFor="bash-later" hint="Leave empty to start now">
-                <Input id="bash-later" type="time" value={later} onChange={(e) => setLater(e.target.value)} className="w-36" />
-              </Field>
-            </div>
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" className="mt-1" checked={tours} onChange={(e) => setTours(e.target.checked)} />
               Give each area a tour or checklist from the gallery
@@ -436,14 +467,15 @@ function StartBashForm({
 }
 
 /** Your bash is live: copy the link, the Slack post, a QR code for the room. */
-function Invite({ bashId, homeKey, posted, later, onClose }: { bashId: string; homeKey: string; posted: string[]; later: boolean; onClose: () => void }) {
+function Invite({ bashId, homeKey, posted, later, onClose }: { bashId: string; homeKey: string; posted: string[]; later: CalendarBash | null; onClose: () => void }) {
+  const zone = useZone();
   const [copied, setCopied] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
   const [link, setLink] = useState("");
   useEffect(() => setLink(`${window.location.origin}/p/${homeKey}/bashes/${bashId}?join=1`), [homeKey, bashId]);
   return (
     <div className="space-y-4" data-testid="bash-invite">
-      <h2 className="text-lg font-semibold text-slate-900">{later ? "Your bash is scheduled. Invite people." : "Your bash is live. Invite people."}</h2>
+      <h2 className="text-lg font-semibold text-slate-900">{later ? `Your bash is scheduled for ${whenLabel(later.startsAt, zone).replace(" · ", " at ")}. Invite people.` : "Your bash is live. Invite people."}</h2>
       <div className="flex flex-wrap items-center gap-2">
         <Input readOnly value={link} aria-label="Join link" className="min-w-0 flex-1 font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
         <Button
@@ -455,8 +487,9 @@ function Invite({ bashId, homeKey, posted, later, onClose }: { bashId: string; h
         >
           {copied ? "Copied" : "Copy link"}
         </Button>
+        {later && <AddToCalendar bash={later} />}
       </div>
-      <p className="text-sm text-slate-600">{posted.length ? `Posted to ${posted.map((p) => `#${p.replace(/^#/, "")}`).join(", ")} in Slack, with a Join the bash button.` : later ? "Slack gets the post when it starts." : "Share the link in chat or email. Joining takes one click: pick an area and go."}</p>
+      <p className="text-sm text-slate-600">{posted.length && later ? `Posted a heads-up to ${posted.map((p) => `#${p.replace(/^#/, "")}`).join(", ")} in Slack. It posts again with a Join button when the bash starts.` : posted.length ? `Posted to ${posted.map((p) => `#${p.replace(/^#/, "")}`).join(", ")} in Slack, with a Join the bash button.` : later ? "Add it to your calendar, then send the link or the calendar invite to people." : "Share the link in chat or email. Joining takes one click: pick an area and go."}</p>
       {qr ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={qr} alt="QR code for the join link" className="size-48 rounded border border-slate-200 bg-white p-2" />
