@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 159,
+    date: "2026-11-03",
+    items: [
+      {
+        kind: "new",
+        title: "Ready to host on a shared server",
+        text: "Flaw Patrol can run on one always-on server behind your company's web proxy, so everyone opens the same link and nobody runs a copy on their laptop. Whoever sets it up follows \"Host it on a server\" in the README.",
+        who: "workspace",
+      },
+    ],
+  },
+  {
     version: 158,
     date: "2026-11-03",
     items: [
