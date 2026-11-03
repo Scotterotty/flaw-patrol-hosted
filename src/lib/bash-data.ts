@@ -104,6 +104,7 @@ export async function bashList(homeId: string) {
     phase: phaseOf(b),
     startsAt: b.startsAt,
     endsAt: b.endsAt,
+    endedAt: b.endedAt,
     createdBy: b.createdBy,
     createdById: b.createdById,
     people: b._count.people,
