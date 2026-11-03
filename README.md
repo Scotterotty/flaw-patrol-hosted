@@ -220,8 +220,9 @@ Run it on a schedule and keep the files somewhere else.
 
 - Run one copy only. Uploaded screenshots wait on the server's disk until you
   press Save, so two copies side by side would lose them.
-- The database has no published port and sits on its own private network, so
-  only Flaw Patrol can reach it.
+- The database is published on port 5444 (not the default 5432) for IT's tools
+  and backups, user `flawpatrol`. Flaw Patrol itself reaches it on its private
+  network. To allow only the server itself, change it to `"127.0.0.1:5444:5432"`.
 - `docker compose down -v` deletes the database volume. Leave out `-v`.
 - Docker's health check opens the sign-in page every 30 seconds;
   `docker ps` shows `healthy` or `unhealthy`.
