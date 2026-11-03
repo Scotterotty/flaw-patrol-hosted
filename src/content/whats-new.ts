@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 152,
+    date: "2026-11-02",
+    items: [
+      {
+        kind: "new",
+        title: "Count a bug bash toward a release",
+        text: "When you start a bug bash, pick a release under Count it toward a release? It stays on every platform the bash lists. That release's Release status shows the bash and every bug it found, and the platform percentages don't change. Forgot? Use Change next to Counts toward on the bash's page or report.",
+      },
+    ],
+  },
+  {
     version: 151,
     date: "2026-11-02",
     items: [

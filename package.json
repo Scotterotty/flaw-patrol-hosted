@@ -1,6 +1,6 @@
 {
   "name": "flaw-patrol",
-  "version": "0.3.0-alpha.151",
+  "version": "0.3.0-alpha.152",
   "private": true,
   "scripts": {
     "dev": "next dev",
