@@ -27,6 +27,7 @@ import { can } from "@/lib/permissions";
 import { projectAccess } from "@/lib/session";
 import { projectMembers } from "@/lib/suite-data";
 import { hubGroupId, jiraConfigFor, loadUmbrella, platformColor } from "@/lib/umbrella";
+import { isOnPlatform, platformCaseOr } from "@/lib/platform-match";
 import { MoveCasesButton } from "@/components/umbrella-ui";
 import { UmbrellaIcon } from "@/components/umbrella-nav";
 import type { ResultStatus } from "@prisma/client";
@@ -60,7 +61,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
     db.folder.findMany({ where: { projectId: project.id }, select: { id: true, parentId: true, name: true } }).then(async (all) => ({ all, charterOnly: await charterOnlyFolderIds(project.id, all) })),
     db.testCase.groupBy({ by: ["folderId"], where: { projectId: project.id, archived: false, type: { not: "EXPLORATORY" } }, _count: true }),
     db.testCase.groupBy({ by: ["folderId"], where: { projectId: project.id, archived: false, type: { not: "EXPLORATORY" }, ...byAutomation }, _count: true }),
-    q || pickedTags.length ? db.$queryRaw<{ tag: string }[]>`SELECT DISTINCT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ${project.id}` : Promise.resolve([]),
+    q || pickedTags.length || sp.platform ? db.$queryRaw<{ tag: string }[]>`SELECT DISTINCT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ${project.id}` : Promise.resolve([]),
     // Everyone sees which cases are flaky; "Flaky only" narrows the list to them.
     flakyCases({ projectId: project.id }),
     sp.flagged === "regression" ? regressedCases(project) : null,
@@ -120,12 +121,14 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
   if (sp.flagged === "flaky") where.id = { in: [...flaky.keys()] };
   // Regression only: passed last release on a platform and fails there now.
   if (sp.flagged === "regression") where.id = { in: [...(regressed ?? [])] };
-  if (platform) where.suites = { some: { suiteId: { in: platform.suiteIds } } };
-  if (platform) splitWhere.suites = where.suites;
+  // A case is on a platform when it's in one of the platform's suites, was picked for it,
+  // or carries its tag ([WEB] titles become a Web tag), so Web + a tag finds the Web cases.
+  const platformWhere: Prisma.TestCaseWhereInput | null = platform ? { OR: platformCaseOr(platform, allTags.map((r) => r.tag)) } : null;
+  if (platformWhere) splitWhere.AND = [platformWhere];
   const handOnly: Prisma.TestCaseWhereInput = { type: { not: "AUTOMATED" }, OR: [{ automationId: null }, { automationId: "" }] };
   const both: Prisma.TestCaseWhereInput = { type: { not: "AUTOMATED" }, automationId: { not: null }, NOT: { automationId: "" } };
   const runsFilter = runsBy === "hand" ? handOnly : runsBy === "auto" ? byAutomation : runsBy === "both" ? both : null;
-  if (runsFilter) where.AND = [runsFilter];
+  if (runsFilter || platformWhere) where.AND = [runsFilter, platformWhere].filter((x): x is Prisma.TestCaseWhereInput => !!x);
   const splits = Promise.all([
     db.testCase.count({ where: { AND: [splitWhere, handOnly] } }),
     db.testCase.count({ where: { AND: [splitWhere, { type: "AUTOMATED" }] } }),
@@ -167,6 +170,20 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
     db.testCase.count({ where: { ...where, archived: false } }),
     db.testCase.count({ where: { ...where, archived: true } }),
   ])]);
+  // With a platform picked, the Tags row counts only that platform's cases (ver_158), so a tag
+  // never promises cases the list won't show. Tags with none there drop out, unless picked.
+  const shownTagRows = platformWhere
+    ? await db.testCase
+        .findMany({ where: { projectId: project.id, archived: false, type: { not: "EXPLORATORY" }, AND: [platformWhere] }, select: { tags: true } })
+        .then((rows) => {
+          const n = new Map<string, number>();
+          for (const r of rows) for (const t of new Set(r.tags)) n.set(t, (n.get(t) ?? 0) + 1);
+          return tagRows
+            .map((t) => ({ tag: t.tag, count: n.get(t.tag) ?? 0 }))
+            .filter((t) => t.count > 0 || pickedTags.some((x) => x.toLowerCase() === t.tag.toLowerCase()))
+            .sort((a, b) => b.count - a.count || (a.tag < b.tag ? -1 : a.tag > b.tag ? 1 : 0));
+        })
+    : tagRows;
   // Close matches: "chekout" finds Checkout cases, under their own label after the exact ones.
   const closeStart = cases.length;
   if (q && page === 1 && total < ENOUGH_EXACT && cleanQuery(q).length > 1) {
@@ -205,7 +222,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
       const results = last.filter((e) => e.caseId === c.id);
       const list = u.platforms
         .map((p) => ({ p, status: results.find((e) => e.run.project.platform.toLowerCase() === p.name.toLowerCase())?.status ?? null }))
-        .filter(({ p, status }) => status || p.suiteIds.some((id) => suites.has(id)))
+        .filter(({ p, status }) => status || isOnPlatform(p, { id: c.id, tags: c.tags, suiteIds: suites }))
         .map(({ p, status }) => ({ name: p.name, color: platformColor(u.platforms, p.name), status }));
       onPlatforms.set(c.id, list);
     }
@@ -392,7 +409,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
         {sp.archived !== "1" && (
           <TagsRow
             projectId={project.id}
-            tags={tagRows}
+            tags={shownTagRows}
             colors={tagColors}
             picked={pickedTags}
             query={keep({ tag: undefined, page: undefined }).slice(1)}
