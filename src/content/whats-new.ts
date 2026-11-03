@@ -22,6 +22,22 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 158,
+    date: "2026-11-03",
+    items: [
+      {
+        kind: "fix",
+        title: "Platform plus a tag finds your cases",
+        text: "On Test cases, a platform button like Web now also finds cases tagged Web and cases picked for Web, not only cases in its suites. So Web plus a tag like Account shows the Web Account cases.",
+      },
+      {
+        kind: "better",
+        title: "Tag numbers follow the platform",
+        text: "With a platform picked, the numbers on the Tags row count only that platform's cases. Tags with none there step out of the row.",
+      },
+    ],
+  },
+  {
     version: 157,
     date: "2026-11-03",
     items: [
