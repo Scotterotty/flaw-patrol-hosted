@@ -81,7 +81,7 @@ test("the radio is off until someone turns it on, and stays with them", async ({
   await page.reload();
   await expect(player.getByLabel("Station")).toHaveValue("fluid");
   // Wait for the choice to be saved before leaving the page.
-  await Promise.all([page.waitForResponse((r) => r.request().method() === "POST"), player.getByLabel("Station").selectOption("groovesalad")]);
+  await Promise.all([page.waitForResponse((r) => r.request().method() === "POST" && (r.request().postData() ?? "").includes("groovesalad")), player.getByLabel("Station").selectOption("groovesalad")]);
 
   // Still there on other pages, with the station remembered.
   await page.goto("/");
