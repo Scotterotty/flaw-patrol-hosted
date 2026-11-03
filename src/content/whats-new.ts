@@ -22,6 +22,27 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 153,
+    date: "2026-11-02",
+    items: [
+      {
+        kind: "new",
+        title: "Schedule a bug bash days ahead",
+        text: "When you start a bug bash, pick When? and then Pick a date and time. It shows as Coming up on Bug bashes and opens by itself at that time. Everyone sees the time on their own clock.",
+      },
+      {
+        kind: "new",
+        title: "Add a bug bash to your calendar",
+        text: "Use Add to calendar on a coming-up bash. It works with Outlook, Google and Apple, has the Join link, and reminds you 10 minutes before.",
+      },
+      {
+        kind: "better",
+        title: "Change the time or cancel a bash before it starts",
+        text: "Whoever set it up, or a lead, can use Change time or Cancel bash on the Bug bashes page or the bash's own page. If Slack is on, the channel hears about it.",
+      },
+    ],
+  },
+  {
     version: 152,
     date: "2026-11-02",
     items: [
