@@ -22,6 +22,22 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 155,
+    date: "2026-11-02",
+    items: [
+      {
+        kind: "better",
+        title: "New versions keep your settings",
+        text: "Flaw Patrol keeps a hidden copy of your settings on this computer. When you unzip a new version, it asks Use them? Press Enter, and your saved Jira token and sign-in keep working.",
+      },
+      {
+        kind: "fix",
+        title: "No more scary warning from browser add-ons",
+        text: "Add-ons like Testim that change the page no longer cause an error message while Flaw Patrol loads.",
+      },
+    ],
+  },
+  {
     version: 154,
     date: "2026-11-02",
     items: [
