@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { BashReportView } from "@/components/bash-report";
+import { BashRelease } from "@/components/bash-release";
+import { bashReleases } from "@/lib/bash-data";
 import { CrumbName } from "@/components/crumb-name";
 import { bashReport, reportData } from "@/lib/bash-page";
 import { can } from "@/lib/permissions";
@@ -24,6 +26,11 @@ export default async function BashReportPage({ params }: { params: Promise<{ key
   return (
     <div className="mx-auto max-w-6xl">
       <CrumbName href={`/p/${project.key}/bashes/${id}/report`} label={`Report · ${r.bash.name}`} />
+      {!guest && (
+        <div className="mb-3">
+          <BashRelease bashId={id} release={r.bash.release} releases={await bashReleases(project)} canChange={r.bash.createdById === user.id || can(who, "run:create")} />
+        </div>
+      )}
       <BashReportView r={reportData(r, file)} />
     </div>
   );

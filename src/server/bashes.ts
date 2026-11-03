@@ -6,7 +6,7 @@ import { Prisma, type Severity } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity";
-import { cleanPlatform, cleanPlatforms, onPlatform, linkSchema, logSchema, parseAreas, seenSchema, valuesSchema, parseLinks, phaseOf, plusOnesOf, sevRank, startSchema, webLink, type BashArea, type BashLink, type StartInput } from "@/lib/bash";
+import { cleanPlatform, cleanPlatforms, onPlatform, linkSchema, logSchema, matchRelease, parseAreas, seenSchema, valuesSchema, parseLinks, phaseOf, plusOnesOf, sevRank, startSchema, webLink, type BashArea, type BashLink, type StartInput } from "@/lib/bash";
 import { open } from "@/lib/crypto";
 import { GitHubClient } from "@/lib/github";
 import { jiraFor } from "@/lib/jira";
@@ -21,7 +21,7 @@ import { Forbidden, requireProjectAction, requireUser } from "@/lib/session";
 import { bashGuestOk } from "@/lib/link-access-server";
 import { bashEnded, channelNamesFor, esc, postBash } from "@/lib/slack";
 import { jiraConfigFor } from "@/lib/umbrella";
-import { startBoxData } from "@/lib/bash-data";
+import { bashReleases, startBoxData } from "@/lib/bash-data";
 import { createLocalDefect, fileJiraBug, fileTemplatedBug } from "./jira";
 import { bugContext } from "@/lib/bug-context";
 import { sectionText } from "@/lib/jira-format";
@@ -122,6 +122,8 @@ export async function startBugBash(homeId: string, input: StartInput) {
     const cycles = home.hubOf ? await db.project.findMany({ where: { groupId: home.hubOf.id, archivedAt: null, id: { not: home.id } }, orderBy: { createdAt: "desc" }, select: { id: true } }) : [];
     const cycleId = data.cycleId && (data.cycleId === home.id || cycles.some((c) => c.id === data.cycleId)) ? data.cycleId : home.id;
     const { project: cycle } = await requireProjectAction(cycleId, "run:create");
+    // A release picked by name (ver_152): the run stays here, on every platform the bash lists.
+    const release = cycle.id === home.id ? matchRelease(data.release, await bashReleases(home)) : cycle.rcName;
     const bugTemplate = await bashTemplate(cycle.id, data.bugTemplateId);
     const library = home.id === cycle.id ? [cycle.id] : [cycle.id, home.id];
     const team = await teamTemplates((await charterHome(home)).id);
@@ -171,14 +173,14 @@ export async function startBugBash(homeId: string, input: StartInput) {
             name: `Bug bash · ${data.name}`,
             kind: "bash",
             description: `${data.minutes}-minute bug bash, ${areas.length} ${areas.length === 1 ? "area" : "areas"}`,
-            release: cycle.rcName,
+            release,
             createdById: user.id,
             createdBy: by,
             entries: { create: entries.map(({ assigneeId, ...e }) => (void assigneeId, e)) },
           },
         });
         return tx.bugBash.create({
-          data: { projectId: home.id, runId: run.id, name: data.name, release: cycle.rcName, minutes: data.minutes, startsAt, endsAt, areas: areas as Prisma.InputJsonValue, collectFirst: data.collectFirst, slack: data.slack, funExtras: data.funExtras, bugTemplateId: bugTemplate?.id ?? null, platforms: cleanPlatforms(data.platforms), createdById: user.id, createdBy: by },
+          data: { projectId: home.id, runId: run.id, name: data.name, release, minutes: data.minutes, startsAt, endsAt, areas: areas as Prisma.InputJsonValue, collectFirst: data.collectFirst, slack: data.slack, funExtras: data.funExtras, bugTemplateId: bugTemplate?.id ?? null, platforms: cleanPlatforms(data.platforms), createdById: user.id, createdBy: by },
         });
       },
       { timeout: 60_000 },
@@ -329,6 +331,24 @@ export async function setBashTemplate(bashId: string, templateId: string | null)
     await db.bugBash.update({ where: { id: bashId }, data: { bugTemplateId: t?.id ?? null } });
     refresh(bash.project.key);
     return {};
+  });
+}
+
+/**
+ * Count a bash toward a release, or keep it on its own (ver_152). Whoever started it can,
+ * and so can anyone who can start runs. The run gets the release too: that's what Release status reads.
+ */
+export async function setBashRelease(bashId: string, release: string) {
+  return attempt(async () => {
+    const { bash, user, who } = await requireIn(bashId);
+    if (bash.createdById !== user.id && !can(who, "run:create")) throw new UserError(`Only ${bash.createdBy} (who started it) or someone who can start runs can change that.`);
+    const want = z.string().trim().max(100).parse(release);
+    const offered = [...(await bashReleases(bash.project)), ...(bash.release ? [bash.release] : [])];
+    const picked = matchRelease(want, offered);
+    if (want && !picked) throw new UserError(`${want} isn't a current release. Save it on a test cycle first.`);
+    await db.$transaction([db.bugBash.update({ where: { id: bashId }, data: { release: picked } }), db.testRun.update({ where: { id: bash.run.id }, data: { release: picked } })]);
+    refresh(bash.project.key, bash.run.project.key);
+    return { release: picked };
   });
 }
 

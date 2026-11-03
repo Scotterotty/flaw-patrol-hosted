@@ -6,7 +6,7 @@ import { BoxWait } from "./box-wait";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { LENGTHS, type BashLink } from "@/lib/bash";
+import { LENGTHS, releaseHint, type BashLink } from "@/lib/bash";
 import type { StartBoxData } from "@/lib/bash-data";
 import { startBoxFor, startBugBash } from "@/server/bashes";
 import { Modal } from "./modal";
@@ -92,7 +92,7 @@ export function StartBashAuto({ projectId }: { projectId: string }) {
 }
 
 /** Until its data arrives the box takes a Name and How long; the area ideas show a spinner. */
-const NO_DATA: StartBoxData = { homeId: "", homeKey: "", homeName: "", cycles: [], defaultCycleId: "", suggestions: [], last: null, templates: [], slackChannels: 0, bugTemplates: [], bugTemplateDefault: null, platforms: [], askPlatform: false };
+const NO_DATA: StartBoxData = { homeId: "", homeKey: "", homeName: "", releases: [], suggestions: [], last: null, templates: [], slackChannels: 0, bugTemplates: [], bugTemplateDefault: null, platforms: [], askPlatform: false };
 
 function StartBashForm({
   data: loaded,
@@ -119,8 +119,8 @@ function StartBashForm({
   const [draft, setDraft] = useState("");
   const [more, setMore] = useState(false);
   const [later, setLater] = useState("");
-  const [picked, setCycleId] = useState<string | null>(null);
-  const cycleId = picked ?? data.defaultCycleId;
+  // The release it counts toward (ver_152); "" keeps it on its own, the default.
+  const [release, setRelease] = useState("");
   const [tours, setTours] = useState(false);
   const [collectFirst, setCollectFirst] = useState(true);
   // On by default when there's a channel to post to, once that's known.
@@ -164,7 +164,7 @@ function StartBashForm({
       const startsAt = later ? at.toISOString() : "";
       const all = draft.trim() && !has(draft) ? [...areas, { name: draft.trim(), template: null }] : areas;
       const plats = platDraft.trim() ? [...platforms, platDraft.trim()] : platforms;
-      const res = await startBugBash(data.homeId, { name, minutes, areas: all, startsAt, cycleId, collectFirst, slack, funExtras: fun, bugTemplateId: bugTemplateId || null, platforms: askPlatform ? plats : [] });
+      const res = await startBugBash(data.homeId, { name, minutes, areas: all, startsAt, release, collectFirst, slack, funExtras: fun, bugTemplateId: bugTemplateId || null, platforms: askPlatform ? plats : [] });
       if (!res.ok) return setError(res.error);
       setDone({ id: res.id, key: res.key, posted: res.posted, later: !!later });
       router.refresh();
@@ -324,23 +324,25 @@ function StartBashForm({
           )}
         </fieldset>
       )}
-      {data.cycles.length > 1 && (
-        // Up front: a bash only counts toward a release when someone picks its test cycle.
-        <fieldset>
-          <legend className="mb-1.5 text-xs font-semibold text-slate-600">Where should its results go?</legend>
-          <div className="space-y-1.5">
-            {data.cycles.map((c, i) => (
-              <label key={c.id} className={cx("flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-sm", cycleId === c.id ? "border-accent-500 bg-accent-50" : "border-slate-200")}>
-                <input type="radio" name="bash-cycle" className="mt-1" checked={cycleId === c.id} onChange={() => setCycleId(c.id)} />
-                <span>
-                  <span className="font-medium">{i === 0 ? "Don't attach to a test cycle" : c.name}</span>
-                  <span className="block text-xs text-slate-500">
-                    {i === 0 ? "Kept on its own. It never shows up as a platform's release testing." : "Its run sits in that test cycle, marked Bug bash."}
-                  </span>
-                </span>
-              </label>
+      {data.releases.length > 0 && (
+        // Up front: a bash only counts toward a release when someone picks one.
+        <fieldset data-testid="bash-release">
+          <legend className="mb-1.5 text-xs font-semibold text-slate-600">Count it toward a release?</legend>
+          <div role="radiogroup" aria-label="Count it toward a release?" className="flex flex-wrap gap-1.5">
+            {["", ...data.releases].map((r) => (
+              <button
+                key={r || "none"}
+                type="button"
+                role="radio"
+                aria-checked={release === r}
+                onClick={() => setRelease(r)}
+                className={cx("rounded-full border px-3 py-1 text-[13px]", release === r ? "border-accent-600 bg-accent-600 text-white" : "border-slate-300 bg-surface text-slate-700 hover:border-slate-400")}
+              >
+                {r || "No, keep it on its own"}
+              </button>
             ))}
           </div>
+          <p className="mt-1 text-xs text-slate-500">{releaseHint(release, askPlatform ? platforms : [])}</p>
         </fieldset>
       )}
       {data.bugTemplates.length > 0 && (

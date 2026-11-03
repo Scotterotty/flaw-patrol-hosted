@@ -248,7 +248,7 @@ export function RcStatusView({ releases, release, pick, columns, bugs, choices, 
             ))}
           </div>
 
-          <h3 className="mt-6 mb-2 text-sm font-semibold text-slate-900">Critical and blocking bugs</h3>
+          <h3 className="mt-6 mb-2 text-sm font-semibold text-slate-900">{bugs.some((b) => b.fromBash && !severe(b, scale)) ? "Critical and blocking bugs, plus bug bash bugs" : "Critical and blocking bugs"}</h3>
           {bugs.length === 0 ? (
             <p className="text-sm text-slate-500">None so far.</p>
           ) : (

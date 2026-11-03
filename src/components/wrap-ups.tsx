@@ -138,6 +138,7 @@ export function WrapUpsSection({ items }: { items: WrapUp[] }) {
             <p className="flex flex-wrap items-center gap-2">
               <span className="font-medium text-slate-900">{w.title}</span>
               <span className={cx("rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset", w.type === "bash" ? "bg-rose-50 text-rose-800 ring-rose-200" : "bg-teal-50 text-teal-800 ring-teal-200")}>{w.type === "bash" ? "🐞 Bug bash" : "🧭 Exploratory"}</span>
+              {w.release && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800">Counts toward {w.release}</span>}
               <Link href={w.href} className="ml-auto text-xs text-accent-700 hover:underline">
                 {w.type === "bash" ? "Bash report →" : "Run →"}
               </Link>
@@ -145,6 +146,7 @@ export function WrapUpsSection({ items }: { items: WrapUp[] }) {
             <p className="mt-0.5 text-xs text-slate-600">
               {shortDate(new Date(w.at), spelling, zone)} · {wrapLine(w)}
             </p>
+            {w.platforms && <p className="mt-0.5 text-xs text-slate-600">By platform: {w.platforms}</p>}
             {w.worst && <p className="mt-0.5 text-xs text-slate-600">Worst: {w.worst}</p>}
             {w.summary && <p className="mt-1 text-sm text-slate-700 italic">&ldquo;{w.summary}&rdquo;</p>}
           </li>

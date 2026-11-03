@@ -4,7 +4,7 @@ import { sentryConnected } from "@/lib/sentry-config";
 import { EmptyState } from "@/components/ui";
 import { pickFor, readPrefs, releaseKey } from "@/lib/rc-status";
 import { listReleases, rcStatus, type RcScope } from "@/server/rc-status";
-import { attachedWrapUps, rcWrapKey, releaseStart, wrapPickOf } from "@/lib/wrap-ups";
+import { attachedWrapUps, countedBashWrapUps, rcWrapKey, releaseStart, wrapPickOf } from "@/lib/wrap-ups";
 import { AttachWrapUps } from "@/components/wrap-ups";
 import type { WrapScope } from "@/server/wrap-ups";
 
@@ -51,7 +51,12 @@ export async function RcReport({
   const runIds = status.columns.flatMap((c) => c.runIds);
   const wrapKey = rcWrapKey(base, release);
   const wrapPick = wrapPickOf(user.rcReport, wrapKey);
-  const wrapUps = scope && wrapScope ? await attachedWrapUps(scope.projectIds, wrapPick, wrapPick.auto ? await releaseStart(scope.projectIds, release) : null) : [];
+  const [attached, counted] = await Promise.all([
+    scope && wrapScope ? attachedWrapUps(scope.projectIds, wrapPick, wrapPick.auto ? await releaseStart(scope.projectIds, release) : null) : [],
+    // Bashes counted toward this release by name join by themselves (ver_152).
+    scope ? countedBashWrapUps(scope.projectIds, release) : [],
+  ]);
+  const wrapUps = [...counted, ...attached.filter((w) => !counted.some((c) => c.id === w.id))].sort((a, b) => b.at.localeCompare(a.at));
   return (
     <>
     <RcStatusView

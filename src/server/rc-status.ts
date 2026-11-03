@@ -240,13 +240,16 @@ export async function rcStatus(
   const byDefect = new Map<string, RcBug>();
   const label = new Map(columns.flatMap((c) => c.runIds.map((id) => [id, c.label] as const)));
   for (const id of bashOnly) label.set(id, "Bug bash");
+  // Bashes counted toward this release by name (ver_152) list every bug they found.
+  const counted = new Set(bashRuns.filter((r) => r.release && releaseKey(r.release) === key).map((r) => r.id));
   for (const l of links) {
     const d = l.defect;
     const blocked = l.result.entry.status === "BLOCKED";
     const fromBash = bashIds.has(l.result.runId);
-    if (!isSevere(d.severity, scale) && !/^blocker$/i.test(d.externalPriority ?? "") && !blocked) continue;
-    // With Include bug bashes off, only bash bugs at a critical severity make the list.
-    if (fromBash && !pick.bashes && !isSevere(d.severity, scale)) continue;
+    const all = fromBash && counted.has(l.result.runId);
+    if (!all && !isSevere(d.severity, scale) && !/^blocker$/i.test(d.externalPriority ?? "") && !blocked) continue;
+    // With Include bug bashes off, only bash bugs at a critical severity make the list, unless the bash counts toward this release.
+    if (fromBash && !all && !pick.bashes && !isSevere(d.severity, scale)) continue;
     const bug = byDefect.get(d.id) ?? {
       id: d.id,
       key: d.externalKey ?? `${d.project.key}-D${d.number}`,

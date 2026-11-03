@@ -1,5 +1,6 @@
 import type { Severity } from "@prisma/client";
 import { z } from "zod";
+import { releaseKey } from "./rc-status";
 import { clockTime, type Spelling } from "./spelling";
 
 // Bug bashes: a short, timed session where anyone picks an area and logs bugs.
@@ -71,6 +72,8 @@ export const startSchema = z.object({
   /** ISO time; empty or in the past means now. */
   startsAt: z.string().max(40).default(""),
   cycleId: z.string().max(40).optional(),
+  /** The release (RC) it counts toward; empty keeps it on its own (ver_152). */
+  release: z.string().trim().max(100).default(""),
   collectFirst: z.boolean().default(true),
   slack: z.boolean().default(true),
   funExtras: z.boolean().default(false),
@@ -223,6 +226,36 @@ export function platformLine(rows: { platform: string; bugs: number }[]) {
 
 /** "on Web" for the Found in line, or "" when nobody said. */
 export const onPlatform = (p: string) => (p ? ` on ${p}` : "");
+
+// Releases (ver_152): a bash can count toward one release, picked by name. It stays on the
+// umbrella with every platform it lists; Release status shows it and lists all its bugs.
+
+/** The current releases, newest first, each spelled once ("RC 22" and "rc22" are one). */
+export function releaseChoices(names: string[]) {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of names) {
+    const n = raw.trim();
+    const k = releaseKey(n);
+    if (!n || seen.has(k)) continue;
+    seen.add(k);
+    out.push(n);
+  }
+  return out;
+}
+
+/** The offered release matching what was asked for, spelled as offered, else "". */
+export function matchRelease(want: string, offered: string[]) {
+  const k = releaseKey(want.trim());
+  return k ? (offered.find((o) => releaseKey(o) === k) ?? "") : "";
+}
+
+/** "Its bugs show on the 2.4.0 Release status report, for the platforms this bash lists: Web, iOS." */
+export function releaseHint(release: string, platforms: string[]) {
+  if (!release) return "Kept on its own. It doesn't show on any release's report.";
+  const plats = cleanPlatforms(platforms);
+  return `Its bugs show on the ${release} Release status report${plats.length ? `, for the platforms this bash lists: ${plats.join(", ")}` : ""}.`;
+}
 
 /** "1:00–2:00 PM" style times for the report. */
 export function timeRange(start: Date, end: Date, clock: { spelling?: Spelling; zone?: string } = {}) {

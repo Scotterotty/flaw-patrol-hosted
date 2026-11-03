@@ -1,4 +1,5 @@
 import "server-only";
+import { bugsByPlatform, platformLine, plusOnesOf } from "./bash";
 import { noteCounts, parseCharter, parsePersona, parseSessionLog } from "./charter";
 import { db } from "./db";
 import { releaseKey } from "./rc-status";
@@ -24,6 +25,10 @@ export type WrapUp = {
   summary: string;
   persona: string;
   worst: string;
+  /** The release a bash counts toward, picked by name (ver_152); "" when none. */
+  release?: string;
+  /** "Web 4, iOS 5": bugs per platform, when people said (ver_146). */
+  platforms?: string;
 };
 
 /** Saved per person: which wrap-ups a report carries, and whether new ones join by themselves. */
@@ -71,9 +76,11 @@ export async function listWrapUps(projectIds: string[], opts: { since?: Date; un
             endedAt: true,
             endsAt: true,
             createdBy: true,
+            release: true,
+            platforms: true,
             project: { select: { key: true } },
             _count: { select: { people: true } },
-            items: { where: { mergedIntoId: null, kind: { in: ["bug", "note", "question"] } }, select: { kind: true, text: true, severity: true } },
+            items: { where: { mergedIntoId: null, kind: { in: ["bug", "note", "question"] } }, select: { kind: true, text: true, severity: true, platform: true, plusOnes: true } },
           },
         }),
     resultIds && !resultIds.length
@@ -110,6 +117,8 @@ export async function listWrapUps(projectIds: string[], opts: { since?: Date; un
       summary: "",
       persona: "",
       worst: worst ? `${worst.text} (${worst.severity.toLowerCase()})` : "",
+      release: b.release,
+      platforms: platformLine(bugsByPlatform(bugs.map((i) => ({ platform: i.platform, severity: i.severity, plusOnes: plusOnesOf(i.plusOnes) })), b.platforms)),
     };
   });
   const fromSessions: WrapUp[] = results.map((r) => {
@@ -141,4 +150,16 @@ export async function attachedWrapUps(projectIds: string[], pick: WrapPick, auto
   const [ticked, auto] = await Promise.all([pick.ids.length ? listWrapUps(projectIds, { ids: pick.ids }) : [], pick.auto && autoSince ? listWrapUps(projectIds, { since: autoSince }) : []]);
   const seen = new Set<string>();
   return [...ticked, ...auto].filter((w) => !seen.has(w.id) && !!seen.add(w.id)).sort((a, b) => b.at.localeCompare(a.at));
+}
+
+/** Bashes counted toward this release by name (ver_152): they join its Release status by themselves. */
+export async function countedBashWrapUps(projectIds: string[], release: string) {
+  if (!projectIds.length || !release.trim()) return [];
+  const rows = await db.bugBash.findMany({
+    where: { release: { not: "" }, OR: [{ projectId: { in: projectIds } }, { run: { projectId: { in: projectIds } } }] },
+    select: { id: true, release: true },
+    take: 500,
+  });
+  const ids = rows.filter((b) => releaseKey(b.release) === releaseKey(release)).map((b) => `bash:${b.id}`);
+  return ids.length ? listWrapUps(projectIds, { ids }) : [];
 }

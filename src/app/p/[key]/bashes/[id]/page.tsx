@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BashBoard, WrapUp } from "@/components/bash";
+import { BashRelease } from "@/components/bash-release";
+import { bashReleases } from "@/lib/bash-data";
+import { can } from "@/lib/permissions";
 import { CrumbName } from "@/components/crumb-name";
 import { LiveRefresh } from "@/components/live-refresh";
 import { bashPageData } from "@/lib/bash-page";
@@ -16,9 +19,9 @@ export default async function BashPage({ params, searchParams }: { params: Promi
   const { key, id } = await params;
   const { join } = await searchParams;
   await bashTick(id).catch(() => {});
-  const { view, guest, project } = await bashPageData(key, id);
+  const { view, guest, project, user, who, full } = await bashPageData(key, id);
   if (view.phase === "wrapped") redirect(`/p/${view.homeKey}/bashes/${id}/report`);
-  const jira = !!(await jiraConfigFor(view.runProjectId));
+  const [jira, releases] = await Promise.all([jiraConfigFor(view.runProjectId).then(Boolean), guest ? [] : bashReleases(project)]);
   return (
     <div className="mx-auto max-w-6xl">
       <CrumbName href={`/p/${view.homeKey}/bashes/${id}`} label={`Bug bash · ${view.name}`} />
@@ -34,6 +37,11 @@ export default async function BashPage({ params, searchParams }: { params: Promi
           </Link>
         )}
       </div>
+      {!guest && (
+        <div className="-mt-2 mb-4">
+          <BashRelease bashId={id} release={full.bash.release} releases={releases} canChange={full.bash.createdById === user.id || can(who, "run:create")} />
+        </div>
+      )}
       {/* People outside the team land here from the link now: say what they'll see. */}
       {guest && !view.me.areaId && view.phase !== "ended" && (
         <BashGuestNote

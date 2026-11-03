@@ -1,5 +1,5 @@
 import "server-only";
-import { cleanPlatforms, parseAreas, phaseOf, type BashLink } from "./bash";
+import { cleanPlatforms, parseAreas, phaseOf, releaseChoices, type BashLink } from "./bash";
 import { BUILT_IN } from "./charter-templates";
 import { charterHome, teamTemplates } from "./charter-data";
 import { loadBugTemplates } from "./bug-templates-data";
@@ -13,8 +13,8 @@ export type StartBoxData = {
   homeId: string;
   homeKey: string;
   homeName: string;
-  cycles: { id: string; name: string }[];
-  defaultCycleId: string;
+  /** Releases a bash can count toward (ver_152): the test cycles' saved releases, newest first. */
+  releases: string[];
   suggestions: { name: string; hot: boolean; why: string; link?: BashLink }[];
   last: { name: string; areas: string[] } | null;
   templates: { id: string; name: string; group: string }[];
@@ -69,9 +69,8 @@ export async function startBoxData(project: { id: string; key: string; name: str
     homeId: homeRow.id,
     homeKey: homeRow.key,
     homeName: u?.group.name ?? homeRow.name,
-    // Kept apart from releases unless someone picks a test cycle: the hub is "Don't attach".
-    cycles: [{ id: homeRow.id, name: "" }, ...cycles.map((c) => ({ id: c.id, name: [c.name, c.platform && !c.name.includes(c.platform) ? c.platform : ""].filter(Boolean).join(" · ") }))],
-    defaultCycleId: homeRow.id,
+    // Kept apart from releases unless someone picks one by name.
+    releases: releaseChoices(cycles.map((c) => c.rcName)).slice(0, 6),
     suggestions: suggestions.slice(0, 10),
     last: last ? { name: last.name, areas: parseAreas(last.areas).map((a) => a.name) } : null,
     templates: [...BUILT_IN, ...team].map((t) => ({ id: t.id, name: t.name, group: t.group })),
@@ -81,6 +80,14 @@ export async function startBoxData(project: { id: string; key: string; name: str
     platforms: fromUmbrella.length ? fromUmbrella : fromLast,
     askPlatform: fromUmbrella.length > 0 || fromLast.length > 0,
   };
+}
+
+/** Releases a bash at this home can count toward (ver_152): its umbrella's test cycles' saved releases, newest first. */
+export async function bashReleases(home: { id: string; groupId: string | null }) {
+  const u = await umbrellaOf(home);
+  if (!u) return [];
+  const cycles = await db.project.findMany({ where: { groupId: u.group.id, archivedAt: null, id: { not: u.hub.id }, rcName: { not: "" } }, orderBy: { createdAt: "desc" }, select: { rcName: true } });
+  return releaseChoices(cycles.map((c) => c.rcName)).slice(0, 6);
 }
 
 /** The Bug bashes page: what's live, what's coming, and past bashes. */
