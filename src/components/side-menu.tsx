@@ -1,5 +1,6 @@
 "use client";
 
+import { PaneResizer } from "@/components/pane-resizer";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
@@ -227,7 +228,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
   return (
     <>
       {/* The background and border run the full height of the page; the links inside stay in view as you scroll. */}
-      <div className="fp-bar hidden w-52 shrink-0 border-r border-slate-200 bg-surface md:block">
+      <div className="fp-bar relative hidden w-52 shrink-0 border-r border-slate-200 bg-surface md:block">
         <nav ref={navRef} aria-label={label} className="sticky top-12 flex h-[calc(100vh-3rem)] flex-col overflow-y-auto px-2 py-4">
           {head}
           {arranging && (
@@ -334,6 +335,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
             <VersionLine className="mt-0.5" />
           </div>
         </nav>
+        <PaneResizer id="left-menu" label="the left menu" min={160} max={320} target="parent" />
       </div>
       <nav
         ref={bar}

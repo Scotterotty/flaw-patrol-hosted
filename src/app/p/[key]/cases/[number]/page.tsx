@@ -1,4 +1,5 @@
 import { StartExploringButton } from "@/components/start-exploring";
+import { PaneResizer } from "@/components/pane-resizer";
 import { TagPills } from "@/components/tag-pill";
 import { tagColorsFor } from "@/lib/tag-data";
 import type { Metadata } from "next";
@@ -199,7 +200,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
         </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_17rem]">
+      <div className="grid gap-5 lg:grid-cols-[1fr_var(--fp-pane,17rem)]">
         <div className="min-w-0 space-y-5">
           {c.preconditions && (
             <Card className="p-4">
@@ -224,7 +225,8 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
           )}
           <CaseHistory caseId={c.id} projectKey={project.key} charter={isCharter} canRun={can(who, "run:create")} />
         </div>
-        <aside className="space-y-5">
+        <aside className="relative space-y-5">
+          <PaneResizer id="case-side" label="the side panel" min={224} max={480} target="parent" edge="left" />
           {/* Charters link to requirements too, so the Risk board sees them. */}
           {(
             <Card className="p-4">

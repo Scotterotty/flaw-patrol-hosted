@@ -1,4 +1,5 @@
 import { AutoFilterForm } from "@/components/auto-filter-form";
+import { PaneResizer } from "@/components/pane-resizer";
 import { runFieldsFor } from "@/lib/run-fields-server";
 import type { Prisma } from "@prisma/client";
 import Link from "next/link";
@@ -244,6 +245,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
           canMoveCases={can(who, "case:edit")}
         />
       </aside>
+      <PaneResizer id="case-folders" label="the folder list" min={180} max={480} className="-mx-[1.125rem]" />
       <section className="min-w-0 flex-1">
         <PageHeader
           title={

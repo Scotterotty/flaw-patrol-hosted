@@ -19,6 +19,7 @@ import { DigestPrefsForm } from "./digest-prefs";
 import { parsePrefs, prefsSummary } from "@/lib/digest-settings";
 import { LanguageSettings } from "./language-settings";
 import { MenuOrderReset } from "./menu-order-reset";
+import { PaneSizesReset } from "./pane-sizes-reset";
 import { RadioSettings } from "./radio-settings";
 import { SpinnerPicker } from "./spinner-picker";
 import { cleanSpinners, pawnEmoji, SPINNER_FOLD, SPINNERS } from "@/lib/spinners";
@@ -121,6 +122,7 @@ export async function ProfileSettings({ user }: { user: Me }) {
           </div>
           <div className="mt-5">
             <MenuOrderReset />
+            <PaneSizesReset />
           </div>
         </AccountCard>
         <AccountCard id="language" title="Language" summary={`${spelling === "uk" ? "UK English" : "US English"} · dates like ${sample}`}>

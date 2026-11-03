@@ -1,5 +1,6 @@
 "use client";
 
+import { PaneResizer } from "@/components/pane-resizer";
 import { dateTime } from "@/lib/spelling";
 import { count } from "@/lib/format";
 import type { ResultStatus } from "@prisma/client";
@@ -366,7 +367,7 @@ export function SessionRunner({
         ))}
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_20rem]">
+      <div className="grid gap-4 xl:grid-cols-[1fr_var(--fp-pane,20rem)]">
         <div className="min-w-0">
           {ending ? (
             <section aria-labelledby="session-result-heading" className="rounded-lg border border-slate-200 bg-surface p-4 shadow-sm">
@@ -535,7 +536,8 @@ export function SessionRunner({
           )}
         </div>
 
-        <aside className="space-y-4">
+        <aside className="relative space-y-4">
+          <PaneResizer id="session-side" label="the side panel" min={224} max={480} target="parent" edge="left" from="xl" />
           <section aria-label="Timer" className="rounded-lg border border-slate-200 bg-surface p-4 shadow-sm">
             <p className="text-xs text-slate-500">{over ? "Over the time limit by" : "Time left"}</p>
             <p role="timer" aria-live="off" className={cx("text-3xl font-semibold tabular-nums", over ? "text-orange-700" : "text-slate-900")}>

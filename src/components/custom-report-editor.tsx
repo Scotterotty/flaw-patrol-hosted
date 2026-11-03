@@ -1,5 +1,6 @@
 "use client";
 
+import { PaneResizer } from "@/components/pane-resizer";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
@@ -473,26 +474,30 @@ export function CustomReportEditor({
   );
 
   return (
-    <div className="grid items-start gap-5 lg:grid-cols-[17rem_1fr]">
-      <aside className="space-y-3 rounded-lg border border-slate-200 bg-surface p-3 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto" aria-label="Parts you can add">
-        <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Parts you can add</p>
-        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search parts…" aria-label="Search parts" className="h-8" />
-        {catalog.map((g) => {
-          const parts = g.parts.filter((p) => !s || p.title.toLowerCase().includes(s) || g.tab.toLowerCase().includes(s));
-          if (!parts.length) return null;
-          return (
-            <div key={g.tab}>
-              <p className="mb-0.5 text-xs font-semibold text-slate-800">{g.tab}</p>
-              {parts.map((p) => (
-                <label key={p.id} className={cx("flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm hover:bg-slate-50", ticked.has(p.id as PartId) ? "text-slate-900" : "text-slate-600")}>
-                  <input type="checkbox" checked={ticked.has(p.id as PartId)} onChange={(e) => tick(p, e.target.checked, g.tab)} className="accent-accent-600" />
-                  {p.title}
-                </label>
-              ))}
-            </div>
-          );
-        })}
-      </aside>
+    <div className="grid items-start gap-5 lg:grid-cols-[var(--fp-pane,17rem)_1fr]">
+      {/* The drag line sits on this wrapper so the list scrolling inside doesn't clip it. */}
+      <div className="relative lg:sticky lg:top-16">
+        <PaneResizer id="report-parts" label="the parts list" min={208} max={416} target="parent" edge="right" />
+        <aside className="space-y-3 rounded-lg border border-slate-200 bg-surface p-3 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto" aria-label="Parts you can add">
+          <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Parts you can add</p>
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search parts…" aria-label="Search parts" className="h-8" />
+          {catalog.map((g) => {
+            const parts = g.parts.filter((p) => !s || p.title.toLowerCase().includes(s) || g.tab.toLowerCase().includes(s));
+            if (!parts.length) return null;
+            return (
+              <div key={g.tab}>
+                <p className="mb-0.5 text-xs font-semibold text-slate-800">{g.tab}</p>
+                {parts.map((p) => (
+                  <label key={p.id} className={cx("flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm hover:bg-slate-50", ticked.has(p.id as PartId) ? "text-slate-900" : "text-slate-600")}>
+                    <input type="checkbox" checked={ticked.has(p.id as PartId)} onChange={(e) => tick(p, e.target.checked, g.tab)} className="accent-accent-600" />
+                    {p.title}
+                  </label>
+                ))}
+              </div>
+            );
+          })}
+        </aside>
+      </div>
 
       <div className="min-w-0 space-y-4">
         <div className="flex flex-wrap items-center gap-2">

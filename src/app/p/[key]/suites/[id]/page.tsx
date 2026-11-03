@@ -1,4 +1,5 @@
 import { CrumbName } from "@/components/crumb-name";
+import { PaneResizer } from "@/components/pane-resizer";
 import { runFieldsFor } from "@/lib/run-fields-server";
 import type { ResultStatus } from "@prisma/client";
 import Link from "next/link";
@@ -154,7 +155,7 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_20rem]">
+      <div className="grid gap-5 lg:grid-cols-[1fr_var(--fp-pane,20rem)]">
         <Card className="overflow-hidden">
           {suite.cases.length === 0 ? (
             <div className="p-4">
@@ -224,7 +225,8 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
             </>
           )}
         </Card>
-        <aside className="space-y-4">
+        <aside className="relative space-y-4">
+          <PaneResizer id="suite-side" label="the side panel" min={224} max={480} target="parent" edge="left" />
           <Card className="p-4">
             <h2 className="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">Releases tested</h2>
             {byRelease.size === 0 ? (

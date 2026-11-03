@@ -1,4 +1,5 @@
 import { rowsOfResult } from "@/lib/test-data-history";
+import { PaneResizer } from "@/components/pane-resizer";
 import { parseTestData } from "@/lib/test-data";
 import { titleWithTags } from "@/lib/tags";
 import { tagColorsFor } from "@/lib/tag-data";
@@ -287,6 +288,7 @@ export default async function ExecutePage({
           </RunListFold>
         </div>
       </aside>
+      <PaneResizer id="run-cases" label="the case list" min={240} max={0.6} className="-mx-4" />
       <div className="flex min-w-0 flex-1 flex-col gap-3 lg:sticky lg:top-16 lg:h-[calc(100vh-6rem)] bigtext:static bigtext:h-auto">
         {entry.kind === "EXPLORATORY" ? (
           <SessionRunner

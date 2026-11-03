@@ -1,5 +1,6 @@
 "use client";
 
+import { PaneResizer } from "@/components/pane-resizer";
 import { useZone } from "./spelling";
 
 import Link from "next/link";
@@ -439,8 +440,9 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
     });
 
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-[19rem_minmax(0,1fr)] xl:grid-cols-[19rem_minmax(0,1fr)_16rem]">
-      <div className="order-2 lg:order-1 lg:row-span-2">
+    <div className="grid items-start gap-4 lg:grid-cols-[var(--fp-pane,19rem)_minmax(0,1fr)] xl:grid-cols-[var(--fp-pane,19rem)_minmax(0,1fr)_16rem]">
+      <div className="relative order-2 lg:order-1 lg:row-span-2">
+        <PaneResizer id="bash-finds" label="the finds list" min={240} max={0.5} target="parent" edge="right" />
         <LiveFinds bashId={bash.id} projectId={bash.runProjectId} data={data} reload={reload} meId={bash.me.id} areaId={area.id} draft={text} openId={openId} setOpenId={setOpenId} live={live} />
       </div>
       <Card className="order-1 p-4 lg:order-2">
