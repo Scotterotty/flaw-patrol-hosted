@@ -3,6 +3,7 @@
 import type { CaseType, Priority } from "@prisma/client";
 import { useState, useTransition } from "react";
 import { normalizeTags, PRIORITIES, PRIORITY_LABEL } from "@/lib/format";
+import { sortTags } from "@/lib/tags";
 import { editCaseFields } from "@/server/cases";
 import { Modal } from "./modal";
 import { Button, ErrorText, Field, Input, Select } from "./ui";
@@ -76,7 +77,7 @@ function BulkEditDialog({
   const [pending, start] = useTransition();
   const n = cases.length;
   const plural = (k: number) => `${k} ${k === 1 ? "case" : "cases"}`;
-  const tagsOnCases = [...new Set(cases.flatMap((c) => c.tags))].sort();
+  const tagsOnCases = sortTags(new Set(cases.flatMap((c) => c.tags)));
 
   // What saving would do, counted from the ticked cases.
   const parts: string[] = [];

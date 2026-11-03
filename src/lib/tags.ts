@@ -54,6 +54,16 @@ export function tagColor(tag: string, colors?: TagColors, platformColors?: Recor
   return colors?.[k] ?? platformColors?.[k] ?? autoTagColor(tag);
 }
 
+/** A to Z for tag lists; capital letters don't change the order (Account before AI before AR). */
+export const compareTags = (a: string, b: string) => a.localeCompare(b, "en", { sensitivity: "base", numeric: true }) || a.localeCompare(b, "en");
+export const sortTags = (tags: Iterable<string>) => [...tags].sort(compareTags);
+
+/** How the Case library Tags row is ordered: A to Z (the default) or most cases first. */
+export type TagSort = "az" | "count";
+export function sortTagCounts<T extends { tag: string; count: number }>(rows: T[], by: TagSort): T[] {
+  return [...rows].sort((a, b) => (by === "count" ? b.count - a.count : 0) || compareTags(a.tag, b.tag));
+}
+
 /** "[web]" or "web" in a search box looks for the tag web. */
 export const tagQuery = (q: string) => q.trim().replace(/^\[(.*)\]$/, "$1").trim();
 

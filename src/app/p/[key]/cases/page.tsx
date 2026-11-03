@@ -11,7 +11,7 @@ import { TagsRow } from "@/components/tag-pill";
 import { AreaBanner } from "@/components/area-convert";
 import { BracketBanner } from "@/components/bracket-convert";
 import { findAreaWords } from "@/lib/area-tags";
-import { hasBracketTitle, tagQuery } from "@/lib/tags";
+import { hasBracketTitle, sortTags, tagQuery } from "@/lib/tags";
 import { areaContextFor, tagColorsFor } from "@/lib/tag-data";
 import { cleanQuery, ENOUGH_EXACT, matchCount, matchKind, tagHits as tagHitsOf } from "@/lib/fuzzy";
 import { EmptyState, InfoTip, Input, LinkButton, PageHeader, Select } from "@/components/ui";
@@ -163,7 +163,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
       select: caseSelect,
     }),
     db.testCase.count({ where }),
-    db.$queryRaw<{ tag: string; count: number }[]>`SELECT tag, COUNT(*)::int AS count FROM (SELECT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ${project.id} AND archived = false AND type <> 'EXPLORATORY') t GROUP BY tag ORDER BY count DESC, tag`,
+    db.$queryRaw<{ tag: string; count: number }[]>`SELECT tag, COUNT(*)::int AS count FROM (SELECT unnest(tags) AS tag FROM "TestCase" WHERE "projectId" = ${project.id} AND archived = false AND type <> 'EXPLORATORY') t GROUP BY tag`,
     db.testCase.count({ where: { ...where, archived: false } }),
     db.testCase.count({ where: { ...where, archived: true } }),
   ])]);
@@ -476,7 +476,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
             tagColors={tagColors}
             tagHits={q ? [...tagHits, ...tagHitsOf(q, tagRows.map((t) => t.tag))] : []}
             closeStart={cases.length > closeStart ? closeStart : undefined}
-            bulk={{ personas: personas.filter((p) => !p.archived), tags: tagRows.map((t) => t.tag) }}
+            bulk={{ personas: personas.filter((p) => !p.archived), tags: sortTags(tagRows.map((t) => t.tag)) }}
           />
         )}
         {total > PAGE_SIZE && (

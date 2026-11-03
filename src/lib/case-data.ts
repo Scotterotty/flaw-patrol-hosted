@@ -1,4 +1,5 @@
 import "server-only";
+import { sortTags } from "./tags";
 import { db } from "./db";
 import { buildTree, flattenTree, pathOf, subtreeIds, type FolderRow } from "./folders";
 import { parseParams, parsePlainSteps, type SharedStepDef } from "./steps";
@@ -49,7 +50,7 @@ export async function editorContext(projectId: string, referencedSharedIds: stri
   return {
     folderOptions: flattenTree(buildTree(folders)).map((f) => ({ id: f.id, label: pathOf(folders, f.id).join(" / ") })),
     sharedSteps,
-    knownTags: tagRows.map((t) => t.tag),
+    knownTags: sortTags(tagRows.map((t) => t.tag)),
     folders,
     personas,
   };

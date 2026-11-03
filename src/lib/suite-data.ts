@@ -4,7 +4,7 @@ import { db } from "./db";
 import { badgeOf } from "./game";
 import { buildTree, flattenTree, pathOf, subtreeIds } from "./folders";
 import { libraryProjectIds, umbrellaOf } from "./umbrella";
-import { hasBracketTitle } from "./tags";
+import { hasBracketTitle, sortTags } from "./tags";
 
 /**
  * Cases a suite can hold: the project's own, plus its umbrella's Case library.
@@ -42,7 +42,7 @@ export async function suitePickerData(project: { id: string; groupId: string | n
       .sort((a, b) => order(a.projectId) - order(b.projectId))
       // name and depth draw the folder list beside the cases; group splits the library from a test cycle's own folders.
       .map((f) => ({ id: f.id, label: label(f.id, f.projectId), name: f.name, depth: f.depth, group: ids.length > 1 ? (shared(f.projectId) ? "Case library" : "This test cycle only") : "", ids: subtreeIds(folders, f.id) })),
-    tags: tagRows.map((t) => t.tag),
+    tags: sortTags(tagRows.map((t) => t.tag)),
     archived,
     // [UNITY] at the start of a title isn't a tag until Case library → Review… makes it one.
     bracketTitles: cases.filter((c) => hasBracketTitle(c.title)).length,

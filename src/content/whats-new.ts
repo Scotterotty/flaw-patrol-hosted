@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 157,
+    date: "2026-11-03",
+    items: [
+      {
+        kind: "better",
+        title: "Tags are A to Z",
+        text: "The Tags row on Test cases now lists tags A to Z. Click Most cases next to Tags to put the biggest first. Your pick is kept on this computer. Tag lists everywhere else are A to Z too.",
+      },
+    ],
+  },
+  {
     version: 156,
     date: "2026-11-03",
     items: [

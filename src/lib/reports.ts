@@ -1,4 +1,4 @@
-import { titleWithTags } from "./tags";
+import { sortTags, titleWithTags } from "./tags";
 import "server-only";
 import type { Prisma, Priority, ResultStatus } from "@prisma/client";
 import { db } from "./db";
@@ -466,7 +466,7 @@ export async function caseFilterOptions(scope: ReportScope) {
     db.runEntry.findMany({ where: { run, folderPath: { not: "" } }, distinct: ["folderPath"], select: { folderPath: true }, orderBy: { folderPath: "asc" } }),
   ]);
   return {
-    tags: [...new Set(cases.flatMap((c) => c.tags))].sort((a, b) => a.localeCompare(b)),
+    tags: sortTags(new Set(cases.flatMap((c) => c.tags))),
     folders: folders.map((x) => x.folderPath),
   };
 }

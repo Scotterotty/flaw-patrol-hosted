@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
-import { autoTagColor, TAG_COLORS, tagColor, type TagColors } from "@/lib/tags";
+import { autoTagColor, sortTagCounts, TAG_COLORS, tagColor, type TagColors, type TagSort } from "@/lib/tags";
 import { renameTag, setTagColor } from "@/server/tags";
 import { Button, cx, ErrorText, Input } from "./ui";
 import { useSpell } from "./spelling";
@@ -40,6 +40,7 @@ export function TagPills({ tags, colors, hits }: { tags: string[]; colors?: TagC
  * The Tags row above the Case library table: every tag with how many cases have
  * it. Click to show only those cases (click more to narrow it). Right-click, or press
  * and hold on a phone, to change a tag's color or rename it everywhere.
+ * A to Z by default; "Most cases" puts the biggest first. The pick is kept in this browser.
  */
 export function TagsRow({ projectId, tags, colors, picked, query, canEdit }: { projectId: string; tags: { tag: string; count: number }[]; colors: TagColors; picked: string[]; /** The page's other filters, kept when a tag is clicked. */ query: string; canEdit: boolean }) {
   const hrefFor = (next: string[]) => {
@@ -50,13 +51,45 @@ export function TagsRow({ projectId, tags, colors, picked, query, canEdit }: { p
   const sp = useSpell();
   const [menu, setMenu] = useState<{ tag: string; x: number; y: number } | null>(null);
   const hold = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [sort, setSort] = useState<TagSort>("az");
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(TAG_SORT_KEY) === "count") setSort("count");
+    } catch {}
+  }, []);
+  const pickSort = (s: TagSort) => {
+    setSort(s);
+    try {
+      localStorage.setItem(TAG_SORT_KEY, s);
+    } catch {}
+  };
   if (!tags.length) return null;
   const on = new Set(picked.map((t) => t.toLowerCase()));
   const open = (tag: string, x: number, y: number) => canEdit && setMenu({ tag, x, y });
   return (
     <div className="mb-3 flex flex-wrap items-center gap-1.5" data-testid="tags-row">
       <span className="mr-1 text-xs font-semibold text-slate-600">Tags</span>
-      {tags.map(({ tag, count }) => {
+      {tags.length > 1 && (
+        <span role="group" aria-label="Sort tags" className="mr-1 inline-flex rounded-full bg-slate-100 p-0.5 text-xs" data-testid="tag-sort">
+          {(
+            [
+              ["az", "A to Z"],
+              ["count", "Most cases"],
+            ] as const
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              type="button"
+              aria-pressed={sort === v}
+              onClick={() => pickSort(v)}
+              className={cx("rounded-full px-2 py-0.5 focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:outline-none", sort === v ? "bg-accent-600 font-semibold text-white" : "text-slate-600 hover:text-slate-900")}
+            >
+              {label}
+            </button>
+          ))}
+        </span>
+      )}
+      {sortTagCounts(tags, sort).map(({ tag, count }) => {
         const isOn = on.has(tag.toLowerCase());
         const next = isOn ? picked.filter((t) => t.toLowerCase() !== tag.toLowerCase()) : [...picked, tag];
         return (
@@ -92,6 +125,8 @@ export function TagsRow({ projectId, tags, colors, picked, query, canEdit }: { p
     </div>
   );
 }
+
+const TAG_SORT_KEY = "fp-tag-sort";
 
 function TagMenu({ projectId, tag, x, y, current, onClose }: { projectId: string; tag: string; x: number; y: number; current: string; onClose: () => void }) {
   const router = useRouter();

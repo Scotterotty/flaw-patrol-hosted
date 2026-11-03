@@ -1,4 +1,5 @@
 import "server-only";
+import { sortTags } from "./tags";
 import { Prisma } from "@prisma/client";
 import { NOTE_KINDS, parsePersona, parseSessionLog, type NoteKind, type PersonaInfo, type SessionNote } from "./charter";
 import { db } from "./db";
@@ -93,6 +94,6 @@ export async function findingOptions(projectId: string) {
     db.testCase.findMany({ where: { projectId, type: "EXPLORATORY" }, select: { id: true, number: true, title: true, tags: true }, orderBy: { number: "asc" } }),
     db.persona.findMany({ where: { projectId }, select: { id: true, name: true, emoji: true }, orderBy: { name: "asc" } }),
   ]);
-  return { charters: charters.map((c) => ({ id: c.id, number: c.number, title: c.title })), personas, tags: [...new Set(charters.flatMap((c) => c.tags))].sort((a, b) => a.localeCompare(b)) };
+  return { charters: charters.map((c) => ({ id: c.id, number: c.number, title: c.title })), personas, tags: sortTags(new Set(charters.flatMap((c) => c.tags))) };
 }
 
