@@ -12,12 +12,14 @@ services:
     container_name: flaw-patrol
     restart: unless-stopped
     expose:
-      - "3000"
+      - "6767"
     # No volumes: everything is kept in the database.
     env_file: flaw-patrol.env
     environment:
       - VIRTUAL_HOST=flawpatrol.magnopus.global
-      - VIRTUAL_PORT=3000
+      - VIRTUAL_PORT=6767
+      # The port Flaw Patrol listens on inside the container (IT's pick).
+      - PORT=6767
       # If the proxy gets HTTPS certificates itself (acme-companion), keep this line.
       - LETSENCRYPT_HOST=flawpatrol.magnopus.global
       # The address people open; sign-in and invite links use it.
