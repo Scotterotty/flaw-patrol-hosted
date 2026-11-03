@@ -22,6 +22,28 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 150,
+    date: "2026-11-02",
+    items: [
+      {
+        kind: "better",
+        title: "Section titles in test cases",
+        text: "A step with nothing to check, like SIGN IN / OUT STEPS with no expected result (or a dash or N/A), now shows as a title for the steps below it. It has no result buttons and no number, and it isn't counted as a step. The case editor marks these rows as Section title.",
+      },
+      {
+        kind: "new",
+        title: "Rename a suite",
+        text: "Use ✎ Rename next to a suite's name, Rename suite… in its More menu, or the ⋯ menu in the suites list. Its cases don't change, and old runs show what the suite was called then.",
+      },
+      {
+        kind: "better",
+        title: "Your work stays short",
+        text: "Your work on the Umbrellas page shows your top 3 runs and a total. Show all opens the rest and is remembered. Runs read Run 7 instead of R7, and work in archived test cycles no longer shows.",
+        link: "/",
+      },
+    ],
+  },
+  {
     version: 149,
     date: "2026-11-02",
     items: [

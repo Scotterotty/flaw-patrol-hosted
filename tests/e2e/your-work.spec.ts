@@ -23,7 +23,7 @@ test.beforeAll(async () => {
     const old = await db.project.create({
       data: { key: `WO${TAG}`, name: `${NAME} Old RC`, groupId, members, runSeq: 1, archivedAt: new Date() },
     });
-    const tcs = [];
+    const tcs: Awaited<ReturnType<typeof db.testCase.create>>[] = [];
     for (const n of [1, 2])
       tcs.push(
         await db.testCase.create({
