@@ -172,16 +172,50 @@ prints after "Seeded project SHOP" (or set `SEED_PASSWORD` to choose it).
 This uses `Dockerfile.dev`, which runs the app in development mode (slower,
 detailed error pages). It's for trying Flaw Patrol out, not for hosting.
 
-## Production Docker image
+## Host it on a server (Docker)
 
-`Dockerfile` builds the hosting image: `next build` in one stage, then a small
-final stage that runs the production server as a non-root user. It applies any
-new schema changes each time it starts and loads no demo data.
+One always-on copy that everyone opens in the browser, instead of a copy on
+each laptop. The database (for example Neon) stays where it is.
+
+1. **A server with Docker** that sits behind your company's nginx-proxy.
+2. **Get the code** onto the server.
+3. **Settings:** `cp flaw-patrol.env.example flaw-patrol.env` and fill in
+   `DATABASE_URL` and `AUTH_SECRET` (the same secret as your other copies, so
+   saved Jira tokens keep working). This file stays on the server: it is never
+   built into the image or committed.
+4. **Web address:** in `docker-compose.hosting.yml`, change
+   `flawpatrol.magnopus.global` to the address you picked (3 spots).
+5. **Upload size:** nginx allows 1 MB uploads unless told otherwise. Put
+   `client_max_body_size 210m;` in nginx-proxy's `vhost.d/<your address>` file,
+   or result zips and screen recordings fail. Add it before step 6, or restart
+   nginx-proxy afterwards: it only reads the file when it rebuilds its settings.
+6. **Start it:** `docker compose -f docker-compose.hosting.yml up -d --build`
+   (about 4 minutes the first time). It applies database changes by itself and
+   restarts after a reboot.
+7. **Open the address and sign in.** On an empty database, the first person to
+   sign in becomes the admin.
+
+**Update to a new version:** get the new code, then run the step 6 command again.
+
+**Good to know**
+
+- Run one copy only. Uploaded screenshots wait on the server's disk until you
+  press Save, so two copies side by side would lose them.
+- Database changes always go through Neon's direct address, even when
+  `DATABASE_URL` is the "-pooler" one (`scripts/docker-start.sh`).
+- Docker's health check opens the sign-in page every 30 seconds;
+  `docker ps` shows `healthy` or `unhealthy`.
+- CI uploads: make a token in an umbrella's Settings, then TeamCity or GitHub
+  sends results to `https://<your address>/api/ci/results`.
+
+Without nginx-proxy, `Dockerfile` runs on its own:
 
 ```bash
 docker build -t flaw-patrol .
-docker run -p 3000:3000 -e DATABASE_URL=postgresql://... -e AUTH_SECRET=... -e AUTH_URL=https://your-site flaw-patrol
+docker run -d --restart unless-stopped -p 3000:3000 --env-file flaw-patrol.env -e AUTH_URL=https://your-site flaw-patrol
 ```
+
+Put HTTPS in front of port 3000 and allow 210 MB uploads there too.
 
 ## Develop with Node 22
 

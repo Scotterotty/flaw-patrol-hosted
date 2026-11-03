@@ -2,7 +2,8 @@
 # in a small final stage that runs as a non-root user. Set DATABASE_URL and
 # AUTH_SECRET when running it; schema changes are applied on every start.
 #   docker build -t flaw-patrol .
-#   docker run -p 3000:3000 -e DATABASE_URL=... -e AUTH_SECRET=... -e AUTH_URL=https://... flaw-patrol
+#   docker run -p 3000:3000 --env-file flaw-patrol.env flaw-patrol
+# On a shared server behind nginx-proxy, use docker-compose.hosting.yml instead (README: Host it on a server).
 # No demo data is loaded, so the first person to sign in becomes the admin.
 # For local trials use `docker compose up`, which builds Dockerfile.dev instead.
 
@@ -39,6 +40,12 @@ COPY --from=build /app/node_modules/.prisma/client ./node_modules/.prisma/client
 COPY --from=build /app/prisma/schema.prisma ./prisma/schema.prisma
 COPY --from=build /app/prisma/migrations ./prisma/migrations
 COPY --from=migrator /migrator/node_modules /migrator/node_modules
+COPY scripts/docker-start.sh ./docker-start.sh
 USER flawpatrol
 EXPOSE 3000
-CMD ["sh", "-c", "node /migrator/node_modules/prisma/build/index.js migrate deploy --schema prisma/schema.prisma && exec node server.js"]
+# Docker marks the app unhealthy when the sign-in page stops answering. The first start
+# can take a minute while database changes apply, so checks wait 2 minutes.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
+  CMD ["node", "-e", "fetch('http://127.0.0.1:' + (process.env.PORT || 3000) + '/signin').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+# Applies new database changes (through Neon's direct address), then starts the server.
+CMD ["sh", "./docker-start.sh"]

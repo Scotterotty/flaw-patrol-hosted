@@ -9,3 +9,5 @@ dist
 .e2e-database
 *.zip
 .git
+flaw-patrol.env
+*.env.local

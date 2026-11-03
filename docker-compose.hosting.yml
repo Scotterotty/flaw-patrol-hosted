@@ -1,0 +1,31 @@
+# Flaw Patrol on a shared server behind nginx-proxy (README: Host it on a server).
+#   1. cp flaw-patrol.env.example flaw-patrol.env   and fill it in (stays on the server)
+#   2. Change flawpatrol.magnopus.global below to the address you picked (3 spots)
+#   3. docker compose -f docker-compose.hosting.yml up -d --build
+# nginx-proxy must allow 210 MB uploads for this address: put
+#   client_max_body_size 210m;
+# in its vhost.d/flawpatrol.magnopus.global file BEFORE step 3 (or restart nginx-proxy after).
+services:
+  flaw-patrol:
+    build: .
+    image: flaw-patrol
+    container_name: flaw-patrol
+    restart: unless-stopped
+    expose:
+      - "3000"
+    # No volumes: everything is kept in the database.
+    env_file: flaw-patrol.env
+    environment:
+      - VIRTUAL_HOST=flawpatrol.magnopus.global
+      - VIRTUAL_PORT=3000
+      # If the proxy gets HTTPS certificates itself (acme-companion), keep this line.
+      - LETSENCRYPT_HOST=flawpatrol.magnopus.global
+      # The address people open; sign-in and invite links use it.
+      - AUTH_URL=https://flawpatrol.magnopus.global
+    networks:
+      default:
+
+networks:
+  default:
+    name: nginx-proxy_default
+    external: true
