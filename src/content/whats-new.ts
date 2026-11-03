@@ -22,6 +22,28 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 156,
+    date: "2026-11-03",
+    items: [
+      {
+        kind: "new",
+        title: "Make side panels wider or narrower",
+        text: "Drag the line beside a side panel, like the case list when you run tests or the folders on Test cases. Double-click the line to put it back. Your sizes are kept on this computer.",
+      },
+      {
+        kind: "new",
+        title: "Make big boxes bigger",
+        text: "Boxes like Report a bug have an Expand this box button next to the ✕. Press it again to shrink it.",
+      },
+      {
+        kind: "better",
+        title: "Reset panel sizes",
+        text: "Account → Appearance has Reset panel sizes, which puts every panel back to its normal size.",
+        link: "/account#appearance",
+      },
+    ],
+  },
+  {
     version: 155,
     date: "2026-11-02",
     items: [
