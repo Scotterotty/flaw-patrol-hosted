@@ -22,13 +22,18 @@ export async function readSpreadsheet(projectId: string, form: FormData) {
     }
     const sheet = book.worksheets.find((w) => w.actualRowCount > 0);
     if (!sheet) throw new UserError("That workbook is empty.");
-    const width = sheet.actualColumnCount;
+    // As wide as the last filled column, even when column A is empty (ver_169).
+    const width = Math.max(sheet.actualColumnCount, sheet.columnCount);
     const rows: string[][] = [];
     sheet.eachRow({ includeEmpty: false }, (row) => {
       const cells: string[] = [];
       for (let c = 1; c <= width; c++) cells.push(cellText(row.getCell(c)));
+      // Blank rows stay blank, so row numbers match the spreadsheet.
+      while (rows.length < row.number - 1) rows.push([]);
       rows.push(cells);
     });
-    return { rows, sheetName: sheet.name };
+    let last = 0;
+    for (const r of rows) r.forEach((c, i) => c.trim() && (last = Math.max(last, i + 1)));
+    return { rows: rows.map((r) => r.slice(0, last)), sheetName: sheet.name };
   });
 }

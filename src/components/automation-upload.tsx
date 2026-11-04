@@ -110,9 +110,22 @@ export function UploadAutomationButton({ scope }: { scope: { groupId: string } |
  */
 export type ImportCycle = { key: string; name: string; current: boolean };
 
-export function BringInResults({ scope, importHref, importCycles, auto = true }: { scope: { groupId: string } | { projectKey: string }; importHref?: string; importCycles?: ImportCycle[]; auto?: boolean }) {
+export function BringInResults({
+  scope,
+  importHref,
+  importCycles,
+  auto = true,
+  openSheet = false,
+}: {
+  scope: { groupId: string } | { projectKey: string };
+  importHref?: string;
+  importCycles?: ImportCycle[];
+  auto?: boolean;
+  /** Opened from the case importer's "Bring them into a run": start on the test cycle picker (ver_169). */
+  openSheet?: boolean;
+}) {
   const [open, setOpen] = useState(false);
-  const [picking, setPicking] = useState(false);
+  const [picking, setPicking] = useState(openSheet && !importHref && !!importCycles?.length);
   const sheet = !!importHref || !!importCycles?.length;
   if (!auto && !sheet) return null;
   return (
@@ -156,7 +169,7 @@ export function BringInResults({ scope, importHref, importCycles, auto = true }:
       </Modal>
       {importCycles && (
         <Modal open={picking} onClose={() => setPicking(false)} title="Results from a spreadsheet">
-          <PickImportCycle cycles={importCycles} onClose={() => setPicking(false)} />
+          <PickImportCycle cycles={importCycles} onClose={() => setPicking(false)} handoff={openSheet} />
         </Modal>
       )}
     </>
@@ -167,7 +180,7 @@ export function BringInResults({ scope, importHref, importCycles, auto = true }:
  * In an umbrella, a spreadsheet's results go into one test cycle (ver_166): pick it first,
  * current ones at the top, then the import page asks where in that cycle they go.
  */
-function PickImportCycle({ cycles, onClose }: { cycles: ImportCycle[]; onClose: () => void }) {
+function PickImportCycle({ cycles, onClose, handoff = false }: { cycles: ImportCycle[]; onClose: () => void; handoff?: boolean }) {
   const router = useRouter();
   const [key, setKey] = useState(cycles[0]?.key ?? "");
   const [pending, start] = useTransition();
@@ -183,7 +196,7 @@ function PickImportCycle({ cycles, onClose }: { cycles: ImportCycle[]; onClose: 
       className="grid gap-3"
       onSubmit={(e) => {
         e.preventDefault();
-        if (key) start(() => router.push(`/p/${key}/runs/import`));
+        if (key) start(() => router.push(`/p/${key}/runs/import${handoff ? "?sheet=handoff" : ""}`));
       }}
     >
       <Field label="Which test cycle is this run for?" htmlFor="sheet-cycle">

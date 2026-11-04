@@ -1,0 +1,164 @@
+,,,,,,,,
+,,,,,,,,
+,Run Status:,Not Started,,,,,,
+,,,,,,,,
+,Date:,,,,,,,
+,Tester:,,,,,,,
+,Release:,,,,,,,
+,Environment:,,,,,,,
+,Web Version:,,Product Release Workbook,,,,,
+,UEEE Version:,,,,,,,
+,Unity iOS App Version:,,,,,,,
+,CSP:,,,,,,,
+,CHS:,,,,,,,
+,Chrome Browser Version:,,,,,,,
+,,,,,,,,
+,Frida Demo Space:,Frida Demo Space,,,,,,
+,Queen Mary Space:,Queen Mary Space,,,,,,
+,Pilot Space:,Pilot Space,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,Frida Demo Space,,,,,,,
+,Category,Test Case,Result,Bug Ticket,Summary (note if new or existing bug),Repro in 2nd Space,Repro in different back-end environment,Repro in Dev/RC
+,Screen Record,Ensure at least one user on each client is screen recording throughout the DDR.,,,,,,
+,UEEE New Project,"On Unreal, create a new project, then import the plugin.
+
+https://ogs.magnopus-qa.cloud
+https://ogs.magnopus-stg.cloud
+https://ogs.magnopus.cloud
+https://ogs.magnopus-dev.cloud
+",Select,,,Select,,
+,Log in,"User is able to login to all clients on the appropriate environment:
+
+- Web
+- Unreal
+- Unity iOS
+- Web (Remote user)
+",Select,,,Select,,
+,Enter space,User is able to enter the Frida Mag Office Demo space on all clients.,Select,,,Select,,
+,Anchor,"Unity iOS - Ensure that the user is able to view the space in AR, and resolve the anchor successfully.",Select,,,Select,,
+,Avatar,"Viewer Avatar - Custom
+User is able to upload and select a custom avatar on the Web.",Select,,,Select,,
+,Avatar,"Viewer Avatar - Custom
+Users appear as their uploaded custom avatar across all platforms.",Select,,,Select,,
+,Avatar,"Viewer Avatar - Generic
+Users appear as their selected generic avatar across all platforms.",Select,,,Select,,
+,Avatar,"Creator Avatar - Camera
+- Web and Unreal creators appear as 3D camera models across all platforms.
+- Unity iOS creators appear as mobile device (iPad) model across all platforms.
+",Select,,,Select,,
+,Site Model,"- Mag Office US site model is visible on Web & Unreal.
+- No visual artifacts, and no obvious shadow/color mismatches.
+- Lighting between Web and Unreal matches as closely as possible.",Select,,,Select,,
+,Interop,"Existing Assets
+All existing 3D and 2D assets in the space are visible across all clients and look great (paintings, pedestals, carpets, anim dinosaur, Frida video, etc)",Select,,,Select,,
+,Interop,"Existing Assets
+Web - Move, scale and rotate an existing asset in the space, ensure the same translation occurs across all other clients.",Select,,,Select,,
+,Interop,"Existing Assets
+Unreal - Move, scale and rotate an existing asset in the space, ensure the same translation occurs across all other clients.",Select,,,Select,,
+,Interop,"New Assets - Library
+Web - Add an asset from the library into the 3D view, then:
+- Ensure the asset appears across all clients.
+- Move, Scale & Rotate it, ensure translation across all clients.
+- Delete the 3D asset from the space, ensure it deletes across all clients.",Select,,,Select,,
+,Interop,"New Assets - Library
+Unreal - Add an asset from the library into the 3D view, then:
+- Ensure the asset converts to an OKO object and appears across all clients.
+- Move, Scale & Rotate it, ensure translation across all clients.
+- Delete the 3D asset from the space, ensure it deletes across all clients.",Select,,,Select,,
+,Interop,"New Assets - Sketchfab
+Web - Add an asset from Sketchfab into the 3D view, then:
+- Ensure the asset appears across all clients.
+- Move, Scale & Rotate it, ensure translation across all clients.
+- Delete the 3D asset from the space, ensure it deletes across all clients.",Select,,,Select,,
+,Interop,"Gaussian Splat
+Validate a Gaussian Splat asset (Dern the Dino) is visible across all clients, and looks as expected.",Select,,,Select,,
+,Interop,"AR Validation
+View the Yoga Perfomers in AR with the Unity iOS client, then: 
+- Ensure the holocap assets can be viewed in AR.
+- Ensure there is no representation of those assets on Web or Unreal.",,,HOLOCAP NO LONGER SUPPORTED and have been REMOVED FROM THE SPACE,,,
+,Interop,"Text Component
+Web - Add a Text Component to the space, then:
+- Type a message long enough to cause text wrap in the text box.
+- Validate text component and text within are displayed properly across all clients. ",Select,,,Select,,
+,Interop,"Web - Custom Materials 
+- Create a custom PBR material
+- Add a cube into the space
+- Add the custom material to the cube
+- Ensure the material displays properly on the cube across all platforms.
+- Delete the custom material, ensure that translates across all platforms.",Select,,,Select,,
+,Interop,"Unreal - Custom Materials 
+- Create an Alpha Video Material
+- Add a cube into the space
+- Add the custom material to the cube
+- Ensure the material displays properly on the cube across all platforms.
+- Delete the custom material, ensure that translates across all platforms.",Select,,,Select,,
+,Scripting,"Web, Unreal, & iOS (physically w/ the iPad) - move close to the Frida paintings in the atrium. Ensure the light, description panel, and video appear and disappear properly across all clients.",Select,,,Select,,
+,Scripting,"Web - open a script from an entity that has one, and ensure the lines of script display properly.",Select,,,Select,,
+,Map,Web - Press “M” to change to map mode. Click the Assets icon on the left panel to view the assets.,Select,,,Select,,
+,Map,"Web - Validate other users' avatars and camera icons are visible, and they move and position correctly on the map view in real time.",Select,,,Select,,
+,Map,"Web - Switch to tile mode, and ensure the google map shows up beneath the space. ",Select,,,Select,,
+,3D Tiles,"Web - Toggle on 3D tiles, ensure they show up.",Select,,,,,
+,Collaboration,User List - All users in space are visible on the user list panel with their correct user names across all clients.,Select,,,Select,,
+,Collaboration,"Voice - Turn on the microphones of two Web users, and ensure they can hear each other within the space.",Select,,,Select,,
+,Collaboration,"Video - Turn on the video of two Web users, and ensure they can communicate with other users through a webcam.",Select,,,Select,,
+,Collaboration,"Chat - Type messages in the chat box on Web, and ensure they display on the other users’ chat.",Select,,,Select,,
+,Collaboration,"Comment - Select an asset in the space, then:
+- Create a new Comment
+- Create an Annotation w/ image and red markup
+- Ensure other clients can select the comment from the left panel, teleport to it, and view the text and annotation.",Select,,,Select,,
+,"eCommerce
+(Web and iOS)","All components are visible
+While in viewer mode, select the Shopping Cart Icon on top of the T-Rex product display. Validate that the properties panel now shows the following:
+- Shopping bag icon is present on the Right menu bar. 
+- Name of the Category:  
+- Name of the product:  T-Rex Crocheted Plushie
+- Price $52.00
+- Image of Plushie
+- Description
+- Size shown: Large
+- Drop down menu : w 2 options. Medium, Large
+- Add to bag button",Select,,,Select,,
+,"eCommerce
+(Web and iOS)","User is able to add items to shopping cart. 
+Select the drop down menu and then pick a M or a L variant. 
+Click 'Add To Bag' and validate the following:  
+- A notification pops up at the bottom of the screen:  ""Item added to bag. There is 1 item in your bag"". Click X to dismiss the notification.  
+- There is a red icon showing 1 item in the shopping bag icon on the Right menu bar.
+Then click 'Add to Bag' again and validate that:
+- A 2nd notification pops up at the bottom of the screen:  ""Item added to bag. There are 2 items in your bag"". Click X to dismiss the notification.  
+- There is a red icon showing 2 items in the shopping bag icon on the Right menu bar.",Select,,,Select,,
+,"eCommerce
+(Web and iOS)","User is able to simulate purchasing an item 
+- Select the Shopping Cart Icon on the Right menu bar.
+- Validate that the Right side panel expands to display the shopping cart.
+- Validate that it shows the correct order summary, and the total price is correct for the amount of items in the cart.
+- Select 'Checkout' and ensure a new browser tab opens and directs the user to Shopify. ",Select,,,Select,,
+,UEEE: eCommerce,"Product ID:
+Validate that the properties panel now shows the following - 
+- Product ID.
+- Product Thumbnail.
+- Product Price & Description.",Select,,,Select,,
+,Performance,"Ensure there are no performance drops when performing the dry run. If any drops were observed, record a profile using the Performance tab of the Chrome Development Tools, add to a bug ticket, and also upload the file here:
+Demo Dry Run Performance Data",Select,,,Select,,
+,Performance,"Chrome Development Tools - Press F12 and go to the Performance tab. Before hitting record, go to the ""Check Your Settings"" page. Hit record, then enter the space and move to the Office Atrium. Stop recording after 60 seconds and save the profile.",Select,,,Select,,
+,Performance,"Soak test - all clients must still work properly, be performant, and not require refreshing after a soak period of ≥30 mins. All clients must be in the atrium of Frida Demo - MagOffice and observing assets for the duration of the soak test.",Select,,,Select,,
+,Queen Mary Space,,,,,,,
+,Gaussian Splat Model,Validate Gaussian Splat model of Queen Mary is visible on Web and Web Remote.,Select,,,Select,,
+,Camera Tools,Web - user is able to add a cinematic camera to space and validate by accessing Cine Camera Mode.,Select,,,Select,,
+,Camera Tools,"In Cine Camera Mode, user can change the following features and they reflect in the viewport. Features include: Selected Cine Camera, Aspect Ratio, Sensor Size, and Focal Length. ",Select,,,Select,,
+,Camera Tools,"In Camera Mode, user is able to take a screenshot that saves locally to their computer.",Select,,,Select,,
+,Gaussian Splat Model,"After taking a screenshot in Cine Camera Mode, user is able to see Gaussian Splat rendered in screenshot. ",Select,,,Select,,
+,Interop,"All 3D and 2D assets already placed in the space are visible across all clients (Web and Web Remote) and look good. 
+(Nodey-generated bartender, hero character, bar patrons)",Select,,,Select,,
+,Hotspot,Web - user is able to add a hotspot to the space that is visible on Web and Web Remote.,Select,,,Select,,
+,Hotspot,Web - users are able to transport to different hotspot locations using the hotspot menu on Web and Web Remote.,Select,,,Select,,
+,Pilot Space,,,,,,,
+,Camera Tools,"On the Web, user is able to add a cinematic camera to space and validate by accessing Cine Camera Mode.",Select,,,Select,,
+,Camera Tools,"In Cine Camera Mode, user can change the following features and they reflect in the viewport. Features include: Selected Cine Camera, Aspect Ratio,Sensor Size, and Focal Length. ",Select,,,Select,,
+,Camera Tools,"In Camera Mode, user is able to take a screenshot that saves locally to their computer.",Select,,,Select,,
+,Interop,"All 3D and 2D assets already placed in the space are visible across all clients and look good. 
+(Hangar, Dog, Pilot, Ground Plane, Skybox)",Select,,,Select,,
+,Hotspot,Web - user is able to add a hotspot to the space that is visible on Web and Web Remote.,Select,,,Select,,
+,Hotspot,Web - users are able to transport to different hotspot locations using the hotspot menu on Web and Web Remote.,Select,,,Select,,

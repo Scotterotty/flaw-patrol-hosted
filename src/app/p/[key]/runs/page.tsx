@@ -23,16 +23,18 @@ import { hubGroupId } from "@/lib/umbrella";
 
 export const metadata = { title: "Test runs" };
 
-export default async function RunsPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ state?: string }> }) {
+export default async function RunsPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ state?: string; sheet?: string }> }) {
   const spelling = await mySpelling();
   const { key } = await params;
-  const view = (await searchParams).state;
+  const sp = await searchParams;
+  const view = sp.state;
   const closed = view === "closed";
   const automated = view === "automated";
   const { project, user, who } = await projectAccess(key);
   // An umbrella's hub shows its runs and bugs on the umbrella's own pages.
   const umbrellaId = await hubGroupId(project.id);
-  if (umbrellaId) redirect(`/g/${umbrellaId}/runs`);
+  // ?sheet=handoff (from the case importer) opens "Results from a spreadsheet" there.
+  if (umbrellaId) redirect(`/g/${umbrellaId}/runs${sp.sheet === "handoff" ? "?sheet=handoff" : ""}`);
   const [runs, activeCount, closedCount] = await Promise.all([
     db.testRun.findMany({
       where: { projectId: project.id, ...(automated ? { automated: true } : { state: closed ? "COMPLETED" : "ACTIVE", automated: false }) },

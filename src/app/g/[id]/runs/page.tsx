@@ -17,7 +17,7 @@ import { Runs } from "../lists";
 export const metadata = { title: "Test runs" };
 
 /** Every run across the umbrella's projects, or just the cases waiting for you. */
-export default async function UmbrellaRunsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ state?: string; project?: string; mine?: string; kind?: string }> }) {
+export default async function UmbrellaRunsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ state?: string; project?: string; mine?: string; kind?: string; sheet?: string }> }) {
   const { id } = await params;
   const sp = await searchParams;
   const user = await requireUser();
@@ -86,7 +86,7 @@ export default async function UmbrellaRunsPage({ params, searchParams }: { param
         actions={
           !u.group.archivedAt && (
             <>
-              {canUpload && <BringInResults scope={{ groupId: u.group.id }} importCycles={sheetCycles} />}
+              {canUpload && <BringInResults scope={{ groupId: u.group.id }} importCycles={sheetCycles} openSheet={sp.sheet === "handoff"} />}
               {can(u.who, "run:create") && <StartBashButton projectId={u.hub.id} hideButton />}
               {can(u.who, "run:create") && <StartRunBox scope={{ groupId: u.group.id }} />}
             </>

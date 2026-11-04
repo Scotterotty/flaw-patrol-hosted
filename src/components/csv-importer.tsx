@@ -5,6 +5,13 @@ import Papa from "papaparse";
 import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import {
   detectSource,
+  findHeaderRow,
+  multiLineTitles,
+  perRunColumns,
+  rowLabel,
+  runSheetRows,
+  sheetResultCount,
+  SHEET_HANDOFF,
   FIELD_LABEL,
   folderPreview,
   spacedSlashNames,
@@ -68,6 +75,11 @@ export function CsvImporter({
   const [keepWhole, setKeepWhole] = useState<string[]>([]);
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState<string[][] | null>(null);
+  // The row with the column names (0 = row 1), and the one we found by ourselves (ver_169).
+  const [headerRow, setHeaderRow] = useState(0);
+  const [foundRow, setFoundRow] = useState(0);
+  // A title with several lines: first line is the title, the rest goes to Expected. Picked for you.
+  const [firstLineTitle, setFirstLineTitle] = useState(true);
   const [mapping, setMapping] = useState<ColumnMapping>({});
   const [source, setSource] = useState<ImportSource>("other");
   const [folderId, setFolderId] = useState(startFolder ?? "");
@@ -78,14 +90,25 @@ export function CsvImporter({
   // "Keep one more line in the step" in the preview: lines each step keeps, by "caseRow:stepIndex".
   const [keepLines, setKeepLines] = useState<Record<string, number>>({});
   const [openRow, setOpenRow] = useState<number | null>(null);
-  const [done, setDone] = useState<{ cases: number; shared: number; folderId: string | null; place: ImportPlace } | null>(null);
+  const [done, setDone] = useState<{ cases: number; shared: number; folderId: string | null; place: ImportPlace; results: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [pending, start] = useTransition();
 
-  const header = rows?.[0] ?? [];
+  const header = rows?.[headerRow] ?? [];
   const result = useMemo(
-    () => (rows ? rowsToCases(rows, mapping, source, { restoreBreaks, keepWhole, moveExpected, keepLines }) : null),
-    [rows, mapping, source, restoreBreaks, keepWhole, moveExpected, keepLines],
+    () => (rows ? rowsToCases(rows, mapping, source, { restoreBreaks, keepWhole, moveExpected, keepLines, headerRow, firstLineTitle }) : null),
+    [rows, mapping, source, restoreBreaks, keepWhole, moveExpected, keepLines, headerRow, firstLineTitle],
+  );
+  // Column names below row 1 make it a checklist sheet: section rows and multi-line titles (ver_169).
+  const sheetMode = headerRow > 0;
+  const longTitles = useMemo(() => (rows && sheetMode ? multiLineTitles(rows, mapping, headerRow) : 0), [rows, mapping, headerRow, sheetMode]);
+  const titleSplit = sheetMode && firstLineTitle && longTitles > 0;
+  const runColumns = perRunColumns(header, mapping);
+  const sheetResults = useMemo(() => (rows ? sheetResultCount(rows, headerRow) : 0), [rows, headerRow]);
+  // Rows offered in "Use a different row": the first 50 that aren't blank.
+  const rowChoices = useMemo(
+    () => (rows ?? []).slice(0, 50).flatMap((r, i) => (r.some((c) => (c ?? "").trim()) ? [{ i, label: `Row ${i + 1}: ${rowLabel(r)}` }] : [])),
+    [rows],
   );
   // Rows that will show as section titles once imported, said in the preview before importing.
   const titleCount = useMemo(() => (result ? result.cases.reduce((n, c) => n + numberedSteps(c, result.shared).filter((s) => s.title).length, 0) : 0), [result]);
@@ -93,14 +116,14 @@ export function CsvImporter({
   // and how many lines each step had, for the preview's keep-a-line buttons.
   const packed = useMemo(() => {
     if (!rows || !stepPerRow(source)) return { steps: 0, cases: 0, lines: new Map<string, number>() };
-    const cases = rowsToCases(rows, mapping, source, { restoreBreaks, keepWhole }).cases;
+    const cases = rowsToCases(rows, mapping, source, { restoreBreaks, keepWhole, headerRow, firstLineTitle }).cases;
     const lines = new Map<string, number>();
     for (const c of cases) c.steps.forEach((s, k) => lines.set(`${c.row}:${k}`, stepLines(s.action).length));
     return { ...packedSteps(cases), lines };
-  }, [rows, mapping, source, restoreBreaks, keepWhole]);
+  }, [rows, mapping, source, restoreBreaks, keepWhole, headerRow, firstLineTitle]);
   const keepMore = (key: string, by: number) => setKeepLines((m) => ({ ...m, [key]: Math.max(1, (m[key] ?? 1) + by) }));
-  const slashNames = useMemo(() => (rows ? spacedSlashNames(rows, mapping) : []), [rows, mapping]);
-  const hasFolders = mapping.folder !== undefined && !!result?.cases.some((c) => c.folderPath.length);
+  const slashNames = useMemo(() => (rows ? spacedSlashNames(rows, mapping, headerRow) : []), [rows, mapping, headerRow]);
+  const hasFolders = (mapping.folder !== undefined || !!result?.sections.length) && !!result?.cases.some((c) => c.folderPath.length);
   const mode: "file" | "one" | "none" = folderMode === "none" ? "none" : hasFolders && folderMode !== "one" ? "file" : "one";
   const oneMode = mode === "one";
   const rootLabel = place.kind === "library" ? `${place.label.replace(/ case library$/i, "")} Case library` : place.label;
@@ -176,17 +199,29 @@ export function CsvImporter({
     setRestoreBreaks(next === "qtest");
   };
 
-  const accept = (name: string, data: string[][]) => {
-    if (data.length < 2) return setError("That file has no rows under the header.");
-    data[0][0] = (data[0][0] ?? "").replace(/^﻿/, "");
-    setFileName(name);
-    setRows(data);
+  // Read the sheet with a different row as its column names.
+  const pickHeaderRow = (data: string[][], h: number) => {
+    setHeaderRow(h);
     setKeepLines({});
     setKeepWhole([]);
+    chooseSource(detectSource(data[h] ?? []), data[h] ?? []);
+  };
+
+  const accept = (name: string, raw: string[][]) => {
+    // Blank rows are kept so row numbers match the spreadsheet; trailing ones are dropped.
+    const data = [...raw];
+    while (data.length && data[data.length - 1].every((c) => !(c ?? "").trim())) data.pop();
+    if (data.filter((r) => r.some((c) => (c ?? "").trim())).length < 2) return setError("That file has no rows under the header.");
+    data[0][0] = (data[0][0] ?? "").replace(/^﻿/, "");
+    const h = findHeaderRow(data);
+    setFileName(name);
+    setRows(data);
+    setFoundRow(h);
+    setFirstLineTitle(true);
     // A test cycle of its own gets a folder named after the file. The Case library is
     // used by every release, so its folder is named after what the cases test instead.
     if (place.kind !== "library") setNewFolderName((n) => n || name.replace(/\.[^.]+$/, "").replace(/[/>\\]/g, "-").slice(0, 100));
-    chooseSource(detectSource(data[0]), data[0]);
+    pickHeaderRow(data, h);
   };
 
   const load = (file: File) => {
@@ -207,7 +242,7 @@ export function CsvImporter({
       return;
     }
     Papa.parse<string[]>(file, {
-      skipEmptyLines: "greedy",
+      skipEmptyLines: false,
       complete: (res) => accept(file.name, res.data.map((r) => r.map((c) => String(c ?? "")))),
       error: (e) => setError(`Couldn't read the file: ${e.message}`),
     });
@@ -224,7 +259,7 @@ export function CsvImporter({
       const area = { words: areaWords, skip: areaOn ? areaNew.filter((w) => areaOff.includes(w.word)).map((w) => w.word) : [] };
       const res = await importCases(place.id, target, cases, fileName, result.shared, newName, area, runBefore);
       if (!res.ok) return setError(res.error);
-      setDone({ cases: res.created, shared: res.shared, folderId: res.folderId, place });
+      setDone({ cases: res.created, shared: res.shared, folderId: res.folderId, place, results: sheetResults });
     });
 
   if (done !== null) {
@@ -250,6 +285,18 @@ export function CsvImporter({
             View cases
           </Link>
         </div>
+        {done.results > 0 && rows && (
+          <p className="mt-4 text-sm text-slate-700" data-testid="sheet-results-link">
+            This sheet has {count(done.results, "result")} too.{" "}
+            <Link
+              href={done.place.kind === "library" ? `/p/${done.place.key}/runs?sheet=handoff` : `/p/${done.place.key}/runs/import?sheet=handoff`}
+              onClick={() => handOffSheet(fileName, runSheetRows(rows, mapping, { headerRow, firstLineTitle }))}
+              className="font-medium text-accent-700 underline"
+            >
+              Bring them into a run →
+            </Link>
+          </p>
+        )}
       </Card>
     );
   }
@@ -283,6 +330,62 @@ export function CsvImporter({
 
       {rows && result && (
         <>
+          {foundRow > 0 && (
+            <div role="status" className="rounded-lg border border-sky-300 bg-sky-50 px-4 py-3 text-sm text-sky-900" data-testid="header-row-found">
+              <p className="font-semibold">
+                {headerRow === foundRow ? `We found your column names on row ${headerRow + 1}` : `Column names from row ${headerRow + 1}`}
+              </p>
+              <p className="mt-0.5 text-xs text-sky-800">
+                {headerRow > 0 ? `The rows above it${aboveExamples(rows, headerRow)} are skipped.` : "Every row under it is read as a case."}
+              </p>
+              <label className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                <span className="font-medium">Use a different row</span>
+                <Select aria-label="Use a different row" className="h-8 w-auto max-w-full text-xs" value={headerRow} onChange={(e) => pickHeaderRow(rows, Number(e.target.value))}>
+                  {rowChoices.map((r) => (
+                    <option key={r.i} value={r.i}>
+                      {r.label}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            </div>
+          )}
+
+          {longTitles > 0 && mapping.title !== undefined && (
+            <Card className="p-5" data-testid="long-titles">
+              <h2 className="mb-1 text-sm font-semibold text-slate-800">Some titles have more than one line</h2>
+              <p className="mb-3 text-xs text-slate-500">
+                {count(longTitles, "title")} in the {header[mapping.title] || "Title"} column {longTitles === 1 ? "has" : "have"} more lines under the first. Already picked for you. You don&apos;t have to answer this to import.
+              </p>
+              <div className="space-y-2" role="radiogroup" aria-label="What to do with titles that have more than one line">
+                <Choice checked={firstLineTitle} onSelect={() => setFirstLineTitle(true)} name="first-line-title">
+                  <span className="font-medium text-slate-900">Use the first line as the title; the rest goes to Expected</span>
+                  <span className="ml-2 rounded-full bg-accent-100 px-2 py-0.5 text-[11px] font-medium text-accent-700">Recommended</span>
+                </Choice>
+                <Choice checked={!firstLineTitle} onSelect={() => setFirstLineTitle(false)} name="first-line-title">
+                  <span className="font-medium text-slate-900">Keep the whole text as the title</span>
+                </Choice>
+              </div>
+            </Card>
+          )}
+
+          {result.sections.length > 0 && (
+            <Card className="p-5" data-testid="section-rows">
+              <h2 className="mb-1 text-sm font-semibold text-slate-800">
+                {result.sections.length === 1 ? "1 row looks like a section name" : `${result.sections.length} rows look like section names`}
+              </h2>
+              <p className="mb-2 text-xs text-slate-500">They have only one filled cell, so they become top folders for the cases under them.</p>
+              <ul className="space-y-0.5 text-sm text-slate-700">
+                {sectionSummary(result.sections, tree).map((s) => (
+                  <li key={s.name}>
+                    <span aria-hidden>📁</span> <span className="font-medium">{s.name}</span>
+                    {s.children && <span className="text-slate-500"> › {s.children}</span>} <span className="text-xs text-slate-500">({count(s.cases, "case")})</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
           <Card className="p-5">
             <Field label="Where is this file from?" htmlFor="import-source" hint="Matches that tool's columns, folders and formatting exactly. We picked it from the column names.">
               <Select
@@ -523,7 +626,9 @@ export function CsvImporter({
                     value={mapping[f] ?? ""}
                     onChange={(e) => setMapping((m) => ({ ...m, [f]: e.target.value === "" ? undefined : Number(e.target.value) }))}
                   >
-                    <option value="">(Not imported)</option>
+                    <option value="">
+                      {f === "expected" && titleSplit && mapping.title !== undefined ? `${header[mapping.title] || "Title"} (lines under the first)` : "(Not imported)"}
+                    </option>
                     {header.map((h, i) => (
                       <option key={i} value={i}>
                         {h || `Column ${i + 1}`}
@@ -533,6 +638,12 @@ export function CsvImporter({
                 </Field>
               ))}
             </div>
+            {runColumns.length > 0 && (
+              <p className="mt-4 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600" data-testid="per-run-columns">
+                {listNames(runColumns.map((i) => header[i]))} {runColumns.length === 1 ? "is" : "are"} left out. {runColumns.length === 1 ? "It's" : "They're"} filled in during a run.
+                {sheetResults > 0 && ` This sheet has ${count(sheetResults, "result")} too: after you import, you can bring them into a run with one click.`}
+              </p>
+            )}
           </Card>
 
           <Card className="overflow-hidden">
@@ -833,4 +944,42 @@ function FolderPreviewRows({ nodes, depth }: { nodes: FolderPreview[]; depth: nu
       ))}
     </>
   );
+}
+
+/** " like Run Status, Date and Tester": the first cells of a few rows above the column names. */
+function aboveExamples(rows: string[][], headerRow: number): string {
+  const names = rows
+    .slice(0, headerRow)
+    .map((r) => (r.find((c) => (c ?? "").trim()) ?? "").trim().replace(/:$/, ""))
+    .filter(Boolean)
+    .slice(0, 3);
+  return names.length ? ` (like ${listNames(names)})` : "";
+}
+
+/** "A", "A and B", "A, B and C". */
+function listNames(names: string[]): string {
+  return names.length < 2 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
+
+/** Each section's folder, the first few folders inside it and how many cases it holds. */
+function sectionSummary(sections: { name: string }[], tree: FolderPreview[]) {
+  const total = (n: FolderPreview): number => n.count + n.children.reduce((s, c) => s + total(c), 0);
+  const seen = new Set<string>();
+  return sections.flatMap((s) => {
+    const key = s.name.toLowerCase();
+    if (seen.has(key)) return [];
+    seen.add(key);
+    const node = tree.find((n) => n.name.toLowerCase() === key);
+    const kids = node?.children.map((c) => c.name) ?? [];
+    return [{ name: s.name, cases: node ? total(node) : 0, children: kids.length ? kids.slice(0, 3).join(", ") + (kids.length > 3 ? " …" : "") : "" }];
+  });
+}
+
+/** Hands the sheet to "Results from a spreadsheet" in this tab, so nobody has to pick the file again. */
+function handOffSheet(fileName: string, rows: string[][]) {
+  try {
+    sessionStorage.setItem(SHEET_HANDOFF, JSON.stringify({ fileName, rows, at: Date.now() }));
+  } catch {
+    // Too big or storage blocked: the import page still opens, and the file can be picked there.
+  }
 }

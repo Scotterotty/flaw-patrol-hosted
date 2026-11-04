@@ -9,7 +9,7 @@ import { NOT_BASH_RUN } from "@/lib/bash-cases";
 
 export const metadata = { title: "Import a run" };
 
-export default async function ImportRunPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ run?: string }> }) {
+export default async function ImportRunPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ run?: string; sheet?: string }> }) {
   const { project, who } = await projectAccess((await params).key);
   if (!can(who, "run:import")) notFound();
   const sp = await searchParams;
@@ -27,7 +27,7 @@ export default async function ImportRunPage({ params, searchParams }: { params: 
     // Same width as Test runs, and only the top bar's breadcrumb (ver_54 audit #5, #6).
     <div className="mx-auto max-w-6xl">
       <PageHeader title="Import a run" subtitle={`Bring in results tracked in a spreadsheet for ${project.name}: step results, case results and testers. Add them to a run in progress, or make a new run.`} />
-      <RunImporter projectId={project.id} projectKey={project.key} suites={suites} runs={runs} pickRun={sp.run} />
+      <RunImporter projectId={project.id} projectKey={project.key} suites={suites} runs={runs} pickRun={sp.run} handoff={sp.sheet === "handoff"} />
     </div>
   );
 }

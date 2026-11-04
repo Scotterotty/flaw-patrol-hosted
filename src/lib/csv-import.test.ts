@@ -353,3 +353,84 @@ describe("steps with their expected results inside them (ver_135)", () => {
     ]);
   });
 });
+
+// ver_169: Scott's "Demo Dry Run Checklist" has run info on top, the column names on row 23,
+// section rows ("Queen Mary Space") and multi-line titles.
+import { readFileSync } from "node:fs";
+import Papa from "papaparse";
+import { findHeaderRow, multiLineTitles, perRunColumns, runSheetRows, sheetResultCount, splitTitle } from "./csv-import";
+
+const ddr = () =>
+  Papa.parse<string[]>(readFileSync(new URL("../../tests/e2e/fixtures/demo-dry-run-checklist.csv", import.meta.url), "utf8"), { skipEmptyLines: false }).data.filter(
+    (r, i, all) => i < all.length - 1 || r.some((c) => c.trim()),
+  );
+
+describe("header row below row 1", () => {
+  it("finds the column names on row 23 and reads sections as top folders", () => {
+    const rows = ddr();
+    const h = findHeaderRow(rows);
+    expect(h + 1).toBe(23);
+    const mapping = guessMapping(rows[h], detectSource(rows[h]));
+    expect(rows[h][mapping.title!]).toBe("Test Case");
+    expect(rows[h][mapping.folder!]).toBe("Category");
+    expect(mapping.expected).toBeUndefined();
+    expect(perRunColumns(rows[h], mapping).map((i) => rows[h][i])).toEqual([
+      "Result",
+      "Bug Ticket",
+      "Summary (note if new or existing bug)",
+      "Repro in 2nd Space",
+      "Repro in different back-end environment",
+      "Repro in Dev/RC",
+    ]);
+    expect(multiLineTitles(rows, mapping, h)).toBeGreaterThan(10);
+
+    const res = rowsToCases(rows, mapping, "other", { headerRow: h, firstLineTitle: true });
+    expect(res.cases).toHaveLength(53);
+    expect(res.sections.map((s) => s.name)).toEqual(["Frida Demo Space", "Queen Mary Space", "Pilot Space"]);
+    expect(res.warnings).toEqual([]);
+    expect(new Set(res.cases.map((c) => c.folderPath[0]))).toEqual(new Set(["Frida Demo Space", "Queen Mary Space", "Pilot Space"]));
+    const avatar = res.cases.find((c) => c.title === "Viewer Avatar - Custom")!;
+    expect(avatar.folderPath).toEqual(["Frida Demo Space", "Avatar"]);
+    expect(avatar.row).toBeGreaterThan(23);
+    expect(avatar.steps).toEqual([{ action: "", expected: "User is able to upload and select a custom avatar on the Web." }]);
+    // A one-line title stays whole, with no steps.
+    const enter = res.cases.find((c) => c.title.startsWith("User is able to enter the Frida"))!;
+    expect(enter.steps).toEqual([]);
+
+    // Keeping whole titles puts every line in the title, as before.
+    const whole = rowsToCases(rows, mapping, "other", { headerRow: h, firstLineTitle: false });
+    expect(whole.cases.find((c) => c.row === avatar.row)!.title).toContain("\n");
+
+    // No real results: "Select" and blanks don't count.
+    expect(sheetResultCount(rows, h)).toBe(0);
+    const filled = rows.map((r, i) => (i === avatar.row - 1 ? r.map((c, j) => (j === 3 ? "Pass" : c)) : r));
+    expect(sheetResultCount(filled, h)).toBe(1);
+    const handed = runSheetRows(filled, mapping, { headerRow: h, firstLineTitle: true });
+    expect(handed[0][3]).toBe("Case result");
+    expect(handed).toHaveLength(54);
+    expect(handed.some((r) => r[mapping.title!] === "Viewer Avatar - Custom" && r[3] === "Pass")).toBe(true);
+  });
+
+  it("leaves files with column names on row 1 as they were", () => {
+    const rows = [
+      ["Title", "Steps", "Expected"],
+      ["Log in\nwith SSO", "Open app", "Signed in"],
+      ["", "Click", "Done"],
+    ];
+    expect(findHeaderRow(rows)).toBe(0);
+    const res = rowsToCases(rows, guessMapping(rows[0]), "other", { headerRow: 0, firstLineTitle: true });
+    expect(res.cases.map((c) => c.title)).toEqual(["Log in\nwith SSO"]);
+    expect(res.cases[0].steps).toHaveLength(2);
+    expect(res.sections).toEqual([]);
+  });
+
+  it("passes over blank rows above row-1-style column names, and stays on the first row when nothing is known", () => {
+    expect(findHeaderRow([[""], ["Title", "Foo"], ["A", "b"]])).toBe(1);
+    expect(findHeaderRow([["Colour", "Thing"], ["a", "b"]])).toBe(0);
+  });
+
+  it("splits a title into its first line and the rest", () => {
+    expect(splitTitle("\nOne\nTwo\n\nThree")).toEqual(["One", "Two\n\nThree"]);
+    expect(splitTitle("Only")).toEqual(["Only", ""]);
+  });
+});

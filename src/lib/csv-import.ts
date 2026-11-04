@@ -46,7 +46,7 @@ export const FIELD_LABEL: Record<ImportField, string> = {
 
 const HEADER_GUESSES: Record<ImportField, RegExp> = {
   title: /^(title|summary|name|test ?case( ?name| ?title)?|case|test ?name)$/i,
-  folder: /^(folder|section|suite|component|path|area|module)$/i,
+  folder: /^(folder|section|suite|component|path|area|module|category)$/i,
   priority: /^priority$/i,
   tags: /^(tags?|labels?|keywords?)$/i,
   preconditions: /^(pre-?conditions?|prerequisites?|setup)$/i,
@@ -216,7 +216,9 @@ export type ImportedCase = {
  * steps (from 0), labeled `chip` in the preview.
  */
 export type ImportWarning = { row: number; text: string; lead?: string; caseRow?: number; step?: number; chip?: string };
-export type ImportResult = { cases: ImportedCase[]; shared: ImportedShared[]; warnings: ImportWarning[] };
+/** A row with one filled cell under column names found below row 1, like "Frida Demo Space": its cases go in a top folder of that name. */
+export type ImportSection = { row: number; name: string };
+export type ImportResult = { cases: ImportedCase[]; shared: ImportedShared[]; warnings: ImportWarning[]; sections: ImportSection[] };
 export type ImportOptions = {
   restoreBreaks?: boolean;
   /** Lines under a step's name move to Expected (see splitPackedStep). Only for one-step-per-row exports. */
@@ -225,6 +227,13 @@ export type ImportOptions = {
   keepLines?: Record<string, number>;
   /** Folder names with a " / " inside them that stay one folder (see spacedSlashNames). */
   keepWhole?: string[];
+  /** Index of the row holding the column names (0 = row 1). Rows above it are skipped. */
+  headerRow?: number;
+  /**
+   * A title with several lines keeps its first line; the rest goes to Expected (ver_169). Only
+   * used when the column names aren't on row 1, so files that worked before stay as they were.
+   */
+  firstLineTitle?: boolean;
 };
 
 const NUMBERED = /^\s*(?:step\s*)?\d+\s*[.):-]\s*/i;
@@ -331,7 +340,11 @@ export function rowsToCases(rows: string[][], mapping: ColumnMapping, source: Im
   const cases: ImportedCase[] = [];
   // Step order ("1.1", "2.3") of every step, per case, for grouping afterwards.
   const orders: string[][] = [];
-  if (mapping.title === undefined) return { cases, shared: [], warnings: [{ row: 1, text: "Choose which column holds the case title." }] };
+  const h = options.headerRow ?? 0;
+  // Column names found below row 1 mean a checklist-style sheet: section rows and multi-line titles.
+  const sheetMode = h > 0;
+  const sections: ImportSection[] = [];
+  if (mapping.title === undefined) return { cases, shared: [], warnings: [{ row: h + 1, text: "Choose which column holds the case title." }], sections };
 
   const cell = (row: string[], field: ImportField) => {
     const idx = mapping[field];
@@ -344,15 +357,36 @@ export function rowsToCases(rows: string[][], mapping: ColumnMapping, source: Im
   const withData = (steps: PlainStep[], data: string[]) =>
     steps.map((st, i) => (data[i] ? { ...st, action: [st.action, `Test data: ${data[i]}`].filter(Boolean).join("\n") } : st));
 
-  const keyless = { title: rows[0][mapping.title]?.trim() || "Title", id: (mapping.sourceId !== undefined && rows[0][mapping.sourceId]?.trim()) || "ID" };
-  // rows[0] is the header.
-  for (let r = 1; r < rows.length; r++) {
+  const keyless = { title: rows[h][mapping.title]?.trim() || "Title", id: (mapping.sourceId !== undefined && rows[h][mapping.sourceId]?.trim()) || "ID" };
+  let section = "";
+  // A section name can sit just above the column names too ("Frida Demo Space", then "Category, Test Case…").
+  if (sheetMode) {
+    let above = h - 1;
+    while (above >= 0 && isBlankRow(rows[above])) above--;
+    const name = above >= 0 ? sectionName(rows[above], mapping) : null;
+    if (name) {
+      section = name;
+      sections.push({ row: above + 1, name });
+    }
+  }
+  // rows[h] is the header.
+  for (let r = h + 1; r < rows.length; r++) {
     const row = rows[r];
     const rowNumber = r + 1;
-    if (row.every((c) => c.trim() === "")) continue;
+    if (row.every((c) => (c ?? "").trim() === "")) continue;
 
-    const steps = withData(pairSteps(split(cell(row, "steps")), split(cell(row, "expected"))), split(cell(row, "testData")));
-    const title = cell(row, "title");
+    const name = sheetMode ? sectionName(row, mapping) : null;
+    if (name) {
+      section = name;
+      sections.push({ row: rowNumber, name });
+      continue;
+    }
+
+    let title = cell(row, "title");
+    let underTitle = "";
+    if (sheetMode && options.firstLineTitle) [title, underTitle] = splitTitle(title);
+    const expectedText = [cell(row, "expected"), underTitle].filter(Boolean).join("\n");
+    const steps = withData(pairSteps(split(cell(row, "steps")), split(expectedText)), split(cell(row, "testData")));
     const sourceId = cell(row, "sourceId");
     const prevCase = cases[cases.length - 1];
     const order = cell(row, "stepOrder");
@@ -416,6 +450,7 @@ export function rowsToCases(rows: string[][], mapping: ColumnMapping, source: Im
     const preconditions = cell(row, "preconditions");
     let folderPath = parseFolderPath(cell(row, "folder"), options.keepWhole);
     if (source === "qtest") folderPath = folderPath.map((f) => f.replace(MODULE_ID, "")).filter(Boolean);
+    if (section) folderPath = [section, ...folderPath];
 
     cases.push({
       row: rowNumber,
@@ -437,7 +472,100 @@ export function rowsToCases(rows: string[][], mapping: ColumnMapping, source: Im
   // Before steps are grouped, so a shared block is compared as it will be saved.
   if (options.moveExpected && oneStepPerRow)
     for (const c of cases) c.steps = c.steps.map((st, k) => splitPackedStep(st, options.keepLines?.[`${c.row}:${k}`] ?? 1));
-  return { cases, shared: groupSteps(cases, orders), warnings };
+  return { cases, shared: groupSteps(cases, orders), warnings, sections };
+}
+
+/** "Line one\nLine two" → ["Line one", "Line two"]: the first line, and the lines under it. */
+export function splitTitle(text: string): [string, string] {
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  const first = lines.findIndex((l) => l.trim());
+  if (first < 0) return ["", ""];
+  return [lines[first].trim(), lines.slice(first + 1).join("\n").trim()];
+}
+
+/**
+ * A section row under column names found below row 1: only one filled cell, and not in a column
+ * that holds the case itself (a lone title is a case with no steps). Returns its name, or null.
+ */
+export function sectionName(row: string[], mapping: ColumnMapping): string | null {
+  const filled = row.map((c, i) => [i, (c ?? "").trim()] as const).filter(([, c]) => c);
+  if (filled.length !== 1) return null;
+  const [i, text] = filled[0];
+  const caseColumns = [mapping.title, mapping.steps, mapping.expected, mapping.testData, mapping.sourceId];
+  if (caseColumns.includes(i)) return null;
+  const name = htmlToText(text).split("\n")[0].replace(/[:\s]+$/, "").replace(/[/>\\]/g, "-").trim();
+  return name ? name.slice(0, 100) : null;
+}
+
+/** How many of a row's cells are column names Flaw Patrol knows, like "Title" or "Category". */
+export function knownColumns(row: string[]): number {
+  return Object.keys(guessMapping(row, detectSource(row))).length;
+}
+
+const isBlankRow = (row: string[] | undefined) => !row || row.every((c) => (c ?? "").trim() === "");
+
+/**
+ * Which row holds the column names (ver_169). Usually row 1 (blank rows above it are passed over).
+ * When that row has no names Flaw Patrol knows, like a checklist with run info (Tester, Release)
+ * on top, the first row within the first 50 that has two or more known names is used instead.
+ */
+export function findHeaderRow(rows: string[][], within = 50): number {
+  const first = rows.findIndex((r) => !isBlankRow(r));
+  if (first < 0) return 0;
+  if (knownColumns(rows[first]) > 0) return first;
+  for (let i = first + 1; i < Math.min(rows.length, within); i++) if (knownColumns(rows[i]) >= 2) return i;
+  return first;
+}
+
+/** A row's first few cells, to tell rows apart in "Use a different row". */
+export function rowLabel(row: string[]): string {
+  const cells = row.map((c) => htmlToText((c ?? "").trim()).split("\n")[0].trim()).filter(Boolean);
+  const text = cells.slice(0, 3).join(" · ") + (cells.length > 3 ? " …" : "");
+  return text.length > 80 ? `${text.slice(0, 79)}…` : text || "(blank)";
+}
+
+/** How many titles have more than one line (for "Some titles have more than one line"). */
+export function multiLineTitles(rows: string[][], mapping: ColumnMapping, headerRow = 0): number {
+  if (mapping.title === undefined) return 0;
+  let n = 0;
+  for (const row of rows.slice(headerRow + 1)) if (splitTitle(htmlToText((row[mapping.title] ?? "").trim()))[1]) n++;
+  return n;
+}
+
+/** Columns filled in while testing, not part of a case: Result, Bug Ticket, Summary (note…), Repro… */
+const PER_RUN = /^(results?|bug ?tickets?|bugs?|defects?|summary\s*\(.*|repro\b.*)$/i;
+export function perRunColumns(header: string[], mapping: ColumnMapping): number[] {
+  const used = new Set(Object.values(mapping));
+  return header.flatMap((name, i) => (!used.has(i) && PER_RUN.test((name ?? "").trim()) ? [i] : []));
+}
+
+/** Rows whose Result column holds a real result. "Select" (an untouched dropdown) and blanks don't count. */
+export function sheetResultCount(rows: string[][], headerRow = 0): number {
+  const col = (rows[headerRow] ?? []).findIndex((name) => /^results?$/i.test((name ?? "").trim()));
+  if (col < 0) return 0;
+  return rows.slice(headerRow + 1).filter((r) => {
+    const v = (r[col] ?? "").trim();
+    return v && !/^(select|select one|choose)$/i.test(v);
+  }).length;
+}
+
+/**
+ * The sheet as "Results from a spreadsheet" reads it: column names first, then each case's row,
+ * its title cut to the first line when the import did that, so the titles match the imported cases.
+ */
+export function runSheetRows(rows: string[][], mapping: ColumnMapping, options: ImportOptions = {}): string[][] {
+  const h = options.headerRow ?? 0;
+  // A checklist has one row per case, so its Result is the case's result, not a step's.
+  const out = [h > 0 ? rows[h].map((name) => (/^results?$/i.test((name ?? "").trim()) ? "Case result" : name)) : rows[h]];
+  for (const row of rows.slice(h + 1)) {
+    if (isBlankRow(row) || (h > 0 && sectionName(row, mapping))) continue;
+    if (h > 0 && options.firstLineTitle && mapping.title !== undefined) {
+      const copy = [...row];
+      copy[mapping.title] = splitTitle(htmlToText((row[mapping.title] ?? "").trim()))[0];
+      out.push(copy);
+    } else out.push(row);
+  }
+  return out;
 }
 
 /**
@@ -499,10 +627,10 @@ function blockName(steps: PlainStep[]): string {
  * bare "/": "2026 Cases/Shared / Unique Cases" is most likely two levels, the
  * second named "Shared / Unique Cases". Import splits them unless kept whole.
  */
-export function spacedSlashNames(rows: string[][], mapping: ColumnMapping): string[] {
+export function spacedSlashNames(rows: string[][], mapping: ColumnMapping, headerRow = 0): string[] {
   if (mapping.folder === undefined) return [];
   const found = new Set<string>();
-  for (const row of rows.slice(1)) {
+  for (const row of rows.slice(headerRow + 1)) {
     const raw = htmlToText((row[mapping.folder] ?? "").trim());
     if (!/\S\/\S/.test(raw) || !/\s\/\s/.test(raw)) continue;
     for (const part of raw.split(/(?<=\S)\/(?=\S)/)) if (/\s\/\s/.test(part)) found.add(part.trim());
@@ -546,3 +674,6 @@ export function numberedSteps(c: ImportedCase, shared: ImportedShared[]): (Plain
 }
 
 export const MAX_IMPORT = 5000;
+
+/** sessionStorage key: the case importer hands its sheet to "Results from a spreadsheet" (ver_169). */
+export const SHEET_HANDOFF = "fp-run-sheet";

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { RUN_FIELD_LABEL, RUN_FIELDS, type ColumnMap, type RunField } from "@/lib/run-import";
 import { importIntoRun, importRun, previewRunImport } from "@/server/run-import";
 import { readSpreadsheet } from "@/server/spreadsheet";
+import { SHEET_HANDOFF } from "@/lib/csv-import";
 import { Sp } from "./spelling";
 import { Button, Card, cx, ErrorText, Field, Input, Select } from "./ui";
 
@@ -19,7 +20,22 @@ const WORD: Record<string, string> = { PASSED: "Passed", FAILED: "Failed", BLOCK
  * Test runs → Import a run: read a sheet, check what it means, then add it to a run in
  * progress (ver_166) or create a new run.
  */
-export function RunImporter({ projectId, projectKey, suites, runs = [], pickRun }: { projectId: string; projectKey: string; suites: { id: string; name: string }[]; runs?: ActiveRun[]; pickRun?: string }) {
+export function RunImporter({
+  projectId,
+  projectKey,
+  suites,
+  runs = [],
+  pickRun,
+  handoff = false,
+}: {
+  projectId: string;
+  projectKey: string;
+  suites: { id: string; name: string }[];
+  runs?: ActiveRun[];
+  pickRun?: string;
+  /** Opened from the case importer's "Bring them into a run": its sheet is waiting in this tab (ver_169). */
+  handoff?: boolean;
+}) {
   const router = useRouter();
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState<string[][] | null>(null);
@@ -65,6 +81,19 @@ export function RunImporter({ projectId, projectKey, suites, runs = [], pickRun 
     setUseSheet(new Set());
     setRows(data);
   };
+  // The sheet the case importer handed over, so nobody picks the same file twice. Used once, within an hour.
+  useEffect(() => {
+    if (!handoff) return;
+    try {
+      const saved = sessionStorage.getItem(SHEET_HANDOFF);
+      sessionStorage.removeItem(SHEET_HANDOFF);
+      const sheet = saved ? (JSON.parse(saved) as { fileName?: string; rows?: string[][]; at?: number }) : null;
+      if (sheet?.rows?.length && sheet.fileName && Date.now() - (sheet.at ?? 0) < 60 * 60 * 1000) accept(sheet.fileName, sheet.rows);
+    } catch {
+      // Nothing handed over: pick the file as usual.
+    }
+  }, [handoff]);
+
   const load = (f: File) => {
     setError(null);
     if (/\.xlsx$/i.test(f.name)) {
@@ -73,7 +102,8 @@ export function RunImporter({ projectId, projectKey, suites, runs = [], pickRun 
       start(async () => {
         const res = await readSpreadsheet(projectId, form);
         if (!res.ok) return setError(res.error);
-        accept(f.name, res.rows);
+        // Blank rows are left out here, as before; row 1 is the column names.
+        accept(f.name, res.rows.filter((r) => r.some((c) => c.trim())));
       });
       return;
     }
