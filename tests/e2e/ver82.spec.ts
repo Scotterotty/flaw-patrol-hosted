@@ -4,7 +4,7 @@ import { signIn } from "./auth";
 import { standaloneProject, pickKind } from "./projects";
 
 // ver_82: Jira story links and coverage, Slack alerts, automation results upload,
-// Ctrl+K search, the Roles card, and making a test cycle inside Start a run.
+// Ctrl+K search, the Roles card, and making a test cycle inside Create a run.
 
 const run = Date.now().toString(36).slice(-4).toUpperCase();
 const JIRA = `http://localhost:${process.env.MOCK_JIRA_PORT ?? 3199}`;
@@ -92,12 +92,12 @@ test("stories, Slack alerts and a regression from one run", async ({ page }) => 
   }
 
   await page.goto(`/p/${KEY}/runs`);
-  await page.getByRole("button", { name: "Start a run" }).click();
-  const box = page.getByRole("dialog", { name: "Start a run" });
+  await page.getByRole("button", { name: "Create a run" }).click();
+  const box = page.getByRole("dialog", { name: "Create a run" });
   await box.getByRole("button", { name: /Every case/ }).click();
   await box.getByLabel("Run name").fill(`Invites ${run}`);
   await box.getByLabel("Release", { exact: true }).fill("RC 22");
-  await box.getByRole("button", { name: /^Start (run|smoke test)$/ }).click();
+  await box.getByRole("button", { name: /^Create (run|smoke test)$/ }).click();
   await expect.poll(() => slackFor(hook)).toContainEqual(expect.stringContaining("Run started"));
 
   // The runner shows the story; the bug box links the new bug to it in Jira.
@@ -184,7 +184,7 @@ test("automation results upload, Ctrl+K search and the Roles card", async ({ pag
   await expect(roles.getByText("Saved", { exact: true })).toBeVisible();
 });
 
-test("an umbrella with no test cycles makes one inside Start a run, and lists Slack in its setup", async ({ page }) => {
+test("an umbrella with no test cycles makes one inside Create a run, and lists Slack in its setup", async ({ page }) => {
   test.setTimeout(240_000);
   const HUB = `UC${run}`;
   const NAME = `Empty ${run}`;
@@ -206,15 +206,15 @@ test("an umbrella with no test cycles makes one inside Start a run, and lists Sl
   await expect(page.locator("#row-slack").getByRole("button", { name: "Set up" })).toBeVisible();
 
   await page.goto(`/g/${groupId}/runs`);
-  await page.getByRole("button", { name: "Start a run" }).click();
-  const box = page.getByRole("dialog", { name: "Start a run" });
+  await page.getByRole("button", { name: "Create a run" }).click();
+  const box = page.getByRole("dialog", { name: "Create a run" });
   await pickKind(page);
   await box.getByRole("button", { name: /Whole Case library/ }).click();
   // ver_95: the New test cycle form is open when there are none, and it's made on Start.
   await box.getByLabel("Name", { exact: true }).fill("RC 1 Web");
   await expect(box.getByText("RC 1 Web (new)")).toBeVisible();
   await box.getByLabel("Run name").fill(`First ${run}`);
-  await box.getByRole("button", { name: /^Start (run|smoke test)$/ }).click();
+  await box.getByRole("button", { name: /^Create (run|smoke test)$/ }).click();
   // ver_116: the box says "Making First …" at once, so wait for the run page itself.
   await expect(page).toHaveURL(/\/runs\/\d+/, { timeout: 60_000 });
   await expect(page.getByText(`First ${run}`).filter({ visible: true }).first()).toBeVisible();

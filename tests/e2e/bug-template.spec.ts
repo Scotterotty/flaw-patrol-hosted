@@ -80,12 +80,12 @@ test("bugs follow the team template", async ({ page }) => {
   await page.getByLabel("Name", { exact: true }).fill("Smoke");
   await page.getByRole("checkbox").first().check();
   await page.getByRole("button", { name: "Create suite" }).click();
-  await page.getByRole("button", { name: "Start test run" }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
   await page.getByLabel("Release", { exact: true }).fill("RC22");
   await page.getByLabel("Environment").fill("o2QA");
   await page.getByLabel("Build").fill("2.22.0.4417");
   await page.getByLabel("CSP version").fill("0.22.1");
-  await page.getByRole("button", { name: "Start run", exact: true }).click();
+  await page.getByRole("button", { name: "Create run", exact: true }).click();
   await page.getByRole("link", { name: "Start testing" }).click();
   await expect(page).toHaveURL(/\/execute\?entry=/);
 

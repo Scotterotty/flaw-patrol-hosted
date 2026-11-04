@@ -76,7 +76,7 @@ type RcBoxProps = {
 };
 
 /**
- * Start next release. Since ver_120 the box gets its plan when it opens (or when Start a run's
+ * Start next release. Since ver_120 the box gets its plan when it opens (or when Create a run's
  * Release candidate is hovered, focused or touched), so the umbrella home doesn't build it every time.
  */
 export function StartRcButton({
@@ -90,7 +90,7 @@ export function StartRcButton({
   umbrella: string;
   /** Any test cycle yet: "Getting OKO's last release ready…", else "…platforms ready…". */
   hasRelease: boolean;
-  /** No button of its own: Start a run's "Release candidate" kind opens it. */
+  /** No button of its own: Create a run's "Release candidate" kind opens it. */
   hideButton?: boolean;
   /** Secondary while the current release still needs its first run. */
   variant?: "primary" | "secondary";
@@ -142,7 +142,7 @@ function RcBox({
   // Nothing is picked for you (Scott, ver_99): the release name, platforms, what each runs and the
   // carry-over all start empty. Last release's choices are offered in each dropdown and as "Use Demo RC 2".
   const [rc, setRc] = useState("");
-  // Typing a release that already has test cycles points to Start a run instead.
+  // Typing a release that already has test cycles points to Create a run instead.
   const existing = rc.trim() ? (plan.releases ?? []).filter((r) => releaseKey(r.rc) === releaseKey(rc)) : [];
   const order = (p: string) => ((i) => (i < 0 ? 99 : i))(plan.platforms.findIndex((x) => x.name.toLowerCase() === p.toLowerCase()));
   const existingPlatforms = [...new Set(existing.map((r) => r.platform).filter(Boolean))].sort((a, b) => order(a) - order(b));
@@ -574,7 +574,7 @@ function RcBox({
       >
         <p className="text-sm text-slate-500">
           For testing a release candidate: makes one test cycle per platform in one go. Cases, suites, Jira and members come from {plan.umbrella}. For any
-          other testing, like a sprint, a smoke check or a retest, use <b>Start a run</b>.
+          other testing, like a sprint, a smoke check or a retest, use <b>Create a run</b>.
         </p>
         <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
         {noCases && (
@@ -625,7 +625,7 @@ function RcBox({
             {existing.length > 0 && (
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900" data-testid="rc-release-exists">
                 <span className="min-w-0 flex-1">
-                  {plan.umbrella} already has {rc.trim()} test cycles{existingPlatforms.length ? ` for ${andList(existingPlatforms)}` : ""}. To test in them, use <b>Start a run</b> and set Release to {rc.trim()}.
+                  {plan.umbrella} already has {rc.trim()} test cycles{existingPlatforms.length ? ` for ${andList(existingPlatforms)}` : ""}. To test in them, use <b>Create a run</b> and set Release to {rc.trim()}.
                 </span>
                 <Button
                   size="sm"
@@ -636,7 +636,7 @@ function RcBox({
                     if (!startRunWith(release)) router.push(`/g/${groupId}?start=run&release=${encodeURIComponent(release)}`);
                   }}
                 >
-                  Start a run instead
+                  Create a run instead
                 </Button>
               </div>
             )}

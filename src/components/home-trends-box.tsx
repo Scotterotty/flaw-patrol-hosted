@@ -183,7 +183,7 @@ export function HomeTrendsBox({
                 <span>Trends show up here after your first run has results.</span>
                 {startHref && (
                   <Link href={startHref} className="text-accent-700 hover:underline">
-                    Start a run
+                    Create a run
                   </Link>
                 )}
               </div>

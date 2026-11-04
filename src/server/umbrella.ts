@@ -281,7 +281,7 @@ export async function addUmbrellaProject(groupId: string, input: { name: string;
     const platform = known?.name ?? typed;
     await db.$transaction(async (tx) => {
       if (platform && !known) {
-        if (platforms.length >= MAX_PLATFORMS) throw new UserError(`${group.name} already has ${MAX_PLATFORMS} platforms. Pick one of them, or remove one in Start a run → Release candidate.`);
+        if (platforms.length >= MAX_PLATFORMS) throw new UserError(`${group.name} already has ${MAX_PLATFORMS} platforms. Pick one of them, or remove one in Create a run → Release candidate.`);
         await tx.projectGroup.update({ where: { id: group.id }, data: { platforms: [...platforms, { name: platform, suiteIds: [] }] } });
       }
       // Whoever adds it keeps their umbrella role there (the Roles card can let testers add test cycles).
@@ -451,7 +451,7 @@ export async function rcPlan(groupId: string) {
     // Automated-only cases: suites' runs leave them out unless "Also include" is ticked.
     autoCaseIds: cases.filter((c) => c.type === "AUTOMATED").map((c) => c.id),
     lastRc,
-    // Releases that already have test cycles: typing one shows "Start a run instead".
+    // Releases that already have test cycles: typing one shows "Create a run instead".
     releases: projects.filter((p) => p.rcName.trim()).map((p) => ({ rc: p.rcName.trim(), platform: p.platform.trim() })),
     // Offered as "Use Demo RC 2" next to the empty Release box, never filled in.
     suggested: (lastRc && nextRc(lastRc)) || "",

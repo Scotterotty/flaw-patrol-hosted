@@ -30,13 +30,13 @@ test("Active and Closed tabs on Test runs, Active and Archived tabs on Test case
   await expect(page.getByRole("link", { name: "Alpha" })).toHaveCount(0);
   await expect(page.getByText("Show archived")).toHaveCount(0);
 
-  // Start a run of Alpha, then close it.
+  // Create a run of Alpha, then close it.
   await page.goto(`/p/${KEY}/suites/new`);
   await page.getByLabel("Name", { exact: true }).fill("One");
   await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
-  await page.getByRole("button", { name: "Start test run" }).click();
-  await page.getByRole("button", { name: "Start run", exact: true }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
+  await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
   const runUrl = page.url();
 
@@ -62,5 +62,5 @@ test("Active and Closed tabs on Test runs, Active and Archived tabs on Test case
   await expect(page.getByRole("link", { name: /R\d+ One/ })).toBeVisible();
   // The run buttons stay put on the Closed tab.
   await expect(page.getByRole("button", { name: "Bring in results" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Start a run" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create a run" })).toBeVisible();
 });

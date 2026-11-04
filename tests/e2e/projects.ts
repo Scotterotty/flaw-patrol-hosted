@@ -18,9 +18,9 @@ export async function standaloneProject(page: Page, name: string, key: string, e
   await expect(page).toHaveURL(new RegExp(`/p/${key}/cases`));
 }
 
-/** The release box (ver_95): Start a run, then the Release candidate kind. Replaces the old Start next release button. */
+/** The release box (ver_95): Create a run, then the Release candidate kind. Replaces the old Start next release button. */
 export async function openReleaseBox(page: Page) {
-  await page.getByRole("button", { name: /Start a run/ }).first().click();
+  await page.getByRole("button", { name: /Create a run/ }).first().click();
   await page.getByRole("dialog").getByRole("button", { name: /^Release candidate/ }).click();
   await expect(page.getByRole("dialog").getByLabel("Release", { exact: true })).toBeVisible();
 }
@@ -38,7 +38,7 @@ export async function choosePlatform(page: Page, platform: string, pick: RegExp 
   await expect(menu).toHaveCount(0);
 }
 
-/** Start a run inside an umbrella asks the kind first (ver_95). Picks one so the rest of the box shows. */
+/** Create a run inside an umbrella asks the kind first (ver_95). Picks one so the rest of the box shows. */
 export async function pickKind(page: Page, name = "Smoke test") {
   const box = page.getByRole("dialog");
   await box.getByRole("group", { name: "Kind of run" }).getByRole("button", { name: new RegExp(`^${name}`) }).click();

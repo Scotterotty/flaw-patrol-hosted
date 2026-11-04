@@ -119,7 +119,7 @@ export async function caseNewsCounts(runIds: string[]) {
 }
 
 /**
- * Start a run's Pick cases: which library cases are new (never run with a result) or updated
+ * Create a run's Pick cases: which library cases are new (never run with a result) or updated
  * (steps or preconditions edited since the last run that had them), by case id.
  */
 export async function libraryCaseNews(caseIds: string[]) {

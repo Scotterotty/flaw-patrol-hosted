@@ -25,8 +25,8 @@ test("a step gets a screenshot and a screen recording", async ({ page }) => {
   await page.getByLabel("Name", { exact: true }).fill("All");
   await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
-  await page.getByRole("button", { name: "Start test run" }).click();
-  await page.getByRole("button", { name: "Start and test now" }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
+  await page.getByRole("button", { name: "Create and test now" }).click();
   await expect(page.getByRole("heading", { name: "Sign in", level: 1 })).toBeVisible();
 
   await page.getByRole("button", { name: "📷 Take screenshot" }).click();
@@ -90,8 +90,8 @@ test(`a recording still has video when ${why}`, async ({ page }) => {
   await page.getByLabel("Name", { exact: true }).fill("All");
   await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
-  await page.getByRole("button", { name: "Start test run" }).click();
-  await page.getByRole("button", { name: "Start and test now" }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
+  await page.getByRole("button", { name: "Create and test now" }).click();
   await expect(page.getByRole("heading", { name: "Sign in", level: 1 })).toBeVisible();
 
   const refused: string[] = [];

@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
 
-// ver_95: one Start a run button that asks the kind of run (and can make the test cycle),
+// ver_95: one Create a run button that asks the kind of run (and can make the test cycle),
 // Reports that never add hand testing and automation together, automated cases that
 // look like the rest with a "Who runs it" filter, Playwright attempts, and the My picture pawn.
 
@@ -45,16 +45,16 @@ test.beforeAll(async () => {
   }
 });
 
-test("one Start a run button: pick the kind, add a kind, make the test cycle on Start", async ({ page }) => {
+test("one Create a run button: pick the kind, add a kind, make the test cycle on Start", async ({ page }) => {
   test.setTimeout(240_000);
   await signIn(page, "admin@example.com", "Demo Admin");
   await page.goto(`/g/${groupId}`);
-  // Only Start a run up top; the setup card says the first run is in progress.
+  // Only Create a run up top; the setup card says the first run is in progress.
   await expect(page.getByRole("button", { name: /Start next release/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Add test cycle/ })).toHaveCount(0);
   await expect(page.getByText(`Demo RC 1 ${TAG} is in progress`)).toBeVisible();
 
-  await page.getByRole("button", { name: /Start a run/ }).first().click();
+  await page.getByRole("button", { name: /Create a run/ }).first().click();
   const box = page.getByRole("dialog");
   await expect(box.getByRole("heading", { name: "1. What kind of run?" })).toBeVisible();
   await expect(box.getByRole("button", { name: /^Smoke test.*Usually runs Smoke/ })).toBeVisible();
@@ -69,7 +69,7 @@ test("one Start a run button: pick the kind, add a kind, make the test cycle on 
   // Pick Smoke test instead: its usual suite is offered, not picked (ver_99).
   await box.getByTestId("kind-picked").getByRole("button", { name: "Change" }).click();
   await box.getByRole("button", { name: /^Smoke test/ }).click();
-  await expect(box.getByRole("button", { name: "Start smoke test" })).toBeDisabled();
+  await expect(box.getByRole("button", { name: "Create smoke test" })).toBeDisabled();
   await box.getByTestId("usual-suite").getByRole("button", { name: "Use it" }).click();
   await expect(box.getByRole("radio", { name: /Smoke/ })).toBeChecked();
   // Test cycle: nothing is ticked for you, and + New test cycle is made on Start.
@@ -77,7 +77,7 @@ test("one Start a run button: pick the kind, add a kind, make the test cycle on 
   await box.getByRole("button", { name: "＋ New test cycle" }).click();
   await box.getByLabel("Name", { exact: true }).fill(`Sprint 14 ${TAG}`);
   await expect(box.getByText(`Goes in Sprint 14 ${TAG} (new)`)).toBeVisible();
-  await box.getByRole("button", { name: "Start smoke test" }).click();
+  await box.getByRole("button", { name: "Create smoke test" }).click();
   await expect(page).toHaveURL(/\/runs\/1$/, { timeout: 60_000 });
 
   // The run keeps its kind: a tag on Test runs and a Kind filter.

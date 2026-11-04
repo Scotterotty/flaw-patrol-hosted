@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
 import { choosePlatform, openReleaseBox, pickKind } from "./projects";
 
-// ver_85 (full test findings #6, #7, #27, A1): Start a run ticks the test cycle you're in,
+// ver_85 (full test findings #6, #7, #27, A1): Create a run ticks the test cycle you're in,
 // handing a run to someone else lands on the run page with a link for them,
 // Start next release can close the last release's open runs, and Largest text stacks the runner.
 
@@ -50,21 +50,21 @@ test("start a run in the test cycle you're in, hand it off, close it with the ne
     await db.$disconnect();
   }
 
-  // #6: from the Web test cycle, Start a run has Web ticked.
+  // #6: from the Web test cycle, Create a run has Web ticked.
   await page.goto(`/p/${web}`);
-  await page.getByRole("button", { name: "Start a run" }).click();
-  const box = page.getByRole("dialog", { name: "Start a run" });
+  await page.getByRole("button", { name: "Create a run" }).click();
+  const box = page.getByRole("dialog", { name: "Create a run" });
   await pickKind(page);
   await expect(box.getByRole("checkbox", { name: `${NAME} Web RC4` })).toBeChecked();
   await expect(box.getByRole("checkbox", { name: `${NAME} Unity RC4` })).not.toBeChecked();
 
   // #7: every case to Dana: the box stops opening the runner and the run page has her link.
   await box.getByRole("button", { name: /Whole Case library/ }).click();
-  await expect(box.getByRole("button", { name: "Start and test now" })).toBeVisible();
+  await expect(box.getByRole("button", { name: "Create and test now" })).toBeVisible();
   await box.getByRole("button", { name: /More details \(optional\)/ }).click();
   await box.getByLabel("Assign every case to").selectOption({ label: "Dana Lead" });
-  await expect(box.getByRole("button", { name: "Start and test now" })).toHaveCount(0);
-  await box.getByRole("button", { name: /^Start (run|smoke test)$/ }).click();
+  await expect(box.getByRole("button", { name: "Create and test now" })).toHaveCount(0);
+  await box.getByRole("button", { name: /^Create (run|smoke test)$/ }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${web}/runs/1\\?handed=`));
   const note = page.getByTestId("hand-off");
   await expect(note).toContainText("Started R1 with 1 case for Dana Lead. No email goes out, so send them the link.");

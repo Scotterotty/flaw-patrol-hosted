@@ -26,8 +26,8 @@ test("screenshots stay on a case after Save, saving again, and Save and next", a
   await page.getByLabel("Name", { exact: true }).fill("All");
   await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
-  await page.getByRole("button", { name: "Start test run" }).click();
-  await page.getByRole("button", { name: "Start and test now" }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
+  await page.getByRole("button", { name: "Create and test now" }).click();
   await expect(page.getByRole("heading", { name: "One", level: 1 })).toBeVisible();
   await page.getByRole("button", { name: "📷 Take screenshot" }).click();
   await expect(page.getByRole("link", { name: /screenshot.png/ })).toBeVisible();

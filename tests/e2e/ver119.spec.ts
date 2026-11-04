@@ -83,8 +83,8 @@ test("make a bug template, report a bug with it, and add a row with I saw it aga
   await page.getByLabel("Name", { exact: true }).fill("Smoke");
   await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
-  await page.getByRole("button", { name: "Start test run" }).click();
-  await page.getByRole("button", { name: "Start run", exact: true }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
+  await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
   await page.getByRole("link", { name: "Start testing" }).click();
   await page.getByRole("group", { name: "Step 1 status" }).getByRole("button", { name: "Passed" }).click();

@@ -29,8 +29,8 @@ async function importAndRun(page: Page, key: string, answer: RegExp) {
   await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
   await expect(page).toHaveURL(/\/suites\/(?!new$)\w+$/);
-  await page.getByRole("button", { name: "Start test run" }).click();
-  await page.getByRole("button", { name: "Start run", exact: true }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
+  await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
 }
 

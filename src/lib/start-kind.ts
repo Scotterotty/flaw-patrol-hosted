@@ -1,4 +1,4 @@
-// Start a run's kinds hand off to the boxes that already exist: picking
+// Create a run's kinds hand off to the boxes that already exist: picking
 // Release candidate opens the release box, Bug bash the bug bash box. The box listens
 // on the page; when nothing on the page does, the caller goes to a page that does.
 
@@ -25,7 +25,7 @@ export function startKind(kind: "rc" | "bash") {
 
 const PREFETCH = "fp:start-prefetch";
 
-/** Start a kind's box getting ready early: its Start a run option was hovered, focused or touched. */
+/** Start a kind's box getting ready early: its Create a run option was hovered, focused or touched. */
 export function onStartPrefetch(kind: "rc" | "bash", start: () => void) {
   const handler = (e: Event) => (e as CustomEvent<string>).detail === kind && start();
   window.addEventListener(PREFETCH, handler);
@@ -39,8 +39,8 @@ export function startPrefetch(kind: "rc" | "bash") {
 const START_RUN = "fp:start-run";
 
 /**
- * The other way round: the release box's "Start a run instead" opens the page's
- * Start a run box with Release filled in. Returns the cleanup, for useEffect.
+ * The other way round: the release box's "Create a run instead" opens the page's
+ * Create a run box with Release filled in. Returns the cleanup, for useEffect.
  */
 export function onStartRun(open: (release: string) => void) {
   const handler = (e: Event) => {
@@ -52,7 +52,7 @@ export function onStartRun(open: (release: string) => void) {
   return () => window.removeEventListener(START_RUN, handler);
 }
 
-/** Ask the page's Start a run box to open with this release; false when there's none here. */
+/** Ask the page's Create a run box to open with this release; false when there's none here. */
 export function startRunWith(release: string) {
   const detail = { release, handled: false };
   window.dispatchEvent(new CustomEvent(START_RUN, { detail }));

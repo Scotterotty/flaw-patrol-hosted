@@ -8,12 +8,12 @@ const RC = `RC ${KEY}`;
 async function startRun(page: Page, name: string, release: string, build: string) {
   await page.goto(`/p/${KEY}/suites`);
   await page.getByRole("link", { name: "Both" }).click();
-  await page.getByRole("button", { name: "Start test run" }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
   await page.getByLabel("Run name").fill(name);
   await page.getByLabel("Release", { exact: true }).fill(release);
   await page.getByLabel("Build").fill(build);
   await page.getByLabel("CSP version").fill("7.0.0");
-  await page.getByRole("button", { name: "Start run", exact: true }).click();
+  await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
   return page.url();
 }

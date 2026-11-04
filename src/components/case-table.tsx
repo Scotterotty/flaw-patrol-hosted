@@ -73,7 +73,7 @@ export function CaseTable({
   canEdit: boolean;
   canArchive: boolean;
   archivedView: boolean;
-  /** `groupId`: in an umbrella's Case library, runs start in its test cycles, picked in the Start a run box. */
+  /** `groupId`: in an umbrella's Case library, runs start in its test cycles, picked in the Create a run box. */
   run?: { canCreate: boolean; canManageSuites: boolean; members: Member[]; suites: { id: string; name: string }[]; meId?: string; groupId?: string; fields?: RunField[] };
   /** Show the Platforms column (an umbrella's shared library). */
   platforms?: boolean;

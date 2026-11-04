@@ -20,8 +20,8 @@ test("a case can be flagged from a run, found in Test cases, and cleared", async
   await page.getByLabel("Name", { exact: true }).fill("Both");
   await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
-  await page.getByRole("button", { name: "Start test run" }).click();
-  await page.getByRole("button", { name: "Start run", exact: true }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
+  await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
   const runNumber = page.url().match(/runs\/(\d+)/)![1];
 

@@ -71,7 +71,7 @@ test("run fields, the RC platform picker, pips that open runs and ✕ on popups"
   await box.getByRole("button", { name: "Start RC1 · 2 platforms" }).click();
   await expect(box).toBeHidden({ timeout: 30_000 });
 
-  // The new umbrella's Start a run asks for Region (required), and the run shows it.
+  // The new umbrella's Create a run asks for Region (required), and the run shows it.
   const db = new PrismaClient();
   let webKey = "";
   try {
@@ -88,7 +88,7 @@ test("run fields, the RC platform picker, pips that open runs and ✕ on popups"
     await db.$disconnect();
   }
   await page.goto(`/p/${webKey}/runs`);
-  await page.getByRole("button", { name: /Start a run/ }).first().click();
+  await page.getByRole("button", { name: /Create a run/ }).first().click();
   const start = page.getByRole("dialog");
   await pickKind(page);
   await expect(start.getByLabel("Region *")).toBeVisible();

@@ -19,7 +19,7 @@ test("suites, runs and the runner can list cases by priority", async ({ page }) 
   await page.getByLabel("Name", { exact: true }).fill("Mixed");
   await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
-  await expect(page.getByRole("button", { name: "Start test run" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create a run" })).toBeVisible();
 
   const rows = page.locator("tbody tr");
   await expect(rows).toHaveCount(3);
@@ -31,8 +31,8 @@ test("suites, runs and the runner can list cases by priority", async ({ page }) 
   await expect(rows.last()).toContainText("Lowly");
 
   // The choice sticks for the run and the runner, and the runner starts on the most urgent case.
-  await page.getByRole("button", { name: "Start test run" }).click();
-  await page.getByRole("button", { name: "Start run", exact: true }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
+  await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
   await expect(page.getByLabel("Sort cases")).toHaveValue("priority");
   await expect(page.locator("tbody tr").first()).toContainText("Urgent");

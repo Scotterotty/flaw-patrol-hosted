@@ -49,7 +49,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
   const [spelling, { project, user, who }] = await Promise.all([mySpelling(), projectAccess(key)]);
   // What the page needs besides the case itself, asked for together.
   const others = Promise.all([
-    // A Case library case runs in one of the umbrella's test cycles, picked in the Start a run box.
+    // A Case library case runs in one of the umbrella's test cycles, picked in the Create a run box.
     hubGroupId(project.id),
     db.folder.findMany({ where: { projectId: project.id }, select: { id: true, parentId: true, name: true } }),
     db.testSuite.findMany({ where: { projectId: project.id, archived: false }, orderBy: { name: "asc" }, select: { id: true, name: true } }),

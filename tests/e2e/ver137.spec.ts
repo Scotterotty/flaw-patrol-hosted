@@ -77,7 +77,7 @@ test.beforeAll(async () => {
   }
 });
 
-test("1. a Smoke test marked 2.1 counts on Release status, and the release box points to Start a run", async ({ page }) => {
+test("1. a Smoke test marked 2.1 counts on Release status, and the release box points to Create a run", async ({ page }) => {
   await signIn(page, "admin@example.com", "Demo Admin");
   await page.goto(`/g/${ids.group}/rc?release=2.1`);
   const ios = page.getByRole("region", { name: "iOS" });
@@ -89,17 +89,17 @@ test("1. a Smoke test marked 2.1 counts on Release status, and the release box p
   await page.goto("/");
   await expect(page.getByText(`2.1 · 0 of 2 done`).first()).toBeVisible();
 
-  // Release candidate with a release that already has test cycles: Start a run instead, with Release filled in.
+  // Release candidate with a release that already has test cycles: Create a run instead, with Release filled in.
   await page.goto(`/g/${ids.group}`);
-  await page.getByRole("button", { name: /Start a run/ }).first().click();
+  await page.getByRole("button", { name: /Create a run/ }).first().click();
   await page.getByRole("dialog").getByRole("button", { name: /^Release candidate/ }).click();
   const rc = page.getByRole("dialog", { name: `Start a new release in ${UMB}` });
   await rc.getByLabel("Release", { exact: true }).fill("2.1");
   const note = rc.getByTestId("rc-release-exists");
-  await expect(note).toHaveText(`${UMB} already has 2.1 test cycles for iOS and Android. To test in them, use Start a run and set Release to 2.1.Start a run instead`);
-  await note.getByRole("button", { name: "Start a run instead" }).click();
+  await expect(note).toHaveText(`${UMB} already has 2.1 test cycles for iOS and Android. To test in them, use Create a run and set Release to 2.1.Create a run instead`);
+  await note.getByRole("button", { name: "Create a run instead" }).click();
   await pickKind(page, "Smoke test");
-  const box = page.getByRole("dialog", { name: "Start a run" });
+  const box = page.getByRole("dialog", { name: "Create a run" });
   await expect(box.getByLabel("Release", { exact: true })).toHaveValue("2.1");
   await expect(box.getByTestId("release-counts")).toHaveText("Counts toward 2.1 on Release status. Leave it blank to keep this run out.");
   await box.getByLabel("Release", { exact: true }).fill("");
@@ -141,7 +141,7 @@ test("5. a Viewer meets no dead ends", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Import cases" })).toHaveCount(0);
   await page.goto(`/g/${ids.group}/runs`);
   await expect(page.getByRole("heading", { name: "Test runs" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Start a run/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Create a run/ })).toHaveCount(0);
   await page.goto(`/g/${ids.group}/settings`);
   const cycles = page.getByTestId("cycle-settings");
   await expect(cycles.getByRole("button", { name: "View iOS 2.1" })).toBeVisible();

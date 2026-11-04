@@ -86,7 +86,7 @@ function NewUmbrellaProject({ groupId, umbrella, platforms, onClose }: { groupId
   const shownKey = key ?? keyFromName(shownName);
   return (
     <Modal open onClose={onClose} title={`New test cycle in ${umbrella}`}>
-      <p className="text-sm text-slate-500">Testing a release candidate on every platform? Start a run, then Release candidate, makes one test cycle per platform in one go.</p>
+      <p className="text-sm text-slate-500">Testing a release candidate on every platform? Create a run, then Release candidate, makes one test cycle per platform in one go.</p>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <div className="mt-3 space-y-3">
         <Field label="Platform (optional)" htmlFor="ap-platform">

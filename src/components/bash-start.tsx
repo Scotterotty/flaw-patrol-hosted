@@ -49,7 +49,7 @@ export function StartBashButton({
   variant?: "primary" | "secondary";
   size?: "sm" | "md";
   again?: { name: string; areas: string[]; minutes: number };
-  /** No button of its own: Start a run's "Bug bash" kind opens it. */
+  /** No button of its own: Create a run's "Bug bash" kind opens it. */
   hideButton?: boolean;
 }) {
   const [open, setOpen] = useState(false);

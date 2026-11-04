@@ -65,11 +65,11 @@ test("Reports split manual and automated runs, and picked suite cases count for 
 
   // A run of every case, which is exactly the suite, is linked to the suite when it starts.
   await page.goto(`/p/${KEY}/runs`);
-  await page.getByRole("button", { name: "Start a run" }).click();
-  const box = page.getByRole("dialog", { name: "Start a run" });
+  await page.getByRole("button", { name: "Create a run" }).click();
+  const box = page.getByRole("dialog", { name: "Create a run" });
   await box.getByRole("button", { name: /Every case/ }).click();
   await box.getByLabel("Run name").fill(`Picked ${TAG}`);
-  await box.getByRole("button", { name: "Start run" }).click();
+  await box.getByRole("button", { name: "Create run" }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${KEY}/runs/4`));
   const db = new PrismaClient();
   try {

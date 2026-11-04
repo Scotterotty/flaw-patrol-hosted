@@ -28,8 +28,8 @@ test("step result buttons sit under Expected", async ({ page }) => {
   await page.getByLabel("Name", { exact: true }).fill("AR");
   for (const box of await page.getByRole("checkbox").all()) await box.check();
   await page.getByRole("button", { name: "Create suite" }).click();
-  await page.getByRole("button", { name: "Start test run" }).click();
-  await page.getByRole("button", { name: "Start run", exact: true }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
+  await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${KEY}/runs/1$`));
   await page.getByRole("row").filter({ hasText: "AR mode" }).getByRole("link", { name: "Test" }).click();
   await expect(page.getByRole("heading", { name: "AR mode" })).toBeVisible();

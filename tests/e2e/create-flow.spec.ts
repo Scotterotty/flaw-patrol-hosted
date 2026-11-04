@@ -49,7 +49,7 @@ test("projects are made inside umbrellas: New umbrella makes its first projects,
   }
 
   // Add project → New project: the umbrella is already set.
-  // ver_95: Add test cycle lives in umbrella Settings (Start a run makes one too).
+  // ver_95: Add test cycle lives in umbrella Settings (Create a run makes one too).
   await page.goto(`${home}/settings`);
   await page.getByRole("button", { name: /Add test cycle/ }).first().click();
   await page.getByRole("menu").getByRole("button", { name: /^New test cycle/ }).click();
@@ -60,7 +60,7 @@ test("projects are made inside umbrellas: New umbrella makes its first projects,
   await expect(page).toHaveURL(new RegExp(`/p/${HUB}W2`));
 
   // Add project → Move in: the loose project joins the umbrella.
-  // ver_95: Add test cycle lives in umbrella Settings (Start a run makes one too).
+  // ver_95: Add test cycle lives in umbrella Settings (Create a run makes one too).
   await page.goto(`${home}/settings`);
   await page.getByRole("button", { name: /Add test cycle/ }).first().click();
   await page.getByRole("menu").getByRole("button", { name: /^Move in a test cycle/ }).click();

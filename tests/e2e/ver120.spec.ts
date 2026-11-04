@@ -39,8 +39,8 @@ test("Start next release loads when opened, with a spinner, Try again and no sec
   const home = await newUmbrella(page, NAME, `QK${TAG}`);
 
   // A failed load says so and offers Try again.
-  // Start a run gets its own choices first; only the release box's fetch fails.
-  await page.getByRole("button", { name: /Start a run/ }).first().click();
+  // Create a run gets its own choices first; only the release box's fetch fails.
+  await page.getByRole("button", { name: /Create a run/ }).first().click();
   const rcKind = page.getByRole("dialog").getByRole("button", { name: /^Release candidate/ });
   await expect(rcKind).toBeVisible();
   await slowActions(page, { fail: true });
@@ -64,7 +64,7 @@ test("Start next release loads when opened, with a spinner, Try again and no sec
   // Opened again on the same page: what it already loaded, with no wait.
   await page.keyboard.press("Escape");
   await expect(release).toBeHidden();
-  await page.getByRole("button", { name: /Start a run/ }).first().click();
+  await page.getByRole("button", { name: /Create a run/ }).first().click();
   await rcKind.click();
   await expect(release).toBeVisible();
   await expect(page.getByTestId("rc-box-wait")).toHaveCount(0);

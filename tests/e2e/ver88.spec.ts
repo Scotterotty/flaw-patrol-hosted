@@ -117,8 +117,8 @@ test("the bug box's + Add menu brings in other steps' files, takes a screenshot 
   await page.getByLabel("Name", { exact: true }).fill("All");
   await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
-  await page.getByRole("button", { name: "Start test run" }).click();
-  await page.getByRole("button", { name: "Start and test now" }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
+  await page.getByRole("button", { name: "Create and test now" }).click();
   await expect(page.getByRole("heading", { name: "Checkout", level: 1 })).toBeVisible();
 
   // A screenshot on step 1, pasted in as a file.

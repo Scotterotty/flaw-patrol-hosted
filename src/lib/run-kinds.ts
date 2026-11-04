@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Run kinds. Start a run first asks what kind of run it is. Three come
+// Run kinds. Create a run first asks what kind of run it is. Three come
 // built in: Smoke test and Release candidate (rename or hide them), and Bug bash.
 // Teams add their own, each with an optional usual suite that fills in "What to run".
 // The kind is saved on the run (TestRun.kind); "" is a plain run, shown as "Run".
@@ -36,7 +36,7 @@ export function parseRunKinds(v: unknown): RunKindDef[] {
 
 /**
  * Exploratory: set on runs made by Start exploring, and worked out for a plain
- * run that holds only charters. It's never asked in Start a run.
+ * run that holds only charters. It's never asked in Create a run.
  */
 export const EXPLORE_KIND = "explore";
 

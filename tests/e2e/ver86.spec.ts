@@ -135,7 +135,7 @@ test("platforms are added and changed in Add test cycle and Start next release, 
   await expect(page.locator("#row-platforms")).toHaveCount(0);
 
   // Add test cycle: the chips list the platforms; typing a new one adds it to the umbrella.
-  // ver_95: Add test cycle lives in umbrella Settings (Start a run makes one too).
+  // ver_95: Add test cycle lives in umbrella Settings (Create a run makes one too).
   await page.goto(`${home}/settings`);
   await page.getByRole("button", { name: /Add test cycle/ }).first().click();
   await page.getByRole("button", { name: /^New test cycle/ }).click();

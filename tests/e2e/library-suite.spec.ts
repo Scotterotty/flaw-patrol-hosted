@@ -15,7 +15,7 @@ async function newCase(page: Page, key: string, title: string) {
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
 }
 
-test("a test cycle's suites, Start a run and reports use the umbrella's Case library", async ({ page }) => {
+test("a test cycle's suites, Create a run and reports use the umbrella's Case library", async ({ page }) => {
   test.setTimeout(240_000);
   await signIn(page, "admin@example.com", "Demo Admin");
 
@@ -54,14 +54,14 @@ test("a test cycle's suites, Start a run and reports use the umbrella's Case lib
   await expect(page).not.toHaveURL(/\/suites\/new/);
   await expect(page.getByText(new RegExp(`${HUB}-\\d`)).first()).toBeVisible();
 
-  // Overview's Start a run box lists the shared suite; run it here.
+  // Overview's Create a run box lists the shared suite; run it here.
   await page.goto(`/p/${RC}`);
-  await page.getByRole("button", { name: "Start a run" }).click();
-  const box = page.getByRole("dialog", { name: "Start a run" });
+  await page.getByRole("button", { name: "Create a run" }).click();
+  const box = page.getByRole("dialog", { name: "Create a run" });
   await pickKind(page);
   await box.getByRole("button", { name: /A suite/ }).click();
   await box.getByRole("radio", { name: /Shared smoke/ }).check();
-  await box.getByRole("button", { name: /^Start (run|smoke test)$/ }).click();
+  await box.getByRole("button", { name: /^Create (run|smoke test)$/ }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${RC}/runs/\\d+`));
   await page.goto(`/p/${RC}/reports`);
   await expect(page.getByRole("link", { name: "Shared smoke", exact: true })).toBeVisible();

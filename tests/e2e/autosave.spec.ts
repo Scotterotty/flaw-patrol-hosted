@@ -24,8 +24,8 @@ test("step results save as they're picked and are still there after leaving the 
   await page.getByLabel("Name", { exact: true }).fill("Smoke");
   for (const box of await page.getByRole("checkbox").all()) await box.check();
   await page.getByRole("button", { name: "Create suite" }).click();
-  await page.getByRole("button", { name: "Start test run" }).click();
-  await page.getByRole("button", { name: "Start run", exact: true }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
+  await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${KEY}/runs/1$`));
 
   // Pass two of Thing A's five steps, then go and test Thing B.

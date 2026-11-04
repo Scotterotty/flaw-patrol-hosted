@@ -22,6 +22,28 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 163,
+    date: "2026-11-03",
+    items: [
+      {
+        kind: "new",
+        title: "Runs in progress on the Overview",
+        text: "Your umbrella's Overview now starts with the runs waiting to be tested, from every test cycle, each with a big Start testing button.",
+        link: "/g/{umbrella}",
+      },
+      {
+        kind: "better",
+        title: "Start testing is easier to spot",
+        text: "Each run in progress has a bigger ▶ Start testing button. Resume is now ▶ Continue testing, the same as on the run page.",
+      },
+      {
+        kind: "better",
+        title: "Start a run is now Create a run",
+        text: "The button that makes a new run is called Create a run. It turns gray while runs are waiting, so Start testing stands out.",
+      },
+    ],
+  },
+  {
     version: 162,
     date: "2026-11-03",
     items: [

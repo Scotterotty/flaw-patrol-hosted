@@ -12,8 +12,8 @@ let suiteUrl = "";
 
 async function startRun(page: Page) {
   await page.goto(suiteUrl);
-  await page.getByRole("button", { name: "Start test run" }).click();
-  await page.getByRole("button", { name: "Start run", exact: true }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
+  await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
 }
 

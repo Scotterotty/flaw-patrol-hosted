@@ -21,7 +21,7 @@ import { LoadingSpinner } from "./loading-spinner";
  * - the app's own save and page requests (Next.js sends them with Next-Action / RSC headers)
  *   that start soon after your click, press or key, until their answer has fully arrived.
  * Background polls, prefetches and autosaves don't count. A box with its own spinner
- * (Start a run, Start a new release) marks itself data-own-spinner and the signs stay out.
+ * (Create a run, Start a new release) marks itself data-own-spinner and the signs stay out.
  */
 export function BusyCorner() {
   return (

@@ -5,6 +5,12 @@ import { HomeTrends, HomeTrendsLoading } from "@/components/home-trends";
 import { Card, cx, EmptyState, InfoTip, LinkButton } from "@/components/ui";
 import { StartBashButton } from "@/components/bash-start";
 import { StartRunBox } from "@/components/start-run-box";
+import { anyGo, RunsInProgressList, type ProgressRun } from "@/components/runs-in-progress";
+import { NOT_BASH_RUN } from "@/lib/bash-cases";
+import { parseRunKinds, shownKind } from "@/lib/run-kinds";
+import { runLive } from "@/lib/run-live";
+import { mySpelling } from "@/lib/session";
+import { countStatuses, isOpen, totals } from "@/lib/status";
 import { AddUmbrellaProject } from "@/components/umbrella-add-project";
 import { StartRcButton } from "@/components/umbrella-rc";
 import { MoveCasesButton, ShortcutIcon } from "@/components/umbrella-ui";
@@ -55,8 +61,49 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
     runsOn ? 0 : db.riskRating.count({ where: { projectId: u.hub.id } }),
   ]);
   const firstOpen = firstRun ? await db.testRun.count({ where: { projectId: firstRun.project.id, state: "ACTIVE", bugBash: { is: null } } }) : 0;
-  // One Start a run button: it asks the kind of run and can make the test cycle too.
+  // One Create a run button: it asks the kind of run and can make the test cycle too.
   const canRun = can(u.who, "run:create") && !archived && runsOn && (u.current.length > 0 || canAddCycle);
+  // Runs in progress (ver_163): the first thing on the Overview, so anyone new sees where to test.
+  // Every test cycle that isn't archived, plus the hub; bug bashes have their own pages.
+  const canExecute = can(u.who, "run:execute");
+  const liveCycles = u.projects.filter((p) => !p.archivedAt || (archived && p.archivedWithUmbrella));
+  const [progressRaw, spelling] = await Promise.all([
+    runsOn
+      ? db.testRun.findMany({
+          where: { projectId: { in: [u.hub.id, ...liveCycles.map((p) => p.id)] }, state: "ACTIVE", ...NOT_BASH_RUN },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+          select: { id: true, number: true, name: true, kind: true, release: true, createdAt: true, project: { select: { key: true, name: true, platform: true } }, entries: { select: { status: true, assigneeId: true, kind: true } } },
+        })
+      : Promise.resolve([]),
+    mySpelling(),
+  ]);
+  const progressLive = await runLive(progressRaw.map((r) => r.id));
+  const waiting: ProgressRun[] = progressRaw
+    .map((r) => {
+      const counts = countStatuses(r.entries.map((e) => e.status));
+      const mine = r.entries.filter((e) => e.assigneeId === user.id);
+      const label = r.project.platform || r.project.name;
+      return {
+        id: r.id,
+        number: r.number,
+        name: r.name,
+        release: r.release,
+        createdAt: r.createdAt,
+        counts,
+        t: totals(counts),
+        mine: mine.length,
+        mineLeft: mine.filter((e) => isOpen(e.status)).length,
+        shown: shownKind(r),
+        live: progressLive.get(r.id),
+        projectKey: r.project.key,
+        cycle: { name: r.project.name, badge: initials(label), color: platformColor(u.platforms, r.project.platform) },
+      };
+    })
+    // Every case has a result: it only waits for someone to close it, on its test cycle's page.
+    .filter((r) => !(r.t.total > 0 && r.t.tested === r.t.total));
+  const kinds = parseRunKinds(u.group.runKinds);
+  const goWaiting = anyGo(waiting, canExecute);
   // What a new umbrella still needs. Jira is optional, so it never holds the list open on its own.
   const allSetup = [
     { done: u.counts.cases > 0, tool: "cases" as ToolId, label: "Add your test cases (import a file or write them)", note: plural(u.counts.cases, "case"), href: `${hub}/import`, action: "Import cases" },
@@ -68,7 +115,7 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
       label: "Run your first tests",
       note: firstRun ? `${firstRun.project.name} is ${firstOpen ? "in progress" : "done"}` : "",
       href: `${g}?start=run`,
-      action: "Start a run",
+      action: "Create a run",
     },
     ...(runsOn
       ? []
@@ -130,13 +177,32 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
           <p className="mt-1 text-sm text-slate-500">{u.group.description || (runsOn ? `Every ${u.group.name} test case, run, bug and setting, in one place` : `Everything ${u.group.name} finds, in one place`)}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {/* One button: Start a run asks the kind first. Release candidate and Bug bash open these boxes. */}
-          {canRun && <StartRunBox scope={{ groupId: u.group.id }} label="▶ Start a run" openParam="run" />}
+          {/* One button: Create a run asks the kind first. Release candidate and Bug bash open these boxes. */}
+          {canRun && <StartRunBox scope={{ groupId: u.group.id }} label="▶ Create a run" openParam="run" variant={goWaiting ? "secondary" : "primary"} />}
           {/* Without Test runs, Start a bug bash is the button. */}
           {canBash && <StartBashButton projectId={u.hub.id} hideButton={runsOn} />}
           {canRc && <StartRcButton groupId={u.group.id} umbrella={u.group.name} hasRelease={u.projects.length > 0} canManage={canManage} canSuites={can(u.who, "suite:manage")} canCases={can(u.who, "case:edit")} canImport={can(u.who, "import")} hideButton />}
         </div>
       </div>
+
+      {/* A brand-new umbrella with nothing running yet has its setup list instead. */}
+      {runsOn && (waiting.length > 0 || ready) && (
+        <Card className="mb-6 overflow-hidden" data-testid="umbrella-runs-in-progress">
+          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
+            <h2 className="text-sm font-semibold text-slate-900">Runs in progress</h2>
+            {waiting.length > 0 && (
+              <Link href={`${g}/runs`} className="text-xs text-accent-700 hover:underline">
+                {waiting.length > 5 ? `All ${waiting.length} runs` : "All runs"}
+              </Link>
+            )}
+          </div>
+          {waiting.length === 0 ? (
+            <p className="px-4 py-4 text-sm text-slate-500">{canRun ? "No runs in progress yet. Press Create a run to make one, and it shows here." : "No runs in progress. When someone creates a run, it shows here."}</p>
+          ) : (
+            <RunsInProgressList rows={waiting.slice(0, 5)} kinds={kinds} canExecute={canExecute} spelling={spelling} />
+          )}
+        </Card>
+      )}
 
       {!ready && canManage && (
         <Card className="mb-6 p-4">
@@ -240,7 +306,7 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
           <div className="p-4">
             <EmptyState title={`No test cycles in ${u.group.name} yet`} action={canAddCycle ? addProject("buttons") : undefined}>
               Test cycles are where your team runs tests. Each one uses {u.group.name}&apos;s cases, Jira and team.
-              {canRun ? " Start a run makes one for you, and its Release candidate kind makes one per platform in one go." : ""}
+              {canRun ? " Create a run makes one for you, and its Release candidate kind makes one per platform in one go." : ""}
             </EmptyState>
           </div>
         ) : (
@@ -281,13 +347,17 @@ function Pill({ href, external, children }: { href: string; external?: boolean; 
   );
 }
 
+/** A platform's initials (U, UE, W) for its colored square. */
+function initials(name: string) {
+  const words = name.split(/\s+/).filter(Boolean);
+  return (words.length > 1 ? words.map((w) => w[0]).join("") : name[0] ?? "").slice(0, 2).toUpperCase();
+}
+
 /** A colored square with a project's platform initials (U, UE, W). */
 export function ProjectBadge({ name, color, small }: { name: string; color: string; small?: boolean }) {
-  const words = name.split(/\s+/).filter(Boolean);
-  const initials = (words.length > 1 ? words.map((w) => w[0]).join("") : name[0] ?? "").slice(0, 2).toUpperCase();
   return (
     <span aria-hidden className={cx("grid flex-none place-items-center rounded-md font-semibold text-white", small ? "size-5 text-[9px]" : "size-8 text-xs")} style={{ background: color }}>
-      {initials}
+      {initials(name)}
     </span>
   );
 }

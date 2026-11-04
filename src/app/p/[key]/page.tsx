@@ -2,9 +2,8 @@ import Link from "next/link";
 import { FlagIcon } from "@/components/case-flag";
 import { LIVE_BASH, NOT_BASH_CASE, NOT_BASH_RUN } from "@/lib/bash-cases";
 import { StartRunBox } from "@/components/start-run-box";
-import { StatusBar } from "@/components/status";
 import { PassRateOverTime } from "@/components/trend-charts";
-import { Badge, Card, cx, LinkButton, PageHeader } from "@/components/ui";
+import { Badge, Card, cx, PageHeader } from "@/components/ui";
 import { flagLabel } from "@/lib/case-flag";
 import { db } from "@/lib/db";
 import { mailOn } from "@/lib/mail";
@@ -19,9 +18,9 @@ import { InviteTeam, QuestMapOnButton } from "@/components/overview-extras";
 import { RolesNudge } from "@/components/roles-nudge";
 import { MoveCasesButton } from "@/components/umbrella-ui";
 import { CloseRunButton } from "@/components/run-actions";
-import { RunKindTag } from "@/components/run-kind-tag";
+import { anyGo, RunsInProgressList } from "@/components/runs-in-progress";
 import { EXPLORE_KIND, parseRunKinds, shownKind } from "@/lib/run-kinds";
-import { findsLine, runLive } from "@/lib/run-live";
+import { runLive } from "@/lib/run-live";
 import { noteCounts, parseSessionLog } from "@/lib/charter";
 
 export const metadata = { title: "Overview" };
@@ -84,7 +83,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
   const open = runs.map((r) => {
     const counts = countStatuses(r.entries.map((e) => e.status));
     const mine = r.entries.filter((e) => e.assigneeId === user.id);
-    return { ...r, counts, t: totals(counts), mineLeft: mine.filter((e) => isOpen(e.status)).length, mine: mine.length, shown: shownKind(r), live: live.get(r.id) };
+    return { ...r, projectKey: project.key, counts, t: totals(counts), mineLeft: mine.filter((e) => isOpen(e.status)).length, mine: mine.length, shown: shownKind(r), live: live.get(r.id) };
   });
   // A run where every case has a result is finished; it only waits for someone to close it.
   const finished = open.filter((r) => r.t.total > 0 && r.t.tested === r.t.total);
@@ -110,7 +109,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
       <PageHeader
         title={project.name}
         subtitle={project.description || undefined}
-        actions={can(who, "run:create") && <StartRunBox scope={{ projectKey: project.key }} />}
+        actions={can(who, "run:create") && <StartRunBox scope={{ projectKey: project.key }} variant={anyGo(active, canExecute) ? "secondary" : "primary"} />}
       />
 
       {umbrella && !umbrella.isHub && caseCount > 0 && can(who, "library:move") && (
@@ -176,7 +175,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
           <Section title="Runs in progress" more={active.length > 0 ? { href: `/p/${project.key}/runs`, label: "All runs" } : undefined}>
             {active.length === 0 ? (
               <div className="px-4 py-6 text-sm text-slate-500">
-                <p>{can(who, "run:create") ? "No runs in progress. Press Start a run and it shows here." : "No runs in progress. When someone starts a run, it shows here."}</p>
+                <p>{can(who, "run:create") ? "No runs in progress. Press Create a run and it shows here." : "No runs in progress. When someone starts a run, it shows here."}</p>
                 {!(user.gameEnabled && user.questMap) && (
                   <p className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
                     <span>
@@ -187,75 +186,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
                 )}
               </div>
             ) : (
-              <ul className="divide-y divide-slate-100">
-                {active.slice(0, 8).map((r) => {
-                  const lv = r.live;
-                  const button =
-                    lv?.type === "bash"
-                      ? lv.live && { href: `/p/${lv.homeKey}/bashes/${lv.bashId}?join=1`, label: "Join the bash" }
-                      : lv?.type === "explore"
-                        ? canExecute && { href: `/p/${project.key}/runs/${r.number}/execute`, label: lv.started ? "Keep exploring" : "Start exploring" }
-                        : canExecute && r.t.tested < r.t.total && { href: `/p/${project.key}/runs/${r.number}/execute${r.mineLeft ? "?mine=1" : ""}`, label: r.t.tested === 0 ? "Start testing" : "Resume" };
-                  return (
-                    <li key={r.number} className="relative px-4 py-3 hover:bg-slate-50">
-                      <div className="flex items-center justify-between gap-3">
-                        <Link
-                          href={`/p/${project.key}/runs/${r.number}`}
-                          className="min-w-0 truncate font-medium text-slate-900 after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-accent-500 focus-visible:after:ring-inset"
-                        >
-                          <span className="font-mono text-xs text-slate-500">R{r.number}</span> {r.name}
-                        </Link>
-                        <span className="relative z-10 flex shrink-0 items-center gap-2">
-                          <RunKindTag kinds={kinds} kind={r.shown} live={lv?.type === "bash" && lv.live} />
-                          {button && (
-                            <LinkButton size="sm" variant="primary" href={button.href} aria-label={`${button.label} R${r.number} ${r.name}`}>
-                              {button.label}
-                            </LinkButton>
-                          )}
-                        </span>
-                      </div>
-                      {lv?.type === "explore" ? (
-                        <>
-                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100" aria-hidden>
-                            <div className="h-full rounded-full bg-teal-600" style={{ width: `${lv.limitMin ? Math.min(100, (lv.usedMin / lv.limitMin) * 100) : 0}%` }} />
-                          </div>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {lv.started ? (
-                              <>
-                                <span className="tabular-nums">
-                                  {lv.usedMin} of {lv.limitMin} min
-                                </span>
-                                {lv.who && ` · ${lv.who}`}
-                                {lv.persona && ` · as ${lv.persona.emoji} ${lv.persona.name}`} · {findsLine(lv)}
-                              </>
-                            ) : (
-                              <>
-                                Not started · {lv.limitMin} min limit{lv.persona && ` · as ${lv.persona.emoji} ${lv.persona.name}`}
-                              </>
-                            )}
-                          </p>
-                        </>
-                      ) : lv?.type === "bash" ? (
-                        <p className="mt-1 text-xs text-slate-500">
-                          {lv.live && <span className="font-medium text-rose-700">{lv.minutesLeft} min left · </span>}
-                          {lv.people} {lv.people === 1 ? "person" : "people"} exploring · {lv.bugs} {lv.bugs === 1 ? "bug" : "bugs"} logged · {lv.areas} {lv.areas === 1 ? "area" : "areas"} · started {relativeTime(lv.startedAt, spelling)}
-                        </p>
-                      ) : (
-                        <>
-                          <StatusBar counts={r.counts} className="mt-2" />
-                          <p className="mt-1 text-xs text-slate-500">
-                            <span className="tabular-nums">
-                              {r.t.tested} of {r.t.total} tested · {pct(r.t.passRate)} passed
-                            </span>
-                            {r.release && ` · ${r.release}`} · started {relativeTime(r.createdAt, spelling)}
-                            {r.mine > 0 && ` · ${r.mineLeft ? `${r.mineLeft} of yours to go` : "your cases are done"}`}
-                          </p>
-                        </>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
+              <RunsInProgressList rows={active.slice(0, 8)} kinds={kinds} canExecute={canExecute} spelling={spelling} />
             )}
           </Section>
 

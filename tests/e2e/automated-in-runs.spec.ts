@@ -30,8 +30,8 @@ test("automated cases are left out of hand-tested runs unless asked, and can be 
 
   // Every case: only the 2 tested by hand, with the tick box off.
   await page.goto(`/p/${KEY}/runs`);
-  await page.getByRole("button", { name: "Start a run" }).first().click();
-  let box = page.getByRole("dialog", { name: "Start a run" });
+  await page.getByRole("button", { name: "Create a run" }).first().click();
+  let box = page.getByRole("dialog", { name: "Create a run" });
   await expect(box.getByRole("button", { name: /Every case/ })).toContainText("2 cases you test by hand");
   await box.getByRole("button", { name: /Every case/ }).click();
   await expect(box.getByTestId("with-auto")).toContainText("Also include the 2 automated cases");
@@ -42,18 +42,18 @@ test("automated cases are left out of hand-tested runs unless asked, and can be 
   await expect(box.getByRole("list", { name: "Cases to pick" }).getByTestId("auto-tag")).toHaveCount(2);
   await box.getByRole("button", { name: "Tick all 2" }).click();
   await box.getByRole("button", { name: /Every case/ }).click();
-  await box.getByRole("button", { name: "Start run", exact: true }).click();
+  await box.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
   await expect(page.getByText("2 of 2", { exact: true })).toBeVisible();
   await expect(page.getByText(`Bot one ${TAG}`)).toHaveCount(0);
 
   // Ticked: all 4 go in, tagged, and no note on a run that asked for them.
   await page.goto(`/p/${KEY}/runs`);
-  await page.getByRole("button", { name: "Start a run" }).first().click();
-  box = page.getByRole("dialog", { name: "Start a run" });
+  await page.getByRole("button", { name: "Create a run" }).first().click();
+  box = page.getByRole("dialog", { name: "Create a run" });
   await box.getByRole("button", { name: /Every case/ }).click();
   await box.getByTestId("with-auto").getByRole("checkbox").check();
-  await box.getByRole("button", { name: "Start run", exact: true }).click();
+  await box.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
   await expect(page.getByText("4 of 4", { exact: true })).toBeVisible();
   await expect(page.getByTestId("auto-tag")).toHaveCount(2);

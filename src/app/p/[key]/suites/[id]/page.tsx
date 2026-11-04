@@ -42,7 +42,7 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
   });
   if (!suite) notFound();
   const shared = suite.projectId !== project.id;
-  // The umbrella's own suites run in its test cycles, picked in the Start a run box.
+  // The umbrella's own suites run in its test cycles, picked in the Create a run box.
   const hubOf = await hubGroupId(project.id);
   const umbrellaName = shared ? ((await db.project.findUnique({ where: { id: project.id }, select: { group: { select: { name: true } } } }))?.group?.name ?? suite.project.name) : "";
   // Shared suites can be run here but not changed here.
@@ -133,7 +133,7 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
             </>
           )}
           {can(who, "run:create") && !suite.archived && hubOf && (
-            <StartRunBox scope={{ groupId: hubOf }} preset={{ what: "suite", suiteId: suite.id }} label="Start test run…" disabled={activeCases.length === 0} initialOpen={startNow} />
+            <StartRunBox scope={{ groupId: hubOf }} preset={{ what: "suite", suiteId: suite.id }} label="Create a run…" disabled={activeCases.length === 0} initialOpen={startNow} />
           )}
           {can(who, "run:create") && !suite.archived && !hubOf && (
             <NewRunButton

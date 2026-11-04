@@ -25,10 +25,10 @@ test("the Start box says the run is opening until the run page shows", async ({ 
     if (route.request().headers()["rsc"]) await new Promise((r) => setTimeout(r, 2000));
     await route.continue();
   });
-  await page.getByRole("button", { name: "Start a run" }).first().click();
-  const box = page.getByRole("dialog", { name: "Start a run" });
+  await page.getByRole("button", { name: "Create a run" }).first().click();
+  const box = page.getByRole("dialog", { name: "Create a run" });
   await box.getByRole("button", { name: /Every case/ }).click();
-  await box.getByRole("button", { name: "Start run", exact: true }).click();
+  await box.getByRole("button", { name: "Create run", exact: true }).click();
   const opening = box.getByTestId("run-opening");
   await expect(opening).toContainText("is ready. Opening it…");
   await expect(opening).toContainText("Made the run with 1 case");
@@ -36,7 +36,7 @@ test("the Start box says the run is opening until the run page shows", async ({ 
   await expect(box.getByRole("button", { name: "Cancel" })).toBeDisabled();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText(/^R\d+/);
-  await expect(page.getByRole("dialog", { name: "Start a run" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Create a run" })).toHaveCount(0);
 });
 
 test("anyone can tick loading spinners in Account → Appearance", async ({ page }) => {

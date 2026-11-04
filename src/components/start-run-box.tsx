@@ -22,14 +22,14 @@ type What = "all" | "suite" | "cases";
 export type RunBoxPreset = { what: "all" } | { what: "suite"; suiteId: string } | { what: "cases"; caseIds: string[] };
 
 /**
- * "Start a run": one box everywhere. Pick what to run from the library
+ * "Create a run": one box everywhere. Pick what to run from the library
  * (all of it, a suite, or ticked cases), then the test cycles to run it in.
  * The box loads its choices when it opens.
  */
 export function StartRunBox({
   scope,
   preset,
-  label = "Start a run",
+  label = "Create a run",
   variant = "primary",
   size,
   defaultName,
@@ -49,7 +49,7 @@ export function StartRunBox({
   disabled?: boolean;
   /** An exploratory charter: the box says "Start session". */
   session?: boolean;
-  /** Opens by itself when the page link has ?start=<this> (ver_95: the setup card's Start a run). */
+  /** Opens by itself when the page link has ?start=<this> (ver_95: the setup card's Create a run). */
   openParam?: string;
 }) {
   const [open, setOpen] = useState(initialOpen && !disabled);
@@ -57,7 +57,7 @@ export function StartRunBox({
   const [busy, setBusy] = useState(false);
   const params = useSearchParams();
   const asked = params.get("start");
-  // Release filled in when the release box's "Start a run instead" opened this.
+  // Release filled in when the release box's "Create a run instead" opened this.
   const [release, setRelease] = useState("");
   useEffect(() => {
     if (openParam && asked === openParam && !disabled) {
@@ -88,7 +88,7 @@ export function StartRunBox({
       >
         {label}
       </Button>
-      <Modal open={open} onClose={() => setOpen(false)} title={session ? "Start a session" : "Start a run"} wide locked={busy}>
+      <Modal open={open} onClose={() => setOpen(false)} title={session ? "Start a session" : "Create a run"} wide locked={busy}>
         <Box scope={scope} preset={preset} defaultName={defaultName} session={session} release={release} onClose={() => setOpen(false)} onBusy={setBusy} />
       </Modal>
     </>
@@ -673,7 +673,7 @@ function Form({
               </Field>
             </div>
             <p className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-2">
-              Made when you press Start, with this run in it.
+              Made when you press Create, with this run in it.
               <InfoTip text={`A test cycle is the folder a run goes in, like "Sprint 14". It uses ${opts.umbrella?.name}'s cases, Jira, bug template and team.`} />
             </p>
           </div>
@@ -788,21 +788,21 @@ function Form({
           {kindId !== null &&
             (runCount > 1 ? (
               <Button variant="primary" disabled={busy || !ready} onClick={() => submit(false)}>
-                {busy ? <Working opening={!!opening} /> : `Start ${runCount} ${session ? "sessions" : "runs"}`}
+                {busy ? <Working opening={!!opening} session={session} /> : session ? `Start ${runCount} sessions` : `Create ${runCount} runs`}
               </Button>
             ) : session ? (
               <Button variant="primary" disabled={busy || !ready} onClick={() => submit(true)}>
-                {busy ? <Working opening={!!opening} /> : "Start session"}
+                {busy ? <Working opening={!!opening} session={session} /> : "Start session"}
               </Button>
             ) : (
               <>
                 <Button disabled={busy || !ready} onClick={() => submit(false)}>
-                  {busy && pressed === "plain" ? <Working opening={!!opening} /> : kind ? `Start ${kind.name.toLowerCase()}` : "Start run"}
+                  {busy && pressed === "plain" ? <Working opening={!!opening} session={session} /> : kind ? `Create ${kind.name.toLowerCase()}` : "Create run"}
                 </Button>
                 {/* Handing every case to someone else: no "test now" for you. */}
                 {!handed && (
                   <Button variant="primary" disabled={busy || !ready} onClick={() => submit(true)}>
-                    {busy && pressed === "test" ? <Working opening={!!opening} /> : "Start and test now"}
+                    {busy && pressed === "test" ? <Working opening={!!opening} session={session} /> : "Create and test now"}
                   </Button>
                 )}
               </>
@@ -814,11 +814,11 @@ function Form({
 }
 
 /** A pressed Start button: a small plain ring and what's happening. */
-function Working({ opening }: { opening: boolean }) {
+function Working({ opening, session }: { opening: boolean; session?: boolean }) {
   return (
     <span className="inline-flex items-center gap-1.5">
       <SpinnerArt id="ring" size={14} />
-      {opening ? "Opening…" : "Starting…"}
+      {opening ? "Opening…" : session ? "Starting…" : "Creating…"}
     </span>
   );
 }

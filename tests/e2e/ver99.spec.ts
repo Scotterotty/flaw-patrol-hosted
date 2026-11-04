@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
 import { choosePlatform, openReleaseBox, pickKind } from "./projects";
 
-// ver_99: nothing is picked for you. Start a run and Release candidate open blank, with last
+// ver_99: nothing is picked for you. Create a run and Release candidate open blank, with last
 // time's choices as "Use …" suggestions and a still-needed list; New test suite has numbered
 // steps, a folder list with Tick all and "Can't find a case?"; pick lists take typed values;
 // + New platform wherever a platform is picked.
@@ -45,11 +45,11 @@ test.beforeAll(async () => {
   }
 });
 
-test("Start a run opens blank: Use it, Use the release, a typed CSP version and + New platform", async ({ page }) => {
+test("Create a run opens blank: Use it, Use the release, a typed CSP version and + New platform", async ({ page }) => {
   test.setTimeout(240_000);
   await signIn(page, "admin@example.com", "Demo Admin");
   await page.goto(`/g/${groupId}`);
-  await page.getByRole("button", { name: /Start a run/ }).first().click();
+  await page.getByRole("button", { name: /Create a run/ }).first().click();
   const box = page.getByRole("dialog");
   await pickKind(page);
   const todo = box.getByTestId("run-todo");
@@ -83,9 +83,9 @@ test("Start a run opens blank: Use it, Use the release, a typed CSP version and 
   await expect(box.getByLabel("Run name (optional)")).toHaveValue("");
   await expect(box.getByLabel("Run name (optional)")).toHaveAttribute("placeholder", /^Smoke test /);
   // A pick list takes a typed value.
-  await expect(box.getByRole("button", { name: "Start and test now" })).toBeDisabled();
+  await expect(box.getByRole("button", { name: "Create and test now" })).toBeDisabled();
   await box.getByLabel("CSP version *").fill("5.4");
-  await expect(box.getByRole("button", { name: "Start and test now" })).toBeEnabled();
+  await expect(box.getByRole("button", { name: "Create and test now" })).toBeEnabled();
 
   // + New platform in + New test cycle.
   await box.getByRole("button", { name: "＋ New test cycle" }).click();
@@ -97,7 +97,7 @@ test("Start a run opens blank: Use it, Use the release, a typed CSP version and 
   await expect(made.getByRole("radio", { name: /Android/ })).toHaveAttribute("aria-checked", "true");
   await made.getByLabel("Name", { exact: true }).fill(`Sprint 1 ${TAG}`);
   await expect(todo).toContainText(`One run in each: Demo RC 1 ${TAG}, Sprint 1 ${TAG} (new)`);
-  await box.getByRole("button", { name: "Start 2 runs" }).click();
+  await box.getByRole("button", { name: "Create 2 runs" }).click();
   await expect(page).toHaveURL(/\/runs$/, { timeout: 60_000 });
 
   const db = new PrismaClient();

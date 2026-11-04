@@ -47,7 +47,7 @@ test("an umbrella with only Bug bashes and risk, then Test cases turned on and o
   await expect(menu.getByRole("link", { name: "+ Add tools" })).toBeVisible();
 
   // Overview: Start a bug bash is the button, no test cycles card, bug bash and risk board cards.
-  await expect(page.getByRole("button", { name: "▶ Start a run" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "▶ Create a run" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Start a bug bash/ }).first()).toBeVisible();
   await expect(page.getByText(`Test cycles in ${NAME}`)).toHaveCount(0);
   await expect(page.getByRole("link", { name: /Risk board/ }).last()).toBeVisible();

@@ -105,7 +105,7 @@ export function UploadAutomationButton({ scope }: { scope: { groupId: string } |
 /**
  * Test runs → Bring in results (persona audit #8): Import a run and Upload
  * automation results used to be two equal buttons that sounded the same. One menu now
- * holds both, each saying what kind of file it takes, so Start a run stands out.
+ * holds both, each saying what kind of file it takes, so Create a run stands out.
  * The two choices stay in a fixed order.
  */
 export function BringInResults({ scope, importHref, auto = true }: { scope: { groupId: string } | { projectKey: string }; importHref?: string; auto?: boolean }) {

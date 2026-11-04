@@ -39,7 +39,7 @@ export async function RcReport({
   if (!release)
     return (
       <EmptyState title="No releases yet">
-        Release status is for testing a release candidate. Runs show up here once they have a release: set it when you start a run, or later from the run&apos;s Edit
+        Release status is for testing a release candidate. Runs show up here once they have a release: set it when you create a run, or later from the run&apos;s Edit
         button. All other testing is on Test runs.
       </EmptyState>
     );

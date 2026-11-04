@@ -86,8 +86,8 @@ test("a case runs once per row of test data", async ({ page }) => {
   await page.getByRole("checkbox").first().check();
   await page.getByRole("button", { name: "Create suite" }).click();
   await expect(page.getByRole("heading", { name: "Menus" })).toBeVisible();
-  await page.getByRole("button", { name: "Start test run" }).click();
-  await page.getByRole("button", { name: "Start run", exact: true }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
+  await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${KEY}/runs/1$`));
   await page.getByRole("link", { name: "Start testing" }).click();
 

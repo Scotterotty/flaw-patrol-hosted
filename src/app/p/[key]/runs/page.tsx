@@ -56,11 +56,11 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
     <div className="mx-auto max-w-6xl">
       <PageHeader
         title="Test runs"
-        subtitle="Start a run from a test suite, or select cases in the library and run them."
+        subtitle="Create a run from a test suite, or select cases in the library and run them."
         actions={
           <>
             {can(who, "run:import") && <BringInResults scope={{ projectKey: project.key }} importHref={`/p/${project.key}/runs/import`} auto={!project.archivedAt} />}
-            {/* In an umbrella, Start a run's Bug bash kind opens this box. */}
+            {/* In an umbrella, Create a run's Bug bash kind opens this box. */}
             {canStart && !project.archivedAt && <StartBashButton projectId={project.id} hideButton={inUmbrella} />}
             {picker}
           </>
@@ -84,7 +84,7 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
             <>When a run is closed, it moves here. Open a closed run to reopen it.</>
           ) : (
             <>
-              Press Start a run to test by hand, or use Bring in results for results from your automated tests or a spreadsheet.
+              Press Create a run to test by hand, or use Bring in results for results from your automated tests or a spreadsheet.
             </>
           )}
         </EmptyState>

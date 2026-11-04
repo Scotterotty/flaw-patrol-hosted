@@ -23,9 +23,9 @@ test("a suite can be renamed from its page and the suites list, and old runs sho
   }
 
   // Run it once under the old name.
-  await page.getByRole("button", { name: "Start test run" }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
   await page.getByLabel("Run name").fill("Before rename");
-  await page.getByRole("button", { name: "Start run", exact: true }).click();
+  await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
   const runUrl = page.url();
   await expect(page.getByTestId("suite-then-called")).toHaveCount(0);

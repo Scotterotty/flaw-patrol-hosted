@@ -4,7 +4,7 @@ import { signIn } from "./auth";
 import { openReleaseBox, pickKind } from "./projects";
 
 // ver_118: an umbrella with no suites (or no cases at all) never leaves you stuck. New platforms in the
-// release box pick test cases like the others, Start a run explains what to do, and the setup card offers
+// release box pick test cases like the others, Create a run explains what to do, and the setup card offers
 // Make a suite (optional).
 
 const TAG = Date.now().toString(36).slice(-4).toUpperCase();
@@ -22,7 +22,7 @@ async function newUmbrella(page: Page, name: string, key: string) {
   return page.url();
 }
 
-test("no cases and no suites: setup card, release box and Start a run", async ({ page }) => {
+test("no cases and no suites: setup card, release box and Create a run", async ({ page }) => {
   test.setTimeout(300_000);
   await page.setViewportSize({ width: 1366, height: 900 });
   const NAME = `Empty ${TAG}`;
@@ -36,8 +36,8 @@ test("no cases and no suites: setup card, release box and Start a run", async ({
   await expect(steps.nth(1).getByRole("link", { name: "Make a suite" })).toHaveAttribute("href", `/p/${HUB}/suites/new`);
   await expect(steps.nth(2)).toContainText("Run your first tests");
 
-  // Start a run: no cases, so one note with links instead of "All 0 active cases".
-  await page.getByRole("button", { name: /Start a run/ }).first().click();
+  // Create a run: no cases, so one note with links instead of "All 0 active cases".
+  await page.getByRole("button", { name: /Create a run/ }).first().click();
   const box = page.getByRole("dialog");
   await pickKind(page);
   const none = box.getByTestId("run-no-cases");
@@ -74,7 +74,7 @@ test("no cases and no suites: setup card, release box and Start a run", async ({
   }
 });
 
-test("cases but no suites: a new platform picks cases from folders, and Start a run offers Pick cases instead", async ({ page }) => {
+test("cases but no suites: a new platform picks cases from folders, and Create a run offers Pick cases instead", async ({ page }) => {
   test.setTimeout(300_000);
   await page.setViewportSize({ width: 1366, height: 900 });
   const NAME = `Nosu ${TAG}`;
@@ -87,9 +87,9 @@ test("cases but no suites: a new platform picks cases from folders, and Start a 
   await page.getByRole("button", { name: "Create case" }).first().click();
   await expect(page.getByRole("heading", { name: `Sign in ${TAG}` })).toBeVisible();
 
-  // Start a run → A suite: the note explains, and Pick cases instead switches over.
+  // Create a run → A suite: the note explains, and Pick cases instead switches over.
   await page.goto(home);
-  await page.getByRole("button", { name: /Start a run/ }).first().click();
+  await page.getByRole("button", { name: /Create a run/ }).first().click();
   const box = page.getByRole("dialog");
   await pickKind(page);
   await expect(box.getByRole("button", { name: /A suite/ })).toContainText("None yet");

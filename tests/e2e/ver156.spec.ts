@@ -38,10 +38,10 @@ test("side panels resize by dragging, safely, and remember their size", async ({
   await expect(page.getByText("Imported 2 test cases")).toBeVisible();
 
   await page.goto(`/p/${KEY}/runs`);
-  await page.getByRole("button", { name: "Start a run" }).first().click();
-  const box = page.getByRole("dialog", { name: "Start a run" });
+  await page.getByRole("button", { name: "Create a run" }).first().click();
+  const box = page.getByRole("dialog", { name: "Create a run" });
   await box.getByRole("button", { name: /Every case/ }).click();
-  await box.getByRole("button", { name: "Start and test now" }).click();
+  await box.getByRole("button", { name: "Create and test now" }).click();
   await expect(page).toHaveURL(/\/execute/);
   const runUrl = page.url();
 

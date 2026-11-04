@@ -20,15 +20,15 @@ test("trends chart results over time, and report filters can be saved for the te
   await page.getByLabel("Name", { exact: true }).fill("Both");
   await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
-  await expect(page.getByRole("button", { name: "Start test run" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create a run" })).toBeVisible();
   const suiteUrl = page.url();
 
   // Two runs: Alpha passes then fails, Beta passes both times.
   for (const [release, alpha] of [["RC1", "Passed"], ["RC2", "Failed"]]) {
     await page.goto(suiteUrl);
-    await page.getByRole("button", { name: "Start test run" }).click();
+    await page.getByRole("button", { name: "Create a run" }).click();
     await page.getByLabel(/Release/).first().fill(release);
-    await page.getByRole("button", { name: "Start run", exact: true }).click();
+    await page.getByRole("button", { name: "Create run", exact: true }).click();
     await expect(page).toHaveURL(/\/runs\/\d+$/);
     await page.getByRole("link", { name: "Start testing" }).click();
     for (const title of ["Alpha", "Beta"]) {

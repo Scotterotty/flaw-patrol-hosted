@@ -30,9 +30,9 @@ test("the project overview shows runs in progress, my work and flagged cases", a
   await page.getByLabel("Name", { exact: true }).fill("Both");
   await page.getByRole("button", { name: /^Tick all/ }).click();
   await page.getByRole("button", { name: "Create suite" }).click();
-  await page.getByRole("button", { name: "Start test run" }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
   await page.getByLabel("Assign every case to").selectOption({ label: "Me (Demo Admin)" });
-  await page.getByRole("button", { name: "Start run", exact: true }).click();
+  await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
 
   await page.goto(page.url() + "/execute?mine=1");
@@ -60,8 +60,8 @@ test("the project overview shows runs in progress, my work and flagged cases", a
   await mine.getByRole("link", { name: /Both/ }).click();
   await expect(page.getByRole("heading", { name: "Sign out", level: 1 })).toBeVisible();
 
-  // Resume picks the run up where it was left.
+  // Continue testing picks the run up where it was left.
   await page.goto(`/p/${KEY}`);
-  await runs.getByRole("link", { name: /^Resume R\d+ Both/ }).click();
+  await runs.getByRole("link", { name: /^Continue testing R\d+ Both/ }).click();
   await expect(page.getByRole("heading", { name: "Sign out", level: 1 })).toBeVisible();
 });

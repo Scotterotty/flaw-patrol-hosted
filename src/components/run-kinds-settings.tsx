@@ -7,7 +7,7 @@ import { setRunKinds } from "@/server/start-run";
 import { Badge, Button, ErrorText, Field, Input, Select } from "./ui";
 
 /**
- * Umbrella Settings → Run kinds: what Start a run asks first. Smoke test and
+ * Umbrella Settings → Run kinds: what Create a run asks first. Smoke test and
  * Release candidate can be renamed or hidden; Bug bash is always there. Each kind can
  * have a usual suite, which fills in "What to run". Saves on each change.
  */
@@ -77,7 +77,7 @@ export function RunKindsPanel({ groupId, umbrella, kinds: initial, suites, canEd
   return (
     <div className="space-y-3 text-sm">
       <p className="text-slate-600">
-        <b>Start a run</b> asks which kind of run it is first. A kind&apos;s usual suite fills in what to run. Each run keeps its kind, so run lists and Reports can show
+        <b>Create a run</b> asks which kind of run it is first. A kind&apos;s usual suite fills in what to run. Each run keeps its kind, so run lists and Reports can show
         and filter by it. Release status counts release candidates and plain runs only.
       </p>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
@@ -148,7 +148,7 @@ export function RunKindsPanel({ groupId, umbrella, kinds: initial, suites, canEd
             ＋ Add a kind
           </Button>
         ))}
-      {!canEdit && <p className="text-xs text-slate-500">Admins can change these. Anyone who starts runs can add a kind from Start a run.</p>}
+      {!canEdit && <p className="text-xs text-slate-500">Admins can change these. Anyone who starts runs can add a kind from Create a run.</p>}
     </div>
   );
 }

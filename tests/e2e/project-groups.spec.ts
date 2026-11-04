@@ -25,11 +25,11 @@ async function suiteAndRun(page: Page, key: string, suite: string, run: string) 
   await expect(page).not.toHaveURL(/\/suites\/new/);
   await page.goto(`/p/${key}/suites`);
   await page.getByRole("link", { name: suite }).click();
-  await page.getByRole("button", { name: "Start test run" }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
   await page.getByLabel("Run name").fill(run);
   await page.getByLabel("Release", { exact: true }).fill(RC);
   await page.getByLabel("Build").fill("1.0.0");
-  await page.getByRole("button", { name: "Start run", exact: true }).click();
+  await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
 }
 

@@ -49,10 +49,10 @@ test("found-in version goes into Jira and shows on the Bugs page", async ({ page
   await page.getByLabel("Name", { exact: true }).fill("Checkout");
   await page.getByRole("checkbox").first().check();
   await page.getByRole("button", { name: "Create suite" }).click();
-  await page.getByRole("button", { name: "Start test run" }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
   // Written loosely on purpose: Jira's version is "RC 22".
   await page.getByLabel("Release", { exact: true }).fill("rc22");
-  await page.getByRole("button", { name: "Start run", exact: true }).click();
+  await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${KEY}/runs/1$`));
   await page.getByRole("link", { name: "Start testing" }).click();
   await expect(page).toHaveURL(/\/execute\?entry=/);

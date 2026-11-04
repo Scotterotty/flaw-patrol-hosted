@@ -34,7 +34,7 @@ export async function Runs({ projectIds, state, kind, kinds = [], canStart = tru
     return state === "automated" ? (
       <EmptyState title="No automated runs yet">{canStart ? "Upload automation results to bring in results from your automated tests. Each upload shows here." : "When someone uploads results from automated tests, they show here."}</EmptyState>
     ) : (
-      <EmptyState title="No runs yet">{canStart ? "Press Start a run to test by hand, or Upload automation results to bring in results from your automated tests." : "When someone starts a run, it shows here."}</EmptyState>
+      <EmptyState title="No runs yet">{canStart ? "Press Create a run to test by hand, or Upload automation results to bring in results from your automated tests." : "When someone starts a run, it shows here."}</EmptyState>
     );
   return (
     <Card className="divide-y divide-slate-100">

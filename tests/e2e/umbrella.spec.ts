@@ -90,7 +90,7 @@ test("umbrella: shared library, platforms, Start next release, bugs and shortcut
 
   // The RC project can keep its own team.
   await page.goto(home);
-  await page.getByRole("link", { name: `${NAME} Web RC7` }).first().click();
+  await page.getByRole("link", { name: `${NAME} Web RC7`, exact: true }).first().click();
   await page.waitForURL(/\/p\/[^/]+/);
   const key = page.url().split("/p/")[1].split("/")[0];
   // ver_117: set on its row in the umbrella's Settings → Test cycles.

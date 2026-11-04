@@ -73,10 +73,10 @@ test("the Start box shows your spinner while it makes the run, and the corner st
     if (route.request().method() === "POST" && route.request().headers()["next-action"]) await new Promise((r) => setTimeout(r, 2000));
     await route.continue();
   });
-  await page.getByRole("button", { name: "Start a run" }).first().click();
-  const box = page.getByRole("dialog", { name: "Start a run" });
+  await page.getByRole("button", { name: "Create a run" }).first().click();
+  const box = page.getByRole("dialog", { name: "Create a run" });
   await box.getByRole("button", { name: /Every case/ }).click();
-  await box.getByRole("button", { name: "Start run", exact: true }).click();
+  await box.getByRole("button", { name: "Create run", exact: true }).click();
   const making = box.getByTestId("run-making");
   await expect(making).toContainText("Making");
   await expect(making).toContainText("Adding 1 case");
@@ -84,7 +84,7 @@ test("the Start box shows your spinner while it makes the run, and the corner st
   await page.waitForTimeout(600);
   await expect(page.getByTestId("busy-corner")).toHaveCount(0);
   await expect(page).toHaveURL(/\/runs\/\d+$/);
-  await expect(page.getByRole("dialog", { name: "Start a run" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Create a run" })).toHaveCount(0);
 });
 
 test("a slow save shows only the top line, never the corner spinner (ver_130)", async ({ page }) => {

@@ -24,7 +24,7 @@ export function NewRunButton({
   source,
   defaultName,
   members,
-  label = "Start test run",
+  label = "Create a run",
   variant = "primary",
   suggest,
   disabled,
@@ -52,7 +52,7 @@ export function NewRunButton({
   disabled?: boolean;
   releases?: string[];
   suiteVersion?: number;
-  /** Open the dialog straight away, e.g. when arriving from "Start a run" on the runs page. */
+  /** Open the dialog straight away, e.g. when arriving from "Create a run" on the runs page. */
   initialOpen?: boolean;
   /** Go straight to testing once it starts, e.g. "Start session now" on a charter. */
   openRunner?: boolean;
@@ -188,12 +188,12 @@ export function NewRunButton({
             ) : (
               <>
                 <Button type="submit" name="go" value="page" disabled={pending}>
-                  Start run
+                  Create run
                 </Button>
                 {/* Handing every case to someone else: no "test now" for you. */}
                 {!handed && (
                   <Button type="submit" name="go" value="test" variant="primary" disabled={pending}>
-                    {pending ? "Starting…" : "Start and test now"}
+                    {pending ? "Creating…" : "Create and test now"}
                   </Button>
                 )}
               </>

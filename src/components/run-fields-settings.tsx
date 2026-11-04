@@ -26,7 +26,7 @@ export function RunFieldsPanel({ groupId, umbrella, fields: initial, canEdit }: 
   return (
     <div className="space-y-3 text-sm">
       <p className="text-slate-600">
-        What people fill in when they start a run in any {umbrella} test cycle.
+        What people fill in when they create a run in any {umbrella} test cycle.
       </p>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <div>

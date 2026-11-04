@@ -22,7 +22,7 @@ import { addUmbrellaProject } from "./umbrella";
 import { createRun } from "./runs";
 import { ONLY_AUTOMATED } from "@/lib/automated-cases";
 
-// The Start a run box: pick what to run from the library (all of it, a
+// The Create a run box: pick what to run from the library (all of it, a
 // suite, or ticked cases), then the test cycles to run it in, one run in each.
 
 export type RunBoxScope = { projectKey: string } | { groupId: string };
@@ -31,7 +31,7 @@ export type RunBoxCycle = { id: string; key: string; name: string; color: string
 
 const viewerLine = (team: string) => `You're a Viewer in ${team}. Ask an admin for Member access to start runs.`;
 
-/** The Start a run box's Ask for Member access, for a Viewer who opened it: asks in the umbrella's team. */
+/** The Create a run box's Ask for Member access, for a Viewer who opened it: asks in the umbrella's team. */
 export async function askAccessFromRunBox(scope: RunBoxScope, path: string) {
   const user = await requireUser();
   let projectId: string | null = null;
@@ -231,7 +231,7 @@ async function keyFromName(name: string) {
   throw new UserError("Couldn't make a key from that name. Try a shorter, different name.");
 }
 
-/** Step 2 of Start a run in an umbrella with no test cycles: make the first one right there. */
+/** Step 2 of Create a run in an umbrella with no test cycles: make the first one right there. */
 export async function createCycleFromRunBox(groupId: string, input: { name: string; platform: string }) {
   return attempt(async () => {
     const name = z.string().trim().min(1, "Give the test cycle a name").max(100).parse(input.name);
@@ -251,7 +251,7 @@ const kindSchema = z.object({
   suiteId: z.string().nullable().default(null),
 });
 
-/** "+ New kind…" in Start a run: added to the umbrella and used at once. Anyone who can start runs can add one. */
+/** "+ New kind…" in Create a run: added to the umbrella and used at once. Anyone who can start runs can add one. */
 export async function addRunKind(groupId: string, input: z.input<typeof kindSchema>) {
   return attempt(async () => {
     const data = kindSchema.parse(input);

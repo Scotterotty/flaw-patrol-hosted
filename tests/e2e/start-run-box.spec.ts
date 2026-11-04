@@ -14,7 +14,7 @@ async function libraryCase(page: Page, title: string) {
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
 }
 
-test("one Start a run box: whole library, a suite or picked cases, in one or more test cycles", async ({ page }) => {
+test("one Create a run box: whole library, a suite or picked cases, in one or more test cycles", async ({ page }) => {
   test.setTimeout(300_000);
   await signIn(page, "admin@example.com", "Demo Admin");
 
@@ -38,8 +38,8 @@ test("one Start a run box: whole library, a suite or picked cases, in one or mor
 
   // From the umbrella's Test runs: pick two cases, run them on both platforms at once.
   await page.goto(`${home}/runs`);
-  await page.getByRole("button", { name: "Start a run" }).click();
-  const box = page.getByRole("dialog", { name: "Start a run" });
+  await page.getByRole("button", { name: "Create a run" }).click();
+  const box = page.getByRole("dialog", { name: "Create a run" });
   await pickKind(page);
   // The box opens fresh: nothing picked, no test cycle ticked.
   await expect(box.getByTestId("run-todo")).toContainText("Pick what to run");
@@ -56,7 +56,7 @@ test("one Start a run box: whole library, a suite or picked cases, in one or mor
   await expect(box.getByTestId("run-todo")).toContainText(`One run in each: ${NAME} Web RC4, ${NAME} Unity RC4`);
   await expect(box.getByTestId("run-todo")).toContainText("2 cases");
   await box.getByLabel("Run name").fill(`Login check ${TAG}`);
-  await box.getByRole("button", { name: "Start 2 runs" }).click();
+  await box.getByRole("button", { name: "Create 2 runs" }).click();
   await expect(page).toHaveURL(new RegExp(`${home.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/runs`));
   await expect(page.getByText(`Login check ${TAG}`).filter({ visible: true })).toHaveCount(2);
   // Nobody was given the cases.
@@ -71,13 +71,13 @@ test("one Start a run box: whole library, a suite or picked cases, in one or mor
   await expect(box.getByText("1 picked")).toBeVisible();
   // Run it in Web only, and go straight to testing.
   await box.getByRole("checkbox", { name: `${NAME} Web RC4` }).check();
-  await box.getByRole("button", { name: "Start and test now" }).click();
+  await box.getByRole("button", { name: "Create and test now" }).click();
   await expect(page).toHaveURL(/\/runs\/2\/execute/);
   await expect(page.getByText(`Join a space ${TAG}`).first()).toBeVisible();
 
   // Inside a test cycle: the same umbrella menu, with the test cycle lit under Test cycles and its settings under Settings (ver_87).
   await page.goto(home);
-  await page.getByRole("link", { name: `${NAME} Unity RC4` }).first().click();
+  await page.getByRole("link", { name: `${NAME} Unity RC4`, exact: true }).first().click();
   const nav = page.getByRole("navigation", { name: `${NAME} umbrella` }).first();
   await expect(nav.getByRole("link", { name: "Case library" })).toHaveAttribute("href", `/p/${HUB}/cases`);
   await expect(nav.getByRole("link", { name: "Shared steps" })).toBeVisible();
@@ -86,7 +86,7 @@ test("one Start a run box: whole library, a suite or picked cases, in one or mor
   // ver_117: one Settings link for the umbrella and its test cycles.
   await expect(nav.getByRole("link", { name: "Settings", exact: true })).toBeVisible();
   await expect(nav.locator("[aria-current=page]")).toHaveCount(1);
-  await page.getByRole("button", { name: "Start a run" }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
   await pickKind(page);
   await box.getByRole("button", { name: /Whole Case library/ }).click();
   // Opened from the Unity test cycle, so Unity is ticked for you (ver_85).
@@ -97,7 +97,7 @@ test("one Start a run box: whole library, a suite or picked cases, in one or mor
   await expect(box.getByLabel("Release", { exact: true })).toHaveValue("");
   await box.getByRole("button", { name: "Use RC4" }).click();
   await expect(box.getByLabel("Release", { exact: true })).toHaveValue("RC4");
-  await box.getByRole("button", { name: /^Start (run|smoke test)$/ }).click();
+  await box.getByRole("button", { name: /^Create (run|smoke test)$/ }).click();
   await expect(page).toHaveURL(/\/runs\/2$/);
 
   // Umbrella reports: every test cycle in one place, narrowed by platform.

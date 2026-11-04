@@ -71,10 +71,10 @@ test("suites, runs, Jira bugs and reports", async ({ page }) => {
   await snap(page, "suite");
 
   // Run against an RC
-  await page.getByRole("button", { name: "Start test run" }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
   await page.getByLabel("Release", { exact: true }).fill("2.4.0-rc1");
   await page.getByLabel("Build").fill("#1482");
-  await page.getByRole("button", { name: "Start run", exact: true }).click();
+  await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${KEY}/runs/1$`));
   await page.getByRole("link", { name: "Start testing" }).click();
 
