@@ -5,7 +5,7 @@ import { AddToCalendar, ScheduleControls } from "@/components/bash-schedule";
 import { whenLabel } from "@/lib/bash-schedule";
 import { viewerZone } from "@/lib/zone-server";
 import { buttonClass, Card, EmptyState, PageHeader } from "@/components/ui";
-import { parseAreas } from "@/lib/bash";
+import { parseAreas, setupLine } from "@/lib/bash";
 import { bashHome, bashList } from "@/lib/bash-data";
 import { db } from "@/lib/db";
 import { can } from "@/lib/permissions";
@@ -73,6 +73,11 @@ export default async function BashesPage({ params, searchParams }: { params: Pro
               ) : (
                 <p className="text-xs text-slate-500">
                   Started by {b.createdBy} · {b.people} {b.people === 1 ? "person" : "people"} · {b.areas} {b.areas === 1 ? "area" : "areas"} · {b.bugs} {b.bugs === 1 ? "bug" : "bugs"} so far
+                </p>
+              )}
+              {b.phase !== "ended" && setupLine(b) && (
+                <p className="text-xs text-slate-600" data-testid="bash-setup-line">
+                  {setupLine(b)}
                 </p>
               )}
             </div>

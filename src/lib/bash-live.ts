@@ -17,6 +17,7 @@ export async function bashFinds(bashId: string) {
       wrappedAt: true,
       areas: true,
       links: true,
+      run: { select: { build: true, environment: true } },
       people: { select: { userId: true, name: true, areaId: true } },
       items: {
         where: { kind: { in: [...ITEM_KINDS, "add"] }, mergedIntoId: null },
@@ -34,6 +35,8 @@ export async function bashFinds(bashId: string) {
     phase: phaseOf(bash),
     areas: parseAreas(bash.areas).map((a) => ({ id: a.id, name: a.name, links: a.links, addedAt: a.addedAt ?? null, people: bash.people.filter((p) => p.areaId === a.id).map((p) => ({ id: p.userId, name: p.name })) })),
     links: parseLinks(bash.links),
+    build: bash.run?.build ?? "",
+    environment: bash.run?.environment ?? "",
     items: bash.items
       .filter((i) => i.kind !== "add")
       .map((i) => ({

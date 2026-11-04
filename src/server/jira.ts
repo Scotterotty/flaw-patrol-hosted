@@ -369,6 +369,8 @@ const bugSchema = z.object({
   attachmentIds: z.array(z.string()).max(20).default([]),
   /** Stories of the case to link the new bug to, with Jira's "relates to". */
   stories: z.array(z.string().max(30)).max(10).default([]),
+  /** A bug bash find's build and environment when it was logged (ver_172), over the run's current ones. */
+  runAs: z.object({ build: z.string().trim().max(120), environment: z.string().trim().max(120) }).optional(),
   /** Regression flag: add the Jira label and the passed-in / fails-in builds line. */
   regression: z.boolean().default(false),
   /** Send to Jira: the bug saved here before Jira was connected, which becomes the new issue. */
@@ -589,6 +591,7 @@ export async function fileJiraBug(projectId: string, entryId: string, input: z.i
     if (data.fromDefectId && !local) throw new UserError("That bug isn't in this test cycle anymore.");
     if (local?.externalKey) throw new UserError(`That bug is already ${local.externalKey} in Jira.`);
     const { ctx } = await bugContext(projectId, entryId, data.stepIndex, data.actual, data.focus);
+    if (data.runAs) Object.assign(ctx, data.runAs);
     // The tester is the bug's Reporter in Jira. When that can't be set, their name goes in the description.
     const account = await jiraAccountOf(client, user);
     const tester = user.name ?? user.email;

@@ -14,7 +14,7 @@ export async function loadBashFull(bashId: string) {
     where: { id: bashId },
     include: {
       project: { select: { id: true, key: true, name: true, groupId: true } },
-      run: { select: { id: true, number: true, projectId: true, project: { select: { key: true, name: true, platform: true } } } },
+      run: { select: { id: true, number: true, projectId: true, build: true, environment: true, project: { select: { key: true, name: true, platform: true } } } },
       people: { orderBy: { joinedAt: "asc" } },
       items: { orderBy: { createdAt: "desc" }, include: { attachments: { select: { id: true, fileName: true, contentType: true } } } },
     },
@@ -160,6 +160,9 @@ export function bashView(full: BashFull, me: { id: string; canManage: boolean; l
     runHref: bash.run ? `/p/${bash.run.project.key}/runs/${bash.run.number}` : null,
     areas: full.areas.map((a) => ({ id: a.id, name: a.name, template: a.template, prompts: a.charter?.prompts ?? [], charterHref: a.charter ? `/p/${a.charter.key}/cases/${a.charter.number}` : null, people: a.people, links: a.links, addedAt: a.addedAt ?? null })),
     links: full.links,
+    // What's being tested (ver_172): the run's build and environment.
+    build: bash.run?.build ?? "",
+    environment: bash.run?.environment ?? "",
     people: bash.people.map((p) => ({ id: p.userId, name: p.name, areaId: p.areaId, platform: p.platform })),
     // Platforms people can say they're on (ver_146); empty means nobody is asked.
     platforms: cleanPlatforms(bash.platforms),

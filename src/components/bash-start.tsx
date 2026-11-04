@@ -95,7 +95,7 @@ export function StartBashAuto({ projectId }: { projectId: string }) {
 }
 
 /** Until its data arrives the box takes a Name and How long; the area ideas show a spinner. */
-const NO_DATA: StartBoxData = { homeId: "", homeKey: "", homeName: "", releases: [], suggestions: [], last: null, templates: [], slackChannels: 0, bugTemplates: [], bugTemplateDefault: null, platforms: [], askPlatform: false };
+const NO_DATA: StartBoxData = { homeId: "", homeKey: "", homeName: "", releases: [], suggestions: [], last: null, templates: [], slackChannels: 0, bugTemplates: [], bugTemplateDefault: null, platforms: [], askPlatform: false, environments: [] };
 
 function StartBashForm({
   data: loaded,
@@ -156,6 +156,10 @@ function StartBashForm({
     setPlats([...platforms, v]);
     setAsk(true);
   };
+  // What people are testing (ver_172): all optional.
+  const [build, setBuild] = useState("");
+  const [environment, setEnvironment] = useState("");
+  const [link, setLink] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [done, setDone] = useState<{ id: string; key: string; posted: string[]; later: CalendarBash | null } | null>(null);
@@ -181,7 +185,7 @@ function StartBashForm({
       const startsAt = at ? at.toISOString() : "";
       const all = draft.trim() && !has(draft) ? [...areas, { name: draft.trim(), template: null }] : areas;
       const plats = platDraft.trim() ? [...platforms, platDraft.trim()] : platforms;
-      const res = await startBugBash(data.homeId, { name, minutes, areas: all, startsAt, release, collectFirst, slack, funExtras: fun, bugTemplateId: bugTemplateId || null, platforms: askPlatform ? plats : [] });
+      const res = await startBugBash(data.homeId, { name, minutes, areas: all, startsAt, release, collectFirst, slack, funExtras: fun, bugTemplateId: bugTemplateId || null, platforms: askPlatform ? plats : [], build, environment, link });
       if (!res.ok) return setError(res.error);
       setDone({ id: res.id, key: res.key, posted: res.posted, later: at ? { id: res.id, name: name.trim(), startsAt: at.toISOString(), endsAt: new Date(at.getTime() + minutes * 60_000).toISOString(), areas: all.map((a) => a.name), by: res.by, homeKey: res.key } : null });
       router.refresh();
@@ -313,6 +317,30 @@ function StartBashForm({
           </button>
         )}
       </div>
+      <fieldset data-testid="bash-setup">
+        <legend className="mb-1.5 text-xs font-semibold text-slate-600">
+          What are people testing? <span className="font-normal text-slate-500">(optional)</span>
+        </legend>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Field label="Build" htmlFor="bash-build">
+            <Input id="bash-build" value={build} maxLength={120} onChange={(e) => setBuild(e.target.value)} placeholder="Like 2.4.1 (812)" />
+          </Field>
+          <Field label="Environment" htmlFor="bash-env">
+            <Input id="bash-env" list="bash-env-list" value={environment} maxLength={120} onChange={(e) => setEnvironment(e.target.value)} placeholder="Like Staging" />
+            <datalist id="bash-env-list">
+              {data.environments.map((e) => (
+                <option key={e} value={e} />
+              ))}
+            </datalist>
+          </Field>
+          <div className="sm:col-span-2">
+            <Field label="Link" htmlFor="bash-link">
+              <Input id="bash-link" inputMode="url" value={link} maxLength={2000} onChange={(e) => setLink(e.target.value)} placeholder="Paste a web address: a page, a download, a PR or a Jira issue" />
+            </Field>
+          </div>
+        </div>
+        <p className="mt-1 text-xs text-slate-500">Everyone sees these when they join, and each bug gets the build and environment. You can change them during the bash.</p>
+      </fieldset>
       {loaded && (
         <fieldset data-testid="bash-platforms" className="rounded-md border border-slate-200 p-3">
           <label className="flex items-start gap-2 text-sm font-medium text-slate-800">

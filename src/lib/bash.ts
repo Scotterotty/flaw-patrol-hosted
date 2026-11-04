@@ -95,8 +95,25 @@ export const startSchema = z.object({
   bugTemplateId: z.string().max(40).nullable().default(null),
   /** Platforms people can say they're on when they join; empty means nobody is asked (ver_146). */
   platforms: z.array(z.string()).max(20).default([]),
+  /** What people are testing (ver_172): the build and environment go on the run; the link joins the whole bash's links. */
+  build: z.string().trim().max(120).default(""),
+  environment: z.string().trim().max(120).default(""),
+  link: z.string().trim().max(2000).default(""),
 });
 export type StartInput = z.input<typeof startSchema>;
+
+/** A bash's build and environment, as the starter typed them (ver_172). */
+export const setupSchema = z.object({
+  build: z.string().trim().max(120).default(""),
+  environment: z.string().trim().max(120).default(""),
+});
+
+/** "Build 2.4.1 on Staging", "Build 2.4.1", "On Staging", or "" when neither is set. */
+export function setupLine(s: { build: string; environment: string }) {
+  if (s.build && s.environment) return `Build ${s.build} on ${s.environment}`;
+  if (s.build) return `Build ${s.build}`;
+  return s.environment ? `On ${s.environment}` : "";
+}
 
 /** How bad, in a bash's words, and the severity it files as. */
 export type BashSeverity = "SHOWSTOPPER" | "CRITICAL" | "PROBLEMATIC" | "MINOR";

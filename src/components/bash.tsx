@@ -17,7 +17,7 @@ import { bashAnswers, isNeedsLine, isShot, needsOf, valuesOf, type BashValues } 
 import { listWords } from "@/lib/bug-layout";
 import { TemplatePicker } from "./templated-bug-form";
 import { AnswerTables, FilledForYou, NeedsTag, seenHere, TemplateFields } from "./bash-template";
-import { FIND_LABEL, FindCounts, FindDetail, KindTag, LinkChips, LiveFinds, NewTag, useLiveFinds, useNewArea, WhatYoureTesting, type FindKind, type LiveData } from "./bash-live";
+import { FIND_LABEL, FindCounts, FindDetail, KindTag, LinkChips, LiveFinds, NewTag, SetupStrip, useLiveFinds, useNewArea, WhatYoureTesting, type FindKind, type LiveData } from "./bash-live";
 import { uploadAttachment } from "@/server/results";
 import { BugDialog } from "./bug-dialog";
 import { PromptsCard } from "./session-runner";
@@ -279,6 +279,7 @@ export function JoinPicker({ bash, onCancel }: { bash: BashView; onCancel?: () =
         <h2 className="font-semibold text-slate-900">Pick an area to test</h2>
         <Countdown bash={bash} className="text-sm text-slate-600" />
       </div>
+      <SetupStrip setup={bash} links={bash.links} />
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <div role="radiogroup" aria-label="Area" className={onCancel ? "grid gap-2 sm:grid-cols-2" : "space-y-2"}>
         {bash.areas.map((a) => (
@@ -304,11 +305,6 @@ export function JoinPicker({ bash, onCancel }: { bash: BashView; onCancel?: () =
           </label>
         ))}
       </div>
-      {bash.links.length > 0 && (
-        <p className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-          Whole bash: <LinkChips links={bash.links} />
-        </p>
-      )}
       {bash.platforms.length > 0 && <PlatformPicker bash={bash} value={platform} onChange={setPlatform} />}
       <div className="mt-4 flex items-center justify-between gap-2">
         <span className="text-xs text-slate-500">You can switch areas any time.</span>
@@ -345,6 +341,9 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
   const area = bash.areas.find((a) => a.id === bash.me.areaId)!;
   const { data, reload } = useLiveFinds(bash.id, finds);
   const isNew = useNewArea();
+  // A new build mid-bash (ver_172): say so once, until they've seen it.
+  const [seenSetup, setSeenSetup] = useState({ build: finds.build, environment: finds.environment });
+  const setupMoved = data.build !== seenSetup.build || data.environment !== seenSetup.environment;
   const [openId, setOpenId] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [details, setDetails] = useState("");
@@ -457,6 +456,16 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
             Press <kbd className="rounded border border-slate-300 px-1">B</kbd>
           </span>
         </div>
+        {setupMoved && (
+          <p className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900 ring-1 ring-amber-200 ring-inset" role="status" data-testid="bash-setup-moved">
+            <span className="min-w-0 flex-1">
+              {data.build !== seenSetup.build ? (data.build ? <>Build changed to <b>{data.build}</b>.</> : <>The build was cleared.</>) : null} {data.environment !== seenSetup.environment ? (data.environment ? <>Environment changed to <b>{data.environment}</b>.</> : <>The environment was cleared.</>) : null} What you log now gets it.
+            </span>
+            <button type="button" className="font-medium text-amber-900 underline" onClick={() => setSeenSetup({ build: data.build, environment: data.environment })}>
+              Got it
+            </button>
+          </p>
+        )}
         <div role="group" aria-label="Kind" className="mt-2 flex gap-1">
           {(["bug", "question", "note", "idea"] as const).map((k) => (
             <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)} className={cx("rounded-full px-2.5 py-0.5 text-xs ring-1 ring-inset", kind === k ? "bg-slate-800 font-semibold text-slate-50 ring-slate-800" : "text-slate-600 ring-slate-200 hover:bg-slate-50")}>
@@ -643,6 +652,7 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
                 { title: "", areaId: area.id, links: liveArea?.links ?? area.links },
                 { title: "Whole bash", areaId: null, links: data.links },
               ]}
+              setup={{ build: data.build, environment: data.environment }}
               canEdit={bash.isOwner && bash.phase !== "wrapped"}
               onSaved={() => void reload()}
             />
@@ -890,12 +900,13 @@ export function BashBoard({ bash, openJoin = false, openFind = null }: { bash: B
           )}
         </Card>
         <div className="space-y-4">
-          {(bash.isOwner || bash.links.length > 0 || bash.areas.some((a) => a.links.length)) && (
+          {(bash.isOwner || bash.links.length > 0 || bash.build || bash.environment || bash.areas.some((a) => a.links.length)) && (
             <Card className="p-4">
               <WhatYoureTesting
                 bashId={bash.id}
                 title="What's being tested"
                 groups={[...bash.areas.map((a) => ({ title: a.name, areaId: a.id, links: a.links, addedAt: a.addedAt })), { title: "Whole bash", areaId: null, links: bash.links }]}
+                setup={{ build: bash.build, environment: bash.environment }}
                 canEdit={bash.isOwner && (bash.phase === "live" || bash.phase === "scheduled")}
                 canAddArea={bash.isOwner && (bash.phase === "live" || bash.phase === "scheduled")}
                 onSaved={() => router.refresh()}

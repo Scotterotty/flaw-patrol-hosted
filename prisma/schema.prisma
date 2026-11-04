@@ -1233,6 +1233,9 @@ model BashItem {
   answers      Json?
   /// The platform the person was on when they logged it, or "" (ver_146).
   platform     String       @default("")
+  /// The bash's build and environment when it was logged (ver_172), so a new build mid-bash can't relabel it.
+  build        String       @default("")
+  environment  String       @default("")
   createdAt    DateTime     @default(now())
   attachments  Attachment[]
 

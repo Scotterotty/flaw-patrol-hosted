@@ -6,7 +6,7 @@ import { Prisma, type Severity } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity";
-import { areaNameSchema, cleanPlatform, cleanPlatforms, onPlatform, linkSchema, logSchema, matchRelease, parseAreas, seenSchema, valuesSchema, parseLinks, phaseOf, plusOnesOf, sevRank, startSchema, webLink, type BashArea, type BashLink, type StartInput } from "@/lib/bash";
+import { areaNameSchema, cleanPlatform, cleanPlatforms, onPlatform, linkSchema, logSchema, matchRelease, parseAreas, seenSchema, valuesSchema, parseLinks, phaseOf, plusOnesOf, setupLine, setupSchema, sevRank, startSchema, webLink, type BashArea, type BashLink, type StartInput } from "@/lib/bash";
 import { open } from "@/lib/crypto";
 import { GitHubClient } from "@/lib/github";
 import { jiraFor } from "@/lib/jira";
@@ -47,7 +47,7 @@ function refresh(homeKey: string, cycleKey?: string) {
 async function loadBash(bashId: string) {
   const bash = await db.bugBash.findUnique({
     where: { id: bashId },
-    include: { project: { select: { id: true, key: true, name: true, groupId: true } }, run: { select: { id: true, number: true, projectId: true, project: { select: { id: true, key: true, name: true, platform: true, groupId: true } } } } },
+    include: { project: { select: { id: true, key: true, name: true, groupId: true } }, run: { select: { id: true, number: true, projectId: true, build: true, environment: true, project: { select: { id: true, key: true, name: true, platform: true, groupId: true } } } } },
   });
   if (!bash?.run) throw new UserError("That bug bash isn't here anymore.");
   return { ...bash, run: bash.run };
@@ -171,6 +171,9 @@ export async function startBugBash(homeId: string, input: StartInput) {
     if (startsAt.getTime() - now.getTime() > MAX_AHEAD_MS) throw new UserError("Pick a start time within the next year.");
     const endsAt = new Date(startsAt.getTime() + data.minutes * 60_000);
     const by = nameOf(user);
+    // What people are testing (ver_172): one link for the whole bash, any web page, PR or Jira issue.
+    const link = data.link ? webLink(data.link) : null;
+    if (data.link && !link) throw new UserError("The link needs to start with http:// or https://, like https://staging.example.com.");
 
     const bash = await db.$transaction(
       async (tx) => {
@@ -191,13 +194,15 @@ export async function startBugBash(homeId: string, input: StartInput) {
             kind: "bash",
             description: `${data.minutes}-minute bug bash, ${areas.length} ${areas.length === 1 ? "area" : "areas"}`,
             release,
+            build: data.build,
+            environment: data.environment,
             createdById: user.id,
             createdBy: by,
             entries: { create: entries.map(({ assigneeId, ...e }) => (void assigneeId, e)) },
           },
         });
         return tx.bugBash.create({
-          data: { projectId: home.id, runId: run.id, name: data.name, release, minutes: data.minutes, startsAt, endsAt, areas: areas as Prisma.InputJsonValue, collectFirst: data.collectFirst, slack: data.slack, funExtras: data.funExtras, bugTemplateId: bugTemplate?.id ?? null, platforms: cleanPlatforms(data.platforms), createdById: user.id, createdBy: by },
+          data: { projectId: home.id, runId: run.id, name: data.name, release, minutes: data.minutes, startsAt, endsAt, areas: areas as Prisma.InputJsonValue, collectFirst: data.collectFirst, slack: data.slack, funExtras: data.funExtras, bugTemplateId: bugTemplate?.id ?? null, platforms: cleanPlatforms(data.platforms), links: (link ? [link] : []) as Prisma.InputJsonValue, createdById: user.id, createdBy: by },
         });
       },
       { timeout: 60_000 },
@@ -214,7 +219,7 @@ export async function startBugBash(homeId: string, input: StartInput) {
 
 /** Post the start to Slack once, with Join the bash. Returns the channel names. */
 async function slackStart(bashId: string) {
-  const b = await db.bugBash.findUnique({ where: { id: bashId }, include: { project: { select: { key: true } }, run: { select: { projectId: true } } } });
+  const b = await db.bugBash.findUnique({ where: { id: bashId }, include: { project: { select: { key: true } }, run: { select: { projectId: true, build: true, environment: true } } } });
   if (!b?.run || b.slackStartAt || !b.slack) return [];
   // Claim the start in one step so two people opening the page at once can't both post it.
   const claimed = await db.bugBash.updateMany({ where: { id: b.id, slackStartAt: null }, data: { slackStartAt: new Date() } });
@@ -223,20 +228,27 @@ async function slackStart(bashId: string) {
   const n = await postBash(b.run.projectId, (base) => ({
     tone: "blue",
     title: `🐞 Bug bash · ${b.name} is on!`,
-    lines: [`${b.minutes} minutes, ${areas.length} ${areas.length === 1 ? "area" : "areas"}: ${areas.map((a) => esc(a.name)).join(", ")}. Started by ${esc(b.createdBy)}.`],
+    lines: [`${b.minutes} minutes, ${areas.length} ${areas.length === 1 ? "area" : "areas"}: ${areas.map((a) => esc(a.name)).join(", ")}. Started by ${esc(b.createdBy)}.`, ...setupLines(b.run!, parseLinks(b.links))],
     button: { label: "Join the bash", url: `${base}/p/${b.project.key}/bashes/${b.id}?join=1` },
   }));
   if (!n) return [];
   return channelNamesFor(b.run.projectId);
 }
 
+/** "Build 2.4.1 on Staging" and the link to what's being tested, for Slack (ver_172). */
+function setupLines(run: { build: string; environment: string }, links: BashLink[]) {
+  const line = setupLine(run);
+  const web = links.find((l) => l.url);
+  return [line && `${esc(line)}.`, web && `Testing: <${web.url}|${esc(web.title || web.key)}>`].filter((x): x is string => !!x);
+}
+
 /** Slack's own date token, so each person reads the time on their own clock. */
 const slackWhen = (d: Date) => `<!date^${Math.floor(d.getTime() / 1000)}^{date_short_pretty} at {time}|${d.toUTCString().replace(/:00 GMT$/, " UTC")}>`;
 
 /** A scheduled bash's heads-up, its new time, or that it's off. Returns the channel names. */
-async function slackSoon(bashId: string, what: "soon" | "moved" | "cancelled", b0?: { name: string; startsAt: Date; minutes: number; createdBy: string; areas: Prisma.JsonValue; projectKey: string; runProjectId: string }) {
-  const found = b0 ? null : await db.bugBash.findUnique({ where: { id: bashId }, include: { project: { select: { key: true } }, run: { select: { projectId: true } } } });
-  const b = b0 ?? (found?.run && found.slack ? { name: found.name, startsAt: found.startsAt, minutes: found.minutes, createdBy: found.createdBy, areas: found.areas, projectKey: found.project.key, runProjectId: found.run.projectId } : null);
+async function slackSoon(bashId: string, what: "soon" | "moved" | "cancelled", b0?: { name: string; startsAt: Date; minutes: number; createdBy: string; areas: Prisma.JsonValue; projectKey: string; runProjectId: string; setup?: string[] }) {
+  const found = b0 ? null : await db.bugBash.findUnique({ where: { id: bashId }, include: { project: { select: { key: true } }, run: { select: { projectId: true, build: true, environment: true } } } });
+  const b = b0 ?? (found?.run && found.slack ? { name: found.name, startsAt: found.startsAt, minutes: found.minutes, createdBy: found.createdBy, areas: found.areas, projectKey: found.project.key, runProjectId: found.run.projectId, setup: setupLines(found.run, parseLinks(found.links)) } : null);
   if (!b) return [];
   const areas = parseAreas(b.areas);
   const n = await postBash(b.runProjectId, (base) =>
@@ -245,7 +257,7 @@ async function slackSoon(bashId: string, what: "soon" | "moved" | "cancelled", b
       : {
           tone: "blue",
           title: what === "moved" ? `📅 Bug bash · ${esc(b.name)} has a new time` : `📅 Bug bash · ${esc(b.name)} is coming up`,
-          lines: [`Starts ${slackWhen(b.startsAt)}, for ${b.minutes} minutes. ${areas.length} ${areas.length === 1 ? "area" : "areas"}: ${areas.map((a) => esc(a.name)).join(", ")}. Set up by ${esc(b.createdBy)}.`],
+          lines: [`Starts ${slackWhen(b.startsAt)}, for ${b.minutes} minutes. ${areas.length} ${areas.length === 1 ? "area" : "areas"}: ${areas.map((a) => esc(a.name)).join(", ")}. Set up by ${esc(b.createdBy)}.`, ...(b.setup ?? [])],
           button: { label: "See the bash", url: `${base}/p/${b.projectKey}/bashes/${bashId}` },
         },
   );
@@ -340,7 +352,7 @@ export async function logBashItem(bashId: string, input: z.input<typeof logSchem
       const answers = bashAnswers(tpl.layout, await ownFiles(data.values, bash.run.projectId, user.id), { env: fill.env, actual: data.details || data.text }, fill.auto);
       kept = { templateId: tpl.id, templateName: tpl.name, layout: tpl.layout as unknown as Prisma.InputJsonValue, answers: answers as unknown as Prisma.InputJsonValue };
     }
-    const item = await db.bashItem.create({ data: { bashId, areaId: me.areaId, kind: data.kind, text: data.text, details: data.details, severity: data.severity as Severity, byId: user.id, byName: nameOf(user), platform: me.platform, ...kept } });
+    const item = await db.bashItem.create({ data: { bashId, areaId: me.areaId, kind: data.kind, text: data.text, details: data.details, severity: data.severity as Severity, byId: user.id, byName: nameOf(user), platform: me.platform, build: bash.run.build, environment: bash.run.environment, ...kept } });
     const fileIds = [...data.attachmentIds, ...Object.values(data.values).flatMap((v) => v.files.map((f) => f.id))];
     if (fileIds.length) await db.attachment.updateMany({ where: { id: { in: fileIds }, projectId: bash.run.projectId, uploadedById: user.id, resultId: null }, data: { bashItemId: item.id } });
     const needs = tpl ? await itemNeeds(item.id) : [];
@@ -575,6 +587,22 @@ export async function addBashArea(bashId: string, rawName: string) {
 }
 
 /**
+ * What's being tested → Edit (ver_172): the starter (or a lead) changes the build or
+ * environment, say when a new build drops. It's the run's, so the run shows it too.
+ * Finds already logged keep the build they were logged on.
+ */
+export async function setBashSetup(bashId: string, input: z.input<typeof setupSchema>) {
+  return attempt(async () => {
+    const { bash } = await requireOwner(bashId);
+    if (phaseOf(bash) === "wrapped") throw new UserError("This bash is wrapped up.");
+    const data = setupSchema.parse(input);
+    await db.testRun.update({ where: { id: bash.run.id }, data: { build: data.build, environment: data.environment } });
+    refresh(bash.project.key, bash.run.project.key);
+    return {};
+  });
+}
+
+/**
  * + Add a link: a pasted web address as it is, else Jira issues (like + Link requirement)
  * and open or recently merged PRs in the umbrella's connected GitHub repos.
  */
@@ -732,7 +760,7 @@ async function fileItem(bash: Awaited<ReturnType<typeof loadBash>>, itemId: stri
       summary: item.text.slice(0, 200),
       platform: item.platform,
       area: area?.name ?? "",
-      build: "",
+      build: item.build || bash.run.build,
       severity: item.severity,
       stepIndex: null,
       actual: item.details || item.text,
@@ -749,12 +777,15 @@ async function fileItem(bash: Awaited<ReturnType<typeof loadBash>>, itemId: stri
     defectId = r.defect.id;
     key = r.defect.externalKey ?? `D-${r.defect.number}`;
   } else if (await jiraConfigFor(bash.run.projectId)) {
-    const r = await fileJiraBug(bash.run.projectId, entry.id, { summary: tagged(item.text).slice(0, 250), severity: item.severity, stepIndex: null, actual, attachmentIds: item.attachments.map((a) => a.id), stories });
+    // The build it was logged on, even if the bash moved to a newer one since (ver_172).
+    const runAs = item.build || item.environment ? { build: item.build, environment: item.environment } : undefined;
+    const r = await fileJiraBug(bash.run.projectId, entry.id, { summary: tagged(item.text).slice(0, 250), severity: item.severity, stepIndex: null, actual, attachmentIds: item.attachments.map((a) => a.id), stories, runAs });
     if (!r.ok) throw new UserError(r.error);
     defectId = r.defect.id;
     key = r.defect.externalKey ?? `D-${r.defect.number}`;
   } else {
-    const r = await createLocalDefect(bash.run.projectId, { title: tagged(item.text), severity: item.severity, entryId: entry?.id, foundIn: bash.release });
+    const setup = [item.build && `Build: ${item.build}`, item.environment && `Environment: ${item.environment}`].filter(Boolean).join("\n");
+    const r = await createLocalDefect(bash.run.projectId, { title: tagged(item.text), severity: item.severity, entryId: entry?.id, foundIn: bash.release, description: [setup, actual].filter(Boolean).join("\n\n") });
     if (!r.ok) throw new UserError(r.error);
     defectId = r.defect.id;
     key = `D-${r.defect.number}`;

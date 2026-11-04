@@ -52,6 +52,8 @@ export type ReportData = {
   homeKey: string;
   when: string;
   createdBy: string;
+  /** "Build 2.4.1 on Staging", or "" (ver_172). */
+  setup?: string;
   people: number;
   areas: { id: string; name: string; links: BashLink[] }[];
   /** Links for the whole bash. */
@@ -190,7 +192,7 @@ export function BashReportView({ r }: { r: ReportData }) {
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-slate-900">Bug bash · {r.name}</h1>
           <p className="mt-1 text-sm text-slate-500">
-            {r.when} · started by {r.createdBy} · {r.people} {r.people === 1 ? "person" : "people"} · {r.areas.length} {r.areas.length === 1 ? "area" : "areas"}
+            {r.when} · started by {r.createdBy} · {r.people} {r.people === 1 ? "person" : "people"} · {r.areas.length} {r.areas.length === 1 ? "area" : "areas"}{r.setup ? ` · ${r.setup}` : ""}
           </p>
           {r.links.length > 0 && (
             <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">

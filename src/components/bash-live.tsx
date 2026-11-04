@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransitio
 import type { Severity } from "@prisma/client";
 import { cleanPlatforms, isNewArea, LINK_KIND_LABEL, seenOn, similarBugs, type BashLink } from "@/lib/bash";
 import type { BashFinds, LiveFind } from "@/lib/bash-live";
-import { addBashArea, addToBashItem, deleteBashItem, editBashItem, fillBashItem, plusOneBash, searchBashLinks, setBashLinks } from "@/server/bashes";
+import { addBashArea, addToBashItem, deleteBashItem, editBashItem, fillBashItem, plusOneBash, searchBashLinks, setBashLinks, setBashSetup } from "@/server/bashes";
 import { listWords } from "@/lib/bug-layout";
 import type { BashValues } from "@/lib/bash-template";
 import { SevChip, useBashUpload } from "./bash";
@@ -685,6 +685,91 @@ export function AddLink({ bashId, onPick }: { bashId: string; onPick: (l: BashLi
   );
 }
 
+/** Build and Environment, one row each, when they're set (ver_172). */
+export function SetupRows({ setup }: { setup: { build: string; environment: string } }) {
+  const rows = [
+    { label: "Build", value: setup.build },
+    { label: "Environment", value: setup.environment },
+  ].filter((r) => r.value);
+  if (!rows.length) return null;
+  return (
+    <dl className="space-y-0.5 text-xs" data-testid="bash-setup">
+      {rows.map((r) => (
+        <div key={r.label} className="flex gap-2">
+          <dt className="w-20 shrink-0 text-slate-500">{r.label}</dt>
+          <dd className="min-w-0 font-medium break-words text-slate-900">{r.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** Edit: change the build (a new one dropped) or the environment. Finds already logged keep theirs. */
+function SetupForm({ bashId, setup, onError, onSaved }: { bashId: string; setup: { build: string; environment: string }; onError: (e: string | null) => void; onSaved: () => void }) {
+  const [build, setBuild] = useState(setup.build);
+  const [environment, setEnvironment] = useState(setup.environment);
+  const [pending, start] = useTransition();
+  const changed = build.trim() !== setup.build || environment.trim() !== setup.environment;
+  return (
+    <form
+      className="space-y-1.5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        start(async () => {
+          onError(null);
+          const r = await setBashSetup(bashId, { build, environment });
+          if (!r.ok) return onError(r.error);
+          onSaved();
+        });
+      }}
+    >
+      <label className="flex items-center gap-2 text-xs">
+        <span className="w-20 shrink-0 text-slate-500">Build</span>
+        <input aria-label="Build" className="h-8 min-w-0 flex-1 rounded-md border border-slate-300 bg-surface px-2 text-xs" maxLength={120} placeholder="Like 2.4.1 (812)" value={build} onChange={(e) => setBuild(e.target.value)} />
+      </label>
+      <label className="flex items-center gap-2 text-xs">
+        <span className="w-20 shrink-0 text-slate-500">Environment</span>
+        <input aria-label="Environment" className="h-8 min-w-0 flex-1 rounded-md border border-slate-300 bg-surface px-2 text-xs" maxLength={120} placeholder="Like Staging" value={environment} onChange={(e) => setEnvironment(e.target.value)} />
+      </label>
+      {changed && (
+        <div className="flex items-center justify-end gap-2">
+          <span className="text-[11px] text-slate-500">Bugs already logged keep the build they were found on.</span>
+          <Button size="sm" type="submit" disabled={pending}>
+            {pending ? "Saving…" : "Save build and environment"}
+          </Button>
+        </div>
+      )}
+    </form>
+  );
+}
+
+/** Build, Environment and the whole bash's links in one line, for the join screen (ver_172). */
+export function SetupStrip({ setup, links }: { setup: { build: string; environment: string }; links: BashLink[] }) {
+  if (!setup.build && !setup.environment && !links.length) return null;
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md bg-accent-50 px-3 py-2 text-sm text-slate-700" data-testid="bash-setup-strip">
+      {setup.build && (
+        <span>
+          Build <b className="font-semibold text-slate-900">{setup.build}</b>
+        </span>
+      )}
+      {setup.environment && (
+        <span>
+          Environment <b className="font-semibold text-slate-900">{setup.environment}</b>
+        </span>
+      )}
+      {links
+        .filter((l) => l.url)
+        .slice(0, 4)
+        .map((l, i) => (
+          <a key={`${l.kind}${l.key}`} href={l.url} target="_blank" rel="noreferrer" className="font-medium text-accent-700 hover:underline">
+            {i === 0 ? "Open what we're testing" : `Open ${l.key}`} ↗
+          </a>
+        ))}
+    </div>
+  );
+}
+
 /**
  * The browser's clock, ticking every 30 seconds; null while the server renders, so
  * "New" tags never differ between the server and the browser.
@@ -765,6 +850,7 @@ export function WhatYoureTesting({
   canAddArea = false,
   onSaved,
   title = "What you're testing",
+  setup,
 }: {
   bashId: string;
   groups: { title: string; areaId: string | null; links: BashLink[]; addedAt?: string | null }[];
@@ -773,6 +859,8 @@ export function WhatYoureTesting({
   canAddArea?: boolean;
   onSaved: () => void;
   title?: string;
+  /** The build and environment everyone tests (ver_172). */
+  setup?: { build: string; environment: string };
 }) {
   const isNew = useNewArea();
   const [editing, setEditing] = useState(false);
@@ -796,6 +884,7 @@ export function WhatYoureTesting({
         )}
       </p>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+      {setup && (editing ? <SetupForm bashId={bashId} setup={setup} onError={setError} onSaved={onSaved} /> : <SetupRows setup={setup} />)}
       {groups.map((g) => (
         <div key={g.areaId ?? "bash"} className="space-y-1">
           {editing && canAddArea && g.areaId === null && <AddArea bashId={bashId} onAdded={onSaved} />}

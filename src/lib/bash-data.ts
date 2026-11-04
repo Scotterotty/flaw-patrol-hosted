@@ -25,6 +25,8 @@ export type StartBoxData = {
   /** Platforms (ver_146): the list to offer and whether "Ask people which platform they're on" starts on. */
   platforms: string[];
   askPlatform: boolean;
+  /** Environments this team's runs used lately, newest first, to suggest (ver_172). */
+  environments: string[];
 };
 
 /** Where a project's bashes live: the umbrella's hub, or the project itself. */
@@ -49,6 +51,8 @@ export async function startBoxData(project: { id: string; key: string; name: str
     teamTemplates(home.id),
   ]);
   const bugTemplates = await loadBugTemplates(project).catch(() => null);
+  const envRuns = await db.testRun.findMany({ where: { projectId: { in: [home.id, ...cycles.map((c) => c.id)] }, environment: { not: "" } }, orderBy: { createdAt: "desc" }, take: 60, select: { environment: true } });
+  const environments = [...new Map(envRuns.map((r) => [r.environment.trim().toLowerCase(), r.environment.trim()])).values()].slice(0, 8);
   const slackChannels = await db.slackChannel.count({ where: { paused: false, OR: [{ projectId: { in: [home.id, ...cycles.map((c) => c.id)] } }, ...(u ? [{ groupId: u.group.id }] : [])] } });
   const seen = new Set<string>();
   const suggestions: StartBoxData["suggestions"] = [];
@@ -79,6 +83,7 @@ export async function startBoxData(project: { id: string; key: string; name: str
     bugTemplateDefault: bugTemplates?.defaultId || null,
     platforms: fromUmbrella.length ? fromUmbrella : fromLast,
     askPlatform: fromUmbrella.length > 0 || fromLast.length > 0,
+    environments,
   };
 }
 
@@ -96,7 +101,7 @@ export async function bashList(homeId: string) {
     where: { projectId: homeId },
     orderBy: { startsAt: "desc" },
     take: 100,
-    include: { _count: { select: { people: true, items: { where: { kind: "bug", mergedIntoId: null } } } }, run: { select: { number: true, project: { select: { key: true } } } } },
+    include: { _count: { select: { people: true, items: { where: { kind: "bug", mergedIntoId: null } } } }, run: { select: { number: true, build: true, environment: true, project: { select: { key: true } } } } },
   });
   // Notes, questions and ideas too, so a past bash shows everything it found (not only bugs).
   const kinds = rows.length
@@ -121,6 +126,8 @@ export async function bashList(homeId: string) {
     areaNames: parseAreas(b.areas).map((a) => a.name),
     minutes: b.minutes,
     run: b.run ? { number: b.run.number, key: b.run.project.key } : null,
+    build: b.run?.build ?? "",
+    environment: b.run?.environment ?? "",
   }));
 }
 

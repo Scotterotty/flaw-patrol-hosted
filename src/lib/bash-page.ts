@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { can } from "./permissions";
 import { db } from "./db";
 import { bashReport, bashView, loadBashFull, type BashReport } from "./bash-summary";
-import { seenOn } from "./bash";
+import { seenOn, setupLine } from "./bash";
 import { projectAccessOrGuest } from "./session";
 import type { ReportData } from "@/components/bash-report";
 
@@ -47,6 +47,7 @@ export function reportData(r: BashReport, file?: ReportData["file"]): ReportData
     homeKey: r.bash.project.key,
     when: r.when,
     createdBy: r.bash.createdBy,
+    setup: setupLine({ build: r.bash.run?.build ?? "", environment: r.bash.run?.environment ?? "" }),
     people: r.people,
     areas: r.areas.map((a) => ({ id: a.id, name: a.name, links: a.links })),
     links: r.links,
