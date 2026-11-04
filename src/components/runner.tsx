@@ -1093,7 +1093,15 @@ export function Runner({
                         )}
                       >
                         <span className="block text-[11px] font-medium tracking-wide text-slate-400 uppercase select-none">Expected</span>
-                        {(many ? many.expected : step.expected) ? <StepText text={many ? many.expected : step.expected} marks={step.vals} className="whitespace-pre-wrap wrap-anywhere" /> : "–"}
+                        {(many ? many.expected : step.expected) ? (
+                          <StepText text={many ? many.expected : step.expected} marks={step.vals} className="whitespace-pre-wrap wrap-anywhere" />
+                        ) : step.titleOnly ? (
+                          <span data-testid="title-only-hint" className="text-slate-400 italic">
+                            Works as described.
+                          </span>
+                        ) : (
+                          "–"
+                        )}
                       </div>
                       <div className="min-w-0 md:col-start-2 md:border-l md:border-slate-200 md:pl-3">
                         <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-dashed border-slate-200 pt-2 select-none" role="group" aria-label={`Step ${step.number} status`}>

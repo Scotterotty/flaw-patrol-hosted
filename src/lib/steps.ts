@@ -79,7 +79,26 @@ export type ExpandedStep = PlainStep & {
   row?: number;
   /** Test data: the values filled into this step from its row, shown in blue in the runner. */
   vals?: string[];
+  /** Runner only: the case has no steps, so its title stands in as step 1. Never saved to the case. */
+  titleOnly?: boolean;
 };
+
+/**
+ * The steps a tester runs. A case with only a title runs as one step: the
+ * title, with "Works as described." as a grey hint under Expected. A lone step
+ * with an empty Step box shows the title there. Display only: the case and
+ * the run's copy of its steps are not changed.
+ */
+export function stepsToRun(steps: ExpandedStep[], title: string): ExpandedStep[] {
+  if (!steps.length) return [{ number: "1", action: title, expected: "", titleOnly: true }];
+  if (steps.length === 1 && !steps[0].shared && !steps[0].action.trim()) return [{ ...steps[0], action: title }];
+  return steps;
+}
+
+/** A saved result fits the run's copy of the steps. A case with no steps takes one step result (its title), or none. */
+export function stepCountFits(stepCount: number, sent: number) {
+  return sent === stepCount || (stepCount === 0 && sent === 1);
+}
 
 /**
  * Flatten a case's steps for display or execution. Shared steps expand inline

@@ -40,7 +40,7 @@ import { caseKey, relativeTime } from "@/lib/format";
 import { isFlaky, type HistoryRun } from "@/lib/run-history";
 import { projectAccess, mySpelling } from "@/lib/session";
 import { projectMembers } from "@/lib/suite-data";
-import type { ExpandedStep } from "@/lib/steps";
+import { stepsToRun, type ExpandedStep } from "@/lib/steps";
 import { jiraConfigFor } from "@/lib/umbrella";
 import { DEFAULT_STORIES, parseStoriesConfig, storyInfo } from "@/lib/stories";
 import { can } from "@/lib/permissions";
@@ -129,7 +129,7 @@ export default async function ExecutePage({
       take: 50,
       include: {
         run: { select: { number: true, name: true, release: true, build: true, cspVersion: true, fields: true, environment: true } },
-        entry: { select: { steps: true } },
+        entry: { select: { steps: true, title: true } },
         defects: { include: { defect: true } },
         attachments: { select: { id: true, fileName: true } },
       },
@@ -153,7 +153,7 @@ export default async function ExecutePage({
       }
     : null;
   const history: HistoryRun[] = past.map((r) => {
-    const snapshot = (Array.isArray(r.entry.steps) ? r.entry.steps : []) as unknown as ExpandedStep[];
+    const snapshot = stepsToRun((Array.isArray(r.entry.steps) ? r.entry.steps : []) as unknown as ExpandedStep[], r.entry.title);
     const stepResults = (Array.isArray(r.stepResults) ? r.stepResults : []) as { status: ResultStatus; actual?: string }[];
     const headings = headingRows(r.entry.steps);
     return {
@@ -355,7 +355,7 @@ export default async function ExecutePage({
             ...titleWithTags(entry.title, entry.testCase.tags),
             preconditions: entry.preconditions,
             folderPath: entry.folderPath,
-            steps: (Array.isArray(entry.steps) ? entry.steps : []) as unknown as ExpandedStep[],
+            steps: stepsToRun((Array.isArray(entry.steps) ? entry.steps : []) as unknown as ExpandedStep[], titleWithTags(entry.title, entry.testCase.tags).title),
             testData: parseTestData(entry.testData),
             status: entry.status,
             draft: parseDraft(entry.draft),

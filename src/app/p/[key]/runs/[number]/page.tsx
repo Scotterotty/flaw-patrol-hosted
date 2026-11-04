@@ -119,7 +119,9 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   let stepTotal = 0;
   for (const e of run.entries) {
     const headings = headingRows(e.steps);
-    if (Array.isArray(e.steps)) stepTotal += e.steps.length - headings.size;
+    // A case with only a title runs as one step.
+    if (Array.isArray(e.steps) && e.steps.length) stepTotal += e.steps.length - headings.size;
+    else if (e.kind !== "EXPLORATORY") stepTotal += 1;
     const saved = e.results[0]?.stepResults;
     if (Array.isArray(saved))
       saved.forEach((r, i) => {

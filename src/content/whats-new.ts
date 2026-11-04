@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 165,
+    date: "2026-11-04",
+    items: [
+      {
+        kind: "better",
+        title: "Cases with only a title run like any other case",
+        text: "The title shows as step 1 with the usual Passed, Failed and Blocked buttons and keys. That step sets the case result. Nothing is added to the case itself.",
+      },
+    ],
+  },
+  {
     version: 164,
     date: "2026-11-03",
     items: [

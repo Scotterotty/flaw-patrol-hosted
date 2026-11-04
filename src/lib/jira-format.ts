@@ -52,7 +52,9 @@ export function didNot(expected: string) {
 /** A real bug title from what's on screen: case title, the step, and what happened (or what didn't). */
 export function bugTitle(caseTitle: string, step: { action: string; expected: string } | null, actual: string) {
   const what = short(actual, 90) || (step ? didNot(step.expected) : "");
-  return [caseTitle.trim(), step && short(step.action, 60), what].filter(Boolean).join(": ").slice(0, 250);
+  // A title-only case runs its title as step 1: don't say it twice.
+  const action = step && step.action.trim().toLowerCase() !== caseTitle.trim().toLowerCase() ? short(step.action, 60) : "";
+  return [caseTitle.trim(), action, what].filter(Boolean).join(": ").slice(0, 250);
 }
 
 export function defaultSummary(ctx: Pick<BugContext, "caseTitle" | "steps" | "failedIndex" | "actual" | "titleTags" | "rowName">): string {

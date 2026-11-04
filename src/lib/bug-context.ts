@@ -8,7 +8,7 @@ import { caseKey } from "@/lib/format";
 import type { BugContext } from "@/lib/jira-format";
 import { pickValues } from "@/lib/run-fields";
 import { runFieldsFor } from "@/lib/run-fields-server";
-import type { ExpandedStep } from "@/lib/steps";
+import { stepsToRun, type ExpandedStep } from "@/lib/steps";
 import { parseTestData, rowLabel, rowSummary } from "@/lib/test-data";
 import { parsePlatforms } from "@/lib/umbrella";
 import { UserError } from "@/server/result";
@@ -27,7 +27,9 @@ export async function bugContext(projectId: string, entryId: string, stepIndex: 
   // Bracket tags: platform tags and ALL-CAPS ones like ANDROID go back in front of the bug's title.
   const platformNames = parsePlatforms(entry.testCase.project.hubOf?.platforms).map((p) => p.name.toLowerCase());
   const titleTags = entry.testCase.tags.filter((t) => platformNames.includes(t.toLowerCase()) || (/[A-Z]/.test(t) && t === t.toUpperCase()));
-  const steps = (Array.isArray(entry.steps) ? entry.steps : []) as unknown as ExpandedStep[];
+  const saved = (Array.isArray(entry.steps) ? entry.steps : []) as unknown as ExpandedStep[];
+  // A case with only a title runs as one step (its title), so a bug can point at it.
+  const steps = entry.kind === "EXPLORATORY" ? saved : stepsToRun(saved, entry.title);
   if (stepIndex !== null && !steps[stepIndex]) throw new UserError("That step no longer exists.");
   const at = stepIndex ?? (focus !== null && steps[focus] ? focus : null);
   // Test data: the bug shows only the failing row's steps, and names that row's values.

@@ -7,6 +7,7 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { stepCountFits } from "@/lib/steps";
 import { sessionLogSchema } from "@/lib/charter";
 import { draftSchema, parseDraft, type Draft, type DraftInput } from "@/lib/run-draft";
 import { Forbidden, requireProjectAction, requireUser } from "@/lib/session";
@@ -60,7 +61,7 @@ export async function submitResult(projectId: string, entryId: string, input: Re
     if (!entry) throw new UserError("This case is no longer in the run.");
     if (entry.run.state === "COMPLETED") throw new UserError("This run is closed. Reopen it to record results.");
     const stepCount = Array.isArray(entry.steps) ? entry.steps.length : 0;
-    if (data.stepResults.length !== stepCount) throw new UserError("The steps changed. Reload the page.");
+    if (!stepCountFits(stepCount, data.stepResults.length)) throw new UserError("The steps changed. Reload the page.");
 
     const sharedFiles = parseDraft(entry.draft)?.attachments.map((a) => a.id) ?? [];
     const quests = user.gameEnabled && user.questMap;
@@ -183,11 +184,11 @@ export async function saveDraft(projectId: string, entryId: string, input: Draft
       if (!entry) throw new UserError("This case is no longer in the run.");
       if (entry.run.state === "COMPLETED") throw new UserError("This run is closed. Reopen it to record results.");
       const stepCount = Array.isArray(entry.steps) ? entry.steps.length : 0;
-      if (sent.stepResults.length !== stepCount) throw new UserError("The steps changed. Reload the page.");
+      if (!stepCountFits(stepCount, sent.stepResults.length)) throw new UserError("The steps changed. Reload the page.");
 
       const old = parseDraft(entry.draft);
       const draft: Draft =
-        touched && old && old.stepResults.length === stepCount
+        touched && old && old.stepResults.length === sent.stepResults.length
           ? {
               ...sent,
               stepResults: old.stepResults.map((s, i) => (touched.steps.includes(i) ? sent.stepResults[i] : s)),
