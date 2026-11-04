@@ -12,6 +12,7 @@ import { Card, PageHeader } from "@/components/ui";
 import { AddUmbrellaProject } from "@/components/umbrella-add-project";
 import { ArchiveCard } from "@/components/archive-project";
 import { RolesCard } from "@/components/roles-card";
+import { AskAdminLine } from "@/components/ask-admin";
 import { SentryPanel } from "@/components/sentry-settings";
 import { CrownNamesPanel } from "@/components/crown-names";
 import { RolesNudge } from "@/components/roles-nudge";
@@ -42,7 +43,7 @@ import { archiveCardData } from "@/lib/archive-card";
 import { UmbrellaIcon } from "@/components/umbrella-nav";
 import { parseTemplateSettings, templateKind } from "@/lib/bug-template";
 import { db } from "@/lib/db";
-import { joinRequestRows } from "@/lib/link-access-server";
+import { adminsOf, joinRequestRows } from "@/lib/link-access-server";
 import { memberInviteInfo } from "@/lib/invites";
 import { can } from "@/lib/permissions";
 import { requireUser } from "@/lib/session";
@@ -78,7 +79,9 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
   // bug template, join requests and Slack channels, the Name and test cycles choices) start as soon
   // as what they need arrives, inside the same batch, instead of in rounds after it.
   const cycleWho = (role: Role | null) => ({ role: user.isAdmin ? ("ADMIN" as const) : role, rules: u.who.rules });
-  const membersP = db.projectMember.findMany({ where: { projectId: u.hub.id }, include: { user: true }, orderBy: [{ role: "asc" }, { user: { email: "asc" } }] }).then((x) => x);
+  // Who's on the umbrella's team is for Admins only (ver_168): nobody else's page loads the list.
+  const seesMembers = can(u.who, "members:manage");
+  const membersP = db.projectMember.findMany({ where: { projectId: u.hub.id, ...(seesMembers ? {} : { userId: { in: [] } }) }, include: { user: true }, orderBy: [{ role: "asc" }, { user: { email: "asc" } }] }).then((x) => x);
   const cycleMembersP = db.projectMember.findMany({ where: { projectId: { in: ids } }, include: { user: true }, orderBy: [{ role: "asc" }, { user: { email: "asc" } }] }).then((x) => x);
   const ownJiraP = db.jiraConfig
     .findMany({
@@ -90,7 +93,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
   // Renaming and moving test cycles follow the umbrella's own Roles card, not a role on any team.
   const groupManagerP = Promise.resolve(can(u.who, "umbrella:manage"));
   const [
-    [jira, members, ownJira, { template, shared }, sentry, requests, bugTemplates, archive, kindSuites, slack, usage, spelling, repos, ciTokens, groupManager, myRoles, cycleMembers],
+    [jira, members, ownJira, { template, shared }, sentry, requests, bugTemplates, archive, kindSuites, slack, usage, spelling, repos, ciTokens, groupManager, myRoles, cycleMembers, askAdmins],
     [invites, cycleInvites, cycleViews, cycleRequests, ownSlack, visible, loose, holdings, digest],
   ] = await Promise.all([
     Promise.all([
@@ -119,6 +122,8 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
       // Test cycles: who's on each, for its row in the table.
       myRolesP,
       cycleMembersP,
+      // Members lists are for Admins only; everyone else is told which Admins to ask.
+      seesMembers ? Promise.resolve([] as string[]) : adminsOf(u.hub.id),
     ]),
     Promise.all([
       membersP.then((m) => memberInviteInfo(m.map((x) => x.userId))),
@@ -233,7 +238,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
     const view = mine ? (cycleViews.get(p.id) ?? null) : null;
     const requestsHere = cycleRequests.get(p.id) ?? [];
     const team: CycleChip = p.keepMembersSeparate
-      ? { tone: "own", text: `Its own · ${people.length} ${people.length === 1 ? "person" : "people"}`, tip: "Only the people added to this test cycle can see it." }
+      ? { tone: "own", text: can(cw, "members:manage") ? `Its own · ${people.length} ${people.length === 1 ? "person" : "people"}` : "Its own", tip: "Only the people added to this test cycle can see it." }
       : { tone: "same", text: "Same", tip: `Everyone on ${whose} team can see and test it.` };
     const jiraChip: CycleChip = mine
       ? { tone: "own", text: `Its own · ${mine.jiraProjectKey}`, tip: `Files bugs into its own Jira project, ${mine.jiraProjectKey}, with ${kindLabel(templateKind(parseTemplateSettings(mine.bugTemplate))).toLowerCase()}.` }
@@ -269,7 +274,9 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
           separate: p.keepMembersSeparate,
           canSeparate: can(cw, "project:separate"),
           fromUmbrella,
-          members: p.keepMembersSeparate ? (
+          seesMembers: can(cw, "members:manage"),
+          ask: <AskAdminLine admins={(() => { const own = people.filter((m) => m.role === "ADMIN").map((m) => m.user.name ?? m.user.email); return own.length ? own : askAdmins; })()} />,
+          members: p.keepMembersSeparate && can(cw, "members:manage") ? (
             <MembersPanel
               projectId={p.id}
               me={user.id}
@@ -336,6 +343,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
           groupManager ? <EditGroupButton group={u.group} choices={choices} label="Name and test cycles" umbrella /> : undefined
         }
       />
+      {!seesMembers && <AskAdminLine admins={askAdmins} className="-mt-2 mb-4" />}
       {on("runs") && (
       <p className="mb-5 flex items-start gap-2 rounded-lg bg-accent-50 px-4 py-2.5 text-sm text-accent-700" data-testid="settings-scope">
         <UmbrellaIcon className="mt-0.5 size-4 flex-none" />
@@ -537,12 +545,13 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               <RegressionPanel groupId={u.group.id} settings={reg} canEdit={can(u.who, "run:manage") && !u.group.archivedAt} />
             </ExpandRow>
             )}
+            {seesMembers && (
             <ExpandRow
               id="members"
               hashes={["members"]}
               title="Members"
               text={`${requests.length ? `${requests.length} asking to join · ` : ""}${members.length} ${members.length === 1 ? "person" : "people"} · ${leads} ${leads === 1 ? "lead or admin" : "leads and admins"} · everyone gets every ${name} test cycle unless it keeps members separate`}
-              label={can(u.who, "members:manage") ? "Manage" : "View"}
+              label="Manage"
             >
               <MembersPanel
                 projectId={u.hub.id}
@@ -555,6 +564,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                 members={members.map((m) => ({ userId: m.userId, email: m.user.email, name: m.user.name, role: m.role, signedIn: !!m.user.lastLoginAt, hasPassword: !!m.user.passwordSetAt, avatarAt: m.user.avatarAt, inviteSentAt: invites.sent.get(m.userId) ?? null, inviteUntil: invites.until.get(m.userId) ?? null, ...badgeOf(m.user) }))}
               />
             </ExpandRow>
+            )}
             </SettingsRows>
           </ul>
         </Card>

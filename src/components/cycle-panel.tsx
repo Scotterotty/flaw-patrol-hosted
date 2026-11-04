@@ -27,7 +27,7 @@ export function CyclePanel({
   anchor: string;
   umbrella: string;
   details: { projectId: string; name: string; description: string } | null;
-  team: { projectId: string; separate: boolean; canSeparate: boolean; members: ReactNode | null; fromUmbrella: number };
+  team: { projectId: string; separate: boolean; canSeparate: boolean; members: ReactNode | null; fromUmbrella: number; seesMembers: boolean; ask: ReactNode | null };
   jira: { canManage: boolean; own: boolean; summary: string; form: ReactNode };
   slack: Parameters<typeof CycleSlack>[0];
   digest?: Parameters<typeof CycleDigest>[0];
@@ -49,7 +49,10 @@ export function CyclePanel({
       <Card className="space-y-3 p-5">
         <h2 className="text-sm font-semibold text-slate-800">Team</h2>
         <KeepSeparateSwitch projectId={team.projectId} on={team.separate} umbrella={umbrella} disabled={!team.canSeparate} />
-        {!team.separate && <p className="text-xs text-slate-500">{team.fromUmbrella ? `${team.fromUmbrella} people from ${umbrella}'s team. Add or remove them in Members above.` : `Add people in Members above.`}</p>}
+        {/* Who's on a team is for Admins only (ver_168); everyone else gets who to ask. */}
+        {!team.separate && team.seesMembers && <p className="text-xs text-slate-500">{team.fromUmbrella ? `${team.fromUmbrella} people from ${umbrella}'s team. Add or remove them in Members above.` : `Add people in Members above.`}</p>}
+        {!team.separate && !team.seesMembers && <p className="text-xs text-slate-500">Same people as {umbrella}.</p>}
+        {team.separate && !team.seesMembers && team.ask}
       </Card>
       {team.separate && team.members}
       {jira.canManage ? (

@@ -235,10 +235,11 @@ test("Activity log: admin and security events, never results or bugs", async ({ 
   // Secrets never reach the log.
   expect(body).not.toContain("s3cret-value");
 
-  // Nothing about results, cases run or bugs filed is ever written.
+  // Nothing about results, cases run or bugs filed is ever written. Bringing a whole run in (automation
+  // or a spreadsheet, ver_166) is a run event, like making a run.
   const kinds = await db.activityEntry.groupBy({ by: ["kind"], _count: true });
   for (const k of kinds) expect(["signin", "people", "settings", "delete", "run"]).toContain(k.kind);
-  expect(await db.activityEntry.count({ where: { action: { contains: "result", mode: "insensitive" }, NOT: { action: { contains: "automation results" } } } })).toBe(0);
+  expect(await db.activityEntry.count({ where: { action: { contains: "result", mode: "insensitive" }, NOT: { OR: [{ action: { contains: "automation results" } }, { action: { contains: "results from a spreadsheet" } }] } } })).toBe(0);
   await db.$disconnect();
 });
 

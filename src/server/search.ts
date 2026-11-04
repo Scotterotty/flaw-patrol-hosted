@@ -72,7 +72,8 @@ const ACCOUNT_PAGES: { label: string; anchor: string; words: string }[] = [
   { label: "Radio", anchor: "radio", words: "radio music spotify" },
   { label: "Password", anchor: "password", words: "password change password" },
 ];
-const UMBRELLA_PAGES: { label: string; path: (g: string, hub: string) => string; words: string; tool?: ToolId }[] = [
+/** `adminOnly`: only an umbrella's Admins see it (Members, ver_168). */
+const UMBRELLA_PAGES: { label: string; path: (g: string, hub: string) => string; words: string; tool?: ToolId; adminOnly?: true }[] = [
   { label: "Overview", path: (g) => `/g/${g}`, words: "overview home" },
   { label: "Case library", path: (_, h) => `/p/${h}/cases`, words: "case library cases tests", tool: "cases" },
   { label: "Test suites", path: (_, h) => `/p/${h}/suites`, words: "test suites suite plans", tool: "cases" },
@@ -90,7 +91,7 @@ const UMBRELLA_PAGES: { label: string; path: (g: string, hub: string) => string;
   { label: "Jira connection", path: (g) => `/g/${g}/settings#jira`, words: "jira connection token login" },
   { label: "Bug templates", path: (g) => `/g/${g}/settings#bug-templates`, words: "jira bug template templates layout fields" },
   { label: "Requirements settings", path: (g) => `/g/${g}/settings#stories`, words: "jira requirements requirement stories story epics links coverage", tool: "stories" },
-  { label: "Members", path: (g) => `/g/${g}/settings#members`, words: "members team people invite" },
+  { label: "Members", path: (g) => `/g/${g}/settings#members`, words: "members team people invite", adminOnly: true },
   { label: "Roles", path: (g) => `/g/${g}/settings#roles`, words: "roles permissions tester lead admin" },
   { label: "Slack alerts", path: (g) => `/g/${g}/settings#slack`, words: "slack alerts notifications channel" },
   { label: "GitHub settings", path: (g) => `/g/${g}/settings#github`, words: "github connect pull repo token workflow actions ci", tool: "auto" },
@@ -119,9 +120,9 @@ function pageHits(q: string, umbrella: PageScope | null, everywhere: PageScope[]
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
   const matches = close ? (text: string) => matchKind(q, text) === "close" : (text: string) => words.every((w) => text.toLowerCase().includes(w));
   const hits: SearchHit[] = [];
-  if (umbrella) for (const p of UMBRELLA_PAGES) if (matches(`${p.label} ${p.words}`)) hits.push(pageHit(p, umbrella, p.label));
+  if (umbrella) for (const p of UMBRELLA_PAGES) if ((!p.adminOnly || umbrella.admin) && matches(`${p.label} ${p.words}`)) hits.push(pageHit(p, umbrella, p.label));
   for (const u of everywhere)
-    for (const p of UMBRELLA_PAGES) if (matches(`${p.label} ${p.words} ${u.name}`)) hits.push(pageHit(p, u, `${u.name} · ${p.path(u.id, u.hubKey).includes("/settings#") ? `Settings → ${p.label}` : p.label}`));
+    for (const p of UMBRELLA_PAGES) if ((!p.adminOnly || u.admin) && matches(`${p.label} ${p.words} ${u.name}`)) hits.push(pageHit(p, u, `${u.name} · ${p.path(u.id, u.hubKey).includes("/settings#") ? `Settings → ${p.label}` : p.label}`));
   for (const p of ACCOUNT_PAGES) if (matches(`${p.label} ${p.words} account`)) hits.push({ href: `/account#${p.anchor}`, label: p.label, sub: "Your account" });
   if (matches("umbrellas home all projects")) hits.push({ href: "/", label: "Umbrellas", sub: "Every umbrella and test cycle" });
   if (matches("rc status release end of day")) hits.push({ href: "/rc", label: "Release status", sub: "Across every umbrella" });
@@ -392,7 +393,7 @@ export async function searchStart(groupId: string | null) {
     const { group, projects } = groupId ? await scopeOf(user, groupId, false) : { group: null, projects: [] };
     const hub = group ? projects.find((p) => p.id === group.hubProjectId) : null;
     const on = group ? toolsOn(group.tools) : [];
-    const goTo: SearchHit[] = group && hub ? UMBRELLA_PAGES.filter((p) => !p.tool || on.includes(p.tool)).slice(0, 7).map((p) => ({ href: p.path(group.id, hub.key), label: p.label, sub: group.name })) : [];
+    const goTo: SearchHit[] = group && hub ? UMBRELLA_PAGES.filter((p) => (!p.tool || on.includes(p.tool)) && !p.adminOnly).slice(0, 7).map((p) => ({ href: p.path(group.id, hub.key), label: p.label, sub: group.name })) : [];
     return { recent, goTo, umbrella: group && hub ? { id: group.id, name: group.name } : null };
   });
 }

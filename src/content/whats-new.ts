@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 168,
+    date: "2026-11-04",
+    items: [
+      {
+        kind: "better",
+        title: "Members list is for Admins only",
+        text: "Only Admins see who's on an umbrella or test cycle, with their emails and roles. Everyone else sees which Admin to ask when they need someone added or a role changed.",
+      },
+    ],
+  },
+  {
     version: 167,
     date: "2026-11-04",
     items: [

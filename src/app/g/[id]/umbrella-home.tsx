@@ -127,7 +127,8 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
     ...(can(u.who, "members:manage")
       ? [{ done: !!u.group.rolesChosenAt, label: "Choose what roles can do", note: "", href: `${g}/settings#roles`, action: "Review", tip: "Everyone can use everything except archive, delete and connections. Tighten it before you invite." }]
       : []),
-    { done: memberCount > 1, label: "Invite your team", note: plural(memberCount, "person").replace("persons", "people"), href: `${g}/settings#members`, action: "Invite" },
+    // Who's on the team is for Admins only (ver_168), so only they get the Invite step.
+    ...(can(u.who, "members:manage") ? [{ done: memberCount > 1, label: "Invite your team", note: plural(memberCount, "person").replace("persons", "people"), href: `${g}/settings#members`, action: "Invite" }] : []),
     { done: !!jira, label: on("stories") ? "Connect Jira" : "Connect Jira (optional)", note: "", href: `${g}/settings#jira`, action: "Connect" },
     { done: slackCount > 0, label: "Send alerts to Slack (optional)", note: plural(slackCount, "channel"), href: `${g}/settings#slack`, action: "Add channels", tip: "Post regressions, serious bugs and finished runs to Slack channels. Every test cycle follows them." },
   ];

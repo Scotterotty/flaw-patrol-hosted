@@ -17,7 +17,8 @@ import { parseTemplateSettings } from "@/lib/bug-template";
 import { bugTemplateView } from "@/lib/shared-template-data";
 import { canOpen } from "@/lib/crypto";
 import { db } from "@/lib/db";
-import { joinRequestRows } from "@/lib/link-access-server";
+import { adminsOf, joinRequestRows } from "@/lib/link-access-server";
+import { AskAdminLine } from "@/components/ask-admin";
 import { memberInviteInfo } from "@/lib/invites";
 import { can } from "@/lib/permissions";
 import { RolesCard } from "@/components/roles-card";
@@ -44,15 +45,17 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
   // Since ver_117 a test cycle under an umbrella is set in the umbrella's Settings → Test cycles, on its own row.
   // Someone on a separate test cycle's team but not the umbrella's still gets this page.
   if (project.groupId && (await loadUmbrella(project.groupId, user))) return <CycleSettingsRedirect groupId={project.groupId} cycleKey={project.key} />;
+  // Who's on the team is for Admins only (ver_168): everyone else gets the Admins to ask instead.
+  const canMembers = can(who, "members:manage");
+  const askAdmins = canMembers ? [] : await adminsOf(project.id);
   const members = await db.projectMember.findMany({
-    where: { projectId: project.id },
+    where: { projectId: project.id, ...(canMembers ? {} : { userId: { in: [] } }) },
     include: { user: true },
     orderBy: [{ role: "asc" }, { user: { email: "asc" } }],
   });
   const invites = await memberInviteInfo(members.map((m) => m.userId));
   const requests = can(who, "members:manage") ? await joinRequestRows(project.id) : [];
   const canManage = can(who, "project:manage");
-  const canMembers = can(who, "members:manage");
   const canJira = can(who, "jira:manage");
   const sentryRow = await db.sentryConfig.findUnique({ where: { projectId: project.id } });
   const jiraRow = await db.jiraConfig.findUnique({
@@ -98,11 +101,12 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
             </Link>
           </p>
           <KeepSeparateSwitch projectId={project.id} on={project.keepMembersSeparate} umbrella={umbrella.name} disabled={!can(who, "project:separate")} />
-          {!project.keepMembersSeparate && fromUmbrella > 0 && <p className="text-xs text-slate-500">{fromUmbrella} of the members below come from {umbrella.name}&apos;s team and follow it.</p>}
+          {canMembers && !project.keepMembersSeparate && fromUmbrella > 0 && <p className="text-xs text-slate-500">{fromUmbrella} of the members below come from {umbrella.name}&apos;s team and follow it.</p>}
         </Card>
       )}
       {canManage && <ProjectDetailsForm projectId={project.id} name={project.name} description={project.description} />}
-      <MembersPanel
+      {!canMembers && <AskAdminLine admins={askAdmins} />}
+      {canMembers && <MembersPanel
         projectId={project.id}
         me={user.id}
         canManage={canMembers}
@@ -111,7 +115,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
         team={project.name}
         nudge={!project.groupId && !project.rolesChosenAt && <RolesNudge target={{ projectId: project.id }} href={`/p/${project.key}/settings#roles`} />}
                 members={members.map((m) => ({ userId: m.userId, email: m.user.email, name: m.user.name, role: m.role, signedIn: !!m.user.lastLoginAt, hasPassword: !!m.user.passwordSetAt, avatarAt: m.user.avatarAt, inviteSentAt: invites.sent.get(m.userId) ?? null, inviteUntil: invites.until.get(m.userId) ?? null, ...badgeOf(m.user) }))}
-      />
+      />}
       {/* Under an umbrella with no Jira of its own, one line says whose Jira it uses; the full form is the override. */}
       {canJira && umbrella && !jiraRow ? (
         <Card id="jira" className="scroll-mt-20 space-y-3 p-5">

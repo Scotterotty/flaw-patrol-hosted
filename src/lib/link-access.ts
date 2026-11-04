@@ -88,6 +88,12 @@ export function andList(names: string[]) {
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
+/** "Scott", "Scott or Priya", "Scott, Priya or Tom". */
+export function orList(names: string[]) {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
+}
+
 /** Only paths inside the app, so /access?to= can't send anyone elsewhere. */
 export function safeInside(to: string | null | undefined) {
   if (!to || !to.startsWith("/") || to.startsWith("//") || to.startsWith("/\\")) return null;

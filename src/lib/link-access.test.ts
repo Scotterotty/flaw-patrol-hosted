@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { andList, bashGuestPath, linkTarget, safeInside } from "./link-access";
+import { andList, orList, bashGuestPath, linkTarget, safeInside } from "./link-access";
 
 describe("shared links for people outside the team (ver_115)", () => {
   it("says what a link opens", () => {
@@ -25,6 +25,12 @@ describe("shared links for people outside the team (ver_115)", () => {
     expect(andList(["Dana"])).toBe("Dana");
     expect(andList(["Demo Admin", "Dana Lead"])).toBe("Demo Admin and Dana Lead");
     expect(andList(["A", "B", "C"])).toBe("A, B and C");
+  });
+  it("offers a choice of names with or", () => {
+    expect(orList([])).toBe("");
+    expect(orList(["Scott"])).toBe("Scott");
+    expect(orList(["Scott", "Priya"])).toBe("Scott or Priya");
+    expect(orList(["A", "B", "C"])).toBe("A, B or C");
   });
   it("only sends people to paths inside the app", () => {
     expect(safeInside("/p/WEB")).toBe("/p/WEB");
