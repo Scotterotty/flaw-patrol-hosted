@@ -49,7 +49,8 @@ const STATUS_WORDS: [RegExp, ImportStatus][] = [
   [/^(defective|defect|bug|bug found)$/, "FAILED"],
   [/^(retest|re test|re-test|needs retest)$/, "RETEST"],
   [/^(skip|skipped|n a|na|not applicable|not supported|unsupported)$/, "SKIPPED"],
-  [/^(untested|not run|not started|to do|todo|pending|incomplete|unexecuted|not executed)$/, "UNTESTED"],
+  // "Select" is what an untouched dropdown in Google Sheets shows (ver_166).
+  [/^(untested|not run|not started|to do|todo|pending|incomplete|unexecuted|not executed|select|select one|choose)$/, "UNTESTED"],
 ];
 
 /** Read a status word from the sheet. Blank, a dash or anything unknown counts as untested, with `known` false for the unknown ones. */
@@ -136,4 +137,19 @@ export function matchTester<M extends { id: string; name: string; email: string 
     one(members.filter((m) => first(m) === s.split(/\s+/)[0] || m.email.toLowerCase().split("@")[0] === s)) ??
     (s.length >= 3 ? one(members.filter((m) => first(m).startsWith(s))) : null)
   );
+}
+
+const FINAL_STATUSES = new Set(["PASSED", "FAILED", "BLOCKED", "RETEST", "SKIPPED"]);
+
+/**
+ * Adding a sheet to a run in progress (ver_166): what happens to one case.
+ * "fill" when it's still untested here (and nobody has started it), "disagree" when both
+ * have a final result and they differ (changes only if ticked), "blank" when the sheet has
+ * no result (never clears anything), and "skip" for everything already marked here.
+ */
+export function intoRunAction(here: string, startedHere: boolean, sheet: ImportStatus | "IN_PROGRESS"): "fill" | "disagree" | "blank" | "skip" {
+  if (sheet === "UNTESTED") return "blank";
+  if (here === "UNTESTED" && !startedHere) return "fill";
+  if (FINAL_STATUSES.has(sheet) && FINAL_STATUSES.has(here) && sheet !== here) return "disagree";
+  return "skip";
 }

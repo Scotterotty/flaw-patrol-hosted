@@ -4,7 +4,7 @@ import Papa from "papaparse";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { RUN_FIELD_LABEL, RUN_FIELDS, type ColumnMap, type RunField } from "@/lib/run-import";
-import { importRun, previewRunImport } from "@/server/run-import";
+import { importIntoRun, importRun, previewRunImport } from "@/server/run-import";
 import { readSpreadsheet } from "@/server/spreadsheet";
 import { Sp } from "./spelling";
 import { Button, Card, cx, ErrorText, Field, Input, Select } from "./ui";
@@ -12,8 +12,14 @@ import { Button, Card, cx, ErrorText, Field, Input, Select } from "./ui";
 type Preview = Extract<Awaited<ReturnType<typeof previewRunImport>>, { ok: true }>;
 const today = () => new Date().toISOString().slice(0, 10);
 
-/** Test runs → Import a run: read a sheet, check what it means, then create the run. */
-export function RunImporter({ projectId, projectKey, suites }: { projectId: string; projectKey: string; suites: { id: string; name: string }[] }) {
+type ActiveRun = { id: string; number: number; name: string; total: number; tested: number };
+const WORD: Record<string, string> = { PASSED: "Passed", FAILED: "Failed", BLOCKED: "Blocked", RETEST: "Retest", SKIPPED: "Skipped" };
+
+/**
+ * Test runs → Import a run: read a sheet, check what it means, then add it to a run in
+ * progress (ver_166) or create a new run.
+ */
+export function RunImporter({ projectId, projectKey, suites, runs = [], pickRun }: { projectId: string; projectKey: string; suites: { id: string; name: string }[]; runs?: ActiveRun[]; pickRun?: string }) {
   const router = useRouter();
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState<string[][] | null>(null);
@@ -25,6 +31,11 @@ export function RunImporter({ projectId, projectKey, suites }: { projectId: stri
   const [release, setRelease] = useState("");
   const [testedOn, setTestedOn] = useState(today());
   const [suiteId, setSuiteId] = useState("");
+  // Where should the results go: a run in progress (Recommended) when there is one.
+  const [target, setTarget] = useState<"run" | "new">(runs.length ? "run" : "new");
+  const [runId, setRunId] = useState(runs.find((r) => r.id === pickRun || String(r.number) === pickRun)?.id ?? runs[0]?.id ?? "");
+  const [useSheet, setUseSheet] = useState<Set<string>>(new Set());
+  const into = target === "run" && runId ? runId : null;
   const [pending, start] = useTransition();
   const [checking, startCheck] = useTransition();
   const file = useRef<HTMLInputElement>(null);
@@ -33,7 +44,7 @@ export function RunImporter({ projectId, projectKey, suites }: { projectId: stri
   useEffect(() => {
     if (!rows) return;
     startCheck(async () => {
-      const res = await previewRunImport(projectId, { rows, map, links, fileName });
+      const res = await previewRunImport(projectId, { rows, map, links, fileName }, into);
       if (!res.ok) {
         setPreview(null);
         return setError(res.error);
@@ -42,7 +53,7 @@ export function RunImporter({ projectId, projectKey, suites }: { projectId: stri
       setPreview(res);
       if (!map) setMap(res.map);
     });
-  }, [projectId, rows, map, links, fileName]);
+  }, [projectId, rows, map, links, fileName, into]);
 
   const accept = (n: string, data: string[][]) => {
     if (data.length < 2) return setError("That file has no rows under the header.");
@@ -51,6 +62,7 @@ export function RunImporter({ projectId, projectKey, suites }: { projectId: stri
     setName(n.replace(/\.(csv|tsv|txt|xlsx)$/i, ""));
     setMap(null);
     setLinks({});
+    setUseSheet(new Set());
     setRows(data);
   };
   const load = (f: File) => {
@@ -134,6 +146,45 @@ export function RunImporter({ projectId, projectKey, suites }: { projectId: stri
           ))}
         </div>
       </Card>
+
+      {runs.length > 0 && (
+        <Card className="p-4" role="radiogroup" aria-label="Where should the results go?">
+          <h2 className="text-sm font-semibold text-slate-800">Where should the results go?</h2>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <label className={cx("flex cursor-pointer gap-2 rounded-md border p-3 text-sm", target === "run" ? "border-accent-500 bg-accent-50" : "border-slate-200")}>
+              <input type="radio" name="imp-target" className="mt-0.5" checked={target === "run"} onChange={() => setTarget("run")} />
+              <span className="grid min-w-0 flex-1 gap-1.5">
+                <span className="font-medium text-slate-800">
+                  A run in progress <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">Recommended</span>
+                </span>
+                <Select
+                  aria-label="Run in progress"
+                  value={runId}
+                  onChange={(e) => {
+                    setRunId(e.target.value);
+                    setTarget("run");
+                    setUseSheet(new Set());
+                  }}
+                >
+                  {runs.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      R{r.number} {r.name} · {r.tested} of {r.total} tested
+                    </option>
+                  ))}
+                </Select>
+                <span className="text-xs text-slate-500">Only cases still untested get the sheet&apos;s result. Anything already marked here stays as it is.</span>
+              </span>
+            </label>
+            <label className={cx("flex cursor-pointer gap-2 rounded-md border p-3 text-sm", target === "new" ? "border-accent-500 bg-accent-50" : "border-slate-200")}>
+              <input type="radio" name="imp-target" className="mt-0.5" checked={target === "new"} onChange={() => setTarget("new")} />
+              <span className="grid gap-0.5">
+                <span className="font-medium text-slate-800">A new run</span>
+                <span className="text-xs text-slate-500">Make a run from the sheet. It stays open so you can finish it here.</span>
+              </span>
+            </label>
+          </div>
+        </Card>
+      )}
 
       {p && (
         <>
@@ -225,6 +276,90 @@ export function RunImporter({ projectId, projectKey, suites }: { projectId: stri
             </Card>
           )}
 
+          {target === "run" && p.into && (
+            <Card className="p-4" role="region" aria-label="Adding to the run">
+              <h2 className="text-sm font-semibold text-slate-800">Adding to {runLabel(runs, runId)}</h2>
+              <p className="mt-1 text-sm text-slate-700" data-testid="into-summary">
+                <strong>{p.into.fill}</strong> {p.into.fill === 1 ? "case gets" : "cases get"} a result
+                {p.into.fillInProgress > 0 && ` (${p.into.fillInProgress} in progress)`} · <strong>{p.into.skipped + p.into.disagree.length}</strong> already done here, skipped
+                {p.into.blank > 0 && (
+                  <>
+                    {" "}
+                    · <strong>{p.into.blank}</strong> blank in the sheet, left as they are
+                  </>
+                )}
+                {p.into.notInRun.length > 0 && (
+                  <>
+                    {" "}
+                    · <strong>{p.into.notInRun.length}</strong> not in this run, skipped
+                  </>
+                )}
+              </p>
+              {p.into.notInRun.length > 0 && (
+                <p className="mt-1 text-xs text-slate-500">
+                  Not in this run: <span className="font-mono">{p.into.notInRun.slice(0, 12).map((n) => n.key || n.title).join(", ")}{p.into.notInRun.length > 12 && "…"}</span>
+                </p>
+              )}
+              {p.into.disagree.length > 0 && (
+                <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3" role="group" aria-label="Disagrees with the sheet">
+                  <p className="text-sm font-semibold text-amber-900">
+                    {p.into.disagree.length} {p.into.disagree.length === 1 ? "case disagrees" : "cases disagree"} with the sheet
+                  </p>
+                  <p className="text-xs text-amber-900/80">Nothing changes unless you tick it. If you do, the result here stays in the case&apos;s history.</p>
+                  <ul className="mt-2 divide-y divide-amber-200">
+                    {p.into.disagree.map((d) => (
+                      <li key={d.caseId} className="flex flex-wrap items-center justify-between gap-2 py-1.5 text-sm">
+                        <span className="min-w-0">
+                          <span className="font-mono text-xs text-slate-500">{d.key}</span> <span className="text-slate-800">{d.title}</span>
+                          <span className="block text-xs text-slate-600">
+                            Flaw Patrol: <strong>{WORD[d.here] ?? d.here}</strong> · Sheet: <strong>{WORD[d.sheet] ?? d.sheet}</strong>
+                          </span>
+                        </span>
+                        <label className="flex items-center gap-1.5 text-xs text-slate-800">
+                          <input
+                            type="checkbox"
+                            aria-label={`Use the sheet's result for ${d.key}`}
+                            checked={useSheet.has(d.caseId)}
+                            onChange={(e) => {
+                              const next = new Set(useSheet);
+                              if (e.target.checked) next.add(d.caseId);
+                              else next.delete(d.caseId);
+                              setUseSheet(next);
+                            }}
+                          />
+                          Use the sheet&apos;s result
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
+                <Field label="Tested on" htmlFor="imp-date">
+                  <Input id="imp-date" type="date" value={testedOn} max={today()} onChange={(e) => setTestedOn(e.target.value)} />
+                </Field>
+                <div className="flex gap-2">
+                  <Button onClick={() => setRows(null)}>Cancel</Button>
+                  <Button
+                    variant="primary"
+                    disabled={pending || checking || p.into.fill + useSheet.size === 0}
+                    onClick={() =>
+                      start(async () => {
+                        const res = await importIntoRun(projectId, { rows, map, links, fileName }, { runId, testedOn, useSheet: [...useSheet] });
+                        if (!res.ok) return setError(res.error);
+                        router.push(`/p/${projectKey}/runs/${res.number}`);
+                      })
+                    }
+                  >
+                    {pending ? "Adding…" : addLabel(p.into.fill + p.into.disagree.filter((d) => useSheet.has(d.caseId)).length)}
+                  </Button>
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-slate-500">A blank or &quot;Select&quot; in the sheet never clears a result.</p>
+            </Card>
+          )}
+
+          {target === "new" && (
           <Card className="p-4">
             <h2 className="text-sm font-semibold text-slate-800">The new run</h2>
             <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -275,6 +410,7 @@ export function RunImporter({ projectId, projectKey, suites }: { projectId: stri
               </Button>
             </div>
           </Card>
+          )}
         </>
       )}
       {!p && checking && <p className="text-sm text-slate-500">Reading the sheet…</p>}
@@ -290,4 +426,13 @@ function Tile({ label, value, sub, tone }: { label: string; value: number; sub?:
       {sub && <p className="text-[11px] text-slate-400">{sub}</p>}
     </Card>
   );
+}
+
+function runLabel(runs: ActiveRun[], id: string) {
+  const r = runs.find((x) => x.id === id);
+  return r ? `R${r.number} ${r.name}` : "the run";
+}
+
+function addLabel(n: number) {
+  return n ? `Add ${n} ${n === 1 ? "result" : "results"} to the run` : "Nothing to add";
 }

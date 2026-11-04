@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { AutoFilterForm } from "@/components/auto-filter-form";
 import { StartRunBox } from "@/components/start-run-box";
 import { StartBashButton } from "@/components/bash-start";
-import { UploadAutomationButton } from "@/components/automation-upload";
+import { BringInResults } from "@/components/automation-upload";
 import { can } from "@/lib/permissions";
 import { Card, EmptyState, PageHeader, Select } from "@/components/ui";
 import { ViewTabs } from "@/components/view-tabs";
@@ -33,7 +33,8 @@ export default async function UmbrellaRunsPage({ params, searchParams }: { param
     db.testRun.count({ where: { projectId: { in: ids }, state: "COMPLETED", automated: false } }),
     db.testRun.count({ where: { projectId: { in: ids }, automated: true } }),
   ]);
-  const canUpload = !u.group.archivedAt && (await mayUpload(u, user));
+  const sheetCycles = u.group.archivedAt ? [] : await importCycles(u, user);
+  const canUpload = sheetCycles.length > 0;
   const q = (patch: Record<string, string | undefined>) => {
     const s = new URLSearchParams();
     for (const [k, v] of Object.entries({ project: only?.key, state: sp.state, kind: sp.kind, ...patch })) if (v) s.set(k, v);
@@ -85,7 +86,7 @@ export default async function UmbrellaRunsPage({ params, searchParams }: { param
         actions={
           !u.group.archivedAt && (
             <>
-              {canUpload && <UploadAutomationButton scope={{ groupId: u.group.id }} />}
+              {canUpload && <BringInResults scope={{ groupId: u.group.id }} importCycles={sheetCycles} />}
               {can(u.who, "run:create") && <StartBashButton projectId={u.hub.id} hideButton />}
               {can(u.who, "run:create") && <StartRunBox scope={{ groupId: u.group.id }} />}
             </>
@@ -120,9 +121,16 @@ export default async function UmbrellaRunsPage({ params, searchParams }: { param
   );
 }
 
-/** Leads and admins on at least one of the umbrella's test cycles see Upload automation results. */
-async function mayUpload(u: NonNullable<Awaited<ReturnType<typeof loadUmbrella>>>, user: { id: string; isAdmin: boolean }) {
-  if (user.isAdmin) return true;
-  const roles = await db.projectMember.findMany({ where: { userId: user.id, projectId: { in: u.projects.filter((p) => !p.archivedAt).map((p) => p.id) } }, select: { role: true } });
-  return roles.some((r) => can({ role: r.role, rules: u.who.rules }, "run:import"));
+/**
+ * The test cycles this viewer may bring results into (run:import), current ones first.
+ * None means no Bring in results menu: leads and admins see it, like before.
+ */
+async function importCycles(u: NonNullable<Awaited<ReturnType<typeof loadUmbrella>>>, user: { id: string; isAdmin: boolean }) {
+  const current = new Set(u.current.map((p) => p.id));
+  const live = [...u.current, ...u.older].filter((p) => !p.archivedAt);
+  const roles = await db.projectMember.findMany({ where: { userId: user.id, projectId: { in: live.map((p) => p.id) } }, select: { projectId: true, role: true } });
+  const roleOf = new Map(roles.map((r) => [r.projectId, r.role]));
+  return live
+    .filter((p) => can({ role: user.isAdmin ? "ADMIN" : (roleOf.get(p.id) ?? null), rules: u.who.rules }, "run:import"))
+    .map((p) => ({ key: p.key, name: p.name, current: current.has(p.id) }));
 }

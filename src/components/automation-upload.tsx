@@ -108,9 +108,13 @@ export function UploadAutomationButton({ scope }: { scope: { groupId: string } |
  * holds both, each saying what kind of file it takes, so Create a run stands out.
  * The two choices stay in a fixed order.
  */
-export function BringInResults({ scope, importHref, auto = true }: { scope: { groupId: string } | { projectKey: string }; importHref?: string; auto?: boolean }) {
+export type ImportCycle = { key: string; name: string; current: boolean };
+
+export function BringInResults({ scope, importHref, importCycles, auto = true }: { scope: { groupId: string } | { projectKey: string }; importHref?: string; importCycles?: ImportCycle[]; auto?: boolean }) {
   const [open, setOpen] = useState(false);
-  if (!auto && !importHref) return null;
+  const [picking, setPicking] = useState(false);
+  const sheet = !!importHref || !!importCycles?.length;
+  if (!auto && !sheet) return null;
   return (
     <>
       <MoreMenu label="Bring in results">
@@ -123,6 +127,17 @@ export function BringInResults({ scope, importHref, auto = true }: { scope: { gr
           >
             <span>Automated test results</span>
             <span className="text-xs text-slate-500">A JUnit, NUnit or Playwright results file from your test pipeline</span>
+          </button>
+        )}
+        {!importHref && !!importCycles?.length && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => setPicking(true)}
+            className="grid w-72 max-w-[80vw] gap-0.5 rounded-md px-3 py-2 text-left text-sm text-slate-800 hover:bg-slate-100"
+          >
+            <span>Results from a spreadsheet</span>
+            <span className="text-xs text-slate-500">A run you tracked by hand in Excel or Google Sheets</span>
           </button>
         )}
         {importHref && (
@@ -139,7 +154,60 @@ export function BringInResults({ scope, importHref, auto = true }: { scope: { gr
       <Modal open={open} onClose={() => setOpen(false)} title="Upload automation results" wide>
         <Flow scope={scope} onClose={() => setOpen(false)} />
       </Modal>
+      {importCycles && (
+        <Modal open={picking} onClose={() => setPicking(false)} title="Results from a spreadsheet">
+          <PickImportCycle cycles={importCycles} onClose={() => setPicking(false)} />
+        </Modal>
+      )}
     </>
+  );
+}
+
+/**
+ * In an umbrella, a spreadsheet's results go into one test cycle (ver_166): pick it first,
+ * current ones at the top, then the import page asks where in that cycle they go.
+ */
+function PickImportCycle({ cycles, onClose }: { cycles: ImportCycle[]; onClose: () => void }) {
+  const router = useRouter();
+  const [key, setKey] = useState(cycles[0]?.key ?? "");
+  const [pending, start] = useTransition();
+  const current = cycles.filter((c) => c.current);
+  const older = cycles.filter((c) => !c.current);
+  const option = (c: ImportCycle) => (
+    <option key={c.key} value={c.key}>
+      {c.name}
+    </option>
+  );
+  return (
+    <form
+      className="grid gap-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (key) start(() => router.push(`/p/${key}/runs/import`));
+      }}
+    >
+      <Field label="Which test cycle is this run for?" htmlFor="sheet-cycle">
+        <Select id="sheet-cycle" value={key} onChange={(e) => setKey(e.target.value)}>
+          {current.length > 0 && older.length > 0 ? (
+            <>
+              <optgroup label="Current">{current.map(option)}</optgroup>
+              <optgroup label="Older">{older.map(option)}</optgroup>
+            </>
+          ) : (
+            cycles.map(option)
+          )}
+        </Select>
+      </Field>
+      <p className="text-xs text-slate-500">Next you choose your sheet, and whether its results go into a run in progress or a new run.</p>
+      <div className="flex justify-end gap-2">
+        <Button type="button" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="submit" variant="primary" disabled={!key || pending}>
+          {pending ? "Opening…" : "Continue"}
+        </Button>
+      </div>
+    </form>
   );
 }
 

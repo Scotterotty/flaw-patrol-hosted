@@ -22,6 +22,31 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 166,
+    date: "2026-11-04",
+    items: [
+      {
+        kind: "new",
+        title: "Bring in spreadsheet results from an umbrella",
+        text: "Test runs → Bring in results → Results from a spreadsheet. Pick the test cycle first, then your sheet.",
+        who: "lead",
+        link: "/g/{umbrella}/runs",
+      },
+      {
+        kind: "new",
+        title: "Add a sheet to a run in progress",
+        text: "Choose A run in progress or A new run. The sheet only fills cases that are still untested. If it disagrees with a result here, you see both and nothing changes unless you tick Use the sheet's result.",
+        who: "lead",
+      },
+      {
+        kind: "fix",
+        title: "Sheets find the cases in an umbrella's Case library",
+        text: "Importing a run into an umbrella's test cycle now matches the umbrella's cases. A blank or Select in the sheet is read as no result.",
+        who: "lead",
+      },
+    ],
+  },
+  {
     version: 165,
     date: "2026-11-04",
     items: [

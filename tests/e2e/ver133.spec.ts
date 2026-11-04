@@ -32,7 +32,8 @@ test.beforeAll(async () => {
 
 async function upload(page: Page, fail: boolean) {
   await page.goto(`/g/${groupId}/runs`);
-  await page.getByRole("button", { name: "Upload automation results" }).click();
+  await page.getByRole("button", { name: "Bring in results" }).click();
+  await page.getByRole("menuitem", { name: /Automated test results/ }).click();
   const box = page.getByRole("dialog", { name: "Upload automation results" });
   await box.getByLabel("Results files").setInputFiles({ name: "results.xml", mimeType: "text/xml", buffer: Buffer.from(xml(fail)) });
   await expect(box.getByText("2. Where they go")).toBeVisible();
