@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BashBoard, WrapUp } from "@/components/bash";
+import { BashBoard, BashTabs, WrapUp } from "@/components/bash";
+import { findCount } from "@/lib/bash";
 import { BashRelease } from "@/components/bash-release";
 import { bashReleases } from "@/lib/bash-data";
 import { can } from "@/lib/permissions";
@@ -15,12 +16,13 @@ import { bashTick } from "@/server/bashes";
 export const metadata = { title: "Bug bash" };
 
 /** The bash board while it's on; the wrap-up when time's up; the report once wrapped. */
-export default async function BashPage({ params, searchParams }: { params: Promise<{ key: string; id: string }>; searchParams: Promise<{ join?: string }> }) {
+export default async function BashPage({ params, searchParams }: { params: Promise<{ key: string; id: string }>; searchParams: Promise<{ join?: string; find?: string }> }) {
   const { key, id } = await params;
-  const { join } = await searchParams;
+  const { join, find } = await searchParams;
   await bashTick(id).catch(() => {});
   const { view, guest, project, user, who, full } = await bashPageData(key, id);
   if (view.phase === "wrapped") redirect(`/p/${view.homeKey}/bashes/${id}/report`);
+  const myArea = view.areas.find((a) => a.id === view.me.areaId);
   const [jira, releases] = await Promise.all([jiraConfigFor(view.runProjectId).then(Boolean), guest ? [] : bashReleases(project)]);
   return (
     <div className="mx-auto max-w-6xl">
@@ -37,6 +39,8 @@ export default async function BashPage({ params, searchParams }: { params: Promi
           </Link>
         )}
       </div>
+      {/* Joined: My area / Whole bash tabs, so the board and your area are one click apart. */}
+      {myArea && <BashTabs homeKey={view.homeKey} bashId={id} area={myArea.name} finds={findCount(view.items)} current="board" />}
       {!guest && (
         <div className="-mt-2 mb-4">
           <BashRelease bashId={id} release={full.bash.release} releases={releases} canChange={full.bash.createdById === user.id || can(who, "run:create")} />
@@ -52,7 +56,7 @@ export default async function BashPage({ params, searchParams }: { params: Promi
           askHref={`/access?to=${encodeURIComponent(`/p/${project.key}`)}`}
         />
       )}
-      {view.phase === "ended" ? <WrapUp bash={view} jiraConnected={jira} /> : <BashBoard bash={view} openJoin={join === "1" || !!guest} />}
+      {view.phase === "ended" ? <WrapUp bash={view} jiraConnected={jira} /> : <BashBoard bash={view} openJoin={join === "1" || !!guest} openFind={find ?? null} />}
     </div>
   );
 }

@@ -98,10 +98,18 @@ export async function bashList(homeId: string) {
     take: 100,
     include: { _count: { select: { people: true, items: { where: { kind: "bug", mergedIntoId: null } } } }, run: { select: { number: true, project: { select: { key: true } } } } },
   });
+  // Notes, questions and ideas too, so a past bash shows everything it found (not only bugs).
+  const kinds = rows.length
+    ? await db.bashItem.groupBy({ by: ["bashId", "kind"], where: { bashId: { in: rows.map((r) => r.id) }, kind: { in: ["note", "question", "idea"] }, mergedIntoId: null }, _count: { _all: true } })
+    : [];
+  const kindCount = (id: string, kind: string) => kinds.find((k) => k.bashId === id && k.kind === kind)?._count._all ?? 0;
   return rows.map((b) => ({
     id: b.id,
     name: b.name,
     phase: phaseOf(b),
+    notes: kindCount(b.id, "note"),
+    questions: kindCount(b.id, "question"),
+    ideas: kindCount(b.id, "idea"),
     startsAt: b.startsAt,
     endsAt: b.endsAt,
     endedAt: b.endedAt,
@@ -114,6 +122,21 @@ export async function bashList(homeId: string) {
     minutes: b.minutes,
     run: b.run ? { number: b.run.number, key: b.run.project.key } : null,
   }));
+}
+
+/**
+ * Bashes you joined or logged in, wrapped up in the last week: for Your work, so your own
+ * finds are one click away. Only your own finds are counted, never anyone else's.
+ */
+export async function myRecentBashes(userId: string, now = new Date()) {
+  const since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const bashes = await db.bugBash.findMany({
+    where: { wrappedAt: { gte: since }, OR: [{ people: { some: { userId } } }, { items: { some: { byId: userId } } }] },
+    orderBy: { wrappedAt: "desc" },
+    take: 5,
+    select: { id: true, name: true, project: { select: { key: true } }, items: { where: { byId: userId, kind: { in: ["bug", "question", "note", "idea"] }, mergedIntoId: null }, select: { id: true } } },
+  });
+  return bashes.map((b) => ({ id: b.id, name: b.name, finds: b.items.length, href: `/p/${b.project.key}/bashes/${b.id}/report` }));
 }
 
 /** Risk board: when each requirement was last bashed, and the bugs its area found. */

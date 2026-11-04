@@ -2,14 +2,15 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import type { Severity } from "@prisma/client";
-import { cleanPlatforms, LINK_KIND_LABEL, seenOn, similarBugs, type BashLink } from "@/lib/bash";
+import { cleanPlatforms, isNewArea, LINK_KIND_LABEL, seenOn, similarBugs, type BashLink } from "@/lib/bash";
 import type { BashFinds, LiveFind } from "@/lib/bash-live";
-import { addToBashItem, deleteBashItem, editBashItem, fillBashItem, plusOneBash, searchBashLinks, setBashLinks } from "@/server/bashes";
+import { addBashArea, addToBashItem, deleteBashItem, editBashItem, fillBashItem, plusOneBash, searchBashLinks, setBashLinks } from "@/server/bashes";
 import { listWords } from "@/lib/bug-layout";
 import type { BashValues } from "@/lib/bash-template";
 import { SevChip, useBashUpload } from "./bash";
 import { AnswerTables, NeedsTag, seenHere, TemplateFields } from "./bash-template";
 import { Button, cx, ErrorText } from "./ui";
+import { holdLive } from "@/lib/live-hold";
 
 // Live finds: the panel on Log a bug that fills in as people log, so nobody logs the
 // same thing twice. A find you open stays put: new finds from others wait behind a bar
@@ -129,15 +130,6 @@ export function LiveFinds({
   // Platform filter (ver_146): offered once any find has a platform. "" shows every platform.
   const [plat, setPlat] = useState("");
   const platformsSeen = cleanPlatforms(data.items.flatMap((i) => seenOn(i)));
-  const [error, setError] = useState<string | null>(null);
-  const [pending, start] = useTransition();
-  // Half-typed additions, by find: kept in state here, so refreshes never touch them.
-  const [typed, setTyped] = useState<Record<string, string>>({});
-  const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
-  // What's being typed to fill in a bug's missing headings, by find.
-  const [filling, setFilling] = useState<Record<string, BashValues>>({});
-  const [shots, setShots] = useState<Record<string, { id: string; fileName: string }[]>>({});
-  const upload = useBashUpload(projectId, bashId, setError);
   const [now, setNow] = useState(() => Date.now());
   const [folded, setFolded] = useState(true);
   const list = useRef<HTMLUListElement>(null);
@@ -223,15 +215,6 @@ export function LiveFinds({
     anchor.current = null;
   });
 
-  const act = (fn: () => Promise<{ ok: boolean; error?: string }>, after?: () => void) =>
-    start(async () => {
-      setError(null);
-      const r = await fn();
-      if (!r.ok) return setError(r.error ?? "That didn't work.");
-      after?.();
-      await reload();
-    });
-
   const paused = !!openId;
   const newCount = data.items.filter((i) => fresh(i.id) && i.byId !== meId).length;
   const myArea = data.areas.find((a) => a.id === areaId);
@@ -288,7 +271,6 @@ export function LiveFinds({
             )}
           </div>
         </div>
-        <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
         <div className="relative">
           {(held.length > 0 || newSince > 0) && (
             // Over the list, not in it: showing the bar never shifts the rows.
@@ -323,7 +305,6 @@ export function LiveFinds({
             {shown.map((i) => {
               const open = openId === i.id;
               const mine = i.byId === meId;
-              const iPlus = i.plusOnes.some((p) => p.id === meId);
               const isAlike = alike.includes(i);
               const area = data.areas.find((a) => a.id === i.areaId)?.name ?? "";
               return (
@@ -353,140 +334,19 @@ export function LiveFinds({
                     </span>
                   </button>
                   {open && (
-                    <div className="mt-2 space-y-2 border-l-2 border-accent-200 pl-2" data-testid="find-open">
-                      {i.details && <p className="text-xs whitespace-pre-wrap text-slate-600">{i.details}</p>}
-                      {i.template && <p className="text-[11px] text-slate-500">{i.template.name}</p>}
-                      {i.template && !i.bug && i.template.needs.length > 0 && live && (
-                        <div className="space-y-2 rounded-md bg-amber-50 p-2 ring-1 ring-amber-200 ring-inset" data-testid="find-needs">
-                          <p className="text-xs text-amber-900">
-                            Still needed before it&apos;s filed: <b className="font-semibold">{listWords(i.template.needs)}</b>. Anyone can add {i.template.needs.length === 1 ? "it" : "them"}.
-                          </p>
-                          <TemplateFields layout={i.template.layout} values={filling[i.id] ?? {}} setValues={(fn) => setFilling((f) => ({ ...f, [i.id]: fn(f[i.id] ?? {}) }))} only={i.template.needIds} upload={upload} idPrefix={`fill-${i.id}`} />
-                          {i.template.shot && (
-                            <p className="flex flex-wrap items-center gap-1.5 text-xs">
-                              <label className="cursor-pointer rounded-md px-2 py-1 font-medium text-accent-700 ring-1 ring-slate-300 hover:bg-white">
-                                Add a screenshot or video
-                                <input
-                                  type="file"
-                                  hidden
-                                  accept="image/*,video/*"
-                                  onChange={async (e) => {
-                                    const l = [...(e.target.files ?? [])];
-                                    e.target.value = "";
-                                    const up = await upload(l);
-                                    setShots((x) => ({ ...x, [i.id]: [...(x[i.id] ?? []), ...up] }));
-                                  }}
-                                />
-                              </label>
-                              {(shots[i.id] ?? []).map((f) => (
-                                <span key={f.id} className="rounded bg-white px-1.5 py-0.5 text-slate-700">
-                                  {f.fileName}
-                                </span>
-                              ))}
-                            </p>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="primary"
-                            disabled={pending}
-                            onClick={() =>
-                              act(
-                                () => fillBashItem(i.id, { values: filling[i.id] ?? {}, attachmentIds: (shots[i.id] ?? []).map((f) => f.id) }),
-                                () => {
-                                  setFilling((f) => ({ ...f, [i.id]: {} }));
-                                  setShots((x) => ({ ...x, [i.id]: [] }));
-                                },
-                              )
-                            }
-                          >
-                            Add
-                          </Button>
-                        </div>
-                      )}
-                      {i.template && <AnswerTables answers={i.template.answers} />}
-                      {i.attachments.length > 0 && (
-                        <p className="flex flex-wrap gap-1 text-xs">
-                          {i.attachments.map((a) => (
-                            <a key={a.id} href={`/api/attachments/${a.id}`} target="_blank" rel="noreferrer" className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-700 hover:underline">
-                              {a.fileName}
-                            </a>
-                          ))}
-                        </p>
-                      )}
-                      {i.adds.length ? (
-                        <ul className="space-y-1 text-xs">
-                          {i.adds.map((a) => (
-                            <li key={a.id} className="rounded bg-slate-50 px-2 py-1 text-slate-700">
-                              <b className="font-medium">{a.byId === meId ? "You" : a.byName}:</b> {a.text}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-xs text-slate-500">Nothing added yet.</p>
-                      )}
-                      {editing?.id === i.id ? (
-                        <div className="flex gap-1.5">
-                          <input aria-label="Change your find" className="h-8 min-w-0 flex-1 rounded-md border border-slate-300 bg-surface px-2 text-sm" value={editing.text} maxLength={300} onChange={(e) => setEditing({ id: i.id, text: e.target.value })} />
-                          <Button size="sm" variant="primary" disabled={pending || !editing.text.trim()} onClick={() => act(() => editBashItem(i.id, { text: editing.text }), () => setEditing(null))}>
-                            Save
-                          </Button>
-                          <Button size="sm" onClick={() => setEditing(null)}>
-                            Cancel
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex flex-wrap gap-1.5">
-                          {!mine && i.kind !== "question" && live && (
-                            <Button size="sm" variant={iPlus ? "secondary" : "primary"} disabled={pending} onClick={() => act(() => plusOneBash(i.id, !iPlus, seenHere()))}>
-                              {iPlus ? "✓ You see it too" : i.kind === "bug" ? "+1, I see it too" : "+1"}
-                            </Button>
-                          )}
-                          {mine && live && !i.bug && (
-                            <>
-                              <Button size="sm" onClick={() => setEditing({ id: i.id, text: i.text })}>
-                                Edit
-                              </Button>
-                              <Button size="sm" disabled={pending} onClick={() => act(() => deleteBashItem(i.id), () => setOpenId(null))}>
-                                Remove
-                              </Button>
-                            </>
-                          )}
-                          <Button size="sm" className="ml-auto" onClick={() => setOpenId(null)}>
-                            Close
-                          </Button>
-                        </div>
-                      )}
-                      {live && (
-                        <form
-                          className="flex gap-1.5"
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            const text = typed[i.id]?.trim();
-                            if (!text) return;
-                            act(
-                              () => addToBashItem(i.id, text),
-                              () => {
-                                setTyped((t) => ({ ...t, [i.id]: "" }));
-                                setOpenId(null);
-                                setDone({ id: i.id, text: i.kind === "question" ? `Answered "${i.text}". Everyone sees it.` : `Added to "${i.text}". Everyone sees it.` });
-                              },
-                            );
-                          }}
-                        >
-                          <input
-                            aria-label={i.kind === "question" ? "Your answer" : "Add to it"}
-                            className="h-8 min-w-0 flex-1 rounded-md border border-slate-300 bg-surface px-2 text-sm focus:border-accent-500 focus:outline-none"
-                            placeholder={i.kind === "question" ? "Your answer" : "Add a detail, like Also on Safari"}
-                            value={typed[i.id] ?? ""}
-                            maxLength={1000}
-                            onChange={(e) => setTyped((t) => ({ ...t, [i.id]: e.target.value }))}
-                          />
-                          <Button size="sm" type="submit" disabled={pending || !typed[i.id]?.trim()}>
-                            {i.kind === "question" ? "Answer" : "Add to it"}
-                          </Button>
-                        </form>
-                      )}
-                    </div>
+                    <FindDetail
+                      find={i}
+                      meId={meId}
+                      live={live}
+                      bashId={bashId}
+                      projectId={projectId}
+                      reload={reload}
+                      onClose={() => setOpenId(null)}
+                      onDone={(text) => {
+                        setOpenId(null);
+                        setDone({ id: i.id, text });
+                      }}
+                    />
                   )}
                 </li>
               );
@@ -496,6 +356,238 @@ export function LiveFinds({
         <p className="border-t border-slate-100 px-3 py-2 text-[11px] text-slate-500">Everyone in this bash sees what you log, including notes and questions.</p>
       </div>
     </section>
+  );
+}
+
+/** Pictures show as small previews; anything else is a file chip. Both open the full file. */
+export function FindFiles({ files }: { files: { id: string; fileName: string; contentType: string }[] }) {
+  if (!files.length) return null;
+  return (
+    <div className="flex flex-wrap items-end gap-1.5 text-xs" data-testid="find-files">
+      {files.map((a) =>
+        a.contentType.startsWith("image/") ? (
+          <a key={a.id} href={`/api/attachments/${a.id}`} target="_blank" rel="noreferrer" title={a.fileName} className="block overflow-hidden rounded-md ring-1 ring-slate-200 hover:ring-accent-400">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`/api/attachments/${a.id}`} alt={a.fileName} className="h-20 w-32 max-w-full object-cover" loading="lazy" />
+          </a>
+        ) : (
+          <a key={a.id} href={`/api/attachments/${a.id}`} target="_blank" rel="noreferrer" className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-700 hover:underline">
+            {a.fileName}
+          </a>
+        ),
+      )}
+    </div>
+  );
+}
+
+type DetailFind = Pick<LiveFind, "id" | "text" | "details" | "byId" | "template" | "attachments" | "adds" | "plusOnes"> & { kind: string; bug: unknown };
+
+/**
+ * An open find: everything about it, and what you can do with it. Shared by
+ * Live finds on Log a bug and the Finds list on the board, so both work the same.
+ * Half-typed text lives here, and holds the board's refresh while there is any.
+ */
+export function FindDetail({
+  find: i,
+  bashId,
+  projectId,
+  meId,
+  live,
+  reload,
+  onClose,
+  onDone,
+  copyLink,
+}: {
+  find: DetailFind;
+  bashId: string;
+  projectId: string;
+  meId: string;
+  live: boolean;
+  reload: () => unknown;
+  onClose: () => void;
+  onDone: (text: string) => void;
+  /** The address that opens this find on the board; shows Copy link. */
+  copyLink?: string;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const [typed, setTyped] = useState("");
+  const [editing, setEditing] = useState<string | null>(null);
+  const [filling, setFilling] = useState<BashValues>({});
+  const [shots, setShots] = useState<{ id: string; fileName: string }[]>([]);
+  const [copied, setCopied] = useState(false);
+  const upload = useBashUpload(projectId, bashId, setError);
+  const mine = i.byId === meId;
+  const iPlus = i.plusOnes.some((p) => p.id === meId);
+  const dirty = !!typed.trim() || editing !== null || Object.values(filling).some((v) => (Array.isArray(v) ? v.length : !!v)) || shots.length > 0;
+  useEffect(() => (dirty ? holdLive() : undefined), [dirty]);
+
+  const act = (fn: () => Promise<{ ok: boolean; error?: string }>, after?: () => void) =>
+    start(async () => {
+      setError(null);
+      const r = await fn();
+      if (!r.ok) return setError(r.error ?? "That didn't work.");
+      after?.();
+      await reload();
+    });
+
+  return (
+    <div
+      className="mt-2 space-y-2 border-l-2 border-accent-200 pl-2"
+      data-testid="find-open"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          onClose();
+        }
+      }}
+    >
+      <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+      {i.details && <p className="text-xs whitespace-pre-wrap text-slate-600">{i.details}</p>}
+      {i.template && <p className="text-[11px] text-slate-500">{i.template.name}</p>}
+      {i.template && !i.bug && i.template.needs.length > 0 && live && (
+        <div className="space-y-2 rounded-md bg-amber-50 p-2 ring-1 ring-amber-200 ring-inset" data-testid="find-needs">
+          <p className="text-xs text-amber-900">
+            Still needed before it&apos;s filed: <b className="font-semibold">{listWords(i.template.needs)}</b>. Anyone can add {i.template.needs.length === 1 ? "it" : "them"}.
+          </p>
+          <TemplateFields layout={i.template.layout} values={filling} setValues={(fn) => setFilling((f) => fn(f))} only={i.template.needIds} upload={upload} idPrefix={`fill-${i.id}`} />
+          {i.template.shot && (
+            <p className="flex flex-wrap items-center gap-1.5 text-xs">
+              <label className="cursor-pointer rounded-md px-2 py-1 font-medium text-accent-700 ring-1 ring-slate-300 hover:bg-white">
+                Add a screenshot or video
+                <input
+                  type="file"
+                  hidden
+                  accept="image/*,video/*"
+                  onChange={async (e) => {
+                    const l = [...(e.target.files ?? [])];
+                    e.target.value = "";
+                    const up = await upload(l);
+                    setShots((x) => [...x, ...up]);
+                  }}
+                />
+              </label>
+              {shots.map((f) => (
+                <span key={f.id} className="rounded bg-white px-1.5 py-0.5 text-slate-700">
+                  {f.fileName}
+                </span>
+              ))}
+            </p>
+          )}
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={pending}
+            onClick={() =>
+              act(
+                () => fillBashItem(i.id, { values: filling, attachmentIds: shots.map((f) => f.id) }),
+                () => {
+                  setFilling({});
+                  setShots([]);
+                },
+              )
+            }
+          >
+            Add
+          </Button>
+        </div>
+      )}
+      {i.template && <AnswerTables answers={i.template.answers} />}
+      <FindFiles files={i.attachments} />
+      {i.plusOnes.length > 0 && (
+        <p className="text-xs text-slate-600" data-testid="find-plus-ones">
+          {i.kind === "bug" ? "Also seen by" : "+1 from"} {i.plusOnes.map((p) => `${p.id === meId ? "You" : p.name}${p.platform ? ` (${p.platform})` : ""}`).join(", ")}
+        </p>
+      )}
+      {i.adds.length ? (
+        <ul className="space-y-1 text-xs">
+          {i.adds.map((a) => (
+            <li key={a.id} className="rounded bg-slate-50 px-2 py-1 text-slate-700">
+              <b className="font-medium">{a.byId === meId ? "You" : a.byName}:</b> {a.text}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs text-slate-500">Nothing added yet.</p>
+      )}
+      {editing !== null ? (
+        <div className="flex gap-1.5">
+          <input aria-label="Change your find" className="h-8 min-w-0 flex-1 rounded-md border border-slate-300 bg-surface px-2 text-sm" value={editing} maxLength={300} onChange={(e) => setEditing(e.target.value)} />
+          <Button size="sm" variant="primary" disabled={pending || !editing.trim()} onClick={() => act(() => editBashItem(i.id, { text: editing }), () => setEditing(null))}>
+            Save
+          </Button>
+          <Button size="sm" onClick={() => setEditing(null)}>
+            Cancel
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {!mine && i.kind !== "question" && live && (
+            <Button size="sm" variant={iPlus ? "secondary" : "primary"} disabled={pending} onClick={() => act(() => plusOneBash(i.id, !iPlus, seenHere()))}>
+              {iPlus ? "✓ You see it too" : i.kind === "bug" ? "+1, I see it too" : "+1"}
+            </Button>
+          )}
+          {mine && live && !i.bug && (
+            <>
+              <Button size="sm" onClick={() => setEditing(i.text)}>
+                Edit
+              </Button>
+              <Button size="sm" disabled={pending} onClick={() => act(() => deleteBashItem(i.id), onClose)}>
+                Remove
+              </Button>
+            </>
+          )}
+          {copyLink && (
+            <Button
+              size="sm"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(new URL(copyLink, window.location.origin).toString());
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2500);
+                } catch {
+                  setError("Couldn't copy. Copy the address bar instead.");
+                }
+              }}
+            >
+              {copied ? "Link copied" : "Copy link"}
+            </Button>
+          )}
+          <Button size="sm" className="ml-auto" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      )}
+      {live && (
+        <form
+          className="flex gap-1.5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const text = typed.trim();
+            if (!text) return;
+            act(
+              () => addToBashItem(i.id, text),
+              () => {
+                setTyped("");
+                onDone(i.kind === "question" ? `Answered "${i.text}". Everyone sees it.` : `Added to "${i.text}". Everyone sees it.`);
+              },
+            );
+          }}
+        >
+          <input
+            aria-label={i.kind === "question" ? "Your answer" : "Add to it"}
+            className="h-8 min-w-0 flex-1 rounded-md border border-slate-300 bg-surface px-2 text-sm focus:border-accent-500 focus:outline-none"
+            placeholder={i.kind === "question" ? "Your answer" : "Add a detail, like Also on Safari"}
+            value={typed}
+            maxLength={1000}
+            onChange={(e) => setTyped(e.target.value)}
+          />
+          <Button size="sm" type="submit" disabled={pending || !typed.trim()}>
+            {i.kind === "question" ? "Answer" : "Add to it"}
+          </Button>
+        </form>
+      )}
+    </div>
   );
 }
 
@@ -594,6 +686,75 @@ export function AddLink({ bashId, onPick }: { bashId: string; onPick: (l: BashLi
 }
 
 /**
+ * The browser's clock, ticking every 30 seconds; null while the server renders, so
+ * "New" tags never differ between the server and the browser.
+ */
+export function useClientNow() {
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  return now;
+}
+
+/** True while an area added mid-bash is in its first 10 minutes. */
+export function useNewArea() {
+  const now = useClientNow();
+  return (a: { addedAt?: string | null }) => now !== null && isNewArea(a, now);
+}
+
+/** The green "New" tag on an area added while the bash was on. */
+export function NewTag({ className }: { className?: string }) {
+  return <span className={cx("ml-1.5 inline-block rounded-full bg-emerald-50 px-1.5 py-px text-[10px] font-semibold text-emerald-700 normal-case", className)} data-testid="new-area-tag">New</span>;
+}
+
+/** + Add area: a name and Enter. The new area shows for everyone right away. */
+function AddArea({ bashId, onAdded }: { bashId: string; onAdded: () => void }) {
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const add = () =>
+    start(async () => {
+      if (!name.trim()) return;
+      setError(null);
+      const r = await addBashArea(bashId, name);
+      if (!r.ok) return setError(r.error);
+      setName("");
+      onAdded();
+    });
+  return (
+    <div className="space-y-1 rounded-md border border-dashed border-slate-300 p-2" data-testid="add-area">
+      <label htmlFor={`add-area-${bashId}`} className="block text-[11px] font-semibold text-slate-500 uppercase">
+        Add an area
+      </label>
+      <div className="flex gap-1.5">
+        <input
+          id={`add-area-${bashId}`}
+          className="h-8 min-w-0 flex-1 rounded-md border border-slate-300 bg-surface px-2 text-xs"
+          placeholder='Area name, like "Voice chat"'
+          maxLength={120}
+          value={name}
+          disabled={pending}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
+          }}
+        />
+        <Button size="sm" variant="primary" disabled={pending || !name.trim()} onClick={add}>
+          {pending ? "Adding…" : "Add area"}
+        </Button>
+      </div>
+      <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+    </div>
+  );
+}
+
+/**
  * What you're testing: the area's links and the whole bash's. Whoever started it can
  * edit them, here or on the board (which lists every area).
  */
@@ -601,15 +762,19 @@ export function WhatYoureTesting({
   bashId,
   groups,
   canEdit,
+  canAddArea = false,
   onSaved,
   title = "What you're testing",
 }: {
   bashId: string;
-  groups: { title: string; areaId: string | null; links: BashLink[] }[];
+  groups: { title: string; areaId: string | null; links: BashLink[]; addedAt?: string | null }[];
   canEdit: boolean;
+  /** The board's Edit also shows + Add area (ver_169). */
+  canAddArea?: boolean;
   onSaved: () => void;
   title?: string;
 }) {
+  const isNew = useNewArea();
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -633,7 +798,13 @@ export function WhatYoureTesting({
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       {groups.map((g) => (
         <div key={g.areaId ?? "bash"} className="space-y-1">
-          {g.title && <p className="text-[11px] font-semibold text-slate-500 uppercase">{g.title}</p>}
+          {editing && canAddArea && g.areaId === null && <AddArea bashId={bashId} onAdded={onSaved} />}
+          {g.title && (
+            <p className="text-[11px] font-semibold text-slate-500 uppercase">
+              {g.title}
+              {g.areaId && isNew(g) && <NewTag />}
+            </p>
+          )}
           {g.links.map((l, i) => (
             <LinkRow key={`${l.kind}${l.key}${i}`} l={l} onRemove={editing ? () => save(g.areaId, g.links.filter((_, j) => j !== i)) : undefined} />
           ))}
@@ -641,7 +812,7 @@ export function WhatYoureTesting({
           {editing && <AddLink bashId={bashId} onPick={(l) => !g.links.some((x) => x.kind === l.kind && x.key === l.key) && save(g.areaId, [...g.links, l])} />}
         </div>
       ))}
-      {editing && <p className="text-[11px] text-slate-500">{pending ? "Saving…" : "You started this bash, so you can change links. Everyone sees the change right away."}</p>}
+      {editing && <p className="text-[11px] text-slate-500">{pending ? "Saving…" : canAddArea ? "You started this bash, so you can add areas and change links. Everyone sees the change right away." : "You started this bash, so you can change links. Everyone sees the change right away."}</p>}
     </div>
   );
 }

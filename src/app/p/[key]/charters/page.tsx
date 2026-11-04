@@ -37,6 +37,8 @@ export default async function ChartersPage({ params, searchParams }: { params: P
     db.testCase.count({ where: { projectId: project.id, type: "EXPLORATORY", archived: true, ...NOT_BASH_CASE } }),
     db.persona.findMany({ where: { projectId: project.id }, orderBy: { name: "asc" }, include: { cases: { where: { archived: false }, select: { type: true } } } }),
   ]);
+  // Bug bash area charters stay off this list, so point to where a bash's results live (once one is wrapped up).
+  const wrappedBash = await db.bugBash.findFirst({ where: { projectId: home.id, wrappedAt: { not: null } }, select: { id: true } });
   const charterCount = await db.testCase.count({ where: { projectId: project.id, type: "EXPLORATORY", archived: false, ...NOT_BASH_CASE } });
   const canWrite = can(who, "case:edit");
   const canStart = can(who, "run:create");
@@ -172,6 +174,15 @@ export default async function ChartersPage({ params, searchParams }: { params: P
                 </tbody>
               </table>
             </Card>
+          )}
+          {wrappedBash && archived !== "1" && (
+            <p className="mt-3 text-sm text-slate-600" data-testid="bash-results-pointer">
+              <span aria-hidden="true">🐞 </span>Bug bash results are on{" "}
+              <Link href={`/p/${home.key}/bashes`} className="font-medium text-accent-700 hover:underline">
+                Bug bashes
+              </Link>
+              .
+            </p>
           )}
         </>
       )}

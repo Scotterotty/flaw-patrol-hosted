@@ -32,7 +32,7 @@ export async function bashFinds(bashId: string) {
   return {
     projectId: bash.projectId,
     phase: phaseOf(bash),
-    areas: parseAreas(bash.areas).map((a) => ({ id: a.id, name: a.name, links: a.links, people: bash.people.filter((p) => p.areaId === a.id).map((p) => ({ id: p.userId, name: p.name })) })),
+    areas: parseAreas(bash.areas).map((a) => ({ id: a.id, name: a.name, links: a.links, addedAt: a.addedAt ?? null, people: bash.people.filter((p) => p.areaId === a.id).map((p) => ({ id: p.userId, name: p.name })) })),
     links: parseLinks(bash.links),
     items: bash.items
       .filter((i) => i.kind !== "add")

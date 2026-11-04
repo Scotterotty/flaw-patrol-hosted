@@ -22,6 +22,43 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 169,
+    date: "2026-11-04",
+    items: [
+      {
+        kind: "better",
+        title: "Bug bash board is one click away",
+        text: "Once you join a bug bash, two tabs sit under its name: My area, where you log, and Whole bash, with everyone's finds, who's where and the clock.",
+      },
+      {
+        kind: "better",
+        title: "The red bug bash pill knows you're in",
+        text: "It says Back to it once you've joined and takes you to your area.",
+      },
+      {
+        kind: "new",
+        title: "Open any find on the bug bash board",
+        text: "Click a find on the board to see everything about it: details, screenshots, who sees it too, and what people added. Copy link sends someone straight to it. Finds on the report open the same way.",
+      },
+      {
+        kind: "new",
+        title: "Add an area while a bug bash is on",
+        text: "What's being tested → Edit → Add an area. Everyone sees it right away with a New tag.",
+      },
+      {
+        kind: "better",
+        title: "Bug bash results have one clear home",
+        text: "Each bash's report. Get there from See results on Bug bashes, the line on Charters, or Your work.",
+      },
+      {
+        kind: "better",
+        title: "Wrap up shows each bug's client",
+        text: "The Wrap up table has a Client column, so you can check or change where each bug was seen before it's filed.",
+        who: "lead",
+      },
+    ],
+  },
+  {
     version: 168,
     date: "2026-11-04",
     items: [

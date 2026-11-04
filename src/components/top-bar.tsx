@@ -23,7 +23,7 @@ export async function TopBar({ user, project }: { user: { id: string; name: stri
   const [joins, secret, live, me, feedback] = await Promise.all([
     joinRequestsFor({ id: user.id, isAdmin: !!user.isAdmin }).catch(() => ({ count: 0, href: null })),
     secretSoon(!!user.isAdmin),
-    project ? liveBashFor(project.key) : null,
+    project ? liveBashFor(project.key, user.id) : null,
     currentUser(),
     feedbackCounts(user.id, !!user.isAdmin),
   ]);
@@ -39,7 +39,7 @@ export async function TopBar({ user, project }: { user: { id: string; name: stri
         </div>
         {live && (
           <span className="hidden shrink-0 md:inline">
-            <LiveBashPill href={live.href} endsAt={live.endsAt} />
+            <LiveBashPill href={live.href} endsAt={live.endsAt} joined={live.joined} />
           </span>
         )}
         <GlobalSearch scope={project?.hub ? { id: project.hub, name: project.name } : (project?.group ?? null)} />
@@ -104,10 +104,13 @@ function SecretBanner({ soon: p }: { soon: { id: string; label: string; secretEx
 }
 
 // A bug bash on now in this umbrella: "🐞 Bug bash live · Join" on every page in it.
-async function liveBashFor(projectKey: string) {
+async function liveBashFor(projectKey: string, userId: string) {
   const p = await db.project.findUnique({ where: { key: projectKey }, select: { id: true, key: true, groupId: true } });
   if (!p) return null;
   const home = await charterHome(p);
   const live = await liveBashOf(home.id);
-  return live ? { href: `/p/${home.key}/bashes/${live.id}?join=1`, endsAt: live.endsAt } : null;
+  if (!live) return null;
+  // Already in it: the pill says "Back to it" and opens your area, not the join cards.
+  const joined = !!(await db.bashPerson.findUnique({ where: { bashId_userId: { bashId: live.id, userId } }, select: { userId: true } }));
+  return { href: joined ? `/p/${home.key}/bashes/${live.id}/explore` : `/p/${home.key}/bashes/${live.id}?join=1`, endsAt: live.endsAt, joined };
 }

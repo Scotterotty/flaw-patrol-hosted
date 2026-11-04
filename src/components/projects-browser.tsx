@@ -10,7 +10,7 @@ import { setGroupsHidden, setGroupStarred } from "@/server/groups";
 import { setUmbrellaArchived } from "@/server/umbrella";
 import { setArchived, setHidden, setProjectOrder, setStarred } from "@/server/projects";
 import { UmbrellaCard, type UmbrellaCardData } from "./umbrella-ui";
-import { YourWork, type YourWorkRow } from "./your-work";
+import { YourWork, type YourBashRow, type YourWorkRow } from "./your-work";
 import { Button, cx, ErrorText, InfoTip, Input, PageHeader, Select } from "./ui";
 import { type ProjectCardData, type GroupCardData, type Item, type CardActions, type Sortable, GroupCard, OrganizeCard, CardMenu } from "./project-cards";
 export { type ProjectCardData, type GroupCardData } from "./project-cards";
@@ -31,6 +31,7 @@ type Props = {
   subtitle: string;
   /** Runs with cases assigned to the viewer that still need testing. */
   yourWork?: YourWorkRow[];
+  yourBashes?: YourBashRow[];
   /** The viewer opened every row last time. */
   yourWorkOpen?: boolean;
   /** New umbrella, for everyone but Viewers. */
@@ -50,6 +51,7 @@ type Props = {
 export function ProjectsBrowser({
   subtitle,
   yourWork = [],
+  yourBashes = [],
   yourWorkOpen = false,
   newButton,
   sort: savedSort,
@@ -322,7 +324,7 @@ export function ProjectsBrowser({
       <div className="space-y-6">
         <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
 
-        <YourWork rows={yourWork} open={yourWorkOpen} />
+        <YourWork rows={yourWork} bashes={yourBashes} open={yourWorkOpen} />
 
         {showSearch && (
           <div className="flex flex-wrap items-center gap-2">

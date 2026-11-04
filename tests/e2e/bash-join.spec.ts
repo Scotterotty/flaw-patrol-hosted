@@ -27,7 +27,8 @@ test("join on the bash page, log a find, add to it and it closes", async ({ page
   await expect(strip).toBeVisible();
   await expect(strip.getByText("Pick an area to test")).toBeVisible();
   await expect(page.getByText("Nobody has joined yet.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Back to bashing" })).toHaveCount(0);
+  await expect(page.getByTestId("bash-tabs")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /Bug bash live · .* · Join/ })).toBeVisible();
   const board = page.url();
 
   // The old Join address lands here with the area cards open.
@@ -63,8 +64,19 @@ test("join on the bash page, log a find, add to it and it closes", async ({ page
   await live.getByRole("button", { name: "Close", exact: true }).click();
   await expect(live.getByTestId("find-open")).toHaveCount(0);
 
-  // Back on the board: You're in, so the strip is gone and Back to bashing shows.
-  await page.goto(board);
+  // My area / Whole bash tabs (ver_169): the board is one click away, with its find count.
+  const tabs = page.getByTestId("bash-tabs");
+  await expect(tabs.getByRole("link", { name: "My area · Checkout" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("link", { name: "Watch the board" })).toHaveCount(0);
+  // In now: the top pill says Back to it and opens your area.
+  await expect(page.getByRole("link", { name: /Bug bash live · .* · Back to it/ })).toHaveAttribute("href", /\/explore$/);
+  await tabs.getByRole("link", { name: "Whole bash · 1 find" }).click();
+  await expect(page).toHaveURL(/\/bashes\/[^/?]+$/);
+
+  // On the board: You're in, so the strip is gone and the tabs show, Whole bash picked.
   await expect(page.getByTestId("join-strip")).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Back to bashing" })).toBeVisible();
+  await expect(tabs.getByRole("link", { name: /Whole bash/ })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("link", { name: "Back to bashing" })).toHaveCount(0);
+  await tabs.getByRole("link", { name: "My area · Checkout" }).click();
+  await expect(page).toHaveURL(/\/explore$/);
 });

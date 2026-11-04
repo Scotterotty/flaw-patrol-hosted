@@ -4,7 +4,7 @@ import { bashGuestOk } from "@/lib/link-access-server";
 import { currentUser } from "@/lib/session";
 import { bashTick } from "@/server/bashes";
 
-// A bug bash's fingerprint: who's in where, and every line logged. The board and
+// A bug bash's fingerprint: its areas and links, who's in where, and every line logged. The board and
 // the bash runner poll it; each look also sends the 10-minute warning when it's due.
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await currentUser();
@@ -16,6 +16,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       projectId: true,
       endedAt: true,
       wrappedAt: true,
+      // Areas and links too, so an area added mid-bash or a changed link shows for everyone.
+      areas: true,
+      links: true,
       people: { select: { userId: true, areaId: true }, orderBy: { userId: "asc" } },
       items: { select: { id: true, review: true, severity: true, plusOnes: true, mergedIntoId: true, defectId: true }, orderBy: { id: "asc" } },
     },
@@ -25,6 +28,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!user.isAdmin && !(await db.projectMember.findUnique({ where: { projectId_userId: { projectId: bash.projectId, userId: user.id } } })) && !(await bashGuestOk(id, user.id))) return new Response(null, { status: 404 });
   await bashTick(id).catch(() => {});
   const hash = createHash("sha1").update(`${bash.endedAt?.getTime() ?? ""}|${bash.wrappedAt?.getTime() ?? ""}`);
+  hash.update(`|${JSON.stringify(bash.areas)}|${JSON.stringify(bash.links)}`);
   for (const p of bash.people) hash.update(`|${p.userId}:${p.areaId}`);
   for (const i of bash.items) hash.update(`|${i.id}:${i.review}:${i.severity}:${JSON.stringify(i.plusOnes)}:${i.mergedIntoId ?? ""}:${i.defectId ?? ""}`);
   return Response.json({ v: hash.digest("base64url") }, { headers: { "Cache-Control": "no-store" } });

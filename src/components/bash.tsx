@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { Severity } from "@prisma/client";
-import { BASH_SEVERITIES, seenOn, sevLabel, similarBugs, type BashSeverity, type ItemKind } from "@/lib/bash";
+import { BASH_SEVERITIES, cleanPlatforms, seenOn, sevLabel, similarBugs, type BashSeverity, type ItemKind } from "@/lib/bash";
 import type { BashView } from "@/lib/bash-summary";
 import { clock } from "@/lib/charter";
 import { startsIn, whenLabel } from "@/lib/bash-schedule";
@@ -17,7 +17,7 @@ import { bashAnswers, isNeedsLine, isShot, needsOf, valuesOf, type BashValues } 
 import { listWords } from "@/lib/bug-layout";
 import { TemplatePicker } from "./templated-bug-form";
 import { AnswerTables, FilledForYou, NeedsTag, seenHere, TemplateFields } from "./bash-template";
-import { FIND_LABEL, FindCounts, KindTag, LinkChips, LiveFinds, useLiveFinds, WhatYoureTesting, type FindKind, type LiveData } from "./bash-live";
+import { FIND_LABEL, FindCounts, FindDetail, KindTag, LinkChips, LiveFinds, NewTag, useLiveFinds, useNewArea, WhatYoureTesting, type FindKind, type LiveData } from "./bash-live";
 import { uploadAttachment } from "@/server/results";
 import { BugDialog } from "./bug-dialog";
 import { PromptsCard } from "./session-runner";
@@ -272,6 +272,7 @@ export function JoinPicker({ bash, onCancel }: { bash: BashView; onCancel?: () =
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const fewest = Math.min(...bash.areas.map((a) => a.people.length));
+  const isNew = useNewArea();
   return (
     <Card className={cx("p-5", onCancel ? "border-accent-500 ring-1 ring-accent-500" : "mx-auto max-w-xl")} aria-label="Pick an area">
       <div className="mb-3 flex items-baseline justify-between gap-3">
@@ -284,7 +285,10 @@ export function JoinPicker({ bash, onCancel }: { bash: BashView; onCancel?: () =
           <label key={a.id} className={cx("flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5", pick === a.id ? "border-accent-500 bg-accent-50 ring-1 ring-accent-500" : "border-slate-200 hover:bg-slate-50")}>
             <input type="radio" name="area" checked={pick === a.id} onChange={() => setPick(a.id)} />
             <span className="min-w-0 flex-1">
-              <b className="block text-sm text-slate-900">{a.name}</b>
+              <b className="block text-sm text-slate-900">
+                {a.name}
+                {isNew(a) && <NewTag />}
+              </b>
               <span className="block text-xs text-slate-500">
                 {a.prompts.length ? `${a.prompts.length} things to try` : "Explore freely"} · {bash.items.filter((i) => i.areaId === a.id && i.kind !== "covered").length} finds
               </span>
@@ -340,6 +344,7 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
   const router = useRouter();
   const area = bash.areas.find((a) => a.id === bash.me.areaId)!;
   const { data, reload } = useLiveFinds(bash.id, finds);
+  const isNew = useNewArea();
   const [openId, setOpenId] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [details, setDetails] = useState("");
@@ -620,7 +625,7 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
             >
               {bash.areas.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name}
+                  {isNew(a) ? `${a.name} · New` : a.name}
                 </option>
               ))}
             </select>
@@ -631,9 +636,6 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
             <p className="text-xs text-slate-500">In here with you</p>
             <p className="text-sm text-slate-800">{others.length ? others.map((p) => p.name).join(", ") : "Just you"}</p>
           </div>
-          <Link href={`/p/${bash.homeKey}/bashes/${bash.id}`} className="block text-xs text-accent-700 hover:underline">
-            Watch the board
-          </Link>
           <div className="border-t border-slate-100 pt-3">
             <WhatYoureTesting
               bashId={bash.id}
@@ -680,7 +682,7 @@ function OnEachPlatform({ bash }: { bash: BashView }) {
   );
 }
 
-export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin?: boolean }) {
+export function BashBoard({ bash, openJoin = false, openFind = null }: { bash: BashView; openJoin?: boolean; openFind?: string | null }) {
   const router = useRouter();
   // Join right here on the board: the steps strip, then the area cards in place.
   const canJoin = !bash.me.areaId && bash.phase !== "wrapped" && bash.phase !== "ended";
@@ -689,6 +691,20 @@ export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin
   const [kind, setKind] = useState<"all" | FindKind>("all");
   const [pending, start] = useTransition();
   const [ending, setEnding] = useState(false);
+  // The open find (click a row). A link with ?find= opens that one straight away.
+  const [openId, setOpenId] = useState<string | null>(() => (openFind && bash.items.some((i) => i.id === openFind) ? openFind : null));
+  const [done, setDone] = useState<string | null>(null);
+  useEffect(() => {
+    if (!done) return;
+    const t = setTimeout(() => setDone(null), 6000);
+    return () => clearTimeout(t);
+  }, [done]);
+  useEffect(() => {
+    if (!openFind || openId !== openFind) return;
+    document.querySelector(`[data-row="${CSS.escape(openFind)}"]`)?.scrollIntoView({ block: "center" });
+    // Only on arrival from a link.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const bugs = bash.items.filter((i) => i.kind === "bug" && !i.mergedIntoId);
   // The board lists every kind of find, filtered by kind as well as by area.
   const finds = bash.items.filter((i) => i.kind !== "covered" && !i.mergedIntoId);
@@ -702,6 +718,7 @@ export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin
   const first = [...bugs].sort((a, b) => a.at.localeCompare(b.at))[0];
   const most = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
   const areaName = (id: string) => bash.areas.find((a) => a.id === id)?.name ?? "";
+  const isNew = useNewArea();
   const zone = useZone();
   const time = (iso: string) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: zone });
   return (
@@ -715,11 +732,6 @@ export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin
           <Countdown bash={bash} className="mr-2 text-2xl font-semibold text-slate-900" />
           {bash.phase === "scheduled" && <AddToCalendar bash={{ id: bash.id, name: bash.name, startsAt: bash.startsAt, endsAt: bash.endsAt, areas: bash.areas.map((a) => a.name), by: bash.createdBy, homeKey: bash.homeKey }} />}
           {bash.phase === "scheduled" && bash.isOwner && <ScheduleControls bashId={bash.id} startsAt={bash.startsAt} homeKey={bash.homeKey} />}
-          {bash.phase !== "wrapped" && bash.me.areaId && (
-            <Link href={`/p/${bash.homeKey}/bashes/${bash.id}/explore`} className="inline-flex h-9 items-center rounded-md bg-accent-600 px-3 text-sm font-medium text-white hover:bg-accent-700">
-              Back to bashing
-            </Link>
-          )}
           {bash.isOwner && bash.phase === "live" && !ending && (
             <Button disabled={pending} onClick={() => setEnding(true)}>
               End early
@@ -792,6 +804,7 @@ export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin
             {[["all", "All areas"], ...bash.areas.map((a) => [a.id, a.name]), ["mine", "Mine"]].map(([id, label]) => (
               <button key={id} type="button" aria-pressed={show === id} onClick={() => setShow(id)} className={cx("rounded-full px-2.5 py-0.5 text-xs ring-1 ring-inset", show === id ? "bg-accent-600 text-white ring-accent-600" : "text-slate-700 ring-slate-200 hover:bg-slate-50")}>
                 {label}
+                {isNew(bash.areas.find((a) => a.id === id) ?? {}) && <NewTag />}
               </button>
             ))}
           </div>
@@ -805,6 +818,11 @@ export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin
           {show !== "all" && show !== "mine" && (bash.areas.find((a) => a.id === show)?.links.length ?? 0) > 0 && (
             <p className="mb-2 text-xs text-slate-500">
               Testing: <LinkChips links={bash.areas.find((a) => a.id === show)!.links} />
+            </p>
+          )}
+          {done && (
+            <p role="status" className="mb-2 rounded-md bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800" data-testid="find-done">
+              {done}
             </p>
           )}
           {shown.length === 0 ? (
@@ -823,21 +841,51 @@ export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin
               )}</p>
           ) : (
             <ul className="divide-y divide-slate-100" aria-label="Finds">
-              {shown.map((b) => (
-                <li key={b.id} className="flex items-center gap-2 py-2 text-sm">
-                  {b.kind === "bug" ? <SevChip s={b.severity} /> : <KindTag kind={b.kind as FindKind} />}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-slate-900">{b.text}</span>
-                    <span className="flex flex-wrap items-center justify-between gap-x-3 text-xs text-slate-500">
-                      <span className="min-w-0">
-                        {areaName(b.areaId)} · {b.byName} · {time(b.at)}
-                        {seenOn(b).length > 0 && ` · On ${seenOn(b).join(", ")}`}
+              {shown.map((b) => {
+                const open = openId === b.id;
+                return (
+                  <li key={b.id} data-row={b.id} className={cx("text-sm", open && "pb-3")}>
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      onClick={() => setOpenId(open ? null : b.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape" && open) setOpenId(null);
+                      }}
+                      className={cx("-mx-1 flex w-[calc(100%+0.5rem)] items-center gap-2 rounded-md px-1 py-2 text-left hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-accent-500", open && "bg-slate-50")}
+                    >
+                      {b.kind === "bug" ? <SevChip s={b.severity} /> : <KindTag kind={b.kind as FindKind} />}
+                      <span className="min-w-0 flex-1">
+                        <span className={cx("block text-slate-900", !open && "truncate")}>{b.text}</span>
+                        <span className="flex flex-wrap items-center justify-between gap-x-3 text-xs text-slate-500">
+                          <span className="min-w-0">
+                            {areaName(b.areaId)} · {b.byName} · {time(b.at)}
+                            {seenOn(b).length > 0 && ` · On ${seenOn(b).join(", ")}`}
+                          </span>
+                          <FindCounts find={{ ...b, by: b.byName, bugKey: b.bug ? (b.bug.externalKey ?? `D-${b.bug.number}`) : null }} />
+                        </span>
                       </span>
-                      <FindCounts find={{ ...b, by: b.byName, bugKey: b.bug ? (b.bug.externalKey ?? `D-${b.bug.number}`) : null }} />
-                    </span>
-                  </span>
-                </li>
-              ))}
+                      <span aria-hidden className="shrink-0 text-xs text-slate-400">{open ? "▾" : "▸"}</span>
+                    </button>
+                    {open && (
+                      <FindDetail
+                        find={b}
+                        bashId={bash.id}
+                        projectId={bash.runProjectId}
+                        meId={bash.me.id}
+                        live={bash.phase === "live"}
+                        reload={() => router.refresh()}
+                        onClose={() => setOpenId(null)}
+                        onDone={(text) => {
+                          setOpenId(null);
+                          setDone(text);
+                        }}
+                        copyLink={`/p/${bash.homeKey}/bashes/${bash.id}?find=${b.id}`}
+                      />
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Card>
@@ -847,8 +895,9 @@ export function BashBoard({ bash, openJoin = false }: { bash: BashView; openJoin
               <WhatYoureTesting
                 bashId={bash.id}
                 title="What's being tested"
-                groups={[...bash.areas.map((a) => ({ title: a.name, areaId: a.id, links: a.links })), { title: "Whole bash", areaId: null, links: bash.links }]}
-                canEdit={bash.isOwner && bash.phase === "live"}
+                groups={[...bash.areas.map((a) => ({ title: a.name, areaId: a.id, links: a.links, addedAt: a.addedAt })), { title: "Whole bash", areaId: null, links: bash.links }]}
+                canEdit={bash.isOwner && (bash.phase === "live" || bash.phase === "scheduled")}
+                canAddArea={bash.isOwner && (bash.phase === "live" || bash.phase === "scheduled")}
                 onSaved={() => router.refresh()}
               />
             </Card>
@@ -947,6 +996,65 @@ export function UnfiledTag({ left, why }: { left: boolean; why?: string }) {
 }
 
 /**
+ * Wrap up's Client (ver_169): the client (platform) the finder was on, to change before
+ * filing. It goes in the Jira title as [Unity] and in Found in. Other… takes a typed one.
+ * Under it, "also Web" names the other clients people pressed +1 on.
+ */
+function ClientPick({ bug, clients, disabled, onPick }: { bug: { text: string; platform: string; plusOnes: { platform: string }[] }; clients: string[]; disabled: boolean; onPick: (platform: string) => void }) {
+  const [typing, setTyping] = useState(false);
+  const [typed, setTyped] = useState("");
+  const also = seenOn(bug).filter((p) => p.toLowerCase() !== bug.platform.toLowerCase());
+  const options = cleanPlatforms([...clients, bug.platform]);
+  const save = () => {
+    setTyping(false);
+    if (typed.trim()) onPick(typed);
+  };
+  return (
+    <>
+      {disabled ? (
+        <span>{bug.platform || <span className="text-slate-400">None</span>}</span>
+      ) : typing ? (
+        <Input
+          autoFocus
+          aria-label={`Client of ${bug.text}`}
+          placeholder="Type a client"
+          value={typed}
+          maxLength={40}
+          onChange={(e) => setTyped(e.target.value)}
+          onBlur={save}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") save();
+            if (e.key === "Escape") setTyping(false);
+          }}
+          className="h-7 w-32 text-xs"
+        />
+      ) : (
+        <select
+          aria-label={`Client of ${bug.text}`}
+          value={bug.platform}
+          onChange={(e) => {
+            if (e.target.value === "__other__") {
+              setTyped("");
+              setTyping(true);
+            } else onPick(e.target.value);
+          }}
+          className={cx("h-7 max-w-36 rounded border bg-surface px-1 text-xs", bug.platform ? "border-slate-300 font-semibold" : "border-dashed border-slate-300 text-slate-500")}
+        >
+          <option value="">{bug.platform ? "None" : "Pick client"}</option>
+          {options.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+          <option value={"__other__"}>Other…</option>
+        </select>
+      )}
+      {also.length > 0 && <span className="mt-0.5 block text-slate-500">{bug.platform ? "also" : "+1s on"} {also.join(", ")}</span>}
+    </>
+  );
+}
+
+/**
  * Wrap up (ver_94): whoever started it reviews the bugs, +1s already rolled in.
  * Untick File it to leave a bug out, adjust severity, merge duplicates, then file and
  * wrap up. If Jira refuses any, the screen stays with the reason and File this bug….
@@ -957,7 +1065,7 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   // A tick or severity shows at once; the server catches up on refresh.
-  const [mine, setMine] = useState<Record<string, { review?: "file" | "skip"; severity?: BashSeverity }>>({});
+  const [mine, setMine] = useState<Record<string, { review?: "file" | "skip"; severity?: BashSeverity; platform?: string }>>({});
   const bugs = useMemo(() => bash.items.filter((i) => i.kind === "bug" && !i.mergedIntoId).map((i) => ({ ...i, ...mine[i.id] })), [bash.items, mine]);
   const toFile = bugs.filter((b) => b.review === "file" && !b.bug);
   const failed = toFile.filter((b) => b.fileError);
@@ -974,7 +1082,9 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
   const people = new Set([...bash.people.map((p) => p.id), ...bash.items.map((i) => i.byId)]).size;
   const byArea = bash.areas.map((a) => ({ name: a.name, n: bugs.filter((b) => b.areaId === a.id).length })).sort((x, y) => y.n - x.n)[0];
   const areaName = (id: string) => bash.areas.find((a) => a.id === id)?.name ?? "";
-  const review = (id: string, data: { review?: "file" | "skip"; severity?: BashSeverity }) => {
+  // Clients (ver_169): the bash's platforms and any typed by people, to pick from.
+  const clients = cleanPlatforms([...bash.platforms, ...bash.items.flatMap((i) => seenOn(i))]);
+  const review = (id: string, data: { review?: "file" | "skip"; severity?: BashSeverity; platform?: string }) => {
     setMine((m) => ({ ...m, [id]: { ...m[id], ...data } }));
     start(async () => {
       const r = await reviewBashItem(id, data);
@@ -1061,11 +1171,10 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
             <table className="w-full text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
                 <tr>
-                  <th className="w-8 px-3 py-2">
-                    <span className="sr-only">Select to merge</span>
-                  </th>
+                  <th className="w-8 px-3 py-2 font-medium">Merge</th>
                   <th className="px-3 py-2 font-medium">File it</th>
                   <th className="px-3 py-2 font-medium">Bug</th>
+                  <th className="px-3 py-2 font-medium">Client</th>
                   {templated && <th className="px-3 py-2 font-medium">Ready?</th>}
                   <th className="px-3 py-2 font-medium">Area</th>
                   <th className="px-3 py-2 font-medium">Severity</th>
@@ -1106,6 +1215,9 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
                             <FileBashBug bug={b} projectId={bash.runProjectId} entryId={bash.entryOf[b.areaId] ?? null} jiraConnected={jiraConnected} />
                           </span>
                         )}
+                      </td>
+                      <td className="px-3 py-2 text-xs" data-testid="wrap-client">
+                        <ClientPick bug={b} clients={clients} disabled={!!b.bug} onPick={(platform) => review(b.id, { platform })} />
                       </td>
                       {templated && (
                         <td className="px-3 py-2 text-xs">
@@ -1152,7 +1264,7 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
                     </tr>
                     {fillId === b.id && b.template && (
                       <tr>
-                        <td colSpan={7} className="bg-accent-50 px-4 py-3">
+                        <td colSpan={8} className="bg-accent-50 px-4 py-3">
                           <div className="max-w-2xl space-y-2.5" data-testid="bash-fill-in">
                             <p className="text-sm font-semibold text-slate-800">
                               {b.template.needs.length ? "Fill in" : "Edit"}: {b.text} <span className="font-normal text-slate-500">· {b.template.name}</span>
@@ -1193,7 +1305,7 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
         )}
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 px-4 py-3">
           <p className="mr-auto flex items-center gap-1.5 text-xs text-slate-500">
-            Everyone&apos;s notes, questions and ideas are saved as their session on the area&apos;s charter.
+            Everything found (bugs, notes, questions and ideas) stays in this bash&apos;s report. Find it any time on Bug bashes.
             <InfoTip text="Under the hood the bash is a test run. It shows on Test runs, stays out of every pass rate, and joins a report through + Attach wrap-ups." />
           </p>
           {notReady.length > 0 && failed.length === 0 && (
@@ -1216,14 +1328,36 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
   );
 }
 
-/** "🐞 Bug bash live · 38 min left · Join": in the top bar and on the Umbrellas page while a bash runs. */
-export function LiveBashPill({ href, endsAt, compact }: { href: string; endsAt: string; compact?: boolean }) {
+/**
+ * The two places in a bash you've joined, as big tabs under the title (ver_169): your area,
+ * where you log, and the whole bash (the board), with how many finds it has so far.
+ */
+export function BashTabs({ homeKey, bashId, area, finds, current }: { homeKey: string; bashId: string; area: string; finds: number; current: "area" | "board" }) {
+  const tab = (on: boolean) =>
+    cx("flex min-w-[10rem] flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium", on ? "bg-surface text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-600 hover:bg-surface/60 hover:text-slate-900");
+  return (
+    <nav aria-label="Bug bash" className="mb-4 flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1" data-testid="bash-tabs">
+      <Link href={`/p/${homeKey}/bashes/${bashId}/explore`} aria-current={current === "area" ? "page" : undefined} className={tab(current === "area")}>
+        My area · {area}
+      </Link>
+      <Link href={`/p/${homeKey}/bashes/${bashId}`} aria-current={current === "board" ? "page" : undefined} className={tab(current === "board")}>
+        Whole bash
+        <span className="font-normal text-slate-500">
+          · {finds} {finds === 1 ? "find" : "finds"}
+        </span>
+      </Link>
+    </nav>
+  );
+}
+
+/** "🐞 Bug bash live · 38 min left · Join" ("Back to it" once you're in): in the top bar and on the Umbrellas page while a bash runs. */
+export function LiveBashPill({ href, endsAt, compact, joined }: { href: string; endsAt: string; compact?: boolean; joined?: boolean }) {
   const left = useSecondsLeft(endsAt);
   if (left === null || left <= 0) return null;
   return (
     <Link href={href} className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-semibold text-white hover:bg-red-700" data-testid="live-bash-pill">
       <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-white" />
-      🐞 Bug bash live{!compact && ` · ${Math.ceil(left / 60)} min left`} · Join
+      🐞 Bug bash live{!compact && ` · ${Math.ceil(left / 60)} min left`} · {joined ? "Back to it" : "Join"}
     </Link>
   );
 }

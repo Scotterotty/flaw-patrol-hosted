@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { parseUmbrellaSort, UMBRELLA_SORT_COOKIE, YOUR_WORK_COOKIE } from "@/lib/project-list";
 import { TopBar } from "@/components/top-bar";
 import { EmptyState, PageHeader } from "@/components/ui";
+import { myRecentBashes } from "@/lib/bash-data";
 import { db } from "@/lib/db";
 import { relativeTime } from "@/lib/format";
 import { startTiming } from "@/lib/timing";
@@ -95,7 +96,7 @@ export default async function HomePage() {
     ]),
   );
   const now = new Date();
-  const [groups, { cards: umbrellas, activity }] = await Promise.all([
+  const [groups, { cards: umbrellas, activity }, yourBashes] = await Promise.all([
     t.step("groups", visibleGroups(user, manager)),
     umbrellaCards(
       user,
@@ -105,6 +106,8 @@ export default async function HomePage() {
       now,
       t,
     ),
+    // Bug bashes you were in this week: your own finds, one click away.
+    t.step("bashes", myRecentBashes(user.id, now)),
   ]);
   const groupName = new Map(groups.map((g) => [g.id, g.name]));
   const liveUmbrellas = umbrellas.filter((u) => !u.archived);
@@ -177,6 +180,7 @@ export default async function HomePage() {
           <ProjectsBrowser
             subtitle={subtitle}
             yourWork={yourWork}
+            yourBashes={yourBashes}
             yourWorkOpen={sortCookie.get(YOUR_WORK_COOKIE)?.value === "all"}
             newButton={maker ? <NewUmbrellaButton choices={choices} /> : null}
             sort={parseUmbrellaSort(

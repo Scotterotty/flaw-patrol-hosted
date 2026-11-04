@@ -34,14 +34,28 @@ export function parseLinks(v: unknown): BashLink[] {
   });
 }
 
-export type BashArea = { id: string; name: string; caseId: string; template: string | null; links: BashLink[] };
+/** `addedAt`: set on an area added after the bash started (ISO time), for its "New" tag. */
+export type BashArea = { id: string; name: string; caseId: string; template: string | null; links: BashLink[]; addedAt?: string };
 
 export function parseAreas(v: unknown): BashArea[] {
   if (!Array.isArray(v)) return [];
   return v
     .filter((a) => a && typeof a === "object" && typeof a.id === "string" && typeof a.name === "string")
-    .map((a) => ({ id: a.id, name: a.name, caseId: typeof a.caseId === "string" ? a.caseId : "", template: typeof a.template === "string" ? a.template : null, links: parseLinks(a.links) }));
+    .map((a) => ({ id: a.id, name: a.name, caseId: typeof a.caseId === "string" ? a.caseId : "", template: typeof a.template === "string" ? a.template : null, links: parseLinks(a.links), ...(typeof a.addedAt === "string" ? { addedAt: a.addedAt } : {}) }));
 }
+
+/** How long an area added mid-bash shows its "New" tag. */
+export const NEW_AREA_MS = 10 * 60_000;
+
+/** True for an area added while the bash was on, for its first 10 minutes. */
+export function isNewArea(a: { addedAt?: string | null }, now = Date.now()) {
+  if (!a.addedAt) return false;
+  const t = new Date(a.addedAt).getTime();
+  return Number.isFinite(t) && now - t < NEW_AREA_MS && now >= t - 60_000;
+}
+
+/** + Add area: a name, like the Start box's areas. */
+export const areaNameSchema = z.string().trim().min(1, "Type a name for the area.").max(120, "Keep the area name under 120 characters.");
 
 /** A pasted web address as a link: its host and path stand in for a name until someone gives one. */
 export function webLink(raw: string, name = ""): BashLink | null {
@@ -261,4 +275,9 @@ export function releaseHint(release: string, platforms: string[]) {
 export function timeRange(start: Date, end: Date, clock: { spelling?: Spelling; zone?: string } = {}) {
   const t = (d: Date) => clockTime(d, clock.spelling ?? "us", clock.zone);
   return `${t(start)}–${t(end)}`;
+}
+
+/** Finds the board lists: every kind but prompts ticked off, without ones merged into another (ver_169). */
+export function findCount(items: { kind: string; mergedIntoId?: string | null }[]) {
+  return items.filter((i) => i.kind !== "covered" && !i.mergedIntoId).length;
 }

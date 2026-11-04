@@ -7,7 +7,9 @@ import { FileBashBug, SevChip, UnfiledTag } from "./bash";
 import { copyRich, saveImage, tableClip } from "./export-menu";
 import { MoreMenu } from "./more-menu";
 import type { BashLink } from "@/lib/bash";
-import { FIND_LABEL, KindTag, LinkChips, type FindKind } from "./bash-live";
+import { FIND_LABEL, FindFiles, KindTag, LinkChips, type FindKind } from "./bash-live";
+import { AnswerTables } from "./bash-template";
+import type { Answer } from "@/lib/bug-layout";
 import { Card, cx, InfoTip } from "./ui";
 
 export type ReportBug = {
@@ -40,6 +42,9 @@ export type ReportFind = {
   key: string;
   url: string | null;
   left: boolean;
+  details: string;
+  answers: Answer[];
+  attachments: { id: string; fileName: string; contentType: string }[];
 };
 export type ReportData = {
   id: string;
@@ -347,37 +352,63 @@ function EverythingFound({ r }: { r: ReportData }) {
   const shown = r.finds.filter((f) => kind === "all" || f.kind === kind);
   const count = (k: FindKind) => r.finds.filter((f) => f.kind === k).length;
   const area = (id: string) => r.areas.find((a) => a.id === id);
-  const row = (f: ReportFind) => (
-    <li key={f.id} className="flex items-start gap-2 py-2 text-sm">
-      <KindTag kind={f.kind} className="mt-0.5" />
-      <div className="min-w-0 flex-1">
-        <p className="text-slate-900">
-          {f.text}
-          {f.kind === "question" && (
-            <span className={cx("ml-1.5 rounded px-1.5 py-0.5 text-[11px] font-semibold", f.adds.length ? "bg-emerald-50 text-emerald-800" : "bg-violet-50 text-violet-800")}>{f.adds.length ? "Answered" : "Not answered"}</span>
-          )}
-        </p>
-        <p className="text-xs text-slate-500">
-          {f.byName}
-          {f.plusOnes.length > 0 && ` · +${f.plusOnes.length} (${f.plusOnes.join(", ")})`}
-          {view === "time" && ` · ${area(f.areaId)?.name ?? ""}`}
-        </p>
-        {f.adds.map((a, i) => (
-          <p key={i} className="text-xs text-slate-600">
-            {f.kind === "question" ? "Answer" : "Added"} by {a.by}: &ldquo;{a.text}&rdquo;
-          </p>
-        ))}
-      </div>
-      <span className="shrink-0 text-right text-xs">
-        {f.kind === "bug" && <SevChip s={f.severity} name={r.sevNames[f.severity]} />}
-        {f.kind === "bug" && (
-          <span className="mt-0.5 block font-mono">
-            {f.key ? f.url ? <a href={f.url} target="_blank" rel="noreferrer" className="text-accent-700 hover:underline">{f.key}</a> : f.key : f.left ? <span className="font-sans text-slate-500">Left out</span> : ""}
+  const [openId, setOpenId] = useState<string | null>(null);
+  const row = (f: ReportFind) => {
+    const open = openId === f.id;
+    const more = !!f.details || f.attachments.length > 0 || f.answers.some((a) => a.columns && a.rows?.length);
+    const head = (
+      <>
+        <KindTag kind={f.kind} className="mt-0.5" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-slate-900">
+            {f.text}
+            {f.kind === "question" && (
+              <span className={cx("ml-1.5 rounded px-1.5 py-0.5 text-[11px] font-semibold", f.adds.length ? "bg-emerald-50 text-emerald-800" : "bg-violet-50 text-violet-800")}>{f.adds.length ? "Answered" : "Not answered"}</span>
+            )}
           </span>
-        )}
-      </span>
-    </li>
-  );
+          <span className="block text-xs text-slate-500">
+            {f.byName}
+            {f.plusOnes.length > 0 && ` · +${f.plusOnes.length} (${f.plusOnes.join(", ")})`}
+            {view === "time" && ` · ${area(f.areaId)?.name ?? ""}`}
+          </span>
+        </span>
+      </>
+    );
+    return (
+      <li key={f.id} data-row={f.id} className="flex items-start gap-2 py-2 text-sm">
+        <div className="min-w-0 flex-1">
+          {more ? (
+            <button type="button" aria-expanded={open} onClick={() => setOpenId(open ? null : f.id)} onKeyDown={(e) => e.key === "Escape" && open && setOpenId(null)} className="-mx-1 flex w-[calc(100%+0.5rem)] items-start gap-2 rounded-md px-1 text-left hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-accent-500">
+              {head}
+              <span aria-hidden className="mt-0.5 shrink-0 text-xs text-slate-400">{open ? "▾" : "▸"}</span>
+            </button>
+          ) : (
+            <div className="flex items-start gap-2">{head}</div>
+          )}
+          {open && (
+            <div className="mt-2 space-y-2 border-l-2 border-accent-200 pl-2" data-testid="find-open">
+              {f.details && <p className="text-xs whitespace-pre-wrap text-slate-600">{f.details}</p>}
+              <AnswerTables answers={f.answers} />
+              <FindFiles files={f.attachments} />
+            </div>
+          )}
+          {f.adds.map((a, i) => (
+            <p key={i} className="text-xs text-slate-600">
+              {f.kind === "question" ? "Answer" : "Added"} by {a.by}: &ldquo;{a.text}&rdquo;
+            </p>
+          ))}
+        </div>
+        <span className="shrink-0 text-right text-xs">
+          {f.kind === "bug" && <SevChip s={f.severity} name={r.sevNames[f.severity]} />}
+          {f.kind === "bug" && (
+            <span className="mt-0.5 block font-mono">
+              {f.key ? f.url ? <a href={f.url} target="_blank" rel="noreferrer" className="text-accent-700 hover:underline">{f.key}</a> : f.key : f.left ? <span className="font-sans text-slate-500">Left out</span> : ""}
+            </span>
+          )}
+        </span>
+      </li>
+    );
+  };
   return (
     <Card className="p-4" data-testid="everything-found">
       <div className="mb-2 flex flex-wrap items-center gap-2">

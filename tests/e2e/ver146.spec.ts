@@ -73,6 +73,17 @@ test("a bug bash that asks which platform people are on", async ({ page }) => {
   // Wrap up: the filed bug gets a [platform] tag, and the report counts bugs per platform.
   await page.getByRole("button", { name: "End early" }).click();
   await page.getByRole("button", { name: "Yes, end it" }).click();
+  // Wrap up shows each bug's client (ver_169), with the +1s' other clients under it, and it can be changed.
+  await expect(page.getByRole("columnheader", { name: "Merge" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Client" })).toBeVisible();
+  const pay = page.getByLabel(`Client of Pay button spins ${TAG}`);
+  await expect(pay).toHaveValue("Unity");
+  await expect(page.getByRole("row").filter({ hasText: `Pay button spins ${TAG}` }).getByTestId("wrap-client")).toContainText("also Web");
+  const total = page.getByLabel(`Client of Total is wrong ${TAG}`);
+  await total.selectOption("Unity");
+  await expect.poll(async () => (await db.bashItem.findUniqueOrThrow({ where: { id: items[1].id } })).platform).toBe("Unity");
+  await total.selectOption("Web");
+  await expect.poll(async () => (await db.bashItem.findUniqueOrThrow({ where: { id: items[1].id } })).platform).toBe("Web");
   await page.getByRole("button", { name: "File 2 bugs and wrap up" }).click();
   await expect(page).toHaveURL(/\/report$/, { timeout: 30_000 });
   const table = page.getByTestId("bash-by-platform");

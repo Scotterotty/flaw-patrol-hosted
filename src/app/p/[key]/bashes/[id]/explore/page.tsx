@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
-import { BashExplore } from "@/components/bash";
+import { BashExplore, BashTabs } from "@/components/bash";
 import { CrumbName } from "@/components/crumb-name";
 import { LiveRefresh } from "@/components/live-refresh";
 import { bashPageData } from "@/lib/bash-page";
 import { bashFinds } from "@/lib/bash-live";
+import { findCount } from "@/lib/bash";
 
 export const metadata = { title: "Bug bash" };
 
@@ -20,8 +21,9 @@ export default async function ExploreBashPage({ params }: { params: Promise<{ ke
       <CrumbName href={`/p/${view.homeKey}/bashes/${id}/explore`} label={`${view.name} · ${area?.name ?? ""}`} />
       <LiveRefresh url={`/api/live/bashes/${id}`} />
       <h1 className="mb-4 text-xl font-semibold tracking-tight text-slate-900">
-        Bug bash · {view.name} <span className="font-normal text-slate-500">› {area?.name}</span>
+        Bug bash · {view.name}
       </h1>
+      <BashTabs homeKey={view.homeKey} bashId={id} area={area?.name ?? ""} finds={findCount(view.items)} current="area" />
       {view.phase === "ended" && <p className="mb-3 rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">Time&apos;s up. Your finds are saved, and {view.createdBy} is wrapping up.</p>}
       {view.phase === "scheduled" && <p className="mb-3 rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">The bash hasn&apos;t started yet. Logging opens when it does.</p>}
       <BashExplore bash={view} finds={finds} />

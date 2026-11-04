@@ -75,6 +75,10 @@ export function reportData(r: BashReport, file?: ReportData["file"]): ReportData
       key: f.bug ? (f.bug.externalKey ?? `D-${f.bug.number}`) : "",
       url: f.bug?.externalUrl ?? null,
       left: f.kind === "bug" && wrapped && !f.bug && f.review === "skip",
+      // Opened on the report: what was written, template tables and files.
+      details: f.details,
+      answers: f.template?.answers ?? [],
+      attachments: f.attachments,
     })),
     vsLast: r.vsLast,
     byArea: r.byArea,

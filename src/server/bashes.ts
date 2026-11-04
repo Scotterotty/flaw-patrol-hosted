@@ -6,7 +6,7 @@ import { Prisma, type Severity } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity";
-import { cleanPlatform, cleanPlatforms, onPlatform, linkSchema, logSchema, matchRelease, parseAreas, seenSchema, valuesSchema, parseLinks, phaseOf, plusOnesOf, sevRank, startSchema, webLink, type BashArea, type BashLink, type StartInput } from "@/lib/bash";
+import { areaNameSchema, cleanPlatform, cleanPlatforms, onPlatform, linkSchema, logSchema, matchRelease, parseAreas, seenSchema, valuesSchema, parseLinks, phaseOf, plusOnesOf, sevRank, startSchema, webLink, type BashArea, type BashLink, type StartInput } from "@/lib/bash";
 import { open } from "@/lib/crypto";
 import { GitHubClient } from "@/lib/github";
 import { jiraFor } from "@/lib/jira";
@@ -105,6 +105,44 @@ async function bashFill(bash: Awaited<ReturnType<typeof loadBash>>, areaId: stri
   return { env: [platform && `Platform: ${platform}`, ctx ? sectionText("env", ctx) : ""].filter(Boolean).join("\n"), auto };
 }
 
+type Tx = Prisma.TransactionClient;
+
+/** The Case library's "Bug bashes" folder, made the first time. */
+async function bashFolder(tx: Tx, homeId: string) {
+  return (await tx.folder.findFirst({ where: { projectId: homeId, parentId: null, name: "Bug bashes" } })) ?? (await tx.folder.create({ data: { projectId: homeId, parentId: null, name: "Bug bashes" } }));
+}
+
+/** One charter per area, in the "Bug bashes" folder, reused when the same area comes back. Returns its case id. */
+async function areaCharter(
+  tx: Tx,
+  o: { homeId: string; folderId: string; name: string; tpl: ReturnType<typeof templateById> | null; minutes: number; bashName: string; user: { id: string }; by: string },
+) {
+  const { tpl } = o;
+  const title = `${tpl ? `${tpl.name}: ` : "Bug bash: "}${o.name}`.slice(0, 300);
+  const charter = { ...BLANK_CHARTER, explore: o.name, with: tpl?.with ?? "", discover: tpl?.discover ?? "bugs, confusing parts and anything that feels slow", minutes: o.minutes, prompts: tpl?.prompts ?? [] };
+  const same = await tx.testCase.findFirst({ where: { projectId: o.homeId, folderId: o.folderId, title, type: "EXPLORATORY", archived: false }, select: { id: true, currentVersion: true, versions: { orderBy: { version: "desc" }, take: 1, select: { charter: true } } } });
+  if (same) {
+    if (JSON.stringify(same.versions[0]?.charter) !== JSON.stringify(charter)) {
+      const version = same.currentVersion + 1;
+      await tx.testCase.update({ where: { id: same.id }, data: { currentVersion: version, versions: { create: { version, title, preconditions: "", priority: "MEDIUM", type: "EXPLORATORY", tags: [], folderPath: "Bug bashes", steps: [], charter, authorId: o.user.id, authorName: o.by, changeNote: `Bug bash: ${o.bashName}` } } } });
+    }
+    return same.id;
+  }
+  const { caseSeq } = await tx.project.update({ where: { id: o.homeId }, data: { caseSeq: { increment: 1 } } });
+  const created = await tx.testCase.create({
+    data: {
+      projectId: o.homeId,
+      number: caseSeq,
+      folderId: o.folderId,
+      title,
+      type: "EXPLORATORY",
+      currentVersion: 1,
+      versions: { create: { version: 1, title, preconditions: "", priority: "MEDIUM", type: "EXPLORATORY", tags: [], folderPath: "Bug bashes", steps: [], charter, authorId: o.user.id, authorName: o.by, changeNote: `Made for the bug bash ${o.bashName}` } },
+    },
+  });
+  return created.id;
+}
+
 /** Start a bug bash: a charter per area, one run in the test cycle, and a Slack post. */
 /** The Start a bug bash box's area ideas and choices, fetched when the box opens or is about to. */
 export async function startBoxFor(projectId: string) {
@@ -136,34 +174,11 @@ export async function startBugBash(homeId: string, input: StartInput) {
 
     const bash = await db.$transaction(
       async (tx) => {
-        // One charter per area, in the Case library's "Bug bashes" folder, reused when the same area comes back.
-        const folder = (await tx.folder.findFirst({ where: { projectId: home.id, parentId: null, name: "Bug bashes" } })) ?? (await tx.folder.create({ data: { projectId: home.id, parentId: null, name: "Bug bashes" } }));
+        const folder = await bashFolder(tx, home.id);
         const areas: BashArea[] = [];
         for (const [i, a] of data.areas.entries()) {
           const tpl = a.template ? templateById(a.template, team) : null;
-          const title = `${tpl ? `${tpl.name}: ` : "Bug bash: "}${a.name}`.slice(0, 300);
-          const charter = { ...BLANK_CHARTER, explore: a.name, with: tpl?.with ?? "", discover: tpl?.discover ?? "bugs, confusing parts and anything that feels slow", minutes: data.minutes, prompts: tpl?.prompts ?? [] };
-          const same = await tx.testCase.findFirst({ where: { projectId: home.id, folderId: folder.id, title, type: "EXPLORATORY", archived: false }, select: { id: true, currentVersion: true, versions: { orderBy: { version: "desc" }, take: 1, select: { charter: true } } } });
-          let caseId = same?.id;
-          if (same && JSON.stringify(same.versions[0]?.charter) !== JSON.stringify(charter)) {
-            const version = same.currentVersion + 1;
-            await tx.testCase.update({ where: { id: same.id }, data: { currentVersion: version, versions: { create: { version, title, preconditions: "", priority: "MEDIUM", type: "EXPLORATORY", tags: [], folderPath: "Bug bashes", steps: [], charter, authorId: user.id, authorName: by, changeNote: `Bug bash: ${data.name}` } } } });
-          }
-          if (!caseId) {
-            const { caseSeq } = await tx.project.update({ where: { id: home.id }, data: { caseSeq: { increment: 1 } } });
-            const created = await tx.testCase.create({
-              data: {
-                projectId: home.id,
-                number: caseSeq,
-                folderId: folder.id,
-                title,
-                type: "EXPLORATORY",
-                currentVersion: 1,
-                versions: { create: { version: 1, title, preconditions: "", priority: "MEDIUM", type: "EXPLORATORY", tags: [], folderPath: "Bug bashes", steps: [], charter, authorId: user.id, authorName: by, changeNote: `Made for the bug bash ${data.name}` } },
-              },
-            });
-            caseId = created.id;
-          }
+          const caseId = await areaCharter(tx, { homeId: home.id, folderId: folder.id, name: a.name, tpl, minutes: data.minutes, bashName: data.name, user, by });
           areas.push({ id: `a${i + 1}`, name: a.name, caseId, template: tpl?.id ?? null, links: a.links });
         }
         const entries = await buildEntries(tx, library, areas.map((a) => a.caseId), null);
@@ -503,6 +518,63 @@ export async function setBashLinks(bashId: string, areaId: string | null, links:
 }
 
 /**
+ * + Add area (ver_169): whoever started the bash (or a lead) adds an area while it's
+ * scheduled or on. It gets its charter and a place in the bash's run, like Start makes,
+ * and a "New" tag for 10 minutes. Slack hears about it if the bash already posted there.
+ */
+export async function addBashArea(bashId: string, rawName: string) {
+  return attempt(async () => {
+    const { bash, user } = await requireOwner(bashId);
+    const phase = phaseOf(bash);
+    if (phase === "ended" || phase === "wrapped") throw new UserError("This bash is over, so its areas can't change.");
+    const name = areaNameSchema.parse(rawName);
+    const areas = parseAreas(bash.areas);
+    if (areas.some((a) => a.name.trim().toLowerCase() === name.toLowerCase())) throw new UserError(`There's already an area called ${name}.`);
+    if (areas.length >= 12) throw new UserError("A bash can have up to 12 areas.");
+    const by = nameOf(user);
+    const home = { id: bash.projectId };
+    const library = bash.run.projectId === home.id ? [home.id] : [bash.run.projectId, home.id];
+    const id = `a${Math.max(0, ...areas.map((a) => Number(/^a(\d+)$/.exec(a.id)?.[1] ?? 0))) + 1}`;
+    const addedAt = new Date().toISOString();
+    await db.$transaction(
+      async (tx) => {
+        const folder = await bashFolder(tx, home.id);
+        const caseId = await areaCharter(tx, { homeId: home.id, folderId: folder.id, name, tpl: null, minutes: bash.minutes, bashName: bash.name, user, by });
+        // The run gets the new charter unless it's already there (the same area added back).
+        if (!(await tx.runEntry.findFirst({ where: { runId: bash.run.id, caseId }, select: { id: true } }))) {
+          const last = await tx.runEntry.findFirst({ where: { runId: bash.run.id }, orderBy: { position: "desc" }, select: { position: true } });
+          const [entry] = await buildEntries(tx, library, [caseId], null);
+          if (entry) {
+            const { assigneeId, ...e } = entry;
+            void assigneeId;
+            await tx.runEntry.create({ data: { ...e, position: (last?.position ?? -1) + 1, runId: bash.run.id } });
+          }
+        }
+        // Re-read inside the transaction so two quick adds don't overwrite each other.
+        const fresh = parseAreas((await tx.bugBash.findUniqueOrThrow({ where: { id: bashId }, select: { areas: true } })).areas);
+        if (fresh.some((a) => a.name.trim().toLowerCase() === name.toLowerCase())) throw new UserError(`There's already an area called ${name}.`);
+        const nextId = fresh.some((a) => a.id === id) ? `a${Math.max(0, ...fresh.map((a) => Number(/^a(\d+)$/.exec(a.id)?.[1] ?? 0))) + 1}` : id;
+        await tx.bugBash.update({ where: { id: bashId }, data: { areas: [...fresh, { id: nextId, name, caseId, template: null, links: [], addedAt }] as Prisma.InputJsonValue } });
+      },
+      { timeout: 60_000 },
+    );
+    // Only once the start went out: a scheduled bash's start post lists every area anyway.
+    if (bash.slack && bash.slackStartAt && phase === "live") {
+      after(() =>
+        postBash(bash.run.projectId, (base) => ({
+          tone: "blue",
+          title: `➕ Bug bash · ${esc(bash.name)} has a new area`,
+          lines: [`New area: ${esc(name)}. Added by ${esc(by)}.`],
+          button: { label: "Join the bash", url: `${base}/p/${bash.project.key}/bashes/${bash.id}?join=1` },
+        })).catch(() => {}),
+      );
+    }
+    refresh(bash.project.key, bash.run.project.key);
+    return { name };
+  });
+}
+
+/**
  * + Add a link: a pasted web address as it is, else Jira issues (like + Link requirement)
  * and open or recently merged PRs in the umbrella's connected GitHub repos.
  */
@@ -569,16 +641,16 @@ export async function endBashEarly(bashId: string) {
   });
 }
 
-const reviewSchema = z.object({ review: z.enum(["file", "skip"]).optional(), severity: z.enum(["SHOWSTOPPER", "CRITICAL", "PROBLEMATIC", "MINOR"]).optional() });
+const reviewSchema = z.object({ review: z.enum(["file", "skip"]).optional(), severity: z.enum(["SHOWSTOPPER", "CRITICAL", "PROBLEMATIC", "MINOR"]).optional(), platform: z.string().max(200).optional() });
 
-/** Wrap-up list: Will file / Skip, and severity. */
+/** Wrap-up list: Will file / Skip, severity, and the client (platform) it was found on; "" clears it. */
 export async function reviewBashItem(itemId: string, input: z.input<typeof reviewSchema>) {
   return attempt(async () => {
     const item = await db.bashItem.findUnique({ where: { id: itemId }, select: { bashId: true } });
     if (!item) throw new UserError("That bug isn't here anymore.");
     const { bash } = await requireOwner(item.bashId);
     const data = reviewSchema.parse(input);
-    await db.bashItem.update({ where: { id: itemId }, data: { ...(data.review && { review: data.review }), ...(data.severity && { severity: data.severity }) } });
+    await db.bashItem.update({ where: { id: itemId }, data: { ...(data.review && { review: data.review }), ...(data.severity && { severity: data.severity }), ...(data.platform !== undefined && { platform: cleanPlatform(data.platform) }) } });
     refresh(bash.project.key);
     return {};
   });

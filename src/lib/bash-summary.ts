@@ -158,7 +158,7 @@ export function bashView(full: BashFull, me: { id: string; canManage: boolean; l
     sevNames: full.sevNames,
     runProjectId: bash.run?.projectId ?? bash.projectId,
     runHref: bash.run ? `/p/${bash.run.project.key}/runs/${bash.run.number}` : null,
-    areas: full.areas.map((a) => ({ id: a.id, name: a.name, template: a.template, prompts: a.charter?.prompts ?? [], charterHref: a.charter ? `/p/${a.charter.key}/cases/${a.charter.number}` : null, people: a.people, links: a.links })),
+    areas: full.areas.map((a) => ({ id: a.id, name: a.name, template: a.template, prompts: a.charter?.prompts ?? [], charterHref: a.charter ? `/p/${a.charter.key}/cases/${a.charter.number}` : null, people: a.people, links: a.links, addedAt: a.addedAt ?? null })),
     links: full.links,
     people: bash.people.map((p) => ({ id: p.userId, name: p.name, areaId: p.areaId, platform: p.platform })),
     // Platforms people can say they're on (ver_146); empty means nobody is asked.

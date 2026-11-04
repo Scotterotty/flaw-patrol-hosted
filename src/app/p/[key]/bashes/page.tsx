@@ -4,7 +4,7 @@ import { StartBashAuto, StartBashButton } from "@/components/bash-start";
 import { AddToCalendar, ScheduleControls } from "@/components/bash-schedule";
 import { whenLabel } from "@/lib/bash-schedule";
 import { viewerZone } from "@/lib/zone-server";
-import { Card, EmptyState, PageHeader } from "@/components/ui";
+import { buttonClass, Card, EmptyState, PageHeader } from "@/components/ui";
 import { parseAreas } from "@/lib/bash";
 import { bashHome, bashList } from "@/lib/bash-data";
 import { db } from "@/lib/db";
@@ -115,22 +115,33 @@ export default async function BashesPage({ params, searchParams }: { params: Pro
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {past.map((b) => (
-                <tr key={b.id}>
-                  <td className="px-4 py-2 font-medium text-slate-900">Bug bash · {b.name}</td>
-                  <td className="px-4 py-2 text-slate-600">{date(b.startsAt)}</td>
-                  <td className="px-4 py-2 tabular-nums">{b.people}</td>
-                  <td className="px-4 py-2 tabular-nums">{b.bugs}</td>
-                  <td className="px-4 py-2 text-right">
-                    <span className="inline-flex items-center gap-2">
-                      <Link href={`/p/${home.key}/bashes/${b.id}/report`} className="text-accent-700 hover:underline">
-                        Report
-                      </Link>
-                      {canStart && again.get(b.id) && <StartBashButton projectId={project.id} size="sm" again={again.get(b.id)} />}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {past.map((b) => {
+                // Everything a bash found lives in its report: a real button, and the whole row opens it.
+                const also = [b.notes && `${b.notes} ${b.notes === 1 ? "note" : "notes"}`, b.questions && `${b.questions} ${b.questions === 1 ? "question" : "questions"}`, b.ideas && `${b.ideas} ${b.ideas === 1 ? "idea" : "ideas"}`].filter(Boolean).join(" · ");
+                return (
+                  <tr key={b.id} className="relative hover:bg-slate-50" data-testid="past-bash">
+                    <td className="px-4 py-2">
+                      <span className="font-medium text-slate-900">Bug bash · {b.name}</span>
+                      {also && <span className="block text-xs text-slate-500">{also}</span>}
+                    </td>
+                    <td className="px-4 py-2 text-slate-600">{date(b.startsAt)}</td>
+                    <td className="px-4 py-2 tabular-nums">{b.people}</td>
+                    <td className="px-4 py-2 tabular-nums">{b.bugs}</td>
+                    <td className="px-4 py-2 text-right">
+                      <span className="inline-flex items-center gap-2">
+                        <Link href={`/p/${home.key}/bashes/${b.id}/report`} className={`${buttonClass("primary", "sm")} after:absolute after:inset-0 after:content-['']`}>
+                          See results<span className="sr-only"> of {b.name}</span>
+                        </Link>
+                        {canStart && again.get(b.id) && (
+                          <span className="relative z-10">
+                            <StartBashButton projectId={project.id} size="sm" again={again.get(b.id)} />
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </Card>
