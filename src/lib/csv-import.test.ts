@@ -389,7 +389,13 @@ describe("header row below row 1", () => {
     expect(res.sections.map((s) => s.name)).toEqual(["Frida Demo Space", "Queen Mary Space", "Pilot Space"]);
     expect(res.warnings).toEqual([]);
     expect(new Set(res.cases.map((c) => c.folderPath[0]))).toEqual(new Set(["Frida Demo Space", "Queen Mary Space", "Pilot Space"]));
-    const avatar = res.cases.find((c) => c.title === "Viewer Avatar - Custom")!;
+    const avatar = res.cases.find((c) => c.title.startsWith("Viewer Avatar - Custom: User is able to upload"))!;
+    // Same first line twice in a folder: each gets its next line too.
+    expect(res.cases.filter((c) => c.title.startsWith("Viewer Avatar - Custom")).map((c) => c.title)).toEqual([
+      "Viewer Avatar - Custom: User is able to upload and select a custom avatar on the Web.",
+      "Viewer Avatar - Custom: Users appear as their uploaded custom avatar across all platforms.",
+    ]);
+    expect(res.cases.find((c) => c.title === "Gaussian Splat")).toBeTruthy();
     expect(avatar.folderPath).toEqual(["Frida Demo Space", "Avatar"]);
     expect(avatar.row).toBeGreaterThan(23);
     expect(avatar.steps).toEqual([{ action: "", expected: "User is able to upload and select a custom avatar on the Web." }]);
@@ -408,7 +414,7 @@ describe("header row below row 1", () => {
     const handed = runSheetRows(filled, mapping, { headerRow: h, firstLineTitle: true });
     expect(handed[0][3]).toBe("Case result");
     expect(handed).toHaveLength(54);
-    expect(handed.some((r) => r[mapping.title!] === "Viewer Avatar - Custom" && r[3] === "Pass")).toBe(true);
+    expect(handed.some((r) => r[mapping.title!] === avatar.title && r[3] === "Pass")).toBe(true);
   });
 
   it("leaves files with column names on row 1 as they were", () => {

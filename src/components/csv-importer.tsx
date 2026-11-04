@@ -290,7 +290,7 @@ export function CsvImporter({
             This sheet has {count(done.results, "result")} too.{" "}
             <Link
               href={done.place.kind === "library" ? `/p/${done.place.key}/runs?sheet=handoff` : `/p/${done.place.key}/runs/import?sheet=handoff`}
-              onClick={() => handOffSheet(fileName, runSheetRows(rows, mapping, { headerRow, firstLineTitle }))}
+              onClick={() => handOffSheet(fileName, runSheetRows(rows, mapping, { headerRow, firstLineTitle }, source))}
               className="font-medium text-accent-700 underline"
             >
               Bring them into a run →

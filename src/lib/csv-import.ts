@@ -359,6 +359,8 @@ export function rowsToCases(rows: string[][], mapping: ColumnMapping, source: Im
 
   const keyless = { title: rows[h][mapping.title]?.trim() || "Title", id: (mapping.sourceId !== undefined && rows[h][mapping.sourceId]?.trim()) || "ID" };
   let section = "";
+  // The line under each split title, to tell apart cases whose first lines match.
+  const nextLine = new Map<ImportedCase, string>();
   // A section name can sit just above the column names too ("Frida Demo Space", then "Category, Test Case…").
   if (sheetMode) {
     let above = h - 1;
@@ -468,8 +470,19 @@ export function rowsToCases(rows: string[][], mapping: ColumnMapping, source: Im
       sourceId,
     });
     orders.push(steps.map(() => order));
+    if (underTitle) nextLine.set(cases[cases.length - 1], underTitle.split("\n").find((l) => l.trim())?.trim() ?? "");
   }
   // Before steps are grouped, so a shared block is compared as it will be saved.
+  // First lines that came out the same in one folder ("Viewer Avatar - Custom" twice) get their next line.
+  if (nextLine.size) {
+    const keyOf = (c: ImportedCase) => [...c.folderPath, c.title.toLowerCase()].join("\u0000");
+    const seen = new Map<string, number>();
+    for (const c of cases) seen.set(keyOf(c), (seen.get(keyOf(c)) ?? 0) + 1);
+    for (const c of cases) {
+      const next = nextLine.get(c);
+      if (next && (seen.get(keyOf(c)) ?? 0) > 1) c.title = `${c.title}: ${next}`.slice(0, 500);
+    }
+  }
   if (options.moveExpected && oneStepPerRow)
     for (const c of cases) c.steps = c.steps.map((st, k) => splitPackedStep(st, options.keepLines?.[`${c.row}:${k}`] ?? 1));
   return { cases, shared: groupSteps(cases, orders), warnings, sections };
@@ -553,18 +566,20 @@ export function sheetResultCount(rows: string[][], headerRow = 0): number {
  * The sheet as "Results from a spreadsheet" reads it: column names first, then each case's row,
  * its title cut to the first line when the import did that, so the titles match the imported cases.
  */
-export function runSheetRows(rows: string[][], mapping: ColumnMapping, options: ImportOptions = {}): string[][] {
+export function runSheetRows(rows: string[][], mapping: ColumnMapping, options: ImportOptions = {}, source: ImportSource = "other"): string[][] {
   const h = options.headerRow ?? 0;
+  const titles = new Map(rowsToCases(rows, mapping, source, options).cases.map((c) => [c.row, c.title]));
   // A checklist has one row per case, so its Result is the case's result, not a step's.
   const out = [h > 0 ? rows[h].map((name) => (/^results?$/i.test((name ?? "").trim()) ? "Case result" : name)) : rows[h]];
-  for (const row of rows.slice(h + 1)) {
-    if (isBlankRow(row) || (h > 0 && sectionName(row, mapping))) continue;
-    if (h > 0 && options.firstLineTitle && mapping.title !== undefined) {
+  rows.slice(h + 1).forEach((row, i) => {
+    if (isBlankRow(row) || (h > 0 && sectionName(row, mapping))) return;
+    const title = titles.get(h + i + 2);
+    if (h > 0 && options.firstLineTitle && mapping.title !== undefined && title !== undefined) {
       const copy = [...row];
-      copy[mapping.title] = splitTitle(htmlToText((row[mapping.title] ?? "").trim()))[0];
+      copy[mapping.title] = title;
       out.push(copy);
     } else out.push(row);
-  }
+  });
   return out;
 }
 
