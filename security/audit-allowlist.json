@@ -1,29 +1,4 @@
 {
   "about": "High or critical npm advisories that CI accepts for now (scripts/audit-check.mjs). Each needs a reason and a review date; after that date CI fails until the entry is fixed, renewed or removed.",
-  "advisories": [
-    {
-      "id": "GHSA-mrhx-c7xc-m3w5",
-      "package": "zod",
-      "reason": "Memory exhaustion on oversized constrained collections. The fix needs zod 4 (breaking API changes); that upgrade is the next planned security build.",
-      "review": "2026-11-30"
-    },
-    {
-      "id": "GHSA-6g55-p6wh-862q",
-      "package": "postcss (inside next)",
-      "reason": "Next's own copy of postcss only processes the app's CSS at build time; no user input reaches it. Fixed by the planned Next 16 upgrade.",
-      "review": "2026-12-31"
-    },
-    {
-      "id": "GHSA-r28c-9q8g-f849",
-      "package": "postcss (inside next)",
-      "reason": "Next's own copy of postcss only processes the app's CSS at build time; no user input reaches it. Fixed by the planned Next 16 upgrade.",
-      "review": "2026-12-31"
-    },
-    {
-      "id": "GHSA-ggr8-5vv4-36mx",
-      "package": "deepmerge-ts (inside prisma)",
-      "reason": "Only merges Prisma's own config files, never user data. Fixed by the planned Prisma 7 upgrade.",
-      "review": "2026-12-31"
-    }
-  ]
+  "advisories": []
 }

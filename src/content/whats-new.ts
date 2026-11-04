@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 162,
+    date: "2026-11-03",
+    items: [
+      {
+        kind: "fix",
+        title: "Security updates",
+        text: "Newer versions of the parts Flaw Patrol is built on close the high-severity security alerts. Nothing changes in how you use it.",
+        who: "workspace",
+      },
+    ],
+  },
+  {
     version: 161,
     date: "2026-11-03",
     items: [

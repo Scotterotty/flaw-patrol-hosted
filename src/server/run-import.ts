@@ -16,7 +16,8 @@ import { jiraConfigFor, libraryProjectIds } from "@/lib/umbrella";
 const sheetSchema = z.object({
   fileName: z.string().max(300).default(""),
   rows: z.array(z.array(z.string().max(50_000)).max(200)).min(2, "That file has no rows under the header.").max(50_000),
-  map: z.record(z.enum(RUN_FIELDS), z.number().int().min(0).max(199)).nullable().default(null),
+  // partialRecord: a sheet maps only some fields (zod 4's record with enum keys needs every key).
+  map: z.partialRecord(z.enum(RUN_FIELDS), z.number().int().min(0).max(199)).nullable().default(null),
   // Sheet tester name → member id, or "" to keep the name as text. Unlisted names use the automatic match.
   links: z.record(z.string().max(200), z.string().max(40)).default({}),
 });
