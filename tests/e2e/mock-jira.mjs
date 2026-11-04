@@ -100,6 +100,9 @@ Object.assign(issues.get("QA-206"), { priority: "Highest", points: 5 });
 issues.set("WEB-41", story("Share a space link on the web", "To Do", "new", "Story", ["RC 22"]));
 issues.set("WEB-42", story("Web sign-in page", "In Progress", "indeterminate", "Story", ["Web 22"]));
 Object.assign(issues.get("WEB-42"), { priority: "Highest", points: 8 });
+// Every issue type (Fix Version across boards): WEB tickets in RC 22 that aren't Stories or Tasks.
+issues.set("WEB-43", story("Faster lobby load", "To Do", "new", "Improvement", ["RC 22"]));
+issues.set("WEB-44", story("Lobby load: profile the asset bundle", "To Do", "new", "Sub-task", ["RC 22"]));
 const ISSUE_TYPES = ["Bug", "Story", "Task", "Epic", "Requirement"].map((name) => ({ name, subtask: false, hierarchyLevel: name === "Epic" ? 1 : 0 })).concat([{ name: "Sub-task", subtask: true, hierarchyLevel: -1 }]);
 const VERSIONS = ["RC 21", "RC 22", "RC 23"];
 // Each project's releases, oldest first like Jira. WEB names one release its own way.
@@ -231,6 +234,8 @@ http
           const list = types[1].split(",").map((t) => t.trim().replace(/"/g, ""));
           keys = keys.filter((k) => list.includes(issues.get(k).type ?? "Bug"));
         }
+        // Every issue type: Jira's subTaskIssueTypes() leaves Sub-tasks out.
+        if (/issuetype not in subTaskIssueTypes\(\)/.test(jql ?? "")) keys = keys.filter((k) => !/^sub-?task$/i.test(issues.get(k).type ?? "Bug"));
         if (fix) keys = keys.filter((k) => (issues.get(k).fixVersions ?? []).includes(fix[1]));
         if (keyEq && issues.has(keyEq[1]) && keys.includes(keyEq[1])) keys = [keyEq[1]];
         else if (m) keys = keys.filter((k) => issues.get(k).summary.toLowerCase().includes(m[1].toLowerCase()));

@@ -60,10 +60,12 @@ const configSchema = z.object({
   project: z.string().trim().max(30).default(""),
   // "These projects" (ver_161): several Jira project keys. `project` then gets the first one.
   projects: z.array(projectKey).max(20).default([]),
-  types: z.array(z.string().trim().min(1).max(60)).min(1, "Tick at least one issue type.").max(30),
+  types: z.array(z.string().trim().min(1).max(60)).max(30),
+  // "Every issue type" (except Sub-tasks). The ticked types are kept for switching back.
+  allTypes: z.boolean().default(false),
   linkBugs: z.boolean().default(true),
   rollUp: z.boolean().default(false),
-});
+}).refine((d) => d.allTypes || d.types.length > 0, { message: "Tick at least one issue type.", path: ["types"] });
 
 /** Settings › Jira › Requirements: where requirements live and which issue types count. */
 export async function saveStoriesConfig(projectId: string, input: z.input<typeof configSchema>) {

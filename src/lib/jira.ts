@@ -111,13 +111,14 @@ export async function jiraFor(projectId: string): Promise<JiraClient | null> {
   return new JiraClient({ ...cfg, token });
 }
 
-/** JQL for the issues that count as stories: their types, in the requirement projects (the bug project by default, or anywhere). */
-function storyScope(cfg: { project: string; projects?: string[]; types: string[] }, bugProject: string) {
+/** JQL for the issues that count as stories: their types (or every type but Sub-tasks), in the requirement projects (the bug project by default, or anywhere). */
+function storyScope(cfg: { project: string; projects?: string[]; types: string[]; allTypes?: boolean }, bugProject: string) {
   const types = (cfg.types.length ? cfg.types : ["Story", "Task"]).map((t) => `"${t.replace(/"/g, "")}"`).join(",");
   const keys = requirementProjects({ project: cfg.project, projects: cfg.projects ?? [] }, bugProject);
   const quoted = (keys ?? []).map((k) => `"${k.replace(/"/g, "")}"`);
   const project = !keys ? "" : quoted.length === 1 ? `project = ${quoted[0]} AND ` : `project in (${quoted.join(",")}) AND `;
-  return `${project}issuetype in (${types})`;
+  // Every issue type: Sub-tasks stay out, they follow their parent and would count it twice.
+  return `${project}${cfg.allTypes ? "issuetype not in subTaskIssueTypes()" : `issuetype in (${types})`}`;
 }
 
 /** JQL for one Jira release (fixVersion), or any of several. */
@@ -448,7 +449,7 @@ export class JiraClient {
   }
 
   /** Stories: issues of the given types, by key or words, in the requirement projects or anywhere. */
-  async searchStories(cfg: { project: string; projects?: string[]; types: string[] }, text: string) {
+  async searchStories(cfg: { project: string; projects?: string[]; types: string[]; allTypes?: boolean }, text: string) {
     const q = text.replace(/["\\]/g, " ").trim();
     const where = storyScope(cfg, this.creds.jiraProjectKey);
     const key = /^[A-Za-z][A-Za-z0-9]+-\d+$/.test(q) ? `key = "${q.toUpperCase()}" OR ` : "";
@@ -469,12 +470,12 @@ export class JiraClient {
   }
 
   /** Every requirement in the requirement projects, any release (Requirements page, Any release, ver_161). Up to 1,000. */
-  async allStories(cfg: { project: string; projects?: string[]; types: string[] }) {
+  async allStories(cfg: { project: string; projects?: string[]; types: string[]; allTypes?: boolean }) {
     return this.search(`${storyScope(cfg, this.creds.jiraProjectKey)} ORDER BY key ASC`, 1000);
   }
 
   /** Every story in a Jira release (fixVersion), or in any of several, for coverage gaps. Up to 300. */
-  async storiesInRelease(cfg: { project: string; projects?: string[]; types: string[] }, release: string | string[]) {
+  async storiesInRelease(cfg: { project: string; projects?: string[]; types: string[]; allTypes?: boolean }, release: string | string[]) {
     const list = Array.isArray(release) ? release : [release];
     return this.search(`${storyScope(cfg, this.creds.jiraProjectKey)} AND ${releaseScope(list)} ORDER BY key ASC`, 1000);
   }

@@ -895,6 +895,7 @@ function StoriesSettings({ projectId, saved, bugProject, standalone = false }: {
   const [addError, setAddError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [types, setTypes] = useState<string[]>(saved.types);
+  const [allTypes, setAllTypes] = useState(saved.allTypes);
   const [linkBugs, setLinkBugs] = useState(saved.linkBugs);
   const [rollUp, setRollUp] = useState(saved.rollUp);
   const [error, setError] = useState<string | null>(null);
@@ -945,7 +946,7 @@ function StoriesSettings({ projectId, saved, bugProject, standalone = false }: {
   const save = () =>
     start(async () => {
       setOk(false);
-      const res = await saveStoriesConfig(projectId, { project: mode === "any" ? "*" : mode === "these" ? (keys[0] ?? "") : "", projects: mode === "these" ? keys : [], types, linkBugs, rollUp });
+      const res = await saveStoriesConfig(projectId, { project: mode === "any" ? "*" : mode === "these" ? (keys[0] ?? "") : "", projects: mode === "these" ? keys : [], types, allTypes, linkBugs, rollUp });
       if (!res.ok) return setError(res.error);
       setError(null);
       setOk(true);
@@ -1014,16 +1015,23 @@ function StoriesSettings({ projectId, saved, bugProject, standalone = false }: {
       </fieldset>
       <fieldset className="text-sm">
         <legend className="mb-1 text-xs font-medium text-slate-600">Issue types you can link</legend>
+        <label className="flex items-center gap-2">
+          <input type="radio" name="story-types" checked={allTypes} onChange={() => (setAllTypes(true), setOk(false))} /> Every issue type <span className="text-xs text-slate-500">(except Sub-tasks)</span>
+          <InfoTip text="Everything in the requirement projects counts, like Bugs and Epics, so a Jira release shows every ticket with that Fix Version. Also picks up types your team adds in Jira later. Sub-tasks stay out because they follow their parent." />
+        </label>
+        <label className="mt-1 flex items-center gap-2">
+          <input type="radio" name="story-types" checked={!allTypes} onChange={() => (setAllTypes(false), setOk(false))} /> Only these:
+        </label>
         {offered.length ? (
-          <div className="flex flex-wrap gap-x-4 gap-y-1">
+          <div className={`mt-1 ml-6 flex flex-wrap gap-x-4 gap-y-1 ${allTypes ? "opacity-50" : ""}`}>
             {offered.map((t) => (
               <label key={t} className="flex items-center gap-1.5">
-                <input type="checkbox" checked={types.includes(t)} onChange={(e) => setTypes((all) => (e.target.checked ? [...all, t] : all.filter((x) => x !== t)))} /> {t}
+                <input type="checkbox" disabled={allTypes} checked={allTypes || types.includes(t)} onChange={(e) => setTypes((all) => (e.target.checked ? [...all, t] : all.filter((x) => x !== t)))} /> {t}
               </label>
             ))}
           </div>
         ) : (
-          <p className="text-xs text-slate-500">{loading ? "Loading issue types from Jira…" : "Pick a project to see its issue types."}</p>
+          <p className="ml-6 text-xs text-slate-500">{loading ? "Loading issue types from Jira…" : "Pick a project to see its issue types."}</p>
         )}
         <p className="mt-1 flex flex-wrap items-center gap-1 text-xs text-slate-500">
           {typesError ? (
