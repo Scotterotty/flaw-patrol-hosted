@@ -103,7 +103,9 @@ test("imports go to the umbrella's Case library, in one folder or the file's fol
   // Move a whole folder with Move folder…
   await page.goto(`/p/${HUB}/cases`);
   await folders.locator('[data-folder="Store"]').hover();
-  await folders.locator('[data-folder="Store"]').getByRole("button", { name: "Move folder…" }).click();
+  // ver_161: folder actions live in the ⋯ menu.
+  await folders.locator('[data-folder="Store"]').getByRole("button", { name: "More for Store" }).click();
+  await page.getByRole("menu", { name: "Store folder" }).getByRole("menuitem", { name: "Move…" }).click();
   const move = page.getByRole("dialog", { name: 'Move "Store"' });
   await move.getByLabel("Move it into").selectOption({ label: "2026 Cases" });
   await move.getByRole("button", { name: "Move folder" }).click();

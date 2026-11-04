@@ -55,8 +55,11 @@ export async function linkStory(projectId: string, caseIds: string[], storyKey: 
   });
 }
 
+const projectKey = z.string().trim().min(1).max(30).regex(/^[A-Za-z][A-Za-z0-9_]*$/, "A Jira project key is letters and numbers, like OW.");
 const configSchema = z.object({
   project: z.string().trim().max(30).default(""),
+  // "These projects" (ver_161): several Jira project keys. `project` then gets the first one.
+  projects: z.array(projectKey).max(20).default([]),
   types: z.array(z.string().trim().min(1).max(60)).min(1, "Tick at least one issue type.").max(30),
   linkBugs: z.boolean().default(true),
   rollUp: z.boolean().default(false),
@@ -69,7 +72,9 @@ export async function saveStoriesConfig(projectId: string, input: z.input<typeof
     const data = configSchema.parse(input);
     const row = await db.jiraConfig.findUnique({ where: { projectId } });
     if (!row) throw new UserError("Connect Jira first.");
-    await db.jiraConfig.update({ where: { projectId }, data: { stories: { ...data, project: data.project === "*" ? "*" : data.project.toUpperCase() } as Prisma.InputJsonValue } });
+    const projects = data.project === "*" ? [] : [...new Set(data.projects.map((p) => p.toUpperCase()))];
+    const jiraKey = data.project === "*" ? "*" : (projects[0] ?? data.project.toUpperCase());
+    await db.jiraConfig.update({ where: { projectId }, data: { stories: { ...data, project: jiraKey, projects: projects.length > 1 ? projects : [] } as Prisma.InputJsonValue } });
     revalidatePath(`/p/${project.key}`, "layout");
     if (project.groupId) revalidatePath(`/g/${project.groupId}`, "layout");
     await logActivity({ actor: user, kind: "settings", action: "Changed Requirements settings", project });
@@ -77,19 +82,28 @@ export async function saveStoriesConfig(projectId: string, input: z.input<typeof
   });
 }
 
-/** Settings › Jira › Requirements: the issue types the requirement project has in Jira. */
+/**
+ * Settings › Jira › Requirements: the issue types the requirement project has in Jira, or all of them
+ * together for several projects ("OW,MOB"). A key Jira doesn't know fails with that key named.
+ */
 export async function loadIssueTypes(projectId: string, project: string) {
   return attempt(async () => {
     await requireProjectAction(projectId, "jira:manage");
     const setup = await storiesConfigFor(projectId);
     if (!setup) throw new UserError("Connect Jira first.");
-    const key = z.string().trim().max(30).parse(project).toUpperCase() || setup.bugProject;
-    try {
-      const client = await jiraFor(projectId);
-      return { types: await client!.issueTypes(key === "*" ? "*" : key), project: key };
-    } catch (e) {
-      throw new UserError(e instanceof JiraError ? e.message : "Couldn't load issue types from Jira.");
+    const raw = z.string().trim().max(400).parse(project).toUpperCase() || setup.bugProject;
+    const keys = raw === "*" ? ["*"] : [...new Set(raw.split(",").map((k) => k.trim()).filter(Boolean))].slice(0, 20);
+    const types: string[] = [];
+    for (const key of keys) {
+      try {
+        const client = await jiraFor(projectId);
+        types.push(...(await client!.issueTypes(key)));
+      } catch (e) {
+        const notFound = e instanceof JiraError && /not found/i.test(e.message);
+        throw new UserError(notFound ? `Jira doesn't have a project ${key} that this login can see. Check the key.` : e instanceof JiraError ? e.message : "Couldn't load issue types from Jira.");
+      }
     }
+    return { types: [...new Set(types)], project: keys.join(",") };
   });
 }
 

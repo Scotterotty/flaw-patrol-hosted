@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { CASES_MIME, dragChip, FOLDER_MIME, type DraggedCases } from "@/lib/case-drag";
 import { flattenTree, type FolderNode } from "@/lib/folders";
 import { moveCases } from "@/server/cases";
@@ -45,6 +45,8 @@ export function FolderTree({
   const [moved, setMoved] = useState<{ text: string; undo: DraggedCases } | null>(null);
   const [movingFolder, setMovingFolder] = useState<FolderNode | null>(null);
   const [moveTo, setMoveTo] = useState("");
+  // The folder whose ⋯ menu is open.
+  const [menuFor, setMenuFor] = useState<string | null>(null);
   const base = `/p/${projectKey}/cases`;
 
   const total = (n: FolderNode): number => (counts[n.id] ?? 0) + n.children.reduce((s, c) => s + total(c), 0);
@@ -155,19 +157,22 @@ export function FolderTree({
     });
   };
 
+  // The rename / new folder box lines up with the folder names: indented like a row, after the chevron's space, inside the sidebar.
   const nameInput = (initial: string, depth: number) => (
-    <input
-      autoFocus
-      defaultValue={initial}
-      placeholder="Folder name"
-      className="my-0.5 h-7 w-full rounded border border-accent-500 px-2 text-sm outline-none"
-      style={{ marginLeft: depth * 12 }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") submit(e.currentTarget.value);
-        if (e.key === "Escape") setEditing(null);
-      }}
-      onBlur={(e) => submit(e.currentTarget.value)}
-    />
+    <div className="flex items-center pr-1" style={{ paddingLeft: depth * 12 }}>
+      <span className="w-5 shrink-0" aria-hidden />
+      <input
+        autoFocus
+        defaultValue={initial}
+        placeholder="Folder name"
+        className="my-0.5 h-7 min-w-0 flex-1 rounded border border-accent-500 px-2 text-sm outline-none"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submit(e.currentTarget.value);
+          if (e.key === "Escape") setEditing(null);
+        }}
+        onBlur={(e) => submit(e.currentTarget.value)}
+      />
+    </div>
   );
 
   const row = (node: FolderNode) => {
@@ -180,12 +185,18 @@ export function FolderTree({
         ) : (
           <div
             className={cx(
-              "group flex items-center rounded-md pr-1 text-sm outline-offset-[-1px]",
+              "group relative flex items-center rounded-md pr-1 text-sm outline-offset-[-1px]",
               selected === node.id ? "bg-accent-50 text-accent-700" : "text-slate-700 hover:bg-slate-100",
               dropOn === node.id && "bg-accent-50 outline-2 outline-dashed outline-accent-500",
             )}
             style={{ paddingLeft: node.depth * 12 }}
             data-folder={node.name}
+            onContextMenu={(e) => {
+              // Right-click opens the same menu as ⋯.
+              if (!canManage) return;
+              e.preventDefault();
+              setMenuFor(node.id);
+            }}
             draggable={canManage}
             onDragStart={(e) => {
               e.dataTransfer.setData(FOLDER_MIME, node.id);
@@ -212,34 +223,29 @@ export function FolderTree({
             <Link href={`${base}?folder=${node.id}`} draggable={false} className="min-w-0 flex-1 truncate py-1">
               {node.name}
             </Link>
-            {canManage && (
-              <span className="hidden gap-0.5 group-hover:flex">
-                <IconBtn label="New subfolder" onClick={() => setEditing({ mode: "new", parentId: node.id })}>
-                  +
-                </IconBtn>
-                <IconBtn label="Rename" onClick={() => setEditing({ mode: "rename", id: node.id, name: node.name })}>
-                  ✎
-                </IconBtn>
-                <IconBtn
-                  label="Move folder…"
-                  onClick={() => {
-                    setMovingFolder(node);
-                    setMoveTo(node.parentId ?? "");
-                  }}
-                >
-                  ⇄
-                </IconBtn>
-                {canDelete && (
-                  <IconBtn label="Delete" onClick={() => remove(node)}>
-                    ×
-                  </IconBtn>
-                )}
-              </span>
-            )}
-            <span className="ml-1 text-xs whitespace-nowrap text-slate-400 group-hover:hidden" title={bots(node) ? `${bots(node)} run by automation` : undefined}>
+            <span
+              className={cx("ml-1 text-xs whitespace-nowrap text-slate-400", canManage && "group-hover:hidden", canManage && (selected === node.id || menuFor === node.id) && "hidden")}
+              title={bots(node) ? `${bots(node)} run by automation` : undefined}
+            >
               {bots(node) > 0 && bots(node) === total(node) ? "🤖 " : ""}
               {total(node) || ""}
             </span>
+            {canManage && (
+              <FolderMenu
+                name={node.name}
+                open={menuFor === node.id}
+                shown={selected === node.id}
+                onOpen={(o) => setMenuFor(o ? node.id : null)}
+                canDelete={canDelete}
+                onNew={() => setEditing({ mode: "new", parentId: node.id })}
+                onRename={() => setEditing({ mode: "rename", id: node.id, name: node.name })}
+                onMove={() => {
+                  setMovingFolder(node);
+                  setMoveTo(node.parentId ?? "");
+                }}
+                onDelete={() => remove(node)}
+              />
+            )}
           </div>
         )}
         {(isOpen || (editing?.mode === "new" && editing.parentId === node.id)) && (
@@ -339,16 +345,96 @@ export function FolderTree({
   );
 }
 
-function IconBtn({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+const MENU_ITEM = "block w-full rounded-md px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-100 focus:bg-slate-100 focus:outline-none";
+
+/**
+ * ⋯ on a folder row (ver_161): New subfolder, Rename, Move…, Delete…. It sits where the case count is,
+ * so names keep their room. Shown on hover, and always on the open folder so it works on touch screens.
+ */
+function FolderMenu({
+  name,
+  open,
+  shown,
+  onOpen,
+  canDelete,
+  onNew,
+  onRename,
+  onMove,
+  onDelete,
+}: {
+  name: string;
+  open: boolean;
+  shown: boolean;
+  onOpen: (open: boolean) => void;
+  canDelete: boolean;
+  onNew: () => void;
+  onRename: () => void;
+  onMove: () => void;
+  onDelete: () => void;
+}) {
+  const box = useRef<HTMLSpanElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  const toggle = useRef(onOpen);
+  toggle.current = onOpen;
+  useEffect(() => {
+    if (!open) return;
+    const onOpen = (o: boolean) => toggle.current(o);
+    menu.current?.querySelector<HTMLButtonElement>("[role=menuitem]")?.focus();
+    const away = (e: PointerEvent) => !box.current?.contains(e.target as Node) && onOpen(false);
+    const keys = (e: KeyboardEvent) => {
+      if (e.key === "Escape") return onOpen(false);
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      const items = [...(menu.current?.querySelectorAll<HTMLButtonElement>("[role=menuitem]") ?? [])];
+      const at = items.indexOf(document.activeElement as HTMLButtonElement);
+      e.preventDefault();
+      items[(at + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length]?.focus();
+    };
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", keys);
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      document.removeEventListener("keydown", keys);
+    };
+  }, [open]);
+  const pick = (fn: () => void) => () => {
+    onOpen(false);
+    fn();
+  };
   return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      onClick={onClick}
-      className="h-5 w-5 rounded text-xs text-slate-500 hover:bg-surface hover:text-slate-900"
-    >
-      {children}
-    </button>
+    <span ref={box} className={cx("ml-1 shrink-0", !open && !shown && "hidden group-hover:inline-block")}>
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`More for ${name}`}
+        title="Folder actions"
+        data-testid="folder-menu"
+        className="h-5 w-6 rounded text-sm leading-none text-slate-500 hover:bg-surface hover:text-slate-900"
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpen(!open);
+        }}
+      >
+        ⋯
+      </button>
+      {open && (
+        <div ref={menu} role="menu" aria-label={`${name} folder`} className="absolute top-full right-0 z-30 mt-0.5 w-44 rounded-lg border border-slate-200 bg-surface p-1 shadow-lg">
+          <button type="button" role="menuitem" className={MENU_ITEM} onClick={pick(onNew)}>
+            New subfolder
+          </button>
+          <button type="button" role="menuitem" className={MENU_ITEM} onClick={pick(onRename)}>
+            Rename
+          </button>
+          <button type="button" role="menuitem" className={MENU_ITEM} onClick={pick(onMove)}>
+            Move…
+          </button>
+          {canDelete && (
+            <button type="button" role="menuitem" className={cx(MENU_ITEM, "mt-0.5 border-t border-slate-200 text-red-700")} onClick={pick(onDelete)}>
+              Delete…
+            </button>
+          )}
+        </div>
+      )}
+    </span>
   );
 }

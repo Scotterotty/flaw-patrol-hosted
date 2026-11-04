@@ -21,7 +21,7 @@ import type { SharedView } from "@/lib/shared-template-data";
 import { pickSharedTemplate } from "@/server/shared-templates";
 import { PLAIN_SCALE, SEVERITIES, type SeverityConfig } from "@/lib/severity";
 import { loadIssueTypes, saveStoriesConfig } from "@/server/stories";
-import { DEFAULT_STORIES, STORY_TYPES, type StoriesConfig } from "@/lib/stories-config";
+import { DEFAULT_STORIES, listKeys, STORY_TYPES, type StoriesConfig } from "@/lib/stories-config";
 import { FOUND_IN_FIELDS, type FoundInConfig, type FoundInField } from "@/lib/found-in";
 import { Button, Card, cx, ErrorText, Field, InfoTip, Input, Select } from "./ui";
 import { PrioritySettings } from "./jira-priority";
@@ -885,17 +885,22 @@ function ReporterCheck({ projectId }: { projectId: string }) {
 /** Settings → Jira → Requirements: which Jira issues cases can link to. Uses the same Jira login. */
 function StoriesSettings({ projectId, saved, bugProject, standalone = false }: { projectId: string; saved: StoriesConfig; bugProject: string; standalone?: boolean }) {
   const router = useRouter();
-  const mode0 = saved.project === "*" ? "any" : saved.project && saved.project !== bugProject ? "other" : "same";
-  const [mode, setMode] = useState<"same" | "other" | "any">(mode0);
-  const [other, setOther] = useState(mode0 === "other" ? saved.project : "");
+  // "These projects" (ver_161, was "Another project"): one or more Jira project keys.
+  const savedKeys = saved.projects.length ? saved.projects : saved.project && saved.project !== "*" && saved.project !== bugProject ? [saved.project] : [];
+  const mode0 = saved.project === "*" ? "any" : savedKeys.length ? "these" : "same";
+  const [mode, setMode] = useState<"same" | "these" | "any">(mode0);
+  const [keys, setKeys] = useState<string[]>(savedKeys);
+  const [adding, setAdding] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
   const [types, setTypes] = useState<string[]>(saved.types);
   const [linkBugs, setLinkBugs] = useState(saved.linkBugs);
   const [rollUp, setRollUp] = useState(saved.rollUp);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
   const [pending, start] = useTransition();
-  // The type list comes from the Jira project itself, so custom types like Requirement show up.
-  const project = mode === "any" ? "*" : mode === "other" ? other.trim() : bugProject;
+  // The type list comes from the Jira projects themselves, so custom types like Requirement show up.
+  const project = mode === "any" ? "*" : mode === "these" ? keys.join(",") : bugProject;
   const [jiraTypes, setJiraTypes] = useState<{ project: string; types: string[] } | null>(null);
   const [typesError, setTypesError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -913,37 +918,94 @@ function StoriesSettings({ projectId, saved, bugProject, standalone = false }: {
     [projectId],
   );
   useEffect(() => {
-    const t = setTimeout(() => void reload(project), mode === "other" ? 600 : 0);
-    return () => clearTimeout(t);
-  }, [project, mode, reload]);
+    void reload(project);
+  }, [project, reload]);
   // Jira's list, plus anything already ticked that Jira no longer lists, so nothing is dropped silently.
   const offered = [...new Set([...(jiraTypes?.types ?? (typesError ? STORY_TYPES : [])), ...types])];
+  // Add a project: Jira is asked first, so a typo shows right away instead of an empty Requirements page.
+  const add = async () => {
+    const key = adding.trim().toUpperCase();
+    if (!key) return;
+    if (keys.includes(key)) return setAddError(`${key} is already in the list.`);
+    if (!/^[A-Z][A-Z0-9_]*$/.test(key)) return setAddError("A Jira project key is letters and numbers, like OW.");
+    setChecking(true);
+    const r = await loadIssueTypes(projectId, key);
+    setChecking(false);
+    if (!r.ok) return setAddError(r.error);
+    setAddError(null);
+    setAdding("");
+    setOk(false);
+    setMode("these");
+    setKeys((k) => [...k, key]);
+  };
   const save = () =>
     start(async () => {
       setOk(false);
-      const res = await saveStoriesConfig(projectId, { project: mode === "any" ? "*" : mode === "other" ? other : "", types, linkBugs, rollUp });
+      const res = await saveStoriesConfig(projectId, { project: mode === "any" ? "*" : mode === "these" ? (keys[0] ?? "") : "", projects: mode === "these" ? keys : [], types, linkBugs, rollUp });
       if (!res.ok) return setError(res.error);
       setError(null);
       setOk(true);
       router.refresh();
     });
+  const loadedFrom = (p: string) => {
+    if (p === "*") return "Loaded from Jira (every project).";
+    const list = p.split(",");
+    return `Loaded from Jira project${list.length > 1 ? "s" : ""} ${listKeys(list)}.`;
+  };
   return (
     <section id="stories" className={`${standalone ? "" : "mt-6 border-t border-slate-200 pt-4"} scroll-mt-20 space-y-3`}>
       <h3 className="flex items-center gap-1 text-sm font-semibold text-slate-800">
         Requirements <InfoTip text={`Jira stories, Epics and other issues cases can link to. Coverage shows on the Requirements page and in Reports. Uses the Jira login ${standalone ? "in Jira connection" : "above"}.`} />
       </h3>
       <fieldset className="space-y-1 text-sm">
-        <legend className="mb-1 text-xs font-medium text-slate-600">Requirement project</legend>
+        <legend className="mb-1 text-xs font-medium text-slate-600">Requirement projects</legend>
         <label className="flex items-center gap-2">
           <input type="radio" name="story-project" checked={mode === "same"} onChange={() => setMode("same")} /> Same as bugs ({bugProject})
         </label>
-        <label className="flex items-center gap-2">
-          <input type="radio" name="story-project" checked={mode === "other"} onChange={() => setMode("other")} /> Another project
-          {mode === "other" && <Input className="h-8 w-32" aria-label="Requirement project key" placeholder="PRJ" value={other} onChange={(e) => setOther(e.target.value.toUpperCase())} />}
-        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2">
+            <input type="radio" name="story-project" checked={mode === "these"} onChange={() => setMode("these")} /> These projects
+          </label>
+          {keys.map((k) => (
+            <span key={k} className="inline-flex items-center gap-0.5 rounded-md bg-accent-50 py-0.5 pr-0.5 pl-2 text-sm font-medium text-accent-800" data-testid="requirement-project">
+              {k}
+              <button
+                type="button"
+                aria-label={`Remove ${k}`}
+                className="rounded px-1 text-accent-700 hover:bg-surface"
+                onClick={() => {
+                  setOk(false);
+                  setKeys((all) => all.filter((x) => x !== k));
+                }}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          <Input
+            className="h-8 w-36 border-dashed"
+            aria-label="Add a Jira project"
+            placeholder={checking ? "Checking…" : "+ Add project"}
+            value={adding}
+            disabled={checking}
+            onChange={(e) => {
+              setAdding(e.target.value.toUpperCase());
+              setAddError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === ",") {
+                e.preventDefault();
+                void add();
+              }
+            }}
+            onBlur={() => adding.trim() && void add()}
+          />
+          {!keys.length && !addError && <span className="text-xs text-slate-500">Type a project key and press Enter.</span>}
+        </div>
+        {addError && <p className="text-xs text-red-700" role="alert">{addError}</p>}
         <label className="flex items-center gap-2">
           <input type="radio" name="story-project" checked={mode === "any"} onChange={() => setMode("any")} /> Any project
-          <InfoTip text="Search every Jira project the login can see. The Jira release list on the Requirements page needs one project, so it's hidden then." />
+          <InfoTip text="Search every Jira project the login can see. The Jira release list on the Requirements page needs one or more picked projects, so it's hidden then." />
         </label>
       </fieldset>
       <fieldset className="text-sm">
@@ -963,7 +1025,7 @@ function StoriesSettings({ projectId, saved, bugProject, standalone = false }: {
           {typesError ? (
             <span className="text-orange-800">Couldn&apos;t load issue types from Jira: {typesError} Showing the usual ones.</span>
           ) : jiraTypes ? (
-            <span>{jiraTypes.project === "*" ? "Loaded from Jira (every project)." : `Loaded from Jira project ${jiraTypes.project}.`}</span>
+            <span>{loadedFrom(jiraTypes.project)}</span>
           ) : null}
           <button type="button" className="text-accent-700 hover:underline disabled:opacity-50" disabled={loading || !project} onClick={() => void reload(project)}>
             {loading ? "Loading…" : "Reload types"}
@@ -979,7 +1041,7 @@ function StoriesSettings({ projectId, saved, bugProject, standalone = false }: {
       </label>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <div className="flex items-center gap-3">
-        <Button size="sm" variant="primary" disabled={pending || (mode === "other" && !other.trim())} onClick={save}>
+        <Button size="sm" variant="primary" disabled={pending || (mode === "these" && !keys.length)} onClick={save}>
           Save requirements
         </Button>
         <span role="status" className="text-xs text-emerald-700">

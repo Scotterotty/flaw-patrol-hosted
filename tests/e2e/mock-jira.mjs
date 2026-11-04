@@ -96,8 +96,14 @@ issues.get("QA-202").parent = "QA-210";
 Object.assign(issues.get("QA-202"), { priority: "High", points: 8 });
 Object.assign(issues.get("QA-203"), { priority: "Low", points: 2 });
 Object.assign(issues.get("QA-206"), { priority: "Highest", points: 5 });
+// Several requirement projects (ver_161): RP has its own stories, one in RC 22 like QA, one in "Web 22".
+issues.set("RP-301", story("Share a space link on the web", "To Do", "new", "Story", ["RC 22"]));
+issues.set("RP-302", story("Web sign-in page", "In Progress", "indeterminate", "Story", ["Web 22"]));
+Object.assign(issues.get("RP-302"), { priority: "Highest", points: 8 });
 const ISSUE_TYPES = ["Bug", "Story", "Task", "Epic", "Requirement"].map((name) => ({ name, subtask: false, hierarchyLevel: name === "Epic" ? 1 : 0 })).concat([{ name: "Sub-task", subtask: true, hierarchyLevel: -1 }]);
 const VERSIONS = ["RC 21", "RC 22", "RC 23"];
+// Each project's releases, oldest first like Jira. RP names one release its own way.
+const PROJECT_VERSIONS = { RP: ["RC 22", "Web 22"] };
 const links = [];
 const slack = [];
 let attachmentSeq = 900;
@@ -175,7 +181,7 @@ http
     }
     if (p === "/rest/api/3/mypermissions") return send(res, 200, { permissions: { MODIFY_REPORTER: { havePermission: canModifyReporter } } });
     const versions = /^\/rest\/api\/3\/project\/([^/]+)\/versions$/.exec(p);
-    if (versions) return send(res, 200, VERSIONS.map((name, i) => ({ id: String(i + 1), name, released: i < 1, archived: false })));
+    if (versions) return send(res, 200, (PROJECT_VERSIONS[versions[1]] ?? VERSIONS).map((name, i) => ({ id: String(i + 1), name, released: i < 1, archived: false })));
     if (p === "/rest/api/3/issueLink" && req.method === "POST") {
       const { inwardIssue, outwardIssue, type } = JSON.parse(body.toString());
       if (!issues.has(inwardIssue?.key) || !issues.has(outwardIssue?.key)) return send(res, 404, { errorMessages: ["Issue does not exist"] });
@@ -212,10 +218,15 @@ http
         keys = keys.filter((k) => parents.includes(issues.get(k).parent));
       } else {
         const proj = /project = "([^"]+)"/.exec(jql ?? "");
+        const projIn = /project in \(([^)]*)\)/.exec(jql ?? "");
+        const fixIn = /fixVersion in \(([^)]*)\)/.exec(jql ?? "");
+        const list = (m) => m[1].split(",").map((t) => t.trim().replace(/"/g, ""));
         const types = /issuetype in \(([^)]*)\)/.exec(jql ?? "");
         const fix = /fixVersion = "([^"]+)"/.exec(jql ?? "");
         const keyEq = /key = "([^"]+)"/.exec(jql ?? "");
         if (proj) keys = keys.filter((k) => k.startsWith(`${proj[1]}-`));
+        if (projIn) keys = keys.filter((k) => list(projIn).includes(k.split("-")[0]));
+        if (fixIn) keys = keys.filter((k) => (issues.get(k).fixVersions ?? []).some((v) => list(fixIn).includes(v)));
         if (types) {
           const list = types[1].split(",").map((t) => t.trim().replace(/"/g, ""));
           keys = keys.filter((k) => list.includes(issues.get(k).type ?? "Bug"));

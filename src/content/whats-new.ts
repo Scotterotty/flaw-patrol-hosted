@@ -22,6 +22,33 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 161,
+    date: "2026-11-03",
+    items: [
+      {
+        kind: "new",
+        title: "Requirements from several Jira projects",
+        text: "In Jira settings, Requirements, pick These projects and add each Jira project, like Unity, Unreal and Web. Their stories show together on the Requirements page and the Risk board.",
+        who: "lead",
+      },
+      {
+        kind: "new",
+        title: "Show stories from one project",
+        text: "With two or more requirement projects, the Requirements page and the Risk board get Show stories from buttons, so you can look at one project at a time.",
+      },
+      {
+        kind: "new",
+        title: "Pick more than one release",
+        text: "Click + Add another release next to the Jira release buttons to see two releases together, for projects that name the same release differently. Click a release's × to take it off.",
+      },
+      {
+        kind: "better",
+        title: "Folder actions in one ⋯ menu",
+        text: "In the Folders list, one ⋯ button (or a right-click) opens New subfolder, Rename, Move and Delete, so folder names keep their room. The rename box now lines up inside the list.",
+      },
+    ],
+  },
+  {
     version: 160,
     date: "2026-11-03",
     items: [

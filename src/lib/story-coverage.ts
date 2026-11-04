@@ -5,7 +5,8 @@ import { caseKey } from "./format";
 import { jiraFor } from "./jira";
 import { releaseKey } from "./rc-status";
 import { isOpen } from "./status";
-import { isEpic, rememberStories, storiesConfigFor, storyInfo, type StoryInfo } from "./stories";
+import { mergeReleases } from "./stories-config";
+import { isEpic, rememberStories, requirementProjects, storiesConfigFor, storyInfo, type StoryInfo } from "./stories";
 import { OPEN_BUG } from "./umbrella";
 
 // Requirement coverage ("stories" until ver_89): for each Jira requirement, the cases that
@@ -41,12 +42,14 @@ function cellOf(statuses: (ResultStatus | null)[]): CoverageCell {
 }
 
 /**
- * Coverage of the stories in a Jira release (or every linked story when release is null)
+ * Coverage of the stories in a Jira release, or in any of several (or every linked story when release is null),
  * by the cases in `libraryIds`, with one column per test cycle in `columns`.
- * `release` also limits results to runs of that release unless `latestAnywhere`.
+ * `release` also limits results to runs of that release (those releases) unless `latestAnywhere`.
  */
-export async function storyCoverage(opts: { projectId: string; libraryIds: string[]; columns: CoverageColumn[]; release: string | null; latestAnywhere?: boolean }) {
-  const { projectId, libraryIds, columns, release } = opts;
+export async function storyCoverage(opts: { projectId: string; libraryIds: string[]; columns: CoverageColumn[]; release: string | string[] | null; latestAnywhere?: boolean }) {
+  const { projectId, libraryIds, columns } = opts;
+  const releases = opts.release == null ? [] : (Array.isArray(opts.release) ? opts.release : [opts.release]).filter(Boolean);
+  const release = releases.length ? releases : null;
   const setup = await storiesConfigFor(projectId);
   const cases = await db.testCase.findMany({
     where: { projectId: { in: libraryIds }, archived: false, NOT: { jiraStories: { isEmpty: true } } },
@@ -58,7 +61,7 @@ export async function storyCoverage(opts: { projectId: string; libraryIds: strin
   if (release && setup) {
     try {
       const client = await jiraFor(projectId);
-      inRelease = (await client!.storiesInRelease(setup.config, release)).map((i) => ({ key: i.key, title: i.summary, status: i.status, category: i.category, url: i.url, type: i.type, parent: i.parent, priority: i.priority, points: i.points ?? null }));
+      inRelease = (await client!.storiesInRelease(setup.config, release)).map((i) => ({ key: i.key, title: i.summary, status: i.status, category: i.category, url: i.url, type: i.type, parent: i.parent, priority: i.priority, points: i.points ?? null, releases: i.releases ?? [] }));
     } catch (e) {
       jiraError = e instanceof Error ? e.message : "Couldn't reach Jira.";
     }
@@ -70,7 +73,7 @@ export async function storyCoverage(opts: { projectId: string; libraryIds: strin
 
   // Latest result per case in each column's runs (of the release, unless latest anywhere).
   const caseIds = cases.map((c) => c.id);
-  const relKey = release ? releaseKey(release) : null;
+  const relKeys = release ? new Set(release.map(releaseKey)) : null;
   const entries = caseIds.length
     ? await db.runEntry.findMany({
         where: { caseId: { in: caseIds }, run: { projectId: { in: columns.map((c) => c.id) } } },
@@ -81,7 +84,7 @@ export async function storyCoverage(opts: { projectId: string; libraryIds: strin
   const latest = new Map<string, ResultStatus>();
   const newest = new Map<string, ResultStatus>();
   for (const e of entries) {
-    if (relKey && !opts.latestAnywhere && releaseKey(e.run.release) !== relKey) continue;
+    if (relKeys && !opts.latestAnywhere && !relKeys.has(releaseKey(e.run.release))) continue;
     const k = `${e.run.projectId}:${e.caseId}`;
     if (!latest.has(k)) latest.set(k, e.status);
     // Overall: the newest finished result anywhere, so a fresh untested run doesn't hide it.
@@ -147,16 +150,22 @@ export async function storyCoverage(opts: { projectId: string; libraryIds: strin
   const counts = { all: rows.length, none: 0, failing: 0, notrun: 0, passing: 0 } as Record<"all" | CoverageState, number>;
   for (const r of rows) counts[r.state]++;
   const types = [...new Set(rows.flatMap((r) => [r.story.type, ...(r.children ?? []).map((c) => c.story.type)]).filter((t): t is string => !!t))].sort();
-  return { rows, counts, types, jiraError, connected: !!setup, config: setup?.config ?? null };
+  return { rows, counts, types, jiraError, connected: !!setup, config: setup?.config ?? null, bugProject: setup?.bugProject ?? null };
 }
 
-/** Releases (fixVersions) of the story project, for the release picker. */
+/**
+ * Releases (fixVersions) of the requirement projects, for the release picker. With several projects,
+ * their lists are merged newest first, taking turns, and a name two projects share shows once.
+ */
 export async function storyReleases(projectId: string) {
   const setup = await storiesConfigFor(projectId);
-  if (!setup || setup.config.project === "*") return [];
+  if (!setup) return [];
+  const keys = requirementProjects(setup.config, setup.bugProject);
+  if (!keys?.length) return [];
   try {
     const client = await jiraFor(projectId);
-    return await client!.versions(setup.config.project || setup.bugProject);
+    const lists = await Promise.all(keys.map((k) => client!.versions(k).catch(() => [] as string[])));
+    return mergeReleases(lists);
   } catch {
     return [];
   }

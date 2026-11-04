@@ -25,6 +25,7 @@ export function RiskChip({ level }: { level: RiskLevel }) {
 export function RiskBoard({
   homeId,
   release,
+  releases = [release],
   cards: start,
   canMove,
   cycles,
@@ -38,7 +39,10 @@ export function RiskBoard({
   /** Plan this release's names, kinds, personas and open runs. */
   planData?: PlanData;
   homeId: string;
+  /** What the board is for, in words: "2.4", or "2.4 + Web 2.4" with several releases. */
   release: string;
+  /** The picked releases (ver_161). Plan this release marks its run with the first. */
+  releases?: string[];
   cards: RiskCard[];
   canMove: boolean;
   cycles: { id: string; name: string }[];
@@ -71,7 +75,7 @@ export function RiskBoard({
     const before = cards;
     setCards((all) => all.map((c) => (c.key === key ? { ...c, likelihood, impact, level: riskLevel(likelihood, impact), moved: { by: "you", at: new Date().toISOString() } } : c)));
     startTransition(async () => {
-      const res = await moveRisk(homeId, release, key, likelihood, impact);
+      const res = await moveRisk(homeId, before.find((c) => c.key === key)?.release || releases[0], key, likelihood, impact);
       if (!res.ok) {
         setCards(before);
         say(res.error);
@@ -80,7 +84,7 @@ export function RiskBoard({
   };
   const reset = (key: string) => {
     startTransition(async () => {
-      const res = await resetRisk(homeId, release, key);
+      const res = await resetRisk(homeId, cards.find((c) => c.key === key)?.release || releases[0], key);
       if (!res.ok) return say(res.error);
       setCards((all) => all.map((c) => (c.key === key ? { ...c, ...c.guess, level: riskLevel(c.guess.likelihood, c.guess.impact), moved: null } : c)));
       router.refresh();
@@ -206,7 +210,7 @@ export function RiskBoard({
         {openCard && <CardDetail c={openCard} withCases={withCases} canMove={canMove} onMove={(l, i) => move(openCard.key, l, i)} onReset={() => reset(openCard.key)} />}
       </Modal>
       <Modal open={plan && !!planData} onClose={() => setPlan(false)} title={`Plan a test run for ${release}`} wide>
-        {plan && planData && <PlanRc homeId={homeId} release={release} cards={cards} cycles={cycles} templates={templates} data={planData} onClose={() => setPlan(false)} />}
+        {plan && planData && <PlanRc homeId={homeId} release={release} releases={releases} cards={cards} cycles={cycles} templates={templates} data={planData} onClose={() => setPlan(false)} />}
       </Modal>
     </div>
   );
@@ -312,7 +316,7 @@ function Question({ label, tip, children }: { label: string; tip?: string; child
   );
 }
 
-function PlanRc({ homeId, release, cards, cycles, templates, data, onClose }: { homeId: string; release: string; cards: RiskCard[]; cycles: { id: string; name: string }[]; templates: CharterTemplateInfo[]; data: PlanData; onClose: () => void }) {
+function PlanRc({ homeId, release, releases, cards, cycles, templates, data, onClose }: { homeId: string; release: string; releases: string[]; cards: RiskCard[]; cycles: { id: string; name: string }[]; templates: CharterTemplateInfo[]; data: PlanData; onClose: () => void }) {
   const router = useRouter();
   const sorted = useMemo(() => [...cards].sort((a, b) => riskScore(b.likelihood, b.impact) - riskScore(a.likelihood, a.impact)), [cards]);
   const [picks, setPicks] = useState<Record<string, Pick>>(() => Object.fromEntries(sorted.map((c) => [c.key, { action: defaultAction(c.level, c.cases), minutes: charterMinutes(c.level), template: "", persona: "" }])));
@@ -339,7 +343,8 @@ function PlanRc({ homeId, release, cards, cycles, templates, data, onClose }: { 
     setBusy(true);
     setError(null);
     const res = await planRc(homeId, {
-      release,
+      release: releases[0] ?? release,
+      releases: releases.length > 1 ? releases : undefined,
       cycleId,
       name: name.trim() || undefined,
       kind,
@@ -381,7 +386,7 @@ function PlanRc({ homeId, release, cards, cycles, templates, data, onClose }: { 
               {!c.cases && (
                 <p className="text-xs text-slate-500">
                   Would rather have step-by-step cases?{" "}
-                  <a href={`/p/${data.homeKey}/stories?release=${encodeURIComponent(release)}&open=${encodeURIComponent(c.key)}`} className="font-medium text-accent-700 hover:underline">
+                  <a href={`/p/${data.homeKey}/stories?release=${encodeURIComponent(c.release || release)}&open=${encodeURIComponent(c.key)}`} className="font-medium text-accent-700 hover:underline">
                     Write test cases instead
                   </a>
                 </p>

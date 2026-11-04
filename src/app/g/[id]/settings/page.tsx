@@ -4,7 +4,7 @@ import { RunFieldsPanel } from "@/components/run-fields-settings";
 import { RunKindsPanel } from "@/components/run-kinds-settings";
 import { parseRunKinds } from "@/lib/run-kinds";
 import { parseRunFields } from "@/lib/run-fields";
-import { DEFAULT_STORIES, parseStoriesConfig } from "@/lib/stories-config";
+import { DEFAULT_STORIES, parseStoriesConfig, requirementSource } from "@/lib/stories-config";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { EditGroupButton, type GroupChoice } from "@/components/group-dialogs";
@@ -187,7 +187,8 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
     ? "Connect Jira first to link cases to Jira requirements."
     : (() => {
         const st = parseStoriesConfig(jira.stories) ?? DEFAULT_STORIES;
-        return `${st.project === "*" ? "Any Jira project" : `Jira project ${st.project || jira.jiraProjectKey}`} · ${st.types.join(", ")}${st.rollUp ? " · Epics count their child issues" : ""} · bug box ${st.linkBugs ? "links bugs to requirements" : "doesn't link bugs"} by default`;
+        const source = requirementSource(st, jira.jiraProjectKey);
+        return `${source.charAt(0).toUpperCase()}${source.slice(1)} · ${st.types.join(", ")}${st.rollUp ? " · Epics count their child issues" : ""} · bug box ${st.linkBugs ? "links bugs to requirements" : "doesn't link bugs"} by default`;
       })();
 
   let choices: GroupChoice[] = [];

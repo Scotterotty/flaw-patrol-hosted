@@ -7,6 +7,7 @@ import { parseSeverity, parseSeverityConfig, scaleOf } from "./severity";
 import { foundInLine, parseFoundIn, type FoundInField, type JiraVersion } from "./found-in";
 import { jiraConfigFor } from "./umbrella";
 import { parseTemplateSettings, pickPriority } from "./bug-template";
+import { requirementProjects } from "./stories-config";
 
 // Minimal Jira Cloud REST v3 client using an API token (basic auth).
 
@@ -23,6 +24,8 @@ export type JiraIssue = {
   points?: number | null;
   /** Found-in version: the names in the picked version field, when that setting is on. */
   foundIn?: string | null;
+  /** The Jira releases (fixVersions) it's in. */
+  releases?: string[];
 };
 
 export class JiraError extends Error {
@@ -108,11 +111,19 @@ export async function jiraFor(projectId: string): Promise<JiraClient | null> {
   return new JiraClient({ ...cfg, token });
 }
 
-/** JQL for the issues that count as stories: their types, in the story project ("" = the bug project, "*" = anywhere). */
-function storyScope(cfg: { project: string; types: string[] }, bugProject: string) {
+/** JQL for the issues that count as stories: their types, in the requirement projects (the bug project by default, or anywhere). */
+function storyScope(cfg: { project: string; projects?: string[]; types: string[] }, bugProject: string) {
   const types = (cfg.types.length ? cfg.types : ["Story", "Task"]).map((t) => `"${t.replace(/"/g, "")}"`).join(",");
-  const project = cfg.project === "*" ? "" : `project = "${(cfg.project || bugProject).replace(/"/g, "")}" AND `;
+  const keys = requirementProjects({ project: cfg.project, projects: cfg.projects ?? [] }, bugProject);
+  const quoted = (keys ?? []).map((k) => `"${k.replace(/"/g, "")}"`);
+  const project = !keys ? "" : quoted.length === 1 ? `project = ${quoted[0]} AND ` : `project in (${quoted.join(",")}) AND `;
   return `${project}issuetype in (${types})`;
+}
+
+/** JQL for one Jira release (fixVersion), or any of several. */
+function releaseScope(releases: string[]) {
+  const quoted = releases.map((r) => `"${r.replace(/["\\]/g, " ")}"`);
+  return quoted.length === 1 ? `fixVersion = ${quoted[0]}` : `fixVersion in (${quoted.join(",")})`;
 }
 
 export function normalizeSite(url: string) {
@@ -232,9 +243,9 @@ export class JiraClient {
 
   private async fields() {
     const [sev, points] = await Promise.all([this.severityField(), this.pointsField()]);
-    const base = ["summary", "status", "priority", "issuetype", "parent"];
+    const base = ["summary", "status", "priority", "issuetype", "parent", "fixVersions"];
     const found = parseFoundIn(this.creds.foundIn);
-    return [...base, ...(sev ? [sev] : []), ...(points ? [points] : []), ...(found ? [found.field] : [])];
+    return [...new Set([...base, ...(sev ? [sev] : []), ...(points ? [points] : []), ...(found ? [found.field] : [])])];
   }
 
   private async toIssue(raw: RawIssue): Promise<JiraIssue> {
@@ -254,6 +265,7 @@ export class JiraClient {
       parent: (raw.fields.parent as { key?: string } | undefined)?.key ?? null,
       points: typeof pts === "number" ? pts : null,
       foundIn: this.foundInOf(raw),
+      releases: Array.isArray(raw.fields.fixVersions) ? (raw.fields.fixVersions as { name?: string }[]).map((v) => v?.name ?? "").filter(Boolean) : [],
     };
   }
 
@@ -427,8 +439,8 @@ export class JiraClient {
     return Promise.all(res.issues.map((i) => this.toIssue(i)));
   }
 
-  /** Stories: issues of the given types, by key or words, in one project or anywhere. */
-  async searchStories(cfg: { project: string; types: string[] }, text: string) {
+  /** Stories: issues of the given types, by key or words, in the requirement projects or anywhere. */
+  async searchStories(cfg: { project: string; projects?: string[]; types: string[] }, text: string) {
     const q = text.replace(/["\\]/g, " ").trim();
     const where = storyScope(cfg, this.creds.jiraProjectKey);
     const key = /^[A-Za-z][A-Za-z0-9]+-\d+$/.test(q) ? `key = "${q.toUpperCase()}" OR ` : "";
@@ -448,9 +460,10 @@ export class JiraClient {
     return this.search(`parent in (${parents.map((k) => `"${k.replace(/"/g, "")}"`).join(",")}) ORDER BY key ASC`, 200);
   }
 
-  /** Every story in a Jira release (fixVersion), for coverage gaps. */
-  async storiesInRelease(cfg: { project: string; types: string[] }, release: string) {
-    return this.search(`${storyScope(cfg, this.creds.jiraProjectKey)} AND fixVersion = "${release.replace(/["\\]/g, " ")}" ORDER BY key ASC`, 200);
+  /** Every story in a Jira release (fixVersion), or in any of several, for coverage gaps. Up to 300. */
+  async storiesInRelease(cfg: { project: string; projects?: string[]; types: string[] }, release: string | string[]) {
+    const list = Array.isArray(release) ? release : [release];
+    return this.search(`${storyScope(cfg, this.creds.jiraProjectKey)} AND ${releaseScope(list)} ORDER BY key ASC`, list.length > 1 ? 300 : 200);
   }
 
   /** Several issues by key. One unknown key fails Jira's whole search, so then they're read one by one. */

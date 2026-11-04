@@ -7,7 +7,7 @@ import { jiraConfigFor } from "./umbrella";
 
 import { DEFAULT_STORIES, parseStoriesConfig } from "./stories-config";
 
-export { DEFAULT_STORIES, isEpic, parseStoriesConfig, STORY_TYPES, type StoriesConfig } from "./stories-config";
+export { DEFAULT_STORIES, isEpic, listKeys, parseStoriesConfig, requirementProjects, requirementSource, STORY_TYPES, type StoriesConfig } from "./stories-config";
 
 /** The test cycle's (or its umbrella's) Stories setup; the default when Jira is connected but stories weren't set up. */
 export async function storiesConfigFor(projectId: string) {
@@ -17,7 +17,7 @@ export async function storiesConfigFor(projectId: string) {
 }
 
 /** `type`: the Jira issue type (Story, Epic, Requirement…). `parent`: its Epic or other parent, when it has one. */
-export type StoryInfo = { key: string; title: string; status: string; category: string; url: string | null; type?: string; parent?: string | null; missing?: boolean; stale?: string; priority?: string; points?: number | null };
+export type StoryInfo = { key: string; title: string; status: string; category: string; url: string | null; type?: string; parent?: string | null; missing?: boolean; stale?: string; priority?: string; points?: number | null; releases?: string[] };
 
 /** What Jira search results carry into a StoryInfo. */
 export const infoOf = (i: JiraIssue): StoryInfo => ({ key: i.key, title: i.summary, status: i.status, category: i.category, url: i.url, type: i.type, parent: i.parent });

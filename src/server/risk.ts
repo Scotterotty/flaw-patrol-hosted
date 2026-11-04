@@ -54,6 +54,8 @@ export async function resetRisk(homeId: string, release: string, key: string) {
 
 const planSchema = z.object({
   release: z.string().trim().min(1).max(200),
+  // Several releases on one board (ver_161): their requirements. The run is marked with `release`, the first.
+  releases: z.array(z.string().trim().min(1).max(200)).max(20).optional(),
   cycleId: z.string().max(40),
   picks: z
     .array(
@@ -92,7 +94,7 @@ export async function planRc(homeId: string, input: PlanInput) {
     const cycleId = target?.projectId ?? data.cycleId;
     if (!inPlace(cycleId)) throw new UserError("Pick a test cycle for the run.");
     const { user, project: cycle } = await requireProjectAction(cycleId, "run:create");
-    const board = await riskBoard({ homeId: h.id, release: data.release, columns: [] });
+    const board = await riskBoard({ homeId: h.id, release: data.releases?.length ? data.releases : data.release, columns: [] });
     const cardOf = new Map(board.cards.map((c) => [c.key, c]));
     const runPicks = data.picks.filter((p) => p.action === "run" && cardOf.has(p.key));
     const toRun = runPicks.flatMap((p) => cardOf.get(p.key)?.caseIds ?? []);
