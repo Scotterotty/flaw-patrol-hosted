@@ -1,5 +1,6 @@
 "use server";
 
+import { queueQaseSend } from "@/lib/qase-sync";
 import { logActivity } from "@/lib/activity";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -196,6 +197,7 @@ export async function importRun(projectId: string, input: SheetInput, run: z.inp
       { timeout: 180_000 },
     );
     await logActivity({ actor: user, kind: "run", action: `Imported a run from a spreadsheet as run R${number}`, project });
+    queueQaseSend(projectId);
     revalidatePath(`/p/${project.key}`, "layout");
     return { number };
   });

@@ -253,6 +253,11 @@ model Project {
   archivedWithUmbrella Boolean           @default(false)
   /// In an umbrella: Keep in Current. Stays in Current even when a newer test cycle for its platform comes along.
   keepCurrent          Boolean           @default(false)
+  /// Qase (ver_164): the Qase run this test cycle shares results with, and how the last sync went.
+  qaseRunId            Int?
+  qaseRunTitle         String            @default("")
+  qaseSyncedAt         DateTime?
+  qaseError            String            @default("")
   /// Roles card for a test cycle that isn't in an umbrella; see src/lib/permissions.ts.
   roleRules            Json?
   /// When an admin last saved "What can they do" or pressed Keep everyone open; null shows the before-invite nudge.
@@ -324,6 +329,33 @@ model ProjectGroup {
   slackChannels   SlackChannel[]
   githubRepos     GitHubRepo[]
   ciTokens        CiToken[]
+  qase            QaseConfig?
+}
+
+/**
+ * Qase (ver_164): share results with one Qase project. Each test cycle gets one Qase run
+ * (Project.qaseRunId); cases link to Qase cases by TestCase.qaseId. The token is encrypted
+ * like the Jira token. See src/lib/qase.ts and src/server/qase-sync.ts.
+ */
+model QaseConfig {
+  id             String       @id @default(cuid())
+  group          ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId        String       @unique
+  tokenEncrypted String
+  /// The Qase project's code, like OKO, and its name.
+  projectCode    String
+  projectTitle   String       @default("")
+  /// Send Flaw Patrol results to Qase.
+  send           Boolean      @default(true)
+  /// Bring Qase results into Flaw Patrol.
+  bring          Boolean      @default(true)
+  /// Flaw Patrol status -> Qase status slug ("" = don't send), see QASE_SEND_DEFAULT.
+  statusMap      Json         @default("{}")
+  /// Secret part of the link Qase's webhooks call, /api/qase/hook/<secret>.
+  hookSecret     String       @unique
+  connectedBy    String       @default("")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }
 
 /**
@@ -535,6 +567,8 @@ model TestCase {
   jiraStories    String[]         @default([])
   // The case's ID in the tool it was imported from, such as qTest's PQ-1708.
   sourceKey      String?
+  /// Qase (ver_164): the linked Qase case's ID, 0 = don't share this case, null = not linked yet.
+  qaseId         Int?
   // Already run before it came into Flaw Patrol, such as cases imported from another tool,
   // so runs don't tag it New. Set at import or from a run's New banner.
   runBefore      Boolean          @default(false)
@@ -846,6 +880,10 @@ model TestResult {
   testSteps      Json?
   /// Sentry errors seen during failed or blocked steps and kept with the result: SentryRef[] (src/lib/sentry.ts).
   sentry         Json?
+  /// Qase (ver_164): the Qase result's hash once sent there, or the one it came from.
+  qaseHash       String?
+  /// Saved in Qase and brought in by the Qase sync.
+  fromQase       Boolean         @default(false)
   createdAt      DateTime        @default(now())
   defects        DefectLink[]
   attachments    Attachment[]
@@ -858,6 +896,7 @@ model TestResult {
   @@index([runId, createdAt])
   // One person's results, for mini game XP.
   @@index([testerId, createdAt])
+  @@index([qaseHash])
 }
 
 // The answer to a question logged in an exploratory session (a note in

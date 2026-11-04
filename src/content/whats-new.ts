@@ -22,6 +22,24 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 164,
+    date: "2026-11-03",
+    items: [
+      {
+        kind: "new",
+        title: "Share results with Qase",
+        text: "Connect a Qase project in Settings → Qase. Results you save here go to Qase, and results saved in Qase come into your test cycle with a small Qase tag.",
+        who: "lead",
+        link: "/g/{umbrella}/settings#qase",
+      },
+      {
+        kind: "new",
+        title: "Qase bar on each test cycle",
+        text: "Once Qase is connected, a green bar on the test cycle shows it's in sync, with Sync now and a link to the Qase run.",
+      },
+    ],
+  },
+  {
     version: 163,
     date: "2026-11-03",
     items: [

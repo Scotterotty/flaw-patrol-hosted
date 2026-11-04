@@ -14,7 +14,7 @@ type EntryBits = {
   draftAt: Date | null;
   draftByName: string;
   draftById: string | null;
-  results: { stepResults: unknown; testerName: string; testerId: string | null; createdAt: Date }[];
+  results: { stepResults: unknown; testerName: string; testerId: string | null; createdAt: Date; fromQase?: boolean }[];
 };
 
 /** What a run list row shows that changes while people test: status, step pips and who's on it. */
@@ -31,7 +31,7 @@ export function liveRowOf(e: EntryBits, meId: string): LiveRow {
         ? { name: e.draftByName, at: e.draftAt.toISOString(), mine: e.draftById === meId }
         : null
       : saved
-        ? { name: saved.testerName, at: saved.createdAt.toISOString(), mine: saved.testerId === meId, saved: true }
+        ? { name: saved.testerName, at: saved.createdAt.toISOString(), mine: saved.testerId === meId, saved: true, ...(saved.fromQase ? { qase: true } : {}) }
         : null,
   };
 }
@@ -49,7 +49,7 @@ export async function liveRowsFor(runId: string, meId: string): Promise<LiveRow[
       draftAt: true,
       draftByName: true,
       draftById: true,
-      results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true, testerName: true, testerId: true, createdAt: true } },
+      results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true, testerName: true, testerId: true, createdAt: true, fromQase: true } },
     },
   });
   return entries.map((e) => liveRowOf(e, meId));

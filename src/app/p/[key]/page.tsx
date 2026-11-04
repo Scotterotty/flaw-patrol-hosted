@@ -21,6 +21,9 @@ import { CloseRunButton } from "@/components/run-actions";
 import { anyGo, RunsInProgressList } from "@/components/runs-in-progress";
 import { EXPLORE_KIND, parseRunKinds, shownKind } from "@/lib/run-kinds";
 import { runLive } from "@/lib/run-live";
+import { QaseBar } from "@/components/qase-bar";
+import { qaseRunUrl } from "@/lib/qase";
+import { queueQasePull } from "@/lib/qase-sync";
 import { noteCounts, parseSessionLog } from "@/lib/charter";
 
 export const metadata = { title: "Overview" };
@@ -78,6 +81,9 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
   const exploredSec = explored.reduce((n, r) => n + (r.elapsedSec ?? 0), 0);
   const libraryCount = umbrella && !umbrella.isHub ? await db.testCase.count({ where: { projectId: umbrella.hub.id, archived: false, ...NOT_BASH_CASE } }) : 0;
   // A live bug bash gets its own tile instead of counting as a run. Only while one is live.
+  // Qase: this cycle's run and how the last sync went; opening the page brings Qase results in.
+  const qase = umbrella && !umbrella.isHub && !project.archivedAt ? await db.qaseConfig.findUnique({ where: { groupId: umbrella.group.id }, select: { projectCode: true } }) : null;
+  if (qase) queueQasePull(project.id);
   const liveBash = await db.bugBash.findFirst({ where: { projectId: project.id, ...LIVE_BASH(now) }, orderBy: { startsAt: "desc" }, select: { id: true, name: true, endsAt: true } });
 
   const open = runs.map((r) => {
@@ -119,6 +125,18 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
           </span>
           <MoveCasesButton groupId={umbrella.group.id} umbrella={umbrella.group.name} projects={[{ id: project.id, name: project.name, cases: caseCount }]} label={`Move into ${umbrella.group.name}`} />
         </div>
+      )}
+
+      {qase && (
+        <QaseBar
+          projectId={project.id}
+          runTitle={project.qaseRunId ? project.qaseRunTitle || `Run ${project.qaseRunId}` : null}
+          runUrl={qaseRunUrl(qase.projectCode, project.qaseRunId)}
+          syncedAt={project.qaseSyncedAt?.toISOString() ?? null}
+          error={project.qaseError}
+          canSync={can(who, "run:execute")}
+          canChangeRun={can(who, "run:manage")}
+        />
       )}
 
       {can(who, "members:manage") && (

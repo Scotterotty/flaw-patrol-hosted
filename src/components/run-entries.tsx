@@ -56,7 +56,7 @@ export type EntryRow = {
   progress: ResultStatus[] | null;
   /** Who made the last autosaved change to an in-progress case. */
   /** Who last changed it and when; `saved` marks a saved result rather than a case in progress. */
-  lastChange: { name: string; at: string; mine: boolean; saved?: boolean } | null;
+  lastChange: { name: string; at: string; mine: boolean; saved?: boolean; qase?: boolean } | null;
 };
 
 export function RunEntries({
@@ -544,7 +544,19 @@ export function StepProgress({ steps, lastChange, compact = false }: { steps: Re
   const who = lastChange && (
     <span className={cx("flex items-center gap-1 text-[11px] text-slate-400", !compact && "mt-0.5")} suppressHydrationWarning>
       {recent && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
-      {recent ? `${lastChange.mine ? "You're" : `${lastChange.name} is`} testing now` : `${lastChange.mine ? "You" : lastChange.name} · ${relativeTime(new Date(lastChange.at), spelling)}`}
+      {/* Qase (ver_164): results saved in Qase say so with a small tag. */}
+      {lastChange.qase ? (
+        <>
+          <span className="rounded border border-slate-200 bg-slate-50 px-1 text-[10px] font-semibold text-slate-600" title="Someone saved this result in Qase" data-testid="from-qase">
+            Qase
+          </span>
+          {relativeTime(new Date(lastChange.at), spelling)}
+        </>
+      ) : recent ? (
+        `${lastChange.mine ? "You're" : `${lastChange.name} is`} testing now`
+      ) : (
+        `${lastChange.mine ? "You" : lastChange.name} · ${relativeTime(new Date(lastChange.at), spelling)}`
+      )}
     </span>
   );
   return (

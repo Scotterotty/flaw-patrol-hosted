@@ -9,7 +9,7 @@ export type LiveRow = {
   status: ResultStatus;
   assigneeId: string | null;
   progress: ResultStatus[] | null;
-  lastChange: { name: string; at: string; mine: boolean; saved?: boolean } | null;
+  lastChange: { name: string; at: string; mine: boolean; saved?: boolean; qase?: boolean } | null;
 };
 
 // `at` is the server's clock when the check read the rows. A row only wins over what the page

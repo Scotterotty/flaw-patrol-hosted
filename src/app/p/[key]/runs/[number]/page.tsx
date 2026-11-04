@@ -20,6 +20,7 @@ import { alertSummary } from "@/lib/slack-alerts";
 import { LiveRefresh } from "@/components/live-refresh";
 import { HandOffNote } from "@/components/hand-off-note";
 import { AutomatedRun } from "./automated-run";
+import { queueQasePull } from "@/lib/qase-sync";
 import { RunEntries } from "@/components/run-entries";
 import { liveRowOf } from "@/lib/live-rows-data";
 import { flakyCases } from "@/lib/flaky";
@@ -69,12 +70,14 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         include: {
           testCase: { select: { number: true, tags: true, project: { select: { key: true } } } },
           // The last saved result's steps, so finished cases keep their pips.
-          results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true, testerName: true, testerId: true, createdAt: true } },
+          results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true, testerName: true, testerId: true, createdAt: true, fromQase: true } },
         },
       },
     },
   }));
   if (!run) notFound();
+  // Qase: opening a run brings in its test cycle's Qase results, at most once a minute.
+  if (run.kind !== "bash" && project.groupId) queueQasePull(project.id);
   // A suite renamed since this run shows the name the run used, next to today's name.
   const ranAs = run.suite && run.suiteVersion ? run.suite.versions.find((v) => v.version === run.suiteVersion)?.name : undefined;
   const thenCalled = ranAs && ranAs !== run.suite?.name ? ranAs : null;

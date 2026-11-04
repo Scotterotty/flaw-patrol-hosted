@@ -29,6 +29,7 @@ const OPEN_ACTIONS: Record<string, string> = {
 const OPEN_ROUTES: Record<string, string> = {
   "src/app/api/auth/[...nextauth]/route.ts": "Auth.js itself",
   "src/app/api/ci/results/route.ts": "a CI upload token (Bearer), checked by its hash",
+  "src/app/api/qase/hook/[secret]/route.ts": "Qase webhooks: the umbrella's secret in the link; it only starts a sync that reads Qase with the saved token",
 };
 
 const walk = (dir: string): string[] =>

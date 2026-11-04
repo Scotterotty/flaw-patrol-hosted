@@ -31,7 +31,7 @@ export default defineConfig({
       // Microsoft sign-in talks to the stand-in in mock-sso.mjs (ver_92).
       // AUTH_URL: sign-in sends people back to this server, not the 3000 one in .env.
       // A bigger heap, so next dev doesn't restart itself mid-run ("approaching the used memory threshold").
-      env: { AUTH_URL: "http://localhost:3100", GITHUB_API_URL: "http://localhost:3196", FP_MICROSOFT_AUTHORITY: "http://localhost:3195", NODE_OPTIONS: "--max-old-space-size=8192" },
+      env: { AUTH_URL: "http://localhost:3100", GITHUB_API_URL: "http://localhost:3196", QASE_API_URL: "http://localhost:3192/v1", FP_MICROSOFT_AUTHORITY: "http://localhost:3195", NODE_OPTIONS: "--max-old-space-size=8192" },
       url: "http://localhost:3100/signin",
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
@@ -41,6 +41,8 @@ export default defineConfig({
     { command: "node tests/e2e/mock-sentry.mjs", port: 3193, reuseExistingServer: !process.env.CI },
     // Stand-in for GitHub's API with Scott's demo repo, used by github.spec.ts.
     { command: "node tests/e2e/mock-github.mjs", port: 3196, reuseExistingServer: !process.env.CI },
+    // Stand-in for Qase's API, used by ver164.spec.ts.
+    { command: "node tests/e2e/mock-qase.mjs", port: 3192, reuseExistingServer: !process.env.CI },
     // Stand-ins for Microsoft / company sign-in and a mail server, used by ver92.spec.ts.
     { command: "node tests/e2e/mock-sso.mjs", port: 3195, reuseExistingServer: !process.env.CI },
   ],

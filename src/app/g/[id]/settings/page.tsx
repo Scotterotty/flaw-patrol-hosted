@@ -31,6 +31,8 @@ import { parseSeverityConfig } from "@/lib/severity";
 import { MembersPanel } from "@/components/members";
 import { CiUploadsPanel } from "@/components/ci-uploads";
 import { GitHubPanel, PullFromGitHubButton } from "@/components/github";
+import { QasePanel } from "@/components/qase-settings";
+import { parseStatusMap } from "@/lib/qase-map";
 import { relativeTime } from "@/lib/format";
 import { mySpelling } from "@/lib/session";
 import { badgeOf } from "@/lib/game";
@@ -148,6 +150,17 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
       digestCardData(u.group.emailDigest, [u.hub.id, ...ids]),
     ]),
   ]);
+  // Qase: the connection, and how many library cases are linked.
+  const qase = await db.qaseConfig.findUnique({ where: { groupId: u.group.id } });
+  const qaseLinks = qase
+    ? await Promise.all([
+        db.testCase.count({ where: { project: { OR: [{ groupId: u.group.id }, { hubOf: { id: u.group.id } }] }, archived: false, qaseId: { gt: 0 } } }),
+        db.testCase.count({ where: { project: { OR: [{ groupId: u.group.id }, { hubOf: { id: u.group.id } }] }, archived: false, OR: [{ qaseId: null }, { qaseId: { gt: 0 } }] } }),
+      ]).then(([linked, total]) => ({ linked, total }))
+    : null;
+  const qaseText = qase
+    ? `${qase.projectTitle} (${qase.projectCode}) · ${qase.send && qase.bring ? "results go both ways" : qase.send ? "sends results to Qase" : qase.bring ? "brings Qase results in" : "sharing turned off"}${qaseLinks ? ` · ${qaseLinks.linked} of ${qaseLinks.total} cases linked` : ""}`
+    : "Not connected. Share test results with a Qase project, both ways.";
   // Tools: off tools' rows leave Settings, like they leave the menu.
   const on = (t: ToolId) => u.tools.includes(t);
   const leads = members.filter((m) => m.role === "LEAD" || m.role === "ADMIN").length;
@@ -482,6 +495,25 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               </ExpandRow>
             ) : (
               <Row title="CI uploads" text={ciText} />
+            )}
+            {on("runs") && (
+              <ExpandRow
+                id="qase"
+                hashes={["qase"]}
+                title="Qase"
+                text={qaseText}
+                label={manage ? (qase ? "Change" : "Connect to Qase") : "View"}
+                buttonVariant={qase || !manage ? undefined : "primary"}
+                status={qase ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">✓ Connected</span> : undefined}
+              >
+                <QasePanel
+                  groupId={u.group.id}
+                  canEdit={manage && !u.group.archivedAt}
+                  linkHref={`/g/${u.group.id}/qase`}
+                  links={qaseLinks}
+                  saved={qase && { projectCode: qase.projectCode, projectTitle: qase.projectTitle, send: qase.send, bring: qase.bring, statusMap: parseStatusMap(qase.statusMap), tokenReadable: canOpen(qase.tokenEncrypted), hookPath: manage ? `/api/qase/hook/${qase.hookSecret}` : "" }}
+                />
+              </ExpandRow>
             )}
             {on("auto") && (
             <ExpandRow

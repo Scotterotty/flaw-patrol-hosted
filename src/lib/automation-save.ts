@@ -1,3 +1,4 @@
+import { queueQaseSend } from "./qase-sync";
 import { splitBracketTitle } from "./tags";
 import { knownTagNamesFor } from "./tag-data";
 import { logActivity } from "@/lib/activity";
@@ -315,6 +316,8 @@ export async function saveAutomationRun(
     revalidatePath(`/p/${project.key}`, "layout");
     revalidatePath(`/p/${home.key}`, "layout");
     if (project.groupId) revalidatePath(`/g/${project.groupId}`, "layout");
+    // Qase: CI results are shared like any others.
+    queueQaseSend(cycle.id);
     return { key: project.key, number };
   }
 }

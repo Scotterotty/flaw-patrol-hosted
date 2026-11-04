@@ -16,6 +16,7 @@ import { OPEN } from "@/lib/status";
 import { alertsForResult } from "@/lib/slack";
 import { attempt, UserError } from "./result";
 import { queueSheetSync } from "./sheet-sync";
+import { queueQaseSend } from "@/lib/qase-sync";
 import { questMoments } from "@/lib/quest-data";
 import { parseGear } from "@/lib/quest-gear";
 
@@ -136,6 +137,8 @@ export async function submitResult(projectId: string, entryId: string, input: Re
     // No revalidatePath here: it made the response re-draw the case being left.
     // The runner refreshes after plain Save, and Save and next loads the next case fresh.
     queueSheetSync(entry.run);
+    // Qase: sent once the response has gone out.
+    if (entry.run.kind !== "bash") queueQaseSend(projectId);
     // Every case now has a result: the runner offers to close the run.
     const runDone = entry.run.state === "ACTIVE" && (await db.runEntry.count({ where: { runId: entry.runId, status: { in: OPEN } } })) === 0;
     // Slack alerts look things up first, so they run after the response goes out.
