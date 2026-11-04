@@ -68,7 +68,7 @@ test("Every issue type pulls every ticket with the release's Fix Version, except
   await expect(box.getByRole("radio", { name: /Every issue type/ })).toBeChecked();
   await box.getByRole("radio", { name: /Only these/ }).check();
   await expect(box.getByRole("checkbox", { name: "Story" })).toBeChecked();
-  await expect(box.getByRole("checkbox", { name: "Epic" })).not.toBeChecked();
+  await expect(box.getByRole("checkbox", { name: "Epic", exact: true })).not.toBeChecked();
   await box.getByRole("button", { name: "Save requirements" }).click();
   await expect(box.getByText("Saved.")).toBeVisible();
   await page.goto(`/p/${KEY}/stories?release=RC%2022&done=show`);
