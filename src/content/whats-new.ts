@@ -42,6 +42,16 @@ export const WHATS_NEW: WhatsNewEntry[] = [
         text: "Click + Add another release next to the Jira release buttons to see two releases together, for projects that name the same release differently. Click a release's × to take it off.",
       },
       {
+        kind: "fix",
+        title: "Any release shows every requirement",
+        text: "On the Requirements page, Any release now lists every requirement from Jira, like each Product Feature, not only the ones a case already links to. Big projects show every item, not just the first page.",
+      },
+      {
+        kind: "new",
+        title: "Hide done",
+        text: "A Hide done switch next to the All, No cases and Failing buttons hides requirements Jira counts as Done. It's on at first; turn it off to see them.",
+      },
+      {
         kind: "better",
         title: "Folder actions in one ⋯ menu",
         text: "In the Folders list, one ⋯ button (or a right-click) opens New subfolder, Rename, Move and Delete, so folder names keep their room. The rename box now lines up inside the list.",

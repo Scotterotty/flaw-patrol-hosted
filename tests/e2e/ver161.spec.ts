@@ -63,13 +63,27 @@ test("requirements from two Jira projects, one or several releases, on both view
   await expect(page.getByText(/from Jira projects QA and RP/)).toBeVisible();
   const from = page.getByRole("group", { name: "Show stories from" });
   await expect(from.getByRole("link", { name: "All projects" })).toHaveAttribute("aria-current", "true");
+  // Hide done is on at first: QA-201 is Done in Jira, so it's hidden until the switch is turned off.
+  const hideDone = page.getByRole("switch", { name: /Hide done \(1\)/ });
+  await expect(hideDone).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByText("RP-41", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("QA-201", { exact: true })).toHaveCount(0);
+  await hideDone.click();
+  await expect(page).toHaveURL(/done=show/);
+  await expect(page.getByRole("switch", { name: /Hide done/ })).toHaveAttribute("aria-checked", "false");
   await expect(page.getByText("QA-201", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("RP-301", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("RP-41", { exact: true }).first()).toBeVisible();
   await from.getByRole("link", { name: "RP", exact: true }).click();
   await expect(page).toHaveURL(/proj=RP/);
-  await expect(page.getByText("RP-301", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("RP-41", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("QA-201", { exact: true })).toHaveCount(0);
   await from.getByRole("link", { name: "All projects" }).click();
+
+  // Any release lists every requirement Jira has in both projects, not only linked ones,
+  // across several pages of Jira results (the stand-in sends 5 a page).
+  await page.getByRole("group", { name: "Jira release" }).getByRole("link", { name: "Any release" }).click();
+  for (const key of ["QA-202", "QA-204", "RP-41", "RP-42"]) await expect(page.getByText(key, { exact: true }).first()).toBeVisible();
+  await page.goto(`/p/${KEY}/stories?release=RC%2022&done=show`);
 
   // RC 22 is in both projects, so it's one button. Web 22 is RP's own name: add it next to RC 22.
   const releases = page.getByRole("group", { name: "Jira release" });
@@ -77,24 +91,24 @@ test("requirements from two Jira projects, one or several releases, on both view
   await releases.getByText("+ Add another release").click();
   await releases.getByRole("menuitem", { name: "Web 22" }).click();
   await expect(page).toHaveURL(/release=RC\+22&release=Web\+22|release=RC%2022&release=Web%2022/);
-  await expect(page.getByText("RP-302", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("RP-301", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("RP-42", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("RP-41", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "RC 22 + Web 22 runs" })).toBeVisible();
 
   // The Risk board keeps both releases; a move is saved under the release the card is in.
   await page.getByRole("navigation", { name: "Requirements view" }).getByRole("link", { name: "Risk board" }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${KEY}/risk\\?release=RC`));
   const board = page.getByRole("grid", { name: "Risk board for RC 22 + Web 22" });
-  await expect(board.getByRole("button", { name: /RP-302/ })).toBeVisible();
+  await expect(board.getByRole("button", { name: /RP-42/ })).toBeVisible();
   await expect(board.getByRole("button", { name: /QA-201/ })).toBeVisible();
   await expect(page.getByRole("group", { name: "Show stories from" })).toBeVisible();
-  await board.getByRole("button", { name: /RP-302/ }).click();
+  await board.getByRole("button", { name: /RP-42/ }).click();
   const card = page.getByRole("dialog");
   await card.getByLabel("How much it would hurt").selectOption("1");
   await expect(card.getByText("Moved by", { exact: false })).toBeVisible();
   const moved = new PrismaClient();
   try {
-    await expect.poll(async () => (await moved.riskRating.findFirst({ where: { project: { key: KEY }, issueKey: "RP-302" } }))?.release).toBe("Web 22");
+    await expect.poll(async () => (await moved.riskRating.findFirst({ where: { project: { key: KEY }, issueKey: "RP-42" } }))?.release).toBe("Web 22");
   } finally {
     await moved.$disconnect();
   }
@@ -103,19 +117,19 @@ test("requirements from two Jira projects, one or several releases, on both view
   // Take Web 22 off again: one release, and the board is RC 22's only.
   await page.getByRole("group", { name: "Release" }).getByRole("link", { name: /Web 22, remove it/ }).click();
   await expect(page.getByRole("grid", { name: "Risk board for RC 22" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /RP-302/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /RP-42/ })).toHaveCount(0);
 
   // Show stories from on the board too.
   await page.getByRole("group", { name: "Show stories from" }).getByRole("link", { name: "QA", exact: true }).click();
   await expect(page).toHaveURL(/proj=QA/);
-  await expect(page.getByRole("button", { name: /RP-301/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /RP-41/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /QA-201/ })).toBeVisible();
 
   // Linking a requirement to a case searches every picked project.
   await page.goto(`/p/${KEY}/cases/1`);
   await page.getByRole("button", { name: "+ Link requirement" }).click();
   await page.getByLabel("Find a Jira requirement").fill("Web sign");
-  await expect(page.getByRole("listbox", { name: "Requirements" }).getByText(/RP-302/)).toBeVisible();
+  await expect(page.getByRole("listbox", { name: "Requirements" }).getByText(/RP-42/)).toBeVisible();
 });
 
 test("folder actions live in one ⋯ menu, and the rename box stays inside the sidebar", async ({ page }) => {

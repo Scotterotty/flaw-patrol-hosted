@@ -96,10 +96,10 @@ issues.get("QA-202").parent = "QA-210";
 Object.assign(issues.get("QA-202"), { priority: "High", points: 8 });
 Object.assign(issues.get("QA-203"), { priority: "Low", points: 2 });
 Object.assign(issues.get("QA-206"), { priority: "Highest", points: 5 });
-// Several requirement projects (ver_161): RP has its own stories, one in RC 22 like QA, one in "Web 22".
-issues.set("RP-301", story("Share a space link on the web", "To Do", "new", "Story", ["RC 22"]));
-issues.set("RP-302", story("Web sign-in page", "In Progress", "indeterminate", "Story", ["Web 22"]));
-Object.assign(issues.get("RP-302"), { priority: "Highest", points: 8 });
+// Several requirement projects (ver_161): RP has its own stories (numbered below the bugs the tests file, RP-101 on), one in RC 22 like QA, one in "Web 22".
+issues.set("RP-41", story("Share a space link on the web", "To Do", "new", "Story", ["RC 22"]));
+issues.set("RP-42", story("Web sign-in page", "In Progress", "indeterminate", "Story", ["Web 22"]));
+Object.assign(issues.get("RP-42"), { priority: "Highest", points: 8 });
 const ISSUE_TYPES = ["Bug", "Story", "Task", "Epic", "Requirement"].map((name) => ({ name, subtask: false, hierarchyLevel: name === "Epic" ? 1 : 0 })).concat([{ name: "Sub-task", subtask: true, hierarchyLevel: -1 }]);
 const VERSIONS = ["RC 21", "RC 22", "RC 23"];
 // Each project's releases, oldest first like Jira. RP names one release its own way.
@@ -236,7 +236,13 @@ http
         else if (m) keys = keys.filter((k) => issues.get(k).summary.toLowerCase().includes(m[1].toLowerCase()));
         if (/ORDER BY key ASC/.test(jql ?? "")) keys.sort((a, b) => Number(a.split("-")[1]) - Number(b.split("-")[1]));
       }
-      return send(res, 200, { issues: keys.map(raw) });
+      // Like Jira, results come in pages (Jira's limit is 100; 5 here so paging gets tested, ver_161).
+      const { maxResults, nextPageToken } = JSON.parse(body.toString() || "{}");
+      const at = Number(nextPageToken ?? 0) || 0;
+      const size = Math.min(5, maxResults ?? 50);
+      const page = keys.slice(at, at + size);
+      const more = at + size < keys.length;
+      return send(res, 200, { issues: page.map(raw), isLast: !more, ...(more ? { nextPageToken: String(at + size) } : {}) });
     }
     if (p === "/rest/api/3/issue" && req.method === "POST") {
       const { fields } = JSON.parse(body.toString());

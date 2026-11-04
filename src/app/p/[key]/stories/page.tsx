@@ -50,19 +50,23 @@ export default async function StoriesPage({ params, searchParams }: { params: Pr
   const tested = picked ? null : testedRelease(releases, await newestRcNames(full ? full.current : [project]));
   const release: string[] | null = picked === "any" ? null : (picked ?? (tested ? [tested] : null));
   const relLabel = release ? releaseLabel(release) : null;
-  const cov = await storyCoverage({ projectId: project.id, libraryIds: [project.id], columns, release, latestAnywhere });
+  const cov = await storyCoverage({ projectId: project.id, libraryIds: [project.id], columns, release, latestAnywhere, everything: true });
   // Show stories from (ver_161): one of several requirement projects.
   const reqKeys = cov.config ? requirementProjects(cov.config, cov.bugProject ?? "") : null;
   const proj = pickedProject(sp.proj, reqKeys);
   const inProj = proj ? cov.rows.filter((r) => projectOfKey(r.story.key) === proj) : cov.rows;
-  const counts = { all: inProj.length, none: 0, failing: 0, notrun: 0, passing: 0 } as Record<"all" | CoverageState, number>;
-  for (const r of inProj) counts[r.state]++;
+  // Hide done (ver_161), on unless the address says done=show: requirements Jira counts as Done.
+  const hideDone = one(sp.done) !== "show";
+  const doneCount = inProj.filter((r) => r.story.category === "done").length;
+  const shown = hideDone ? inProj.filter((r) => r.story.category !== "done") : inProj;
+  const counts = { all: shown.length, none: 0, failing: 0, notrun: 0, passing: 0 } as Record<"all" | CoverageState, number>;
+  for (const r of shown) counts[r.state]++;
   const show = (CHIPS.find((c) => c.id === one(sp.show))?.id ?? "all") as "all" | CoverageState;
   // Type filter: only the Jira types that are on the page.
   const type = cov.types.find((t) => t.toLowerCase() === one(sp.type)?.toLowerCase()) ?? null;
   const openKey = one(sp.open);
   const made = one(sp.made);
-  const rows = inProj.filter((r) => (show === "all" || r.state === show) && (!type || r.story.type === type));
+  const rows = shown.filter((r) => (show === "all" || r.state === show) && (!type || r.story.type === type));
   const canEdit = can(who, "case:edit");
   const picker = canEdit ? (await suitePickerData(project)).cases.map((c) => ({ id: c.id, key: c.key, title: c.title, folder: c.folderPath })) : [];
   // New cases from a requirement go into this library's folders.
@@ -123,12 +127,26 @@ export default async function StoriesPage({ params, searchParams }: { params: Pr
         )}
       </div>
       {cov.jiraError && <p className="mb-3 rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-900">Couldn&apos;t read the release from Jira: {cov.jiraError} Showing requirements that already have cases.</p>}
-      <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Show">
-        {CHIPS.map((c) => (
-          <Link key={c.id} href={qs({ show: c.id === "all" ? undefined : c.id })} aria-current={show === c.id ? "true" : undefined} className={cx("rounded-full border px-3 py-1 text-sm", show === c.id ? "border-accent-600 bg-accent-600 text-white" : "border-slate-200 hover:bg-slate-50")}>
-            {c.label} <span className={show === c.id ? "text-white/80" : "text-slate-500"}>{counts[c.id]}</span>
-          </Link>
-        ))}
+      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Show">
+          {CHIPS.map((c) => (
+            <Link key={c.id} href={qs({ show: c.id === "all" ? undefined : c.id })} aria-current={show === c.id ? "true" : undefined} className={cx("rounded-full border px-3 py-1 text-sm", show === c.id ? "border-accent-600 bg-accent-600 text-white" : "border-slate-200 hover:bg-slate-50")}>
+              {c.label} <span className={show === c.id ? "text-white/80" : "text-slate-500"}>{counts[c.id]}</span>
+            </Link>
+          ))}
+        </div>
+        <Link
+          href={qs({ done: hideDone ? "show" : undefined })}
+          role="switch"
+          aria-checked={hideDone}
+          title={hideDone ? "Done requirements are hidden. Click to show them." : "Click to hide requirements Jira counts as Done."}
+          className="ml-auto flex items-center gap-2 rounded-md px-2 py-1 text-sm text-slate-700 hover:bg-slate-50"
+        >
+          <span aria-hidden className={cx("relative inline-block h-4 w-7 rounded-full transition-colors", hideDone ? "bg-accent-600" : "bg-slate-300")}>
+            <span className={cx("absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all", hideDone ? "right-0.5" : "left-0.5")} />
+          </span>
+          Hide done <span className="text-slate-500">({doneCount})</span>
+        </Link>
       </div>
       {cov.types.length > 1 && (
         <div className="mb-3 flex flex-wrap items-center gap-1.5 text-sm" role="group" aria-label="Type">
@@ -153,7 +171,13 @@ export default async function StoriesPage({ params, searchParams }: { params: Pr
         />
       ) : (
         <EmptyState title={inProj.length ? "No requirements match" : "No requirements yet"}>
-          {inProj.length ? "Pick another filter above." : relLabel ? `Jira has no requirements${proj ? ` from ${proj}` : ""} in ${relLabel}, and no case links one.` : "Link a case to a Jira requirement from the case page or the Case library's Link to requirement."}
+          {inProj.length
+            ? hideDone && doneCount && !shown.length
+              ? `All ${doneCount} are done in Jira. Turn off Hide done to see them.`
+              : "Pick another filter above."
+            : relLabel
+              ? `Jira has no requirements${proj ? ` from ${proj}` : ""} in ${relLabel}, and no case links one.`
+              : `Jira has no ${kinds.toLowerCase()} in ${proj ? `Jira project ${proj}` : source}, and no case links one. Check the issue types in Settings, Requirements.`}
         </EmptyState>
       )}
     </div>

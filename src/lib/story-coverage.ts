@@ -46,7 +46,15 @@ function cellOf(statuses: (ResultStatus | null)[]): CoverageCell {
  * by the cases in `libraryIds`, with one column per test cycle in `columns`.
  * `release` also limits results to runs of that release (those releases) unless `latestAnywhere`.
  */
-export async function storyCoverage(opts: { projectId: string; libraryIds: string[]; columns: CoverageColumn[]; release: string | string[] | null; latestAnywhere?: boolean }) {
+export async function storyCoverage(opts: {
+  projectId: string;
+  libraryIds: string[];
+  columns: CoverageColumn[];
+  release: string | string[] | null;
+  latestAnywhere?: boolean;
+  /** No release: list every requirement Jira has in the requirement projects too, not only ones a case links (Requirements page, ver_161). */
+  everything?: boolean;
+}) {
   const { projectId, libraryIds, columns } = opts;
   const releases = opts.release == null ? [] : (Array.isArray(opts.release) ? opts.release : [opts.release]).filter(Boolean);
   const release = releases.length ? releases : null;
@@ -58,16 +66,17 @@ export async function storyCoverage(opts: { projectId: string; libraryIds: strin
   });
   let inRelease: StoryInfo[] | null = null;
   let jiraError: string | null = null;
-  if (release && setup) {
+  if (setup && (release || opts.everything)) {
     try {
       const client = await jiraFor(projectId);
-      inRelease = (await client!.storiesInRelease(setup.config, release)).map((i) => ({ key: i.key, title: i.summary, status: i.status, category: i.category, url: i.url, type: i.type, parent: i.parent, priority: i.priority, points: i.points ?? null, releases: i.releases ?? [] }));
+      inRelease = (release ? await client!.storiesInRelease(setup.config, release) : await client!.allStories(setup.config)).map((i) => ({ key: i.key, title: i.summary, status: i.status, category: i.category, url: i.url, type: i.type, parent: i.parent, priority: i.priority, points: i.points ?? null, releases: i.releases ?? [] }));
     } catch (e) {
       jiraError = e instanceof Error ? e.message : "Couldn't reach Jira.";
     }
   }
   const linkedKeys = [...new Set(cases.flatMap((c) => c.jiraStories))];
-  const keys = inRelease ? inRelease.map((s) => s.key) : linkedKeys;
+  // A release lists its requirements only; Any release lists Jira's and every linked one.
+  const keys = inRelease ? (release ? inRelease.map((s) => s.key) : [...new Set([...inRelease.map((s) => s.key), ...linkedKeys])]) : linkedKeys;
   const info = await storyInfo(projectId, inRelease ? linkedKeys.filter((k) => !inRelease!.some((s) => s.key === k)) : keys);
   for (const s of inRelease ?? []) info.set(s.key, s);
 

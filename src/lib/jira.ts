@@ -430,13 +430,21 @@ export class JiraClient {
     return this.toIssue(await this.call<RawIssue>(`/rest/api/3/issue/${encodeURIComponent(key)}?fields=${(await this.fields()).join(",")}`));
   }
 
+  /** Up to `max` issues. Jira sends at most 100 a page, so bigger asks follow nextPageToken page by page (ver_161). */
   async search(jql: string, max = 20) {
-    const res = await this.call<{ issues: RawIssue[] }>("/rest/api/3/search/jql", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ jql, maxResults: max, fields: await this.fields() }),
-    });
-    return Promise.all(res.issues.map((i) => this.toIssue(i)));
+    const fields = await this.fields();
+    const raw: RawIssue[] = [];
+    let next: string | undefined;
+    do {
+      const res = await this.call<{ issues?: RawIssue[]; nextPageToken?: string; isLast?: boolean }>("/rest/api/3/search/jql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jql, maxResults: Math.min(100, max - raw.length), fields, ...(next ? { nextPageToken: next } : {}) }),
+      });
+      raw.push(...(res.issues ?? []));
+      next = res.isLast === false || res.nextPageToken ? res.nextPageToken : undefined;
+    } while (next && raw.length < max);
+    return Promise.all(raw.slice(0, max).map((i) => this.toIssue(i)));
   }
 
   /** Stories: issues of the given types, by key or words, in the requirement projects or anywhere. */
@@ -460,10 +468,15 @@ export class JiraClient {
     return this.search(`parent in (${parents.map((k) => `"${k.replace(/"/g, "")}"`).join(",")}) ORDER BY key ASC`, 200);
   }
 
+  /** Every requirement in the requirement projects, any release (Requirements page, Any release, ver_161). Up to 1,000. */
+  async allStories(cfg: { project: string; projects?: string[]; types: string[] }) {
+    return this.search(`${storyScope(cfg, this.creds.jiraProjectKey)} ORDER BY key ASC`, 1000);
+  }
+
   /** Every story in a Jira release (fixVersion), or in any of several, for coverage gaps. Up to 300. */
   async storiesInRelease(cfg: { project: string; projects?: string[]; types: string[] }, release: string | string[]) {
     const list = Array.isArray(release) ? release : [release];
-    return this.search(`${storyScope(cfg, this.creds.jiraProjectKey)} AND ${releaseScope(list)} ORDER BY key ASC`, list.length > 1 ? 300 : 200);
+    return this.search(`${storyScope(cfg, this.creds.jiraProjectKey)} AND ${releaseScope(list)} ORDER BY key ASC`, 1000);
   }
 
   /** Several issues by key. One unknown key fails Jira's whole search, so then they're read one by one. */
