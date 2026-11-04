@@ -3,7 +3,7 @@ import { FlagIcon } from "@/components/case-flag";
 import { LIVE_BASH, NOT_BASH_CASE, NOT_BASH_RUN } from "@/lib/bash-cases";
 import { StartRunBox } from "@/components/start-run-box";
 import { PassRateOverTime } from "@/components/trend-charts";
-import { Badge, Card, cx, PageHeader } from "@/components/ui";
+import { Badge, Card, cx, LinkButton, PageHeader } from "@/components/ui";
 import { flagLabel } from "@/lib/case-flag";
 import { db } from "@/lib/db";
 import { mailOn } from "@/lib/mail";
@@ -115,7 +115,17 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
       <PageHeader
         title={project.name}
         subtitle={project.description || undefined}
-        actions={can(who, "run:create") && <StartRunBox scope={{ projectKey: project.key }} variant={anyGo(active, canExecute) ? "secondary" : "primary"} />}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {can(who, "run:create") && <StartRunBox scope={{ projectKey: project.key }} variant={anyGo(active, canExecute) ? "secondary" : "primary"} />}
+            {/* Write a bug: for a bug found outside a test. */}
+            {canExecute && (
+              <LinkButton href={`/p/${project.key}/bugs?write=1`} data-testid="overview-write-bug">
+                + Write a bug
+              </LinkButton>
+            )}
+          </div>
+        }
       />
 
       {umbrella && !umbrella.isHub && caseCount > 0 && can(who, "library:move") && (

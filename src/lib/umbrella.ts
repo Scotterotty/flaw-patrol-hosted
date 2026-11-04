@@ -6,7 +6,7 @@ import "server-only";
 import { cache } from "react";
 import type { Prisma, Role } from "@prisma/client";
 import { db } from "./db";
-import { parseRoleRules, type Who } from "./permissions";
+import { can, parseRoleRules, type Who } from "./permissions";
 import { toolsOn, type ToolId } from "./tools";
 
 // Umbrella projects. An umbrella is a project group with a hub project:
@@ -236,6 +236,8 @@ export type UmbrellaNav = {
   tools: ToolId[];
   /** Admins see + Add tools when some are off. */
   canTools: boolean;
+  /** Can write bugs here: Bugs in the menu gets a + for Write a bug. */
+  canBug: boolean;
   /** The test cycle you're in, when the menu is shown on one of its pages. */
   cycle?: { key: string; name: string; color: string; older: boolean; ownCases: number; quests: boolean };
 };
@@ -258,6 +260,7 @@ export function navOf(u: Umbrella): UmbrellaNav {
     archived: !!u.group.archivedAt,
     tools: u.tools,
     canTools: u.role === "ADMIN" && !u.group.archivedAt,
+    canBug: can(u.who, "run:execute") && !u.group.archivedAt,
   };
 }
 

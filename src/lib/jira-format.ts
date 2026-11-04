@@ -69,7 +69,7 @@ export function bugText(ctx: BugContext): string {
   const failed = ctx.failedIndex === null ? null : ctx.steps[ctx.failedIndex];
   const lines = [
     ctx.reportedBy && `Reported by: ${ctx.reportedBy} (via Flaw Patrol)`,
-    `Found while running ${ctx.caseKey} "${ctx.caseTitle}" in ${ctx.runLabel}.`,
+    ctx.caseKey && `Found while running ${ctx.caseKey} "${ctx.caseTitle}" in ${ctx.runLabel}.`,
     [ctx.build && `Build: ${ctx.build}`, ...fieldLines(ctx), ctx.environment && `Environment: ${ctx.environment}`].filter(Boolean).join(" · "),
     ctx.preconditions && `Preconditions: ${ctx.preconditions}`,
     ctx.testRow,
@@ -92,7 +92,8 @@ const bold = (t: string) => text(t, [{ type: "strong" }]);
 export function bugAdf(ctx: BugContext): Node {
   const upto = ctx.failedIndex === null ? ctx.steps : ctx.steps.slice(0, ctx.failedIndex + 1);
   const failed = ctx.failedIndex === null ? null : ctx.steps[ctx.failedIndex];
-  const content: Node[] = [para(text(`Found while running ${ctx.caseKey} "${ctx.caseTitle}" in ${ctx.runLabel}.`))];
+  // A bug written on its own (no case) has no run to name.
+  const content: Node[] = ctx.caseKey ? [para(text(`Found while running ${ctx.caseKey} "${ctx.caseTitle}" in ${ctx.runLabel}.`))] : [];
   if (ctx.reportedBy) content.unshift(para(bold("Reported by: "), text(`${ctx.reportedBy} (via Flaw Patrol)`)));
   const env = [ctx.build && `Build: ${ctx.build}`, ...fieldLines(ctx), ctx.environment && `Environment: ${ctx.environment}`].filter(Boolean).join(" · ");
   if (env) content.push(para(text(env)));

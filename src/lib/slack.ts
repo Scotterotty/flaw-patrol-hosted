@@ -304,7 +304,7 @@ export async function alertBugFiled(cycle: CycleRef, bug: { key: string; url: st
     () => ({
       tone: "red",
       title: `🐞 ${scale.labels[bug.severity]} bug filed · ${where(cycle)}`,
-      lines: [`${bug.url ? `<${bug.url}|${esc(bug.key)}>` : esc(bug.key)} ${esc(bug.title)}`, `Filed by ${esc(from.tester)} from ${esc(from.caseKey)}${from.step !== null ? ` step ${from.step + 1}` : ""}`],
+      lines: [`${bug.url ? `<${bug.url}|${esc(bug.key)}>` : esc(bug.key)} ${esc(bug.title)}`, from.caseKey ? `Filed by ${esc(from.tester)} from ${esc(from.caseKey)}${from.step !== null ? ` step ${from.step + 1}` : ""}` : `Written by ${esc(from.tester)} on the Bugs page`],
       button: bug.url ? { label: "Open in Jira", url: bug.url } : null,
     }),
     bug.severity,

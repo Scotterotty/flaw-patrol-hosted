@@ -13,16 +13,37 @@ import { parseTestData, rowLabel, rowSummary } from "@/lib/test-data";
 import { parsePlatforms } from "@/lib/umbrella";
 import { UserError } from "@/server/result";
 
+const findEntry = (projectId: string, entryId: string) =>
+  db.runEntry.findFirst({
+    where: { id: entryId, run: { projectId } },
+    include: { run: { include: { project: true } }, testCase: { select: { number: true, tags: true, project: { select: { key: true, groupId: true, hubOf: { select: { platforms: true } } } } } } },
+  });
+type Entry = NonNullable<Awaited<ReturnType<typeof findEntry>>>;
+
+/**
+ * Write a bug: no entry id means a bug written on its own, not from a test.
+ * It has no case, steps or run, so everything a run would fill starts blank; the
+ * release comes from the test cycle, and the link points at the Bugs page.
+ */
+async function writtenContext(projectId: string, actual: string) {
+  const project = await db.project.findUnique({ where: { id: projectId } });
+  if (!project) throw new UserError("That test cycle isn't here anymore.");
+  const run = { id: "", number: 0, name: "", build: "", release: "", environment: "", cspVersion: "", project };
+  const entry = { id: "", title: "", kind: "MANUAL", steps: [], testData: null, preconditions: "", charter: null, run, testCase: { number: 0, tags: [], project: { key: project.key, groupId: project.groupId, hubOf: null } } } as unknown as Entry;
+  const h = await headers();
+  const origin = h.get("origin") ?? (h.get("host") ? `https://${h.get("host")}` : null);
+  const ctx: BugContext = { caseKey: "", caseTitle: "", runLabel: "", build: "", environment: "", preconditions: "", steps: [], failedIndex: null, actual, link: origin ? `${origin}/p/${project.key}/bugs` : null, titleTags: [] };
+  return { ctx, entry };
+}
+
 /** Build the context for a bug report from a run entry. */
 /**
  * focus (persona audit #4): a whole-case bug written from the first failed step, so
  * its summary and steps start from what failed. The bug still belongs to the whole case.
  */
 export async function bugContext(projectId: string, entryId: string, stepIndex: number | null, actual: string, focus: number | null = null) {
-  const entry = await db.runEntry.findFirst({
-    where: { id: entryId, run: { projectId } },
-    include: { run: { include: { project: true } }, testCase: { select: { number: true, tags: true, project: { select: { key: true, groupId: true, hubOf: { select: { platforms: true } } } } } } },
-  });
+  if (!entryId) return writtenContext(projectId, actual);
+  const entry = await findEntry(projectId, entryId);
   if (!entry) throw new UserError("This case is no longer in the run.");
   // Bracket tags: platform tags and ALL-CAPS ones like ANDROID go back in front of the bug's title.
   const platformNames = parsePlatforms(entry.testCase.project.hubOf?.platforms).map((p) => p.name.toLowerCase());

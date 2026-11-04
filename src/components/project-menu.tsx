@@ -3,6 +3,8 @@ import { UmbrellaNav } from "@/components/umbrella-nav";
 import { NOT_BASH_CASE, NOT_BASH_RUN } from "@/lib/bash-cases";
 import { db } from "@/lib/db";
 import { glossaryMenu } from "@/lib/glossary-data";
+import { can } from "@/lib/permissions";
+import { roleRulesFor } from "@/lib/session";
 import { liveBashOf, loadUmbrella, navOf, openBugCount, platformColor, type Umbrella } from "@/lib/umbrella";
 
 type Viewer = { id: string; isAdmin: boolean; gameEnabled: boolean; questMap: boolean };
@@ -58,6 +60,10 @@ export async function ProjectMenu({ project, user, umbrella }: { project: MenuPr
     openBugCount([project.id]),
     liveBashOf(project.id),
   ]);
+  // Write a bug: the + next to Bugs, for those who can file bugs here.
+  const member = user.isAdmin ? null : await db.projectMember.findUnique({ where: { projectId_userId: { projectId: project.id, userId: user.id } }, select: { role: true } });
+  const role = user.isAdmin ? "ADMIN" : (member?.role ?? null);
+  const canBug = !!role && can({ role, rules: await roleRulesFor({ id: project.id, groupId: project.groupId }) }, "run:execute");
   return (
     <ProjectNav
       projectKey={project.key}
@@ -67,6 +73,7 @@ export async function ProjectMenu({ project, user, umbrella }: { project: MenuPr
       counts={{ cases, charters, suites, shared, personas, activeRuns, openBugs }}
       live={!!live}
       library={hub ? { hubKey: hub.key, name: group!.name, ownCases: cases } : undefined}
+      canBug={canBug}
     />
   );
 }

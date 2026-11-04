@@ -85,6 +85,7 @@ const UMBRELLA_PAGES: { label: string; path: (g: string, hub: string) => string;
   { label: "Start a bug bash", path: (_, h) => `/p/${h}/bashes?bash=start`, words: "start new bug bash blitz", tool: "bashes" },
   { label: "Risk board", path: (_, h) => `/p/${h}/risk`, words: "risk board rc plan likelihood impact", tool: "risk" },
   { label: "Bugs", path: (g) => `/g/${g}/bugs`, words: "bugs defects jira issues" },
+  { label: "Write a bug", path: (g) => `/g/${g}/bugs?write=1`, words: "write new bug report file log add create defect issue" },
   { label: "Reports", path: (g) => `/g/${g}/reports`, words: "reports charts trends" },
   { label: "Release status", path: (g) => `/g/${g}/rc`, words: "rc status release end of day eod confluence", tool: "runs" },
   { label: "Settings", path: (g) => `/g/${g}/settings`, words: "settings platforms" },

@@ -14,20 +14,21 @@ import { sendToJiraData } from "@/lib/send-to-jira";
 import { redirect } from "next/navigation";
 import { BugAnswers } from "@/components/bug-answers";
 import { BugDescription } from "@/components/bug-description";
-import { parseAnswers } from "@/lib/bug-layout";
+import { isWritten, parseAnswers } from "@/lib/bug-layout";
+import { SendWrittenBugButton, WriteBugButton } from "@/components/write-bug";
 import { LastCheckLine } from "@/components/known-bugs-panel";
 import { cycleSettingsHref, hubGroupId, jiraConfigFor } from "@/lib/umbrella";
 
 export const metadata = { title: "Bugs" };
 
-export default async function DefectsPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ status?: string; severity?: string; jira?: string; version?: string }> }) {
+export default async function DefectsPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ status?: string; severity?: string; jira?: string; version?: string; from?: string; write?: string }> }) {
   const spelling = await mySpelling();
   const { key } = await params;
   const sp = await searchParams;
   const { project, user, who } = await projectAccess(key);
   // An umbrella's hub shows its runs and bugs on the umbrella's own pages.
   const umbrellaId = await hubGroupId(project.id);
-  if (umbrellaId) redirect(`/g/${umbrellaId}/bugs`);
+  if (umbrellaId) redirect(`/g/${umbrellaId}/bugs${sp.write === "1" ? "?write=1" : ""}`);
   const jira = await jiraConfigFor(project.id);
   // Keep Jira statuses reasonably fresh without a webhook (only re-fetches stale ones).
   if (jira) await refreshDefectStatuses(project.id).catch(() => null);
@@ -42,7 +43,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
   if (sp.version) where.foundIn = sp.version;
   const versions = (await db.defect.findMany({ where: { projectId: project.id, foundIn: { not: "" } }, distinct: ["foundIn"], orderBy: { createdAt: "desc" }, take: 30, select: { foundIn: true } })).map((d) => d.foundIn);
   const scale = await severityScaleFor(project.id);
-  const defects = await db.defect.findMany({
+  const all = await db.defect.findMany({
     where,
     orderBy: { createdAt: "desc" },
     take: 300,
@@ -54,6 +55,9 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
     },
   });
 
+  // Where it came from: a test (or a bug bash), or written on its own with Write a bug.
+  const defects = sp.from === "own" ? all.filter((d) => isWritten(d.layout)) : sp.from === "tests" ? all.filter((d) => !isWritten(d.layout)) : all;
+  const canWrite = can(who, "run:execute");
   // Send to Jira: open bugs saved before Jira was connected, for those who can file bugs.
   const canSend = !!jira && can(who, "run:execute");
   const notInJira = canSend ? await db.defect.count({ where: { projectId: project.id, externalKey: null, status: "OPEN" } }) : 0;
@@ -67,10 +71,10 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
         title="Bugs"
         subtitle={
           jira ? (
-            `Bugs found while testing, linked to Jira project ${jira.jiraProjectKey}.`
+            `Bugs found while testing or written here, linked to Jira project ${jira.jiraProjectKey}.`
           ) : (
             <>
-              Bugs found while testing.{" "}
+              Bugs found while testing or written here.{" "}
               <Link href={await cycleSettingsHref(project, user, "jira")} className="text-accent-700 hover:underline">
                 Connect Jira
               </Link>{" "}
@@ -78,7 +82,14 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
             </>
           )
         }
-        actions={jira && can(who, "run:execute") ? <RefreshJiraButton projectId={project.id} /> : null}
+        actions={
+          jira || canWrite ? (
+            <div className="flex flex-wrap gap-2">
+              {jira && canWrite && <RefreshJiraButton projectId={project.id} />}
+              {canWrite && <WriteBugButton cycles={[{ id: project.id, name: project.name }]} scale={scale} />}
+            </div>
+          ) : null
+        }
       />
       {notInJira > 0 && sp.jira !== "local" && (
         <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="not-in-jira">
@@ -90,6 +101,11 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
       )}
       <AutoFilterForm className="mb-4 flex flex-wrap gap-2">
         {sp.jira === "local" && <input type="hidden" name="jira" value="local" />}
+        <Select name="from" defaultValue={sp.from ?? ""} className="w-auto" aria-label="Where it came from">
+          <option value="">From anywhere</option>
+          <option value="tests">From tests</option>
+          <option value="own">Written on its own</option>
+        </Select>
         <Select name="status" defaultValue={sp.status ?? ""} className="w-auto" aria-label="Status">
           <option value="">Any status</option>
           <option value="open">Open</option>
@@ -115,7 +131,9 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
         )}
       </AutoFilterForm>
       {defects.length === 0 ? (
-        <EmptyState title="No bugs">When a tester reports a bug from a test step, it shows up here with the run and case it came from.</EmptyState>
+        <EmptyState title={all.length ? "No bugs match" : "No bugs"}>
+          {all.length ? "Try fewer filters." : <>When someone reports a bug from a test step, it shows up here with the run and case it came from. Found one outside a test? Use{canWrite ? <b className="font-semibold"> + Write a bug</b> : " Write a bug"} at the top.</>}
+        </EmptyState>
       ) : (
         <Card className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -142,7 +160,12 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
                         <span className="font-mono text-xs text-slate-500">D-{d.number}</span>
                       )}{" "}
                       <span className="text-slate-900">{d.title}</span>
-                      {canSend && !d.externalKey && <span className="mt-0.5 block text-xs text-slate-500">Saved before Jira was connected</span>}
+                      {isWritten(d.layout) && (
+                        <span className="ml-1.5 rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-medium text-accent-700" data-testid="written-chip">
+                          Written on its own
+                        </span>
+                      )}
+                      {canSend && !d.externalKey && <span className="mt-0.5 block text-xs text-slate-500">{isWritten(d.layout) ? "Saved here, not in Jira yet" : "Saved before Jira was connected"}</span>}
                       <LastCheckLine check={d.checks[0]} spelling={spelling} />
                       {d.answers == null && !d.externalKey && <BugDescription text={d.description} />}
                       {d.answers != null && <BugAnswers projectId={project.id} defectId={d.id} templateName={d.templateName} answers={parseAnswers(d.answers)} canAdd={can(who, "run:execute") && d.status === "OPEN"} inJira={!!d.externalKey} />}
@@ -154,6 +177,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
                         <span className="flex flex-wrap items-center gap-2">
                           <LocalDefectStatus projectId={project.id} defect={d} />
                           {sendable.has(d.id) && <SendToJiraButton data={sendable.get(d.id)!} />}
+                          {canSend && !sendable.has(d.id) && d.status === "OPEN" && isWritten(d.layout) && <SendWrittenBugButton projectId={project.id} defectId={d.id} />}
                         </span>
                       ) : (
                         <Badge tone={d.status === "OPEN" ? "red" : "green"}>{d.status.toLowerCase()}</Badge>
@@ -180,7 +204,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
                           {l.result.run.release && <span className="text-slate-500"> · {l.result.run.release}</span>}
                         </p>
                       ))}
-                      {found.length === 0 && <span className="text-slate-400">Not linked to a result yet</span>}
+                      {found.length === 0 && !isWritten(d.layout) && <span className="text-slate-400">Not linked to a result yet</span>}
                     </td>
                     <td className="hidden px-4 py-2 text-xs text-slate-500 md:table-cell">
                       {d.createdBy} · {relativeTime(d.createdAt, spelling)}

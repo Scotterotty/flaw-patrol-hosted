@@ -71,7 +71,7 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
     {
       label: "Results",
       items: [
-        { href: `${g}/bugs`, id: "bugs", label: "Bugs", count: u.counts.openBugs || undefined },
+        { href: `${g}/bugs`, id: "bugs", label: "Bugs", count: u.counts.openBugs || undefined, ...(u.canBug && { plus: { href: `${g}/bugs?write=1`, label: "Write a bug" } }) },
         { href: reportsHome({ g: u.id, tools: u.tools }), id: "reports", label: "Reports" },
         // Once a GitHub repo is connected.
         ...(u.counts.repos ? [{ href: `${g}/repos`, id: "repos", tool: "auto" as const, label: "Repositories", count: u.counts.repos, tip: "Test health of each connected GitHub repo" }] : []),

@@ -18,7 +18,8 @@ import { severityScaleFor } from "@/lib/severity-server";
 import { jiraConfigFor, loadUmbrella, OPEN_BUG, platformColor } from "@/lib/umbrella";
 import { BugAnswers } from "@/components/bug-answers";
 import { BugDescription } from "@/components/bug-description";
-import { parseAnswers } from "@/lib/bug-layout";
+import { isWritten, parseAnswers } from "@/lib/bug-layout";
+import { SendWrittenBugButton, WriteBugButton } from "@/components/write-bug";
 import { LastCheckLine, type LastCheck } from "@/components/known-bugs-panel";
 
 export const metadata = { title: "Bugs" };
@@ -26,7 +27,7 @@ export const metadata = { title: "Bugs" };
 const SEV_BG: Record<Severity, string> = { SHOWSTOPPER: "#b91c1c", CRITICAL: "#ea580c", PROBLEMATIC: "#ca8a04", MINOR: "#475569", ENHANCEMENT: "#94a3b8" };
 
 /** Every bug filed from any project under the umbrella, once each: a Jira issue filed from two platforms shows once with both. */
-export default async function UmbrellaBugsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ q?: string; all?: string; rc?: string; platform?: string; sev?: string; jira?: string; version?: string }> }) {
+export default async function UmbrellaBugsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ q?: string; all?: string; rc?: string; platform?: string; sev?: string; jira?: string; version?: string; from?: string }> }) {
   const spelling = await mySpelling();
   const { id } = await params;
   const sp = await searchParams;
@@ -41,6 +42,10 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
   if (jira) await Promise.all(projects.map((p) => refreshDefectStatuses(p.id).catch(() => null)));
   const canRun = can(u.who, "run:execute");
   const canEdit = can(u.who, "defect:edit");
+  // Write a bug: it goes to one of the current test cycles (the first one to start), or the umbrella itself when there are none.
+  const canWrite = canRun && !u.group.archivedAt;
+  const shortName = (name: string) => (name.startsWith(`${u.group.name} `) ? name.slice(u.group.name.length + 1) : name);
+  const writeTo = u.current.length ? u.current.map((p) => ({ id: p.id, name: shortName(p.name) })) : [{ id: u.hub.id, name: u.group.name }];
   const defects = await db.defect.findMany({
     where: { projectId: { in: projects.map((p) => p.id) }, ...(showAll ? {} : OPEN_BUG), ...(sp.jira === "local" ? { externalKey: null } : {}) },
     orderBy: { createdAt: "asc" },
@@ -85,6 +90,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
       .filter((r) => !sp.platform || r.platforms.some((p) => p.toLowerCase() === sp.platform!.toLowerCase()))
       .filter((r) => !sp.rc || r.rcs.includes(sp.rc))
       .filter((r) => !sp.version || r.first.foundIn === sp.version)
+      .filter((r) => sp.from !== "own" || isWritten(r.first.layout))
       .filter((r) => sp.sev !== "critical" || isSevere(r.first.severity, scale)),
     sp.q ?? "",
     (r) => `${r.first.title} ${r.first.externalKey ?? ""} ${r.cases.join(" ")}`,
@@ -99,7 +105,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
 
   const link = (patch: Record<string, string | undefined>) => {
     const s = new URLSearchParams();
-    for (const [k, v] of Object.entries({ q: sp.q, all: sp.all, rc: sp.rc, platform: sp.platform, sev: sp.sev, jira: sp.jira, version: sp.version, ...patch })) if (v) s.set(k, v);
+    for (const [k, v] of Object.entries({ q: sp.q, all: sp.all, rc: sp.rc, platform: sp.platform, sev: sp.sev, jira: sp.jira, version: sp.version, from: sp.from, ...patch })) if (v) s.set(k, v);
     return `?${s}`;
   };
   const chip = (label: string, on: boolean, href: string, dot?: string) => (
@@ -119,7 +125,14 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
       <PageHeader
         title="Bugs"
         subtitle={`${openRows.length} open across ${projectCount} ${projectCount === 1 ? "test cycle" : "test cycles"}${critical ? ` · ${critical} critical` : ""}. A bug filed from more than one platform shows once.`}
-        actions={jira && canRun ? <RefreshJiraButton projectId={u.hub.id} projectIds={projects.map((p) => p.id)} /> : null}
+        actions={
+          (jira && canRun) || canWrite ? (
+            <div className="flex flex-wrap gap-2">
+              {jira && canRun && <RefreshJiraButton projectId={u.hub.id} projectIds={projects.map((p) => p.id)} />}
+              {canWrite && <WriteBugButton cycles={writeTo} scale={scale} />}
+            </div>
+          ) : null
+        }
       />
       {sendable.size > 0 && sp.jira !== "local" && (
         <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="not-in-jira">
@@ -131,16 +144,17 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
       )}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <AutoFilterForm className="min-w-60 flex-1">
-          {Object.entries({ all: sp.all, rc: sp.rc, platform: sp.platform, sev: sp.sev, jira: sp.jira, version: sp.version }).map(([k, v]) => v && <input key={k} type="hidden" name={k} value={v} />)}
+          {Object.entries({ all: sp.all, rc: sp.rc, platform: sp.platform, sev: sp.sev, jira: sp.jira, version: sp.version, from: sp.from }).map(([k, v]) => v && <input key={k} type="hidden" name={k} value={v} />)}
           <Input name="q" type="search" defaultValue={sp.q} placeholder="Search bugs, Jira keys or case IDs" aria-label="Search bugs" className="w-full" />
         </AutoFilterForm>
         {chip(showAll ? "Open and closed" : "Open", !showAll, link({ all: showAll ? undefined : "1" }))}
         {sp.jira === "local" && chip("Not in Jira", true, link({ jira: undefined }))}
         {sp.sev === "critical" ? chip("Critical only", true, link({ sev: undefined })) : chip("Critical", false, link({ sev: "critical" }))}
+        {chip("Written on its own", sp.from === "own", link({ from: sp.from === "own" ? undefined : "own" }))}
         {latestRc && chip(latestRc, sp.rc === latestRc, link({ rc: sp.rc === latestRc ? undefined : latestRc }))}
         {(versions.length > 0 || sp.version) && (
           <AutoFilterForm>
-            {Object.entries({ q: sp.q, all: sp.all, rc: sp.rc, platform: sp.platform, sev: sp.sev, jira: sp.jira }).map(([k, v]) => v && <input key={k} type="hidden" name={k} value={v} />)}
+            {Object.entries({ q: sp.q, all: sp.all, rc: sp.rc, platform: sp.platform, sev: sp.sev, jira: sp.jira, from: sp.from }).map(([k, v]) => v && <input key={k} type="hidden" name={k} value={v} />)}
             <Select name="version" defaultValue={sp.version ?? ""} className="w-auto" aria-label="Found in version">
               <option value="">Any version</option>
               {[...new Set([...versions, ...(sp.version ? [sp.version] : [])])].map((v) => (
@@ -154,7 +168,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
         {u.platforms.map((p) => chip(p.name, sp.platform?.toLowerCase() === p.name.toLowerCase(), link({ platform: sp.platform?.toLowerCase() === p.name.toLowerCase() ? undefined : p.name }), platformColor(u.platforms, p.name)))}
       </div>
       {list.length === 0 ? (
-        <EmptyState title={defects.length ? "No bugs match" : "No bugs yet"}>{defects.length ? "Try fewer filters." : `Bugs filed from any ${u.group.name} run show up here.`}</EmptyState>
+        <EmptyState title={defects.length ? "No bugs match" : "No bugs yet"}>{defects.length ? "Try fewer filters." : `Bugs filed from any ${u.group.name} run show up here, and so do bugs written with + Write a bug.`}</EmptyState>
       ) : (
         <Card className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -191,6 +205,11 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
                       </span>
                     </td>
                     <td className="px-4 py-2.5">
+                      {isWritten(d.layout) && (
+                        <span className="float-right ml-2 rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-medium text-accent-700" data-testid="written-chip">
+                          Written on its own
+                        </span>
+                      )}
                       {d.externalUrl ? (
                         <a href={d.externalUrl} target="_blank" rel="noreferrer" className="font-medium text-slate-900 hover:underline">
                           {d.title}
@@ -201,7 +220,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
                         </Link>
                       )}
                       <span className="block text-xs text-slate-500">{[d.externalKey ?? `${home?.key}-D${d.number}`, r.cases.length ? `from ${r.cases.join(", ")}` : "", d.foundIn && `found in ${d.foundIn}`].filter(Boolean).join(" · ")}</span>
-                      {jira && canRun && !d.externalKey && <span className="block text-xs text-slate-500">Saved before Jira was connected</span>}
+                      {jira && canRun && !d.externalKey && <span className="block text-xs text-slate-500">{isWritten(d.layout) ? "Saved here, not in Jira yet" : "Saved before Jira was connected"}</span>}
                       <LastCheckLine check={r.check} spelling={spelling} />
                       {d.answers == null && !d.externalKey && <BugDescription text={d.description} />}
                       {d.answers != null && <BugAnswers projectId={d.projectId} defectId={d.id} templateName={d.templateName} answers={parseAnswers(d.answers)} canAdd={canRun && d.status === "OPEN"} inJira={!!d.externalKey} />}
@@ -226,6 +245,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
                         <span className="flex flex-wrap items-center gap-2">
                           <LocalDefectStatus projectId={d.projectId} defect={d} />
                           {sendable.has(d.id) && <SendToJiraButton data={sendable.get(d.id)!} />}
+                          {jira && canRun && !sendable.has(d.id) && d.status === "OPEN" && isWritten(d.layout) && <SendWrittenBugButton projectId={d.projectId} defectId={d.id} />}
                         </span>
                       )}
                     </td>

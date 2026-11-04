@@ -33,6 +33,8 @@ export type MenuItem = {
   heading?: boolean;
   /** The umbrella tool it belongs to; the item leaves the menu while that tool is off. */
   tool?: string;
+  /** A small + at the end of the row that's always showing, like Write a bug next to Bugs. */
+  plus?: { href: string; label: string };
 };
 export type MenuGroup = { label: string; items: MenuItem[] };
 
@@ -139,7 +141,24 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
     save(moved(mine, group, d, at + by));
   };
 
-  const row = (i: MenuItem) => (
+  const row = (i: MenuItem) =>
+    i.plus ? (
+      <div className="flex items-center gap-1">
+        <div className="min-w-0 flex-1">{link(i)}</div>
+        <Link
+          href={i.plus.href}
+          aria-label={i.plus.label}
+          title={i.plus.label}
+          data-testid="menu-plus"
+          className="grid size-7 flex-none place-items-center rounded-md text-base leading-none font-semibold text-accent-700 ring-1 ring-accent-200 ring-inset hover:bg-accent-50 focus-visible:outline-2 focus-visible:outline-accent-500"
+        >
+          +
+        </Link>
+      </div>
+    ) : (
+      link(i)
+    );
+  const link = (i: MenuItem) => (
     <Link
       href={i.href}
       aria-current={active(i) ? "page" : undefined}

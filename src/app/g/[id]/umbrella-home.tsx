@@ -180,6 +180,12 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
         <div className="flex flex-wrap gap-2">
           {/* One button: Create a run asks the kind first. Release candidate and Bug bash open these boxes. */}
           {canRun && <StartRunBox scope={{ groupId: u.group.id }} label="▶ Create a run" openParam="run" variant={goWaiting ? "secondary" : "primary"} />}
+          {/* Write a bug: for a bug found outside a test, next to Create a run so it's seen on arrival. */}
+          {canExecute && !archived && (
+            <LinkButton href={`${g}/bugs?write=1`} data-testid="overview-write-bug">
+              + Write a bug
+            </LinkButton>
+          )}
           {/* Without Test runs, Start a bug bash is the button. */}
           {canBash && <StartBashButton projectId={u.hub.id} hideButton={runsOn} />}
           {canRc && <StartRcButton groupId={u.group.id} umbrella={u.group.name} hasRelease={u.projects.length > 0} canManage={canManage} canSuites={can(u.who, "suite:manage")} canCases={can(u.who, "case:edit")} canImport={can(u.who, "import")} hideButton />}

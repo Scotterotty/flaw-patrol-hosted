@@ -159,6 +159,26 @@ export function blankLayout(): BugLayout {
   };
 }
 
+/** Write a bug (no test case): the built-in Plain choice, not saved as a team template. */
+export const PLAIN_ID = "plain";
+/** Send to Jira for a written bug: file it with the layout it was saved with. */
+export const SAVED_ID = "saved";
+
+/** A bug written on its own (Write a bug), not from a test: its saved layout says so. */
+export const isWritten = (layout: unknown) => !!layout && typeof layout === "object" && (layout as { written?: unknown }).written === true;
+
+/** Plain: three boxes to write in, so a bug that isn't from a test still reads like one. */
+export function plainLayout(): BugLayout {
+  const s = (id: string, heading: string, hint: string): Section => ({ ...blankSection("text", heading), id, hint });
+  return {
+    title: { platform: false, area: false, build: false },
+    sections: [s("steps", "Steps to reproduce", "1. Open…\n2. Click…"), s("happened", "What happened", "What you saw"), s("expected", "What you expected", "What should have happened")],
+    shot: false,
+    fields: [],
+    from: "",
+  };
+}
+
 /** The ready-made detailed layout (the team's OB-5292 bug), as a template anyone can change. */
 export function readyMadeLayout(): BugLayout {
   const s = (source: Source, heading: string, extra: Partial<Section> = {}) => ({ ...blankSection(source, heading), ...extra });

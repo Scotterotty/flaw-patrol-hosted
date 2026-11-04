@@ -13,7 +13,7 @@ export type NavCounts = { cases: number; charters: number; suites: number; share
  * A test cycle's left menu, shaped like the umbrella menu: name card on top, Library, Testing,
  * Results, then Settings. Test cycles in an umbrella show the umbrella's menu instead (see ProjectMenu).
  */
-export function ProjectNav({ projectKey, projectName, quests = false, counts, library, live, glossary }: { projectKey: string; projectName: string; quests?: boolean; counts: NavCounts; library?: NavLibrary; live?: boolean; glossary?: { count: number; unseen: boolean } }) {
+export function ProjectNav({ projectKey, projectName, quests = false, counts, library, live, glossary, canBug = false }: { projectKey: string; projectName: string; quests?: boolean; counts: NavCounts; library?: NavLibrary; live?: boolean; glossary?: { count: number; unseen: boolean }; canBug?: boolean }) {
   const path = usePathname();
   const base = `/p/${projectKey}`;
   // Grouped in the order the team works: write tests, run them, then see what broke.
@@ -52,7 +52,7 @@ export function ProjectNav({ projectKey, projectName, quests = false, counts, li
     {
       label: "Results",
       items: [
-        { href: `${base}/bugs`, id: "bugs", label: "Bugs", count: counts.openBugs || undefined },
+        { href: `${base}/bugs`, id: "bugs", label: "Bugs", count: counts.openBugs || undefined, ...(canBug && { plus: { href: `${base}/bugs?write=1`, label: "Write a bug" } }) },
         { href: `${base}/reports`, id: "reports", label: "Reports" },
       ],
     },

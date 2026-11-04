@@ -44,7 +44,7 @@ import { attempt, UserError } from "./result";
 import { jiraConfigFor } from "@/lib/umbrella";
 import { entryRegression } from "@/lib/regression-data";
 import { bugContext } from "@/lib/bug-context";
-import { answersText, layoutFromImported, layoutTitle, listWords, missing, parseAnswers, parseLayout, withFileNames, type Answer, type BugLayout, type RunFill } from "@/lib/bug-layout";
+import { answersText, layoutFromImported, layoutTitle, listWords, missing, parseAnswers, parseLayout, PLAIN_ID, plainLayout, SAVED_ID, withFileNames, type Answer, type BugLayout, type RunFill } from "@/lib/bug-layout";
 import { templateHome } from "@/lib/bug-templates-data";
 import { FOUND_IN_FIELDS, foundInDraft, foundInRelease, matchVersion, parseFoundIn, type FoundInDraft } from "@/lib/found-in";
 
@@ -418,6 +418,9 @@ export type ImportedDraft = {
   fields: { id: string; name: string; required: boolean; source: string; value: string[]; options: string[]; multi: boolean; long: boolean; pick: boolean }[];
 };
 
+/** "Filed from Flaw Patrol: APP-12 in run R3": a written bug (no case) points at the Bugs page instead. */
+const traceOf = (ctx: BugContext) => ({ label: ctx.caseKey ? `${ctx.caseKey} in ${ctx.runLabel}` : "written on the Bugs page", link: ctx.link });
+
 /** Fields where Jira only takes one of its own choices: versions, components and options. */
 const isPick = (m: MetaField | undefined) => !!m && [m.schema.type, m.schema.items].some((t) => t === "version" || t === "component" || t === "option");
 
@@ -480,7 +483,7 @@ function templateDefaults(t: TemplateSettings, entry: Entry, ctx: BugContext, me
     team: t.team || optionLike(options.team, word),
     olyEnv: envOption ? [envOption] : t.olyEnv,
   };
-  return { bug, options, web: /^web/i.test(clientName), trace: { label: `${ctx.caseKey} in ${ctx.runLabel}`, link: ctx.link } };
+  return { bug, options, web: /^web/i.test(clientName), trace: traceOf(ctx) };
 }
 
 /** The template's Jira fields by name, with the values typed for them. */
@@ -618,7 +621,7 @@ export async function fileJiraBug(projectId: string, entryId: string, input: z.i
       }
       const valueOf = new Map(imported.fields.map((f) => [f.name, (typed.fields[f.id] ?? []).join(", ")]));
       const sections = imported.sections.filter((x) => x.source !== "empty").map((x) => ({ heading: x.heading, text: typed.sections.find((t) => t.heading === x.heading)?.text ?? "" }));
-      const trace = { label: `${ctx.caseKey} in ${ctx.runLabel}`, link: ctx.link };
+      const trace = traceOf(ctx);
       ({ key, reporterSet } = await client.createIssue({
         summary,
         description: (left) =>
@@ -638,10 +641,7 @@ export async function fileJiraBug(projectId: string, entryId: string, input: z.i
       }
     } else if (template) {
       summary = templateTitle(template);
-      ({ key, reporterSet, attachError, linkError } = await fileTemplateBug(client, template, data.severity, account, tester, files, {
-        label: `${ctx.caseKey} in ${ctx.runLabel}`,
-        link: ctx.link,
-      }));
+      ({ key, reporterSet, attachError, linkError } = await fileTemplateBug(client, template, data.severity, account, tester, files, traceOf(ctx)));
       await rememberAnswers(user.id, user.bugProfile, template);
     } else {
       summary ||= defaultSummary(ctx);
@@ -1008,6 +1008,7 @@ export async function setPlainLayout(projectId: string) {
 
 /** The template a test cycle's bug uses, from its umbrella's list. */
 async function layoutOf(projectId: string, templateId: string) {
+  if (templateId === PLAIN_ID) return { name: "Plain", layout: plainLayout() };
   const project = await db.project.findUniqueOrThrow({ where: { id: projectId }, select: { id: true, key: true, groupId: true } });
   const home = await templateHome(project);
   const t = await db.bugTemplate.findFirst({ where: { id: templateId, projectId: home.id } });
@@ -1072,6 +1073,8 @@ const templatedSchema = z.object({
   notes: z.array(z.object({ name: z.string().max(120), text: z.string().max(10000) })).max(6).default([]),
   /** Found-in version: left out = the release picked for you, null or "" = leave it out. */
   foundIn: z.string().trim().max(255).nullable().optional(),
+  /** Write a bug: false keeps it here even when Jira is connected ("Also file it in Jira" unticked). */
+  jira: z.boolean().default(true),
 });
 
 /** Only the headings the template has, in its order, with what was filled in under each. */
@@ -1102,7 +1105,13 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
     const data = templatedSchema.parse(input);
     const fromBash = data.bashItemId ? await db.bashItem.findFirst({ where: { id: data.bashItemId, bash: { run: { projectId } } }, select: { templateName: true, layout: true } }) : null;
     if (data.bashItemId && !fromBash?.layout) throw new UserError("That bug bash bug isn't here anymore.");
-    const { name, layout } = fromBash?.layout ? { name: fromBash.templateName, layout: parseLayout(fromBash.layout) } : await layoutOf(projectId, data.templateId);
+    const local = data.fromDefectId ? await db.defect.findFirst({ where: { id: data.fromDefectId, projectId } }) : null;
+    if (data.fromDefectId && !local) throw new UserError("That bug isn't in this test cycle anymore.");
+    if (local?.externalKey) throw new UserError(`That bug is already ${local.externalKey} in Jira.`);
+    // Send to Jira for a written bug: the layout it was saved with.
+    const saved = data.templateId === SAVED_ID && local?.layout ? { name: local.templateName, layout: parseLayout(local.layout) } : null;
+    if (data.templateId === SAVED_ID && !saved) throw new UserError("That bug has no saved headings to send.");
+    const { name, layout } = fromBash?.layout ? { name: fromBash.templateName, layout: parseLayout(fromBash.layout) } : (saved ?? (await layoutOf(projectId, data.templateId)));
     let answers = cleanAnswers(layout, data.answers);
     const sectionFileIds = answers.flatMap((a) => (a.files ?? []).map((f) => f.id));
     const ids = [...new Set([...data.attachmentIds, ...sectionFileIds])];
@@ -1117,11 +1126,9 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
     answers = answers.map((a) => withFileNames(a, allFiles.map((f) => f.fileName)));
     const summary = layoutTitle(layout.title, { platform: data.platform, area: data.area, build: data.build, summary: data.summary });
     const notes = data.notes.filter((n) => n.text.trim());
-    const keep = { templateName: name, layout: layout as unknown as Prisma.InputJsonValue, answers: answers as unknown as Prisma.InputJsonValue, description: [answersText(answers), ...notes.map((n) => `${n.name}\n${n.text}`)].filter(Boolean).join("\n\n").slice(0, 60000) };
-    const client = await jiraFor(projectId);
-    const local = data.fromDefectId ? await db.defect.findFirst({ where: { id: data.fromDefectId, projectId } }) : null;
-    if (data.fromDefectId && !local) throw new UserError("That bug isn't in this test cycle anymore.");
-    if (local?.externalKey) throw new UserError(`That bug is already ${local.externalKey} in Jira.`);
+    // A written bug (no run entry) is marked in its saved layout, for the "Written on its own" chip.
+    const keep = { templateName: name, layout: (entryId ? layout : { ...layout, written: true }) as unknown as Prisma.InputJsonValue, answers: answers as unknown as Prisma.InputJsonValue, description: [answersText(answers), ...notes.map((n) => `${n.name}\n${n.text}`)].filter(Boolean).join("\n\n").slice(0, 60000) };
+    const client = data.jira || local ? await jiraFor(projectId) : null;
     if (!client) {
       if (local) throw new UserError("Jira isn't connected for this test cycle.");
       const { defectSeq } = await db.project.update({ where: { id: projectId }, data: { defectSeq: { increment: 1 } } });
@@ -1159,7 +1166,7 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
     const missingRequired = layout.fields.filter((f) => f.required && !(data.fields[f.id] ?? []).some((v) => v.trim()));
     if (missingRequired.length) throw new UserError(`Fill in ${listWords(missingRequired.map((f) => f.name))} for Jira.`);
     const valueOf = new Map(layout.fields.map((f) => [f.name, (data.fields[f.id] ?? []).join(", ")]));
-    const trace = { label: `${ctx.caseKey} in ${ctx.runLabel}`, link: ctx.link };
+    const trace = traceOf(ctx);
     const { key, reporterSet } = await client.createIssue({
       summary,
       description: (left) =>
@@ -1198,7 +1205,9 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
           },
         })
       : await upsertFromIssue(projectId, issue, user, data.severity);
-    const defect = await db.defect.update({ where: { id: mirrored.id }, data: { ...keep, ...(foundIn && { foundIn: issue.foundIn || foundIn }) } });
+    // A written bug keeps the Found in that was typed, even when Jira's found-in version is off.
+    const typedFoundIn = !entryId && data.foundIn ? data.foundIn : "";
+    const defect = await db.defect.update({ where: { id: mirrored.id }, data: { ...keep, ...((foundIn || typedFoundIn) && { foundIn: issue.foundIn || foundIn || typedFoundIn }) } });
     if (allFiles.length) await db.attachment.updateMany({ where: { id: { in: allFiles.map((f) => f.id) }, projectId }, data: { defectId: defect.id } });
     if (local) revalidatePath(`/p/${project.key}`, "layout");
     if (data.stories.length) {

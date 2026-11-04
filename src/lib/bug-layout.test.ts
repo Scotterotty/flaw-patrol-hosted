@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acceptOf, answersText, autoRow, blankLayout, deviceCell, fileAllowed, layoutFromImported, layoutTitle, listWords, missing, parseAnswers, parseLayout, readyMadeLayout, startAnswers, withFileNames, type BugLayout } from "./bug-layout";
+import { acceptOf, answersText, autoRow, blankLayout, deviceCell, fileAllowed, isWritten, layoutFromImported, layoutTitle, listWords, missing, parseAnswers, parseLayout, plainLayout, readyMadeLayout, startAnswers, withFileNames, type BugLayout } from "./bug-layout";
 import { answersAdf } from "./jira-format";
 
 const auto = { now: "Oct 31, 2026, 6:14 PM PDT", build: "4.2.0-118", env: "Staging", device: "Chrome 141 · Windows", who: "Sam Lee" };
@@ -105,5 +105,31 @@ describe("bug layouts", () => {
   it("names browsers and systems", () => {
     expect(deviceCell("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36")).toBe("Chrome 141 · Windows");
     expect(deviceCell("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1")).toBe("Safari 18 · iOS");
+  });
+
+  it("Write a bug: Plain is three boxes to write in, and a run's headings become boxes too", () => {
+    const plain = plainLayout();
+    expect(plain.sections.map((x) => [x.heading, x.source])).toEqual([
+      ["Steps to reproduce", "text"],
+      ["What happened", "text"],
+      ["What you expected", "text"],
+    ]);
+    // Nothing a run would fill: no case, no step.
+    const none = { steps: "", expected: "", actual: "", env: "", hasStep: false, failed: false };
+    const auto = { now: "", build: "", env: "", device: "", who: "Ann" };
+    expect(startAnswers(plain, none, auto).every((a) => a.source === "text" && a.text === "")).toBe(true);
+    const fromRun = startAnswers(blankLayout(), none, auto);
+    expect(fromRun.find((a) => a.heading === "Steps to reproduce")?.source).toBe("text");
+    expect(fromRun.find((a) => a.heading === "Expected")?.source).toBe("text");
+    // Only Summary is required with Plain.
+    expect(missing(plain, startAnswers(plain, none, auto), 0)).toEqual([]);
+  });
+
+  it("knows a written bug by its saved layout", () => {
+    expect(isWritten({ ...plainLayout(), written: true })).toBe(true);
+    expect(isWritten(plainLayout())).toBe(false);
+    expect(isWritten(null)).toBe(false);
+    // Reading the layout back drops the mark, so it never reaches the form.
+    expect("written" in parseLayout({ ...plainLayout(), written: true })).toBe(false);
   });
 });
