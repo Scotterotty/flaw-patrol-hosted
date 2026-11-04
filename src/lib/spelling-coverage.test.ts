@@ -14,6 +14,7 @@ const NOT_APP_TEXT = [
   "src/lib/bug-template.ts",
   "src/components/bug-template-form.tsx",
   "src/server/sheet-sync.ts",
+  "src/lib/sheet-script.ts",
   "src/server/account.ts",
   "src/server/search.ts",
   "src/app/api/ci/results/route.ts",

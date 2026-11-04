@@ -91,11 +91,14 @@ test("a run's results export to a spreadsheet and send to a linked Google Sheet"
     await expect(dialog.getByLabel("Script")).toHaveValue(/const KEY = "[\w-]+";/);
     const script = await dialog.getByLabel("Script").inputValue();
     const secret = script.match(/const KEY = "([\w-]+)"/)![1];
+    // Fill in my columns is picked first; this sheet gets a tab of its own.
+    await expect(dialog.getByRole("radio", { name: /Fill in my columns/ })).toBeChecked();
+    await dialog.getByRole("radio", { name: /A tab of its own/ }).check();
     await dialog.getByLabel("Web app URL").fill("https://example.com/not-a-script");
-    await dialog.getByLabel("Tab").fill("Web");
+    await dialog.getByLabel("Tab", { exact: true }).fill("Web");
     await dialog.getByRole("button", { name: "Link and send" }).click();
     await expect(dialog.getByText(/isn.t a Web app URL/)).toBeVisible();
-    await expect(dialog.getByLabel("Tab")).toHaveValue("Web");
+    await expect(dialog.getByLabel("Tab", { exact: true })).toHaveValue("Web");
     await dialog.getByLabel("Web app URL").fill("http://localhost:3198/exec");
     await dialog.getByRole("button", { name: "Link and send" }).click();
     await expect(dialog).toHaveCount(0);

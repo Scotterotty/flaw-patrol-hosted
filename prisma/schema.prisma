@@ -774,6 +774,12 @@ model TestRun {
   sheetLink      String        @default("")
   sheetSyncedAt  DateTime?
   sheetError     String        @default("")
+  // "tab": rewrite a tab of its own. "fill": fill picked columns of a tab the team already keeps.
+  sheetMode      String        @default("tab")
+  // For "fill": header row, column set, columns to fill and rows picked by hand (src/lib/sheet-fill.ts).
+  sheetFill      Json?
+  // What the last send did, in words ("12 cells filled, 1 typed cell kept").
+  sheetNote      String        @default("")
   // Automation results: uploaded from a JUnit/NUnit file, never tested by hand.
   automated      Boolean       @default(false)
   /// Automated-only cases are in this run on purpose (ticked "Also include the automated cases",

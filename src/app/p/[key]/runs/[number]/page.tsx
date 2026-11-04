@@ -31,6 +31,7 @@ import { db } from "@/lib/db";
 import { caseKey, relativeTime } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { SHEETS_ENABLED } from "@/lib/features";
+import { fillWords } from "@/lib/sheet-fill";
 import { projectAccess, mySpelling } from "@/lib/session";
 import { cycleSettingsHref } from "@/lib/umbrella";
 import { countStatuses, pct, STATUS_LABEL, totals } from "@/lib/status";
@@ -136,7 +137,17 @@ export default async function RunPage({ params, searchParams }: { params: Promis
     })
     .filter((m) => m.total > 0);
   const unassigned = run.entries.filter((e) => !e.assigneeId);
-  const sheet: SheetState = { hook: run.sheetHook, tab: run.sheetTab, auto: run.sheetAuto, link: run.sheetLink, syncedAgo: run.sheetSyncedAt && relativeTime(run.sheetSyncedAt, spelling), error: run.sheetError };
+  const sheet: SheetState = {
+    hook: run.sheetHook,
+    tab: run.sheetTab,
+    auto: run.sheetAuto,
+    link: run.sheetLink,
+    syncedAgo: run.sheetSyncedAt && relativeTime(run.sheetSyncedAt, spelling),
+    error: run.sheetError,
+    mode: run.sheetMode === "fill" ? "fill" : "tab",
+    fills: fillWords(run.sheetFill),
+    note: run.sheetNote,
+  };
   const failedish = run.entries.filter((e) => ["FAILED", "BLOCKED", "RETEST"].includes(e.status)).length;
   // "Retest 3 not passed" says what's in it on hover: 1 failed · 1 blocked.
   const notPassed = (["FAILED", "BLOCKED", "RETEST"] as const)

@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 // preflight (scripts/e2e-preflight.mjs), every spec on the production build, then DEV_ONLY on next dev.
 const server = process.env.E2E_SERVER ?? "dev";
 // These post to localhost hooks, which production builds refuse on purpose.
-export const DEV_ONLY = ["run-sheet.spec.ts", "ver82.spec.ts"];
+export const DEV_ONLY = ["run-sheet.spec.ts", "sheet-fill.spec.ts", "ver82.spec.ts"];
 // The preflight makes a fresh database for each run and names it here; the servers and specs use it instead of .env's.
 if (existsSync(".e2e-database")) process.env.DATABASE_URL = readFileSync(".e2e-database", "utf8").trim();
 

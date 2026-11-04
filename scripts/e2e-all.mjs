@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { freePorts, root } from "./e2e-preflight.mjs";
 
 // Same list as DEV_ONLY in playwright.config.ts.
-const DEV_ONLY = ["run-sheet.spec.ts", "ver82.spec.ts"];
+const DEV_ONLY = ["run-sheet.spec.ts", "sheet-fill.spec.ts", "ver82.spec.ts"];
 const times = [];
 
 function part(name, cmd, args, env = {}) {

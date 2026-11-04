@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { SHEETS_ENABLED } from "@/lib/features";
 import { caseKey, PRIORITY_LABEL } from "@/lib/format";
 import { parseDraft } from "@/lib/run-draft";
+import { findLayout, matchEntries, parseFillConfig, planCells, type FillConfig, type FillEntry, type SheetGrid } from "@/lib/sheet-fill";
 import { STATUS_CHIPS, TESTER_CHIP } from "@/lib/sheet-colors";
 import { STATUS_LABEL } from "@/lib/status";
 import type { ExpandedStep } from "@/lib/steps";
@@ -149,19 +150,132 @@ export async function buildRunSheet(runId: string) {
   return { name: run.name, header, rows, merges, caseEnds, caseStarts, testers: ["—", ...names] };
 }
 
+type SheetReply = { ok?: boolean; error?: string; url?: string; version?: number; values?: string[][]; lists?: (string[] | null)[]; filled?: number; kept?: number };
+
+/** Posts to the sheet's script and returns its answer, or throws an error in plain words. */
+async function callSheet(hook: string, body: Record<string, unknown>): Promise<SheetReply> {
+  if (!validSheetHook(hook)) throw new Error("That isn't a Google Sheets script address.");
+  let res: Response;
+  try {
+    res = await fetch(hook, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(body),
+      redirect: "follow",
+      signal: AbortSignal.timeout(60_000),
+    });
+  } catch (e) {
+    throw new Error(e instanceof Error && e.name === "TimeoutError" ? "Google took too long to answer." : "Couldn't reach the sheet.");
+  }
+  const text = await res.text();
+  let reply: SheetReply;
+  try {
+    reply = JSON.parse(text);
+  } catch {
+    // Google answers with a sign-in page when the web app isn't open to "Anyone", and an error page when an older script gets a request it doesn't know.
+    throw new Error(
+      res.ok
+        ? body.action
+          ? "The sheet's script didn't answer. Copy the script from Flaw Patrol again (it changed), deploy a new version, and check \"Who has access\" is set to Anyone."
+          : "The sheet's script didn't answer. In Apps Script, check the deployment's \"Who has access\" is set to Anyone."
+        : `Google answered ${res.status}.`,
+    );
+  }
+  if (!reply.ok) throw new Error(reply.error ?? "The sheet's script refused the update.");
+  if (body.action && reply.version !== 2) throw new Error("This sheet has an older Flaw Patrol script. Copy the script again, paste it over the old one, and deploy a new version.");
+  return reply;
+}
+
+/** The tab's words and dropdowns, read by the sheet's script. */
+export async function readSheet(hook: string, secret: string, tab: string): Promise<SheetGrid> {
+  const reply = await callSheet(hook, { secret, action: "read", tab });
+  return { values: reply.values ?? [], lists: reply.lists ?? [] };
+}
+
+/** Each case of the run as "Fill in my columns" needs it: status, tester, step statuses, bugs and the tester's note. */
+export async function fillEntries(runId: string): Promise<FillEntry[]> {
+  const run = await db.testRun.findUniqueOrThrow({
+    where: { id: runId },
+    select: {
+      entries: {
+        orderBy: { position: "asc" },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          steps: true,
+          draft: true,
+          draftByName: true,
+          testCase: { select: { number: true, sourceKey: true, project: { select: { key: true } } } },
+          results: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { stepResults: true, testerName: true, comment: true, defects: { select: { defect: { select: { number: true, title: true, externalKey: true, externalUrl: true } } } } },
+          },
+        },
+      },
+    },
+  });
+  return run.entries.map((e) => {
+    const steps = (Array.isArray(e.steps) ? e.steps : []) as unknown as ExpandedStep[];
+    const last = e.results[0];
+    const draft = e.status === "IN_PROGRESS" ? parseDraft(e.draft) : null;
+    const from = draft ? draft.stepResults : ((last?.stepResults ?? []) as { status: ResultStatus }[]);
+    const bugs = new Map<string, { key: string; url: string | null; title: string }>();
+    for (const l of draft ? draft.defects : (last?.defects ?? [])) {
+      const key = l.defect.externalKey ?? `D-${l.defect.number}`;
+      bugs.set(key, { key, url: l.defect.externalUrl ?? null, title: l.defect.title });
+    }
+    const keys = [caseKey(e.testCase.project.key, e.testCase.number)];
+    if (e.testCase.sourceKey) keys.unshift(e.testCase.sourceKey);
+    return {
+      id: e.id,
+      keys,
+      title: e.title,
+      status: e.status,
+      tester: (draft ? e.draftByName : last?.testerName) || "",
+      steps: steps.map((st, i) => ({ number: st.number ?? "", status: (from[i]?.status ?? "UNTESTED") as ResultStatus })),
+      bugs: [...bugs.values()],
+      note: (draft ? draft.comment : last?.comment) ?? "",
+    };
+  });
+}
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** Fill the picked columns of the run's sheet. Returns the sheet's link and what happened, in words. */
+async function fillRunSheet(runId: string, hook: string, tab: string, secret: string, config: FillConfig) {
+  const grid = await readSheet(hook, secret, tab);
+  const layout = findLayout(grid, config.headerRow);
+  if (!layout) throw new Error(`Couldn't find the header row in the ${tab} tab. Open Google Sheet on this run and look at the sheet again.`);
+  const entries = await fillEntries(runId);
+  const match = matchEntries(grid, layout, entries, config.rows);
+  const cells = planCells(grid, layout, config, entries, match);
+  const reply = await callSheet(hook, { secret, action: "fill", tab, cells });
+  const parts = [`${plural(reply.filled ?? 0, "cell")} filled`];
+  if (reply.kept) parts.push(`${plural(reply.kept, "typed cell")} kept`);
+  if (match.unmatched.length) parts.push(`${plural(match.unmatched.length, "case")} not in the sheet`);
+  return { url: reply.url, note: parts.join(", ") };
+}
+
 /** Send the run to its sheet now. Returns an error to show, or null. */
 export async function pushRunToSheet(runId: string): Promise<string | null> {
-  const run = await db.testRun.findUnique({ where: { id: runId }, select: { sheetHook: true, sheetTab: true, project: { select: { sheetSecret: true } } } });
+  const run = await db.testRun.findUnique({
+    where: { id: runId },
+    select: { sheetHook: true, sheetTab: true, sheetMode: true, sheetFill: true, project: { select: { sheetSecret: true } } },
+  });
   if (!SHEETS_ENABLED || !run?.sheetHook || !run.project.sheetSecret) return null;
   let error: string | null = null;
   let link: string | undefined;
+  let note = "";
   try {
-    if (!validSheetHook(run.sheetHook)) throw new Error("That isn't a Google Sheets script address.");
-    const { header, rows, merges, caseEnds, caseStarts, testers } = await buildRunSheet(runId);
-    const res = await fetch(run.sheetHook, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({
+    if (run.sheetMode === "fill") {
+      const done = await fillRunSheet(runId, run.sheetHook, run.sheetTab, run.project.sheetSecret, parseFillConfig(run.sheetFill));
+      link = done.url;
+      note = done.note;
+    } else {
+      const { header, rows, merges, caseEnds, caseStarts, testers } = await buildRunSheet(runId);
+      const reply = await callSheet(run.sheetHook, {
         secret: run.project.sheetSecret,
         tab: run.sheetTab || "Flaw Patrol",
         rows: [header, ...rows].map((r) => r.map(cell)),
@@ -173,28 +287,15 @@ export async function pushRunToSheet(runId: string): Promise<string | null> {
         testerChip: TESTER_CHIP,
         formula: doneFormula(rows.length + 1),
         look: { ...SHEET_LOOK, ...sheetColors(rows) },
-      }),
-      redirect: "follow",
-      signal: AbortSignal.timeout(30_000),
-    });
-    const text = await res.text();
-    let reply: { ok?: boolean; error?: string; url?: string } = {};
-    try {
-      reply = JSON.parse(text);
-    } catch {
-      // Google answers with a sign-in page when the web app isn't open to "Anyone".
-      throw new Error(
-        res.ok ? "The sheet's script didn't answer. In Apps Script, check the deployment's \"Who has access\" is set to Anyone." : `Google answered ${res.status}.`,
-      );
+      });
+      link = reply.url;
     }
-    if (!reply.ok) throw new Error(reply.error ?? "The sheet's script refused the update.");
-    link = reply.url;
   } catch (e) {
-    error = e instanceof Error ? (e.name === "TimeoutError" ? "Google took too long to answer." : e.message) : "Couldn't reach the sheet.";
+    error = e instanceof Error ? e.message : "Couldn't reach the sheet.";
   }
   await db.testRun.update({
     where: { id: runId },
-    data: error ? { sheetError: error } : { sheetError: "", sheetSyncedAt: new Date(), ...(link ? { sheetLink: link } : {}) },
+    data: error ? { sheetError: error } : { sheetError: "", sheetNote: note, sheetSyncedAt: new Date(), ...(link ? { sheetLink: link } : {}) },
   });
   return error;
 }
@@ -222,92 +323,4 @@ export function queueSheetSync(run: { id: string; sheetHook: string | null; shee
   if (SHEETS_ENABLED && run.sheetHook && run.sheetAuto) after(() => pushSoon(run.id));
 }
 
-/** The script someone pastes into their sheet (Extensions > Apps Script). */
-export function sheetScript(secret: string) {
-  return `// Flaw Patrol: keeps a tab of this sheet up to date with a test run.
-// Paste this in Extensions > Apps Script, then Deploy > New deployment > Web app
-// (Execute as: Me, Who has access: Anyone) and copy the Web app URL into Flaw Patrol.
-const KEY = "${secret}";
-
-function doPost(e) {
-  const body = JSON.parse(e.postData.contents);
-  if (body.secret !== KEY) return reply({ ok: false, error: "This sheet's script has a different key. Copy the script from Flaw Patrol again." });
-  const lock = LockService.getDocumentLock();
-  lock.waitLock(30000);
-  try {
-    const book = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = book.getSheetByName(body.tab);
-    const isNew = !sheet;
-    if (isNew) sheet = book.insertSheet(body.tab);
-    const look = body.look;
-    const n = body.rows.length;
-    const width = body.rows[0].length;
-    if (sheet.getMaxColumns() < width) sheet.insertColumnsAfter(sheet.getMaxColumns(), width - sheet.getMaxColumns());
-    if (sheet.getMaxRows() < n) sheet.insertRowsAfter(sheet.getMaxRows(), n - sheet.getMaxRows());
-    const max = sheet.getMaxRows();
-    const all = sheet.getRange(1, 1, max, width);
-    all.breakApart();
-    all.clearContent();
-    all.clearDataValidations();
-    all.setBorder(false, false, false, false, false, false);
-    if (max > n) sheet.getRange(n + 1, 1, max - n, width).setBackground(null);
-
-    sheet.getRange(1, 1, n, width).setNumberFormat("@").setValues(body.rows);
-    sheet.getRange(1, 1, 1, width).setBackground(look.header).setFontColor(look.headerText).setFontFamily(look.headerFont)
-      .setFontSize(look.headerSize).setFontWeight("bold").setHorizontalAlignment("center").setVerticalAlignment("middle").setWrap(true);
-    // The header over the case statuses is a live percentage, as in the cycle sheets.
-    sheet.getRange(1, 8).setNumberFormat("0.00%").setFormula("=" + body.formula);
-    if (n > 1) {
-      const rest = sheet.getRange(2, 1, n - 1, width);
-      rest.setBackgrounds(look.backgrounds).setFontColors(look.fontColors).setFontFamily(look.font).setFontWeight("normal")
-        .setFontSize(look.size).setVerticalAlignment("middle").setHorizontalAlignment("left").setWrap(false);
-      look.wrapped.forEach(function (c) { sheet.getRange(2, c, n - 1, 1).setWrap(true); });
-      look.centered.forEach(function (c) { sheet.getRange(2, c, n - 1, 1).setHorizontalAlignment("center").setFontFamily(look.statusFont); });
-    }
-    body.merges.forEach(function (m) { sheet.getRange(m[0], m[1], m[2], 1).merge(); });
-    // Status colors follow the word, so they stay right when someone edits the sheet.
-    if (n > 1) {
-      const statusCols = [sheet.getRange(2, 8, n - 1, 1), sheet.getRange(2, 10, n - 1, 1)];
-      const ours = body.chips.map(function (c) {
-        return SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo(c.status).setBackground(c.fill).setFontColor(c.text).setRanges(statusCols).build();
-      });
-      // Anyone named in Executed By, but not "—" for nobody.
-      ours.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=AND(I2<>"",I2<>"—")')
-        .setBackground(body.testerChip.fill).setFontColor(body.testerChip.text).setRanges([sheet.getRange(2, 9, n - 1, 1)]).build());
-      const others = sheet.getConditionalFormatRules().filter(function (r) {
-        return !r.getRanges().some(function (g) { return g.getColumn() >= 8 && g.getColumn() <= 10; });
-      });
-      sheet.setConditionalFormatRules(others.concat(ours));
-    }
-    // Dropdowns on each case's status and tester, like the cycle sheets.
-    if (body.caseStarts.length) {
-      const pick = function (list) { return SpreadsheetApp.newDataValidation().requireValueInList(list, true).setAllowInvalid(true).build(); };
-      sheet.getRangeList(body.caseStarts.map(function (r) { return "H" + r; })).getRanges().forEach(function (r) { r.setDataValidation(pick(body.lists.status)); });
-      sheet.getRangeList(body.caseStarts.map(function (r) { return "I" + r; })).getRanges().forEach(function (r) { r.setDataValidation(pick(body.lists.testers)); });
-    }
-    // A line under each case, wherever the cases now fall.
-    const last = String.fromCharCode(64 + width);
-    if (body.caseEnds.length) {
-      sheet.getRangeList(body.caseEnds.map(function (r) { return "A" + r + ":" + last + r; }))
-        .setBorder(null, null, true, null, null, null, "black", SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
-    }
-    // Filter buttons on the header, covering every row now in the tab.
-    if (sheet.getFilter()) sheet.getFilter().remove();
-    sheet.getRange(1, 1, n, width).createFilter();
-    if (isNew) {
-      sheet.setFrozenRows(1);
-      sheet.setFrozenColumns(look.frozenColumns);
-      look.widths.forEach(function (w, i) { sheet.setColumnWidth(i + 1, Math.round(w * 7 + 5)); });
-      look.hidden.forEach(function (c) { sheet.hideColumns(c); });
-    }
-    return reply({ ok: true, url: book.getUrl() + "#gid=" + sheet.getSheetId() });
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function reply(o) {
-  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
-}
-`;
-}
+export { sheetScript } from "@/lib/sheet-script";
