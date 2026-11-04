@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Fragment, useCallback, useEffect, useState, useTransition } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { FIELD_SOURCES, SECTION_SOURCES, templateKind, type FieldSource, type ImportedTemplate, type SectionSource, type TemplateSettings } from "@/lib/bug-template";
 import {
   checkBugTemplate,
@@ -890,6 +890,7 @@ function StoriesSettings({ projectId, saved, bugProject, standalone = false }: {
   const mode0 = saved.project === "*" ? "any" : savedKeys.length ? "these" : "same";
   const [mode, setMode] = useState<"same" | "these" | "any">(mode0);
   const [keys, setKeys] = useState<string[]>(savedKeys);
+  const busyAdd = useRef(false);
   const [adding, setAdding] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
@@ -928,15 +929,18 @@ function StoriesSettings({ projectId, saved, bugProject, standalone = false }: {
     if (!key) return;
     if (keys.includes(key)) return setAddError(`${key} is already in the list.`);
     if (!/^[A-Z][A-Z0-9_]*$/.test(key)) return setAddError("A Jira project key is letters and numbers, like OW.");
+    // The box is disabled while Jira is asked, which blurs it: without this, Enter + blur would add it twice.
+    if (busyAdd.current) return;
+    busyAdd.current = true;
     setChecking(true);
-    const r = await loadIssueTypes(projectId, key);
+    const r = await loadIssueTypes(projectId, key).finally(() => (busyAdd.current = false));
     setChecking(false);
     if (!r.ok) return setAddError(r.error);
     setAddError(null);
     setAdding("");
     setOk(false);
     setMode("these");
-    setKeys((k) => [...k, key]);
+    setKeys((k) => (k.includes(key) ? k : [...k, key]));
   };
   const save = () =>
     start(async () => {

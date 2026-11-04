@@ -96,14 +96,14 @@ issues.get("QA-202").parent = "QA-210";
 Object.assign(issues.get("QA-202"), { priority: "High", points: 8 });
 Object.assign(issues.get("QA-203"), { priority: "Low", points: 2 });
 Object.assign(issues.get("QA-206"), { priority: "Highest", points: 5 });
-// Several requirement projects (ver_161): RP has its own stories (numbered below the bugs the tests file, RP-101 on), one in RC 22 like QA, one in "Web 22".
-issues.set("RP-41", story("Share a space link on the web", "To Do", "new", "Story", ["RC 22"]));
-issues.set("RP-42", story("Web sign-in page", "In Progress", "indeterminate", "Story", ["Web 22"]));
-Object.assign(issues.get("RP-42"), { priority: "Highest", points: 8 });
+// Several requirement projects (ver_161): WEB has its own stories, one in RC 22 like QA, one in "Web 22".
+issues.set("WEB-41", story("Share a space link on the web", "To Do", "new", "Story", ["RC 22"]));
+issues.set("WEB-42", story("Web sign-in page", "In Progress", "indeterminate", "Story", ["Web 22"]));
+Object.assign(issues.get("WEB-42"), { priority: "Highest", points: 8 });
 const ISSUE_TYPES = ["Bug", "Story", "Task", "Epic", "Requirement"].map((name) => ({ name, subtask: false, hierarchyLevel: name === "Epic" ? 1 : 0 })).concat([{ name: "Sub-task", subtask: true, hierarchyLevel: -1 }]);
 const VERSIONS = ["RC 21", "RC 22", "RC 23"];
-// Each project's releases, oldest first like Jira. RP names one release its own way.
-const PROJECT_VERSIONS = { RP: ["RC 22", "Web 22"] };
+// Each project's releases, oldest first like Jira. WEB names one release its own way.
+const PROJECT_VERSIONS = { WEB: ["RC 22", "Web 22"] };
 const links = [];
 const slack = [];
 let attachmentSeq = 900;
@@ -188,7 +188,7 @@ http
       links.push({ type: type?.name, from: inwardIssue.key, to: outwardIssue.key });
       return send(res, 201);
     }
-    if (p.startsWith("/rest/api/3/project/")) return /\/(QA|RP|OB)$/.test(p) ? send(res, 200, { key: "QA", issueTypes: ISSUE_TYPES }) : send(res, 404, { errorMessages: ["No project"] });
+    if (p.startsWith("/rest/api/3/project/")) return /\/(QA|RP|OB|WEB)$/.test(p) ? send(res, 200, { key: "QA", issueTypes: ISSUE_TYPES }) : send(res, 404, { errorMessages: ["No project"] });
     if (p === "/rest/api/3/issuetype") return send(res, 200, ISSUE_TYPES);
     const meta = /^\/rest\/api\/3\/issue\/createmeta\/([^/]+)\/issuetypes(?:\/(\w+))?$/.exec(p);
     if (meta) {
