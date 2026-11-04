@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 167,
+    date: "2026-11-04",
+    items: [
+      {
+        kind: "fix",
+        title: "Glossary underlines in steps with test data",
+        text: "Steps with test data values now underline Glossary terms too. Before, a step with a blue test data value lost all its underlines.",
+      },
+    ],
+  },
+  {
     version: 166,
     date: "2026-11-04",
     items: [

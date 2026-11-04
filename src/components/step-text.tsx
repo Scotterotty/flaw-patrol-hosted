@@ -1,48 +1,38 @@
 "use client";
 
 import { useState } from "react";
+import { stepPieces } from "@/lib/step-pieces";
 import { TermParts, useTermParts } from "./glossary";
 import { cx } from "./ui";
 
-const URL_RE = /(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]])/g;
-
-/** Step text with its web addresses as links, each with a one-click Copy. */
-const escape = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-/** Text with test data values picked out in blue, so it's clear what changes from row to row. */
-function Marked({ text, marks }: { text: string; marks: string[] }) {
-  const re = new RegExp(`(${[...marks].sort((a, b) => b.length - a.length).map(escape).join("|")})`, "g");
+/** Test data values picked out in blue, so it's clear what changes from row to row. */
+function TestValue({ text }: { text: string }) {
   return (
-    <>
-      {text.split(re).map((bit, i) =>
-        i % 2 === 1 ? (
-          <span key={i} data-test-value className="rounded bg-blue-50 px-0.5 font-medium text-blue-800 ring-1 ring-blue-100 ring-inset">
-            {bit}
-          </span>
-        ) : (
-          bit
-        ),
-      )}
-    </>
+    <span data-test-value className="rounded bg-blue-50 px-0.5 font-medium text-blue-800 ring-1 ring-blue-100 ring-inset">
+      {text}
+    </span>
   );
 }
 
+/** Step text with its web addresses as links (each with a one-click Copy), test data values and Glossary terms. */
 export function StepText({ text, className, marks }: { text: string; className?: string; marks?: string[] }) {
-  const parts = text.split(URL_RE);
-  // Glossary terms are underlined once per step, links never.
-  const terms = useTermParts(parts.map((p, i) => (i % 2 === 1 ? "" : p)));
+  const pieces = stepPieces(text, marks);
+  // Glossary terms are underlined once per step, in the plain text only: never in links or test data values.
+  const terms = useTermParts(pieces.map((p) => (p.kind === "text" ? p.text : "")));
   return (
     <span className={className}>
-      {parts.map((part, i) =>
-        i % 2 === 1 ? (
+      {pieces.map((p, i) =>
+        p.kind === "link" ? (
           <span key={i} className="inline">
-            <a href={part} target="_blank" rel="noreferrer" className="break-all text-accent-700 underline decoration-accent-300 hover:decoration-accent-700" onClick={(e) => e.stopPropagation()}>
-              {part}
+            <a href={p.text} target="_blank" rel="noreferrer" className="break-all text-accent-700 underline decoration-accent-300 hover:decoration-accent-700" onClick={(e) => e.stopPropagation()}>
+              {p.text}
             </a>
-            <CopyButton value={part} />
+            <CopyButton value={p.text} />
           </span>
+        ) : p.kind === "value" ? (
+          <TestValue key={i} text={p.text} />
         ) : (
-          <span key={i}>{marks?.length && marks.some((m) => part.includes(m)) ? <Marked text={part} marks={marks} /> : terms ? <TermParts parts={terms[i]} /> : part}</span>
+          <span key={i}>{terms ? <TermParts parts={terms[i]} /> : p.text}</span>
         ),
       )}
     </span>
