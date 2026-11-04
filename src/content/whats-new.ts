@@ -22,6 +22,43 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 170,
+    date: "2026-11-04",
+    items: [
+      {
+        kind: "better",
+        title: "Import finds your column names by itself",
+        text: "A checklist sheet with info rows on top (Tester, Release…) now imports right away: we find the row with your column names. Pick a different row from the box if we got it wrong.",
+      },
+      {
+        kind: "better",
+        title: "Section rows become folders when you import",
+        text: "A row with only a name in it, like \"Queen Mary Space\", becomes a top folder for the cases under it. A Category column becomes the Folder too.",
+      },
+      {
+        kind: "better",
+        title: "Long titles split on import",
+        text: "When a title has several lines, the first line is the title and the rest goes to Expected. It's picked for you; you can keep the whole text instead.",
+      },
+      {
+        kind: "new",
+        title: "Sheet results go straight into a run",
+        text: "If your checklist already has results filled in, Bring them into a run on the import's done screen opens Results from a spreadsheet with the same file.",
+      },
+      {
+        kind: "new",
+        title: "Write a bug without a test",
+        text: "Found a bug outside a test? Press + Write a bug on the Bugs page or Overview, or the + next to Bugs in the left menu. Pick a template, write it, and save it here or straight into Jira.",
+      },
+      {
+        kind: "better",
+        title: "Requirements can show every issue type",
+        text: "Settings → Jira → Requirements → Issue types you can link → Every issue type. A release then lists every ticket with that Fix Version (Bugs, Epics, Improvements…), not just Stories and Tasks.",
+        who: "lead",
+      },
+    ],
+  },
+  {
     version: 169,
     date: "2026-11-04",
     items: [
