@@ -167,7 +167,7 @@ export async function importRun(projectId: string, input: SheetInput, run: z.inp
     const sheet = sheetSchema.parse(input);
     const meta = runSchema.parse(run);
     const p = await plan(project, sheet);
-    if (!p.rows.length) throw new UserError("None of the cases in the sheet are in this test cycle yet. Import the cases first.");
+    if (!p.rows.length) throw new UserError("None of the cases in the sheet are in the case library yet. Import the cases first.");
     // Noon UTC, so the date reads the same in the US and the UK.
     const at = new Date(Math.min(new Date(`${meta.testedOn}T12:00:00Z`).getTime(), Date.now()));
     const suite = meta.suiteId ? await db.testSuite.findFirst({ where: { id: meta.suiteId, projectId: { in: await libraryProjectIds(project) } }, select: { id: true, currentVersion: true } }) : null;

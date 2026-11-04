@@ -151,12 +151,14 @@ export function RunImporter({ projectId, projectKey, suites, runs = [], pickRun 
         <Card className="p-4" role="radiogroup" aria-label="Where should the results go?">
           <h2 className="text-sm font-semibold text-slate-800">Where should the results go?</h2>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            <label className={cx("flex cursor-pointer gap-2 rounded-md border p-3 text-sm", target === "run" ? "border-accent-500 bg-accent-50" : "border-slate-200")}>
-              <input type="radio" name="imp-target" className="mt-0.5" checked={target === "run"} onChange={() => setTarget("run")} />
-              <span className="grid min-w-0 flex-1 gap-1.5">
+            <div className={cx("grid gap-1.5 rounded-md border p-3 text-sm", target === "run" ? "border-accent-500 bg-accent-50" : "border-slate-200")}>
+              <label className="flex cursor-pointer items-center gap-2">
+                <input type="radio" name="imp-target" checked={target === "run"} onChange={() => setTarget("run")} />
                 <span className="font-medium text-slate-800">
                   A run in progress <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">Recommended</span>
                 </span>
+              </label>
+              <span className="grid min-w-0 gap-1.5 pl-5">
                 <Select
                   aria-label="Run in progress"
                   value={runId}
@@ -174,7 +176,7 @@ export function RunImporter({ projectId, projectKey, suites, runs = [], pickRun 
                 </Select>
                 <span className="text-xs text-slate-500">Only cases still untested get the sheet&apos;s result. Anything already marked here stays as it is.</span>
               </span>
-            </label>
+            </div>
             <label className={cx("flex cursor-pointer gap-2 rounded-md border p-3 text-sm", target === "new" ? "border-accent-500 bg-accent-50" : "border-slate-200")}>
               <input type="radio" name="imp-target" className="mt-0.5" checked={target === "new"} onChange={() => setTarget("new")} />
               <span className="grid gap-0.5">
@@ -241,7 +243,7 @@ export function RunImporter({ projectId, projectKey, suites, runs = [], pickRun 
                 {p.notFound.length > 0 && (
                   <li>
                     <span className="text-amber-800">
-                      {p.notFound.length} {p.notFound.length === 1 ? "case isn't" : "cases aren't"} in this test cycle:{" "}
+                      {p.notFound.length} {p.notFound.length === 1 ? "case isn't" : "cases aren't"} in the case library:{" "}
                     </span>
                     <span className="font-mono text-xs">{p.notFound.slice(0, 12).map((n) => n.key || n.title).join(", ")}{p.notFound.length > 12 && "…"}</span>
                     <span className="text-slate-500"> · skipped. Import those cases first to include them.</span>

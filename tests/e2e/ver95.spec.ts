@@ -83,7 +83,7 @@ test("one Create a run button: pick the kind, add a kind, make the test cycle on
   // The run keeps its kind: a tag on Test runs and a Kind filter.
   await page.goto(`/g/${groupId}/runs?kind=smoke`);
   await expect(page.getByTestId("kind-tag").first()).toHaveText("Smoke test");
-  await expect(page.getByText("By hand")).toHaveCount(0);
+  await expect(page.getByText("By hand", { exact: true })).toHaveCount(0);
 
   // Umbrella Settings → Run kinds lists the built-ins and Regression.
   await page.goto(`/g/${groupId}/settings`);

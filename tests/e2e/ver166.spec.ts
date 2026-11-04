@@ -23,7 +23,8 @@ test.beforeAll(async () => {
     // The cases live in the umbrella's Case library (the hub), like real umbrellas.
     const titles = ["Untested here", "Passed both", "Failed here", "Not in the run", "Blank in sheet"];
     const cases = [];
-    for (const [i, title] of titles.entries()) cases.push(await db.testCase.create({ data: { projectId: hub.id, number: i + 1, title } }));
+    // The first keeps its old qTest key, like cases imported from qTest.
+    for (const [i, title] of titles.entries()) cases.push(await db.testCase.create({ data: { projectId: hub.id, number: i + 1, title, sourceKey: i === 0 ? `PQ-17${TAG}` : null } }));
     const status = ["UNTESTED", "PASSED", "FAILED", null, "UNTESTED"] as const;
     const run = await db.testRun.create({
       data: {
@@ -53,7 +54,7 @@ test.beforeAll(async () => {
 
 const sheet = [
   "Key,Name,Case result",
-  `${HUB}-1,Untested here,Passed`,
+  `PQ-17${TAG},Untested here,Passed`,
   `${HUB}-2,Passed both,Passed`,
   `${HUB}-3,Failed here,Passed`,
   `${HUB}-4,Not in the run,Failed`,
@@ -74,9 +75,13 @@ test("a sheet goes into a run in progress from the umbrella, filling only untest
   await expect(page).toHaveURL(new RegExp(`/p/${CYCLE}/runs/import`));
 
   await page.getByLabel("Sheet file").setInputFiles({ name: "Web check.csv", mimeType: "text/csv", buffer: Buffer.from(sheet) });
+  // Every case is found in the umbrella's Case library: by its old qTest key and by its key there.
+  const found = page.getByRole("region", { name: "What Flaw Patrol found" });
+  await expect(found).toContainText("Cases matched5");
+  await expect(found).toContainText("Not found0");
   const where = page.getByRole("radiogroup", { name: "Where should the results go?" });
   await expect(where.getByRole("radio", { name: /A run in progress/ })).toBeChecked();
-  await expect(where.getByLabel("Run in progress")).toContainText("R1 R1 Web check · 2 of 4 tested");
+  await expect(where.getByLabel("Run in progress", { exact: true })).toContainText("R1 R1 Web check · 2 of 4 tested");
 
   const into = page.getByRole("region", { name: "Adding to the run" });
   await expect(into.getByTestId("into-summary")).toContainText("1 case gets a result · 2 already done here, skipped · 1 blank in the sheet, left as they are · 1 not in this run, skipped");
