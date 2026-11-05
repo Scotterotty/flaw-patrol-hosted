@@ -58,8 +58,8 @@ test("bugs follow the team template", async ({ page }) => {
   await expect(fields.getByTestId("fields-filled").getByRole("listitem").filter({ hasText: "Stakeholder Priority" })).toContainText("Not Prioritized");
   await expect(fields.getByTestId("fields-filled").getByRole("listitem").filter({ hasText: "To Be Automated?" })).toContainText("Maybe");
   await expect(fields.getByTestId("fields-written")).not.toContainText("Last Reproduced");
-  await expect(settings.getByLabel("Title client tag")).toHaveValue("UNREAL");
-  await expect(settings.getByLabel("Team", { exact: true })).toHaveValue("Unreal");
+  await expect(settings.getByLabel("Tag at the start of bug titles")).toHaveValue("UNREAL");
+  await expect(settings.getByLabel("Jira Team", { exact: true })).toHaveValue("Unreal");
   await expect(settings.getByRole("group", { name: "Default Client/SKUs" }).getByRole("button", { name: "Unreal" })).toHaveAttribute("aria-pressed", "true");
   await settings.getByRole("group", { name: "Default Client/SKUs" }).getByRole("button", { name: "Windows" }).click();
   await settings.getByRole("button", { name: /^(Save defaults|Use the OKO bug layout)$/ }).click();

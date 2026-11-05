@@ -61,6 +61,8 @@ test("import a bug template from an example Jira bug", async ({ page }) => {
   await page.getByLabel("Step 1 action").fill("Type a password");
   await page.getByLabel("Step 1 expected result").fill("The Show button stays");
   await page.getByRole("button", { name: "Create case" }).first().click();
+  // Wait for the case to save before leaving the page.
+  await expect(page).not.toHaveURL(/\/cases\/new/);
   await page.goto(`/p/${KEY}/suites/new`);
   await page.getByLabel("Name", { exact: true }).fill("Smoke");
   await page.getByRole("checkbox").first().check();

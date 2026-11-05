@@ -747,6 +747,23 @@ export const HOW_TO: HowToTask[] = [
       { text: "Add headings with **+ Add heading**: text boxes, choices, file slots or tables.", see: "The preview changing as you go.", target: "template-add-heading" },
       { text: "Press **Save template**.", see: "Your template in the list. Bugs filed with it get the same headings, and it says what's missing before sending.", target: "template-save", saves: true },
     ],
+    next: "bug-defaults",
+  },
+  {
+    id: "bug-defaults",
+    group: "Bugs",
+    title: "Set a test cycle's bug starting values",
+    sub: "The [TAG] in bug titles, Jira Team, clients and environment",
+    words: "bug defaults starting values title tag client tag brackets team client skus oly environment oko layout platform presets",
+    steps: [
+      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your test cycle's settings.", target: "menu-settings" },
+      { text: "Find **Bug templates** and press **Change**.", see: "Your templates.", target: "settings-bug-templates" },
+      { text: "On the first template, press **Change layout…**. The starting values are part of the OKO bug layout.", see: "**Starting values for bugs from this test cycle**.", target: "template-change-layout" },
+      { text: "Type the **Tag at the start of bug titles**, usually the platform, like UNREAL.", see: "The tag in the preview's title.", target: "defaults-tag", type: true },
+      { text: "Under **Clients to tick in Jira**, click the clients these bugs are for. Click again to remove one.", see: "A check mark on each one you picked.", target: "defaults-clients" },
+      { text: "Check the preview. Testers can still change any of these on each bug, and **Write a bug** starts blank.", see: "A new bug's title and Jira fields.", target: "defaults-preview" },
+      { text: "Press **Save defaults**.", see: "**Saved.** New bugs from this test cycle start with these.", target: "defaults-save", saves: true },
+    ],
     next: "start-bash",
   },
 

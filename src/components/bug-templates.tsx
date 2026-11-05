@@ -136,7 +136,7 @@ export function BugTemplatesSettings({ projectId, current, templates, defaultId,
                   </Button>
                 )}
                 {!r.id && currentPanel && (
-                  <Button size="sm" aria-expanded={layoutOpen} aria-controls="template" onClick={toggleLayout}>
+                  <Button size="sm" data-howto="template-change-layout" aria-expanded={layoutOpen} aria-controls="template" onClick={toggleLayout}>
                     Change layout…
                   </Button>
                 )}

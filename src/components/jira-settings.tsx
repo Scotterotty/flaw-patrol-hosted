@@ -665,6 +665,11 @@ function DetailedTemplate({ projectId, saved, jiraProjectKey, onCancel, keepShar
               : "rounded-full border border-slate-300 bg-surface px-2.5 py-0.5 text-xs text-slate-700"
           }
         >
+          {value.includes(o) && (
+            <span aria-hidden="true" className="mr-1 font-bold">
+              ✓
+            </span>
+          )}
           {o}
         </button>
       ))}
@@ -762,13 +767,15 @@ function DetailedTemplate({ projectId, saved, jiraProjectKey, onCancel, keepShar
             </Button>
           </div>
           <div className="space-y-3">
-            <p className="text-xs font-semibold text-slate-600">Defaults for this test cycle</p>
-            <p className="text-xs text-slate-500">Filled in on every bug. Anyone filing can still change them on each bug.</p>
+            <div>
+              <p className="text-sm font-semibold text-slate-800">Starting values for bugs from this test cycle</p>
+              <p className="text-xs text-slate-500">For bugs found in a run. Testers can still change any of these on each bug, and Write a bug starts blank. Each test cycle keeps its own, so each platform&apos;s bugs start right.</p>
+            </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Title client tag" htmlFor="tpl-tag" hint="Shown in [brackets] at the start of each bug title. Leave blank for none.">
-                <Input id="tpl-tag" value={clientTag} onChange={(e) => setClientTag(e.target.value.toUpperCase())} placeholder="Optional" />
+              <Field label="Tag at the start of bug titles" htmlFor="tpl-tag" hint="Usually the platform, like UNREAL or WEB. Blank: Flaw Patrol picks one from the test case or run name.">
+                <Input id="tpl-tag" data-howto="defaults-tag" value={clientTag} onChange={(e) => setClientTag(e.target.value.toUpperCase())} placeholder="e.g. UNREAL" />
               </Field>
-              <Field label="Team" htmlFor="tpl-team">
+              <Field label="Jira Team" htmlFor="tpl-team" hint="Blank: guessed from the run name.">
                 {opts("Team").length ? (
                   <Select id="tpl-team" value={team} onChange={(e) => setTeam(e.target.value)}>
                     <option value="">None</option>
@@ -781,15 +788,34 @@ function DetailedTemplate({ projectId, saved, jiraProjectKey, onCancel, keepShar
                 )}
               </Field>
             </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-700">Client/SKUs</p>
+            <div data-howto="defaults-clients">
+              <p className="text-xs font-medium text-slate-700">Clients to tick in Jira</p>
+              <p className="mb-1.5 text-xs text-slate-500">From your Jira&apos;s Client/SKUs list. Click to pick, click again to remove. Pick none and Flaw Patrol guesses from the run name.</p>
               {chips("Default Client/SKUs", opts("Client/SKUs"), clients, setClients)}
             </div>
             <div>
-              <p className="mb-1 text-xs font-medium text-slate-700">Oly Environment (when the run&apos;s environment isn&apos;t one of these)</p>
+              <p className="text-xs font-medium text-slate-700">Backup Oly Environment</p>
+              <p className="mb-1.5 text-xs text-slate-500">From your Jira&apos;s list. When the run&apos;s own environment is on this list, that one is used. Your pick is only the backup.</p>
               {chips("Default Oly Environment", opts("Oly Environment"), olyEnv, setOlyEnv)}
             </div>
-            <p className="text-xs text-slate-500">Each test cycle keeps its own defaults, so each platform&apos;s bugs get the right client.</p>
+            <div className="space-y-1.5 rounded-lg border border-dashed border-accent-300 bg-slate-50 px-3 py-2.5" data-testid="defaults-preview" data-howto="defaults-preview">
+              <p className="text-xs font-semibold text-slate-700">A bug found in a run here will look like this</p>
+              <p className="break-words font-mono text-[13px] text-slate-800">
+                {clientTag.trim() ? `[${clientTag.trim().replace(/^\[|\]$/g, "")}] - ` : <span className="text-slate-500">[tag from the test case or run] - </span>}
+                <span className="text-slate-500">Feature - what the tester writes</span>
+              </p>
+              <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-xs">
+                <dt className="text-slate-500">Client/SKUs</dt>
+                <dd>{clients.length ? clients.join(", ") : <span className="text-slate-500">guessed from the run name</span>}</dd>
+                <dt className="text-slate-500">Team</dt>
+                <dd>{team || <span className="text-slate-500">guessed from the run name</span>}</dd>
+                <dt className="text-slate-500">Oly Environment</dt>
+                <dd>
+                  {olyEnv.length ? olyEnv.join(", ") : <span className="text-slate-500">none</span>}
+                  <span className="text-slate-500">, unless the run&apos;s environment is on Jira&apos;s list</span>
+                </dd>
+              </dl>
+            </div>
           </div>
         </>
       )}
@@ -800,7 +826,7 @@ function DetailedTemplate({ projectId, saved, jiraProjectKey, onCancel, keepShar
             Back
           </Button>
         )}
-        <Button variant="primary" size="sm" disabled={pending} onClick={save}>
+        <Button variant="primary" size="sm" data-howto="defaults-save" disabled={pending} onClick={save}>
           {pending ? "Saving…" : saved.on && !saved.imported ? "Save defaults" : "Use the OKO bug layout"}
         </Button>
       </div>

@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 180,
+    date: "2026-11-05",
+    items: [
+      {
+        kind: "better",
+        title: "Bug starting values explain themselves",
+        text: "In Settings → Bug templates → Change layout…, the OKO layout's starting values now say what each one fills in Jira and what happens when you leave it blank. Picked clients get a check mark, and a preview shows a new bug's title and Jira fields before you save. The How-to guide has a new task for it.",
+        who: "lead",
+      },
+    ],
+  },
+  {
     version: 179,
     date: "2026-11-05",
     items: [
