@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acceptOf, answersText, autoRow, blankLayout, deviceCell, fileAllowed, isWritten, layoutFromImported, layoutFromSettings, layoutTitle, listWords, missing, parseAnswers, parseLayout, plainLayout, readyMadeLayout, startAnswers, withFileNames, type BugLayout } from "./bug-layout";
+import { acceptOf, answersText, autoRow, blankLayout, deviceCell, fileAllowed, isWritten, layoutFromImported, layoutFromSettings, layoutTitle, usualAnswers, usualAnswersLine, listWords, missing, parseAnswers, parseLayout, plainLayout, readyMadeLayout, startAnswers, withFileNames, type BugLayout } from "./bug-layout";
 import { answersAdf } from "./jira-format";
 
 const auto = { now: "Oct 31, 2026, 6:14 PM PDT", build: "4.2.0-118", env: "Staging", device: "Chrome 141 · Windows", who: "Sam Lee" };
@@ -152,5 +152,18 @@ describe("layoutFromSettings (Write a bug's first choice)", () => {
   it("uses a copied Jira bug's layout as it is", () => {
     const imported = { from: "QA-1", title: { tag: true, feature: false }, sections: [{ heading: "Steps", source: "steps" as const }], fields: [] };
     expect(layoutFromSettings({ ...base, on: true, imported })?.from).toBe("QA-1");
+  });
+});
+
+describe("usualAnswers (Write a bug: Is this bug about …?)", () => {
+  const base = { on: true, clientTag: "", team: "", clients: [], olyEnv: [], imported: null, priority: null };
+  it("offers nothing when no usual answers are saved, or for the plain layout", () => {
+    expect(usualAnswers(base, "Unreal")).toBeNull();
+    expect(usualAnswers({ ...base, on: false, team: "Unreal" }, "Unreal")).toBeNull();
+  });
+  it("lists the tag and the saved fields", () => {
+    const u = usualAnswers({ ...base, clientTag: "UNREAL", team: "Unreal", clients: ["Unreal Desktop"] }, "Unreal")!;
+    expect(u.fields.map((f) => f.name)).toEqual(["Team", "Client/SKUs"]);
+    expect(usualAnswersLine(u)).toBe("tag [UNREAL] · Team: Unreal · Client/SKUs: Unreal Desktop");
   });
 });

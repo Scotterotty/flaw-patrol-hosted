@@ -234,6 +234,25 @@ export function layoutFromSettings(t: TemplateSettings): BugLayout | null {
   };
 }
 
+/** A test cycle's usual answers for the OKO layout, for Write a bug's "Is this bug about X?" question. */
+export type UsualAnswers = { about: string; tag: string; fields: { name: string; value: string[] }[] };
+
+/** The usual answers saved with the detailed (OKO) layout, or null when there are none to offer. */
+export function usualAnswers(t: TemplateSettings, about: string): UsualAnswers | null {
+  if (templateKind(t) !== "detailed") return null;
+  const fields = [
+    { name: FIELD.team, value: [t.team].filter(Boolean) },
+    { name: FIELD.clients, value: t.clients },
+    { name: FIELD.olyEnv, value: t.olyEnv },
+  ].filter((f) => f.value.length);
+  return t.clientTag || fields.length ? { about, tag: t.clientTag, fields } : null;
+}
+
+/** "tag [UNREAL] · Team: Unreal · Client/SKUs: Unreal Desktop", the line under the question. */
+export function usualAnswersLine(u: UsualAnswers) {
+  return [u.tag && `tag [${u.tag}]`, ...u.fields.map((f) => `${f.name}: ${f.value.join(", ")}`)].filter(Boolean).join(" · ");
+}
+
 /** "[Windows] - Checkout - 4.2.0-118 - App closes": blank parts are left out. */
 export function layoutTitle(t: BugLayout["title"], p: { platform: string; area: string; build: string; summary: string }) {
   const tag = p.platform.trim().replace(/^\[|\]$/g, "");

@@ -769,7 +769,7 @@ function DetailedTemplate({ projectId, saved, jiraProjectKey, onCancel, keepShar
           <div className="space-y-3">
             <div>
               <p className="text-sm font-semibold text-slate-800">Starting values for bugs from this test cycle</p>
-              <p className="text-xs text-slate-500">For bugs found in a run. Testers can still change any of these on each bug, and Write a bug starts blank. Each test cycle keeps its own, so each platform&apos;s bugs start right.</p>
+              <p className="text-xs text-slate-500">For bugs found in a run. Testers can still change any of these on each bug, and Write a bug asks before using them. Each test cycle keeps its own, so each platform&apos;s bugs start right.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Tag at the start of bug titles" htmlFor="tpl-tag" hint="Usually the platform, like UNREAL or WEB. Blank: Flaw Patrol picks one from the test case or run name.">

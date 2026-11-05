@@ -221,7 +221,8 @@ test("the test cycle's own layout (like the shared OKO one) comes first, with Pl
   const db2 = new PrismaClient();
   try {
     const p = await db2.project.findUniqueOrThrow({ where: { key: OK } });
-    await db2.jiraConfig.update({ where: { projectId: p.id }, data: { sharedTemplateId: "shared_oko_layout" } });
+    // The test cycle's usual answers for the OKO layout (ver_181 asks before using them).
+    await db2.jiraConfig.update({ where: { projectId: p.id }, data: { sharedTemplateId: "shared_oko_layout", bugTemplate: { on: true, clientTag: "UNREAL", team: "Unreal", clients: ["Unreal"], olyEnv: [], imported: null } } });
   } finally {
     await db2.$disconnect();
   }
@@ -233,6 +234,20 @@ test("the test cycle's own layout (like the shared OKO one) comes first, with Pl
   await expect(picker.getByRole("radio", { name: "Plain" })).toBeVisible();
   await expect(box.getByLabel("Repro steps")).toBeVisible();
   await expect(box.getByLabel("Bug impact")).toBeVisible();
+
+  // "Is this bug about …?": start blank until the writer says yes; yes fills the tag, no clears it again.
+  const usual = box.getByTestId("usual-answers");
+  await expect(usual).toContainText(`Is this bug about OKO writing ${TAG}?`);
+  await expect(usual).toContainText("tag [UNREAL]");
+  await expect(usual.getByRole("button", { name: "No, start blank" })).toHaveAttribute("aria-pressed", "true");
+  await expect(box.locator("#tb-platform")).toHaveValue("");
+  await usual.getByRole("button", { name: /^Yes, use / }).click();
+  await expect(box.locator("#tb-platform")).toHaveValue("UNREAL");
+  await expect(usual).toContainText("Filled in:");
+  await usual.getByRole("button", { name: "No, start blank" }).click();
+  await expect(box.locator("#tb-platform")).toHaveValue("");
+  await usual.getByRole("button", { name: /^Yes, use / }).click();
+
   await box.getByLabel("Summary").fill(`Avatar flickers ${TAG}`);
   await box.getByLabel("Description").fill("The avatar flickers when walking");
   await box.getByLabel("Repro steps").fill("1. Walk forward");
@@ -248,6 +263,7 @@ test("the test cycle's own layout (like the shared OKO one) comes first, with Pl
   try {
     const bug = await db3.defect.findFirstOrThrow({ where: { title: { contains: `Avatar flickers ${TAG}` } } });
     expect(bug.templateName).toBe("OKO bug layout");
+    expect(bug.title).toContain("[UNREAL]");
   } finally {
     await db3.$disconnect();
   }
@@ -257,4 +273,5 @@ test("the test cycle's own layout (like the shared OKO one) comes first, with Pl
   await picker.getByRole("radio", { name: "Plain" }).click();
   await expect(box.getByLabel("What happened")).toBeVisible();
   await expect(box.getByLabel("Bug impact")).toHaveCount(0);
+  await expect(box.getByTestId("usual-answers")).toHaveCount(0);
 });

@@ -8,7 +8,7 @@
 import type { Severity } from "@prisma/client";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { CURRENT_ID, deviceCell, nowCell, PLAIN_ID, plainLayout, startAnswers, type BugLayout } from "@/lib/bug-layout";
+import { CURRENT_ID, deviceCell, nowCell, PLAIN_ID, plainLayout, startAnswers, usualAnswersLine, type BugLayout, type UsualAnswers } from "@/lib/bug-layout";
 import { defaultSeverityOf, type SeverityScale } from "@/lib/severity";
 import { bugTemplateChoices } from "@/server/bug-templates";
 import { fileTemplatedBug, startTemplatedBug } from "@/server/jira";
@@ -17,7 +17,7 @@ import { sendWrittenBug, writeBugStart } from "@/server/write-bug";
 import { Modal } from "./modal";
 import type { CurrentLayout } from "@/lib/bug-templates-data";
 import { missingLine, TemplatedForm, TemplatePicker, type TemplateChoice, type TemplatedDraft } from "./templated-bug-form";
-import { Button, ErrorText, Input, Select } from "./ui";
+import { Button, cx, ErrorText, Input, Select } from "./ui";
 
 export type WriteBugCycle = { id: string; name: string };
 
@@ -82,6 +82,12 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
   const fileInput = useRef<HTMLInputElement>(null);
   const draftRef = useRef<TemplatedDraft | null>(null);
   draftRef.current = draft;
+  // "Is this bug about Unreal?": the test cycle's usual answers, only when the writer says yes
+  // (Scott, Nov 5: you may be in an Unreal umbrella writing up a Unity bug). Start blank until then.
+  const [usual, setUsual] = useState<UsualAnswers | null>(null);
+  const [useUsual, setUseUsual] = useState(false);
+  const usualRef = useRef({ usual, on: useUsual });
+  usualRef.current = { usual, on: useUsual };
 
   /** Switch template: what was typed under a heading with the same name comes along. */
   const pick = (id: string, list: TemplateChoice[], forProject = projectId, top = first) => {
@@ -99,7 +105,9 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
         const old = typed.get(a.heading.trim().toLowerCase());
         return old && !a.rows && !a.files ? { ...a, text: old.text } : a;
       });
-      setDraft({ templateId, layout: real, platform: before?.platform ?? "", area: before?.area ?? "", build: before?.build ?? "", summary: before?.summary ?? "", answers, fields: res.fields });
+      const fresh: TemplatedDraft = { templateId, layout: real, platform: before?.platform ?? "", area: before?.area ?? "", build: before?.build ?? "", summary: before?.summary ?? "", answers, fields: res.fields };
+      const u = usualRef.current;
+      setDraft(templateId === CURRENT_ID && u.usual && u.on ? withUsual(fresh, u.usual, true) : fresh);
     });
   };
 
@@ -115,6 +123,9 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
       const top = c.ok && c.currentLayout ? { label: c.current, layout: c.currentLayout } : { label: PLAIN, layout: null };
       const list = [...(c.ok ? c.templates : []), ...(top.layout ? [PLAIN_CHOICE] : [])];
       setFirst(top);
+      setUsual(c.ok ? c.presets : null);
+      setUseUsual(false);
+      usualRef.current = { usual: c.ok ? c.presets : null, on: false };
       setChoices(list);
       setLoadedFor(projectId);
       pick(c.ok && c.defaultId && list.some((t) => t.id === c.defaultId) ? c.defaultId : "", list, projectId, top);
@@ -139,6 +150,9 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
   };
 
   const toJira = !!jiraKey && alsoJira;
+  // Only what this form can fill: Jira fields show when Jira is connected.
+  const offer = usual && draft?.templateId === CURRENT_ID ? { ...usual, fields: usual.fields.filter((f) => draft.fields.some((x) => x.name === f.name)) } : null;
+  const asked = offer && (offer.tag || offer.fields.length) ? offer : null;
   const gaps = draft ? missingLine(draft, 0) : "";
   const save = () =>
     start(async () => {
@@ -215,6 +229,35 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
           </div>
           {draft && draft.templateId === (chosen || (first.layout ? CURRENT_ID : PLAIN_ID)) ? (
             <>
+              {asked && (
+                <div className="space-y-1.5 rounded-lg border border-slate-200 px-3 py-2.5" data-testid="usual-answers" data-howto="write-bug-usual">
+                  <p className="text-xs font-medium text-slate-600" id="wb-usual">
+                    Is this bug about {asked.about}?
+                  </p>
+                  <div role="group" aria-labelledby="wb-usual" className="flex flex-wrap gap-1.5">
+                    {[
+                      { on: true, label: `Yes, use ${asked.about}'s usual answers` },
+                      { on: false, label: "No, start blank" },
+                    ].map((o) => (
+                      <button
+                        key={String(o.on)}
+                        type="button"
+                        aria-pressed={useUsual === o.on}
+                        onClick={() => {
+                          setUseUsual(o.on);
+                          setDraft((d) => (d && usual ? withUsual(d, usual, o.on) : d));
+                        }}
+                        className={cx("rounded-full border px-3 py-1 text-[13px]", useUsual === o.on ? "border-accent-600 bg-accent-600 text-white" : "border-slate-300 bg-surface text-slate-700 hover:border-slate-400")}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    {useUsual ? "Filled in" : "Fills in"}: {usualAnswersLine(asked)}. You can still change each one.
+                  </p>
+                </div>
+              )}
               <TemplatedForm projectId={projectId} draft={draft} setDraft={(fn) => setDraft((d) => (d ? fn(d) : d))} severity={severity} setSeverity={setSeverity} scale={scale} setError={setError} />
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="wb-found">
@@ -270,6 +313,16 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
       )}
     </Modal>
   );
+}
+
+/** Fill in (or clear) the usual answers: the title's tag and the Jira fields they name. */
+function withUsual(d: TemplatedDraft, u: UsualAnswers, on: boolean): TemplatedDraft {
+  const fields = d.fields.map((f) => {
+    const p = u.fields.find((x) => x.name === f.name);
+    return p ? { ...f, value: on ? p.value : [] } : f;
+  });
+  const platform = on ? u.tag || d.platform : d.platform === u.tag ? "" : d.platform;
+  return { ...d, platform, fields };
 }
 
 /** Send to Jira for a written bug: its headings and files go as they are, no box needed. */

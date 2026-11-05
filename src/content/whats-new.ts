@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 181,
+    date: "2026-11-05",
+    items: [
+      {
+        kind: "better",
+        title: "Write a bug asks before using your usual answers",
+        text: "With the OKO bug layout, Write a bug asks \"Is this bug about Unreal?\" (your umbrella's name). Yes fills in its tag, Team and Client/SKUs. No, start blank, is picked until you choose, so a bug about another product never gets the wrong answers.",
+        who: "all",
+      },
+    ],
+  },
+  {
     version: 180,
     date: "2026-11-05",
     items: [
