@@ -1093,8 +1093,57 @@ export function Runner({
                         )}
                       >
                         <span className="block text-[11px] font-medium tracking-wide text-slate-400 uppercase select-none">Expected</span>
-                        {(many ? many.expected : step.expected) ? (
-                          <StepText text={many ? many.expected : step.expected} marks={step.vals} className="whitespace-pre-wrap wrap-anywhere" />
+                        {many?.expected && <StepText text={many.expected} marks={step.vals} className="block whitespace-pre-wrap wrap-anywhere" />}
+                        {many ? (
+                          <ul className="divide-y divide-slate-100" aria-label={`Step ${step.number} checks`}>
+                            {(() => {
+                              let k = -1;
+                              return many.lines.map((line, li) => {
+                                if ("label" in line)
+                                  return (
+                                    <li key={li} className="pt-2 pb-0.5 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
+                                      {line.label}
+                                    </li>
+                                  );
+                                const c = ++k;
+                                const r = checkResults[i][c];
+                                const here = current === i && curCheck === c;
+                                return (
+                                  <li key={li} className={cx("flex flex-wrap items-center gap-2 py-1 text-sm", here && "-mx-1 rounded bg-accent-50 px-1")}>
+                                    <span data-sel className="min-w-0 flex-1 text-slate-800 wrap-anywhere">
+                                      {line.text}
+                                    </span>
+                                    <span className="flex shrink-0 gap-0.5 select-none" role="group" aria-label={`Check: ${line.text}`}>
+                                      {SETTABLE.map(({ status, key }) => (
+                                        <button
+                                          key={status}
+                                          type="button"
+                                          title={STATUS_LABEL[status]}
+                                          aria-label={STATUS_LABEL[status]}
+                                          aria-pressed={r === status}
+                                          disabled={runClosed}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setCurrent(i);
+                                            setCurCheck(c);
+                                            setCheck(i, c, status);
+                                          }}
+                                          className={cx(
+                                            "h-6 w-6 rounded text-[11px] font-semibold ring-1 ring-inset transition",
+                                            r === status ? cx(STATUS_STYLE[status].solid, "ring-transparent") : "bg-surface text-slate-500 ring-slate-200 hover:bg-slate-50",
+                                          )}
+                                        >
+                                          {key.toUpperCase()}
+                                        </button>
+                                      ))}
+                                    </span>
+                                  </li>
+                                );
+                              });
+                            })()}
+                          </ul>
+                        ) : step.expected ? (
+                          <StepText text={step.expected} marks={step.vals} className="whitespace-pre-wrap wrap-anywhere" />
                         ) : step.titleOnly ? (
                           <span data-testid="title-only-hint" className="text-slate-400 italic">
                             Works as described.
@@ -1150,55 +1199,6 @@ export function Runner({
                       </div>
                     </div>
                   </div>
-                  {many && (
-                    <ul className="mt-2 divide-y divide-slate-100 border-t border-slate-100 pl-12" aria-label={`Step ${step.number} checks`}>
-                      {(() => {
-                        let k = -1;
-                        return many.lines.map((line, li) => {
-                          if ("label" in line)
-                            return (
-                              <li key={li} className="pt-2 pb-0.5 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
-                                {line.label}
-                              </li>
-                            );
-                          const c = ++k;
-                          const r = checkResults[i][c];
-                          const here = current === i && curCheck === c;
-                          return (
-                            <li key={li} className={cx("flex flex-wrap items-center gap-2 py-1 text-sm", here && "-mx-1 rounded bg-accent-50 px-1")}>
-                              <span data-sel className="min-w-0 flex-1 text-slate-800 wrap-anywhere">
-                                {line.text}
-                              </span>
-                              <span className="flex shrink-0 gap-0.5 select-none" role="group" aria-label={`Check: ${line.text}`}>
-                                {SETTABLE.map(({ status, key }) => (
-                                  <button
-                                    key={status}
-                                    type="button"
-                                    title={STATUS_LABEL[status]}
-                                    aria-label={STATUS_LABEL[status]}
-                                    aria-pressed={r === status}
-                                    disabled={runClosed}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setCurrent(i);
-                                      setCurCheck(c);
-                                      setCheck(i, c, status);
-                                    }}
-                                    className={cx(
-                                      "h-6 w-6 rounded text-[11px] font-semibold ring-1 ring-inset transition",
-                                      r === status ? cx(STATUS_STYLE[status].solid, "ring-transparent") : "bg-surface text-slate-500 ring-slate-200 hover:bg-slate-50",
-                                    )}
-                                  >
-                                    {key.toUpperCase()}
-                                  </button>
-                                ))}
-                              </span>
-                            </li>
-                          );
-                        });
-                      })()}
-                    </ul>
-                  )}
                   {(problem || actuals[i] || stepDefects.length > 0 || stepFiles.length > 0 || recorder.rec?.stepIndex === i) && (
                     <div className="mt-3 space-y-2 pl-12" data-problem-box>
                       {s === "FAILED" && regression && regression.passed.length === n && regression.passed[i] && (
