@@ -197,6 +197,9 @@ export function BugDialog({
     setSentrySearch(false);
     setLinkTo(new Set(linkStories ? stories.map((x) => x.key) : []));
     setNotThis([]);
+    // The Link existing bug search starts empty each time, never with last time's link.
+    setQ("");
+    setResults(null);
     setDraft(null);
     setChosen("");
     setFoundDraft(null);
@@ -665,7 +668,7 @@ export function BugDialog({
               )}
               {jiraConnected ? (
                 <>
-                  <Input autoFocus placeholder="Search Jira, or paste an issue key or link (QA-123)" value={q} onChange={(e) => setQ(e.target.value)} />
+                  <Input autoFocus autoComplete="off" placeholder="Search Jira, or paste an issue key or link (QA-123)" value={q} onChange={(e) => setQ(e.target.value)} />
                   <ul className="max-h-72 divide-y divide-slate-100 overflow-y-auto rounded-md border border-slate-200">
                     {(results ?? []).map((i) => (
                       <li key={i.key} className="flex items-center gap-2 px-3 py-2 text-sm">
