@@ -656,7 +656,7 @@ export function CsvImporter({
                 <p className="text-xs text-slate-500">Click a case to see its steps as they&apos;ll be numbered.</p>
                 {titleCount > 0 && (
                   <p className="mt-1 text-xs text-slate-600" data-testid="section-titles-note">
-                    {count(titleCount, "row")} with nothing to check (like a line in capitals with no expected result) will show as{" "}
+                    {count(titleCount, "row")} with nothing to check (like a short name such as SIGN IN or Space Lists with no expected result) will show as{" "}
                     {titleCount === 1 ? "a section title" : "section titles"} for the steps below {titleCount === 1 ? "it" : "them"}, with no result buttons.
                   </p>
                 )}

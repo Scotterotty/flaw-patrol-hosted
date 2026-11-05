@@ -917,8 +917,8 @@ export function CaseEditor(props: CaseEditorProps) {
             </Button>
           </div>
           <p className="mt-2 text-xs text-slate-500">
-            <span className="font-medium text-slate-700">Tip:</span> a line in capitals with no expected result (or a dash or N/A as its expected result), like
-            SIGN IN STEPS, becomes a section title for the steps below it.
+            <span className="font-medium text-slate-700">Tip:</span> a short name with no expected result, like SIGN IN STEPS or Space Lists, becomes a section
+            title for the steps below it. So does any short line with a dash or N/A as its expected result.
           </p>
           <TestDataBox
             value={testData}

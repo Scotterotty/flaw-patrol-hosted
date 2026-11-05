@@ -123,6 +123,25 @@ describe("headingRows", () => {
     expect(readSteps(steps)[0]).toEqual({ kind: "heading", text: "SIGN IN / OUT STEPS" });
   });
 
+  it("treats a short Title Case name with no expected result as a section title", () => {
+    const steps = [
+      { number: "", action: "Space Lists", expected: "" },
+      { number: "1", action: "Open the Spaces page.", expected: "Your Spaces show in a list." },
+      { number: "", action: "Discover / Featured Spaces", expected: "" },
+      // An instruction in Title Case is still a step to do.
+      { number: "2", action: "Open Settings", expected: "" },
+      { number: "3", action: "Click Save", expected: "" },
+      // Lower case words, or more than five words, read as a step.
+      { number: "4", action: "Space lists", expected: "" },
+      { number: "5", action: "The Space List Shows All Spaces", expected: "" },
+      { number: "6", action: "Pick a Space.", expected: "It opens." },
+    ];
+    expect([...headingRows(steps)]).toEqual([0, 2]);
+    expect(readSteps(steps)[0]).toEqual({ kind: "heading", text: "Space Lists" });
+    // With nothing checked after it, it stays a step.
+    expect(headingRows([{ number: "1", action: "Space Lists", expected: "" }, { number: "2", action: "Owned By You", expected: "" }]).size).toBe(0);
+  });
+
   it("keeps a section title only when a step with an expected result comes after it", () => {
     // The last step, and a plain checklist with no expected results, stay steps.
     expect(headingRows([{ number: "1", action: "Open the app", expected: "It opens" }, { number: "2", action: "CLOSE THE APP", expected: "-" }]).size).toBe(0);

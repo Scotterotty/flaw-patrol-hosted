@@ -114,17 +114,29 @@ export const hasExpected = (expected: string) => expected.trim() !== "" && !says
 
 type TitleStep = Pick<ExpandedStep, "action" | "expected"> & { row?: number };
 
+// Words an instruction starts with ("Open Settings", "Type koala"): a line opening with one is a
+// step to do, not a name for the steps below it.
+const DOING =
+  /^(?:open|close|click|tap|double-click|right-click|press|type|enter|select|choose|pick|go|navigate|log|sign|launch|start|stop|run|load|reload|refresh|install|uninstall|create|add|delete|remove|edit|change|set|save|upload|download|drag|drop|scroll|swipe|hover|check|uncheck|verify|confirm|make|move|copy|paste|send|invite|join|leave|search|find|fill|turn|toggle|switch|enable|disable|accept|cancel|wait|repeat|restart|quit|exit|view|watch|play|pause|record|share|rename|reset|return|use|try|hold|release|focus|expand|collapse|zoom|rotate|look|see|note|ensure|observe)$/i;
+// "Space Lists", "Discover / Featured Spaces": a short name in Title Case, at most five words.
+const titleName = (l: string) => {
+  const words = l.split(/\s+/);
+  return words.length <= 5 && /^[A-Z0-9]/.test(l) && titleCase(l) && !DOING.test(words[0].replace(/[^A-Za-z-]/g, ""));
+};
+
 /**
  * A section title: a step with nothing to check that names the steps below it, like
- * "SIGN IN / OUT STEPS". It is one line that doesn't end like a sentence, its Expected is a dash
- * or N/A (or empty when the line is in capitals), and a step with an expected result comes
- * after it. A last step, or a plain checklist with no expected results at all, stays a step.
+ * "SIGN IN / OUT STEPS" or "Space Lists". It is one line that doesn't end like a sentence, its
+ * Expected is a dash or N/A (or empty when the line is in capitals, or a short Title Case name
+ * that doesn't start with something to do, like "Open Settings"), and a step with an expected
+ * result comes after it. A last step, or a plain checklist with no expected results at all,
+ * stays a step.
  */
 export function isSectionTitle(steps: TitleStep[], i: number): boolean {
   const s = steps[i];
   const action = s.action.trim();
   if (!action || action.includes("\n") || ends(action)) return false;
-  if (!saysNoExpected(s.expected) && !(s.expected.trim() === "" && allCaps(action))) return false;
+  if (!saysNoExpected(s.expected) && !(s.expected.trim() === "" && (allCaps(action) || titleName(action)))) return false;
   for (let j = i + 1; j < steps.length; j++) if (steps[j].row === s.row && hasExpected(steps[j].expected)) return true;
   return false;
 }
