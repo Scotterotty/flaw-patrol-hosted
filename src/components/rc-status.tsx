@@ -10,7 +10,8 @@ import {
   BAR,
   barColor,
   automationLine,
-  bugLine,
+  bugKeys,
+  buildLine,
   hasAutomation,
   confluenceHtml,
   percent,
@@ -18,7 +19,6 @@ import {
   ranToday,
   resultLine,
   severe,
-  severeCount,
   stateOf,
   type RcBug,
   type RcColumn,
@@ -205,7 +205,7 @@ export function RcStatusView({ releases, release, pick, columns, bugs, choices, 
             csv={() => {
               const rows = [
                 ["Platform", "Build", "State", "Done", "Cases run", "Cases", "Results", "Bugs", "Regressions"],
-                ...columns.map((c) => [c.label, [c.build, c.extra].filter(Boolean).join(" - "), stateOf(c).label, `${percent(c)}%`, c.done, c.total, resultLine(c), bugLine(c, scale), c.regressions ? `${c.regressions.count} (${c.regressions.keys.join(", ")})` : ""]),
+                ...columns.map((c) => [c.label, buildLine(release, c), stateOf(c).label, `${percent(c)}%`, c.done, c.total, resultLine(c), bugKeys(c), c.regressions ? `${c.regressions.count} (${c.regressions.keys.join(", ")})` : ""]),
                 [],
                 ["Critical and blocking bugs", "Title", "Severity", "Priority", "Jira status", "Platforms", "Cases"],
                 ...bugs.map((b) => [b.key, b.title, scale.labels[b.severity], b.priority, b.status, b.clients.join(", "), b.cases.length]),
@@ -244,7 +244,7 @@ export function RcStatusView({ releases, release, pick, columns, bugs, choices, 
           <p className="mb-4 text-center text-xs text-slate-500">{now ? asOfText(now, spelling) : " "}</p>
           <div className="grid border border-slate-200" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(200px, 1fr))` }}>
             {columns.map((c) => (
-              <Column key={c.id} c={c} now={now} auto={hasAutomation(columns)} scale={scale} />
+              <Column key={c.id} c={c} release={release} now={now} auto={hasAutomation(columns)} />
             ))}
           </div>
 
@@ -296,7 +296,7 @@ export function RcStatusView({ releases, release, pick, columns, bugs, choices, 
   );
 }
 
-function Column({ c, now, auto, scale }: { c: RcColumn; now: Date | null; auto: boolean; scale: SeverityScale }) {
+function Column({ c, release, now, auto }: { c: RcColumn; release: string; now: Date | null; auto: boolean }) {
   const st = stateOf(c);
   return (
     <section aria-label={c.label} className="border border-slate-200 p-4 text-center">
@@ -309,17 +309,20 @@ function Column({ c, now, auto, scale }: { c: RcColumn; now: Date | null; auto: 
           {c.label}
         </span>
       )}
-      <div className="mt-1 mb-1.5">
+      {/* The release and build sit above the status. The release, never a run number like R1 (Scott, ver_182). */}
+      <div className="mt-0.5 text-xs text-slate-500" data-testid="rc-column-build">
+        {c.bash ? " " : buildLine(release, c)}
+      </div>
+      {c.kinds && !c.bash && (
+        <div className="text-[11px] font-medium text-slate-600" data-testid="rc-column-kind">
+          {c.kinds}
+        </div>
+      )}
+      <div className="mt-1 mb-2">
         <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide" style={{ background: st.chip.fill, color: st.chip.text }}>
           {st.label}
         </span>
       </div>
-      {c.kinds && !c.bash && (
-        <div className="mb-0.5 text-[11px] font-medium text-slate-600" data-testid="rc-column-kind">
-          {c.kinds}
-        </div>
-      )}
-      <div className="mb-2 text-xs text-slate-500">{[c.build, c.extra].filter(Boolean).join(" · ") || " "}</div>
       <div className="text-3xl font-semibold text-slate-900">{percent(c)}%</div>
       <div className="text-xs text-slate-500">
         {c.platform ? "No manual run yet" : c.done === 0 && c.total > 0 ? `0 of ${c.total} tested by hand` : `${c.done} of ${c.total} cases run${now ? ` · +${ranToday(c, now)} today` : ""}`}
@@ -342,8 +345,27 @@ function Column({ c, now, auto, scale }: { c: RcColumn; now: Date | null; auto: 
           c.counts[s] ? <div key={s} title={`${STATUS_LABEL[s]}: ${c.counts[s]}`} style={{ width: `${(c.counts[s]! / Math.max(1, c.total)) * 100}%`, background: STATUS_STYLE[s].fill }} /> : null,
         )}
       </div>
-      <div className="text-xs text-slate-700">{resultLine(c)}</div>
-      <div className={cx("mt-1 text-xs", severeCount(c, scale) ? "font-semibold text-red-700" : "text-slate-700")}>{bugLine(c, scale)}</div>
+      {/* Just the bugs, each with its Jira link (Scott, ver_182): no passed/failed counts or severity line. */}
+      {c.bugList.length === 0 ? (
+        <div className="mt-1 text-xs text-slate-500" data-howto="rc-bugs">
+          No bugs filed
+        </div>
+      ) : (
+        <ul className="mt-1 grid gap-0.5 text-left text-xs" aria-label={`Bugs on ${c.label}`} data-testid="rc-column-bugs" data-howto="rc-bugs">
+          {c.bugList.map((b) => (
+            <li key={b.key} className="truncate" title={`${b.key} ${b.title}`}>
+              {b.url ? (
+                <a href={b.url} target="_blank" rel="noreferrer" className="font-medium text-accent-700 hover:underline">
+                  {b.key}
+                </a>
+              ) : (
+                <span className="font-medium text-slate-900">{b.key}</span>
+              )}{" "}
+              <span className="text-slate-700">{b.title}</span>
+            </li>
+          ))}
+        </ul>
+      )}
       {c.regressions && (
         <div className="mt-1 text-xs font-medium text-pink-700" title="Passed in the last release on this platform and still fails here">
           Regression: {c.regressions.count} ({c.regressions.keys.slice(0, 4).join(", ")}
@@ -369,7 +391,9 @@ function Column({ c, now, auto, scale }: { c: RcColumn; now: Date | null; auto: 
 function drawImage(release: string, columns: RcColumn[], bugs: RcBug[], now: Date, spelling: Spelling, scale: SeverityScale) {
   const W = 960;
   const pad = 24;
-  const colH = hasAutomation(columns) ? 218 : 200;
+  // Each card lists its bugs under the bar, one line each.
+  const most = Math.max(1, ...columns.map((c) => c.bugList.length));
+  const colH = 168 + most * 18 + (hasAutomation(columns) ? 18 : 0) + 14;
   const rowH = 28;
   const H = pad + 60 + colH + (bugs.length ? 40 + rowH * (bugs.length + 1) : 40) + 30;
   const canvas = document.createElement("canvas");
@@ -412,12 +436,13 @@ function drawImage(release: string, columns: RcColumn[], bugs: RcBug[], now: Dat
     g.strokeRect(x + 0.5, top + 0.5, colW, colH);
     text(c.label, mid, top + 28, 16, { weight: 600, align: "center", max: inner });
     // The status sits on its own line right under the client name.
+    // The release and build first, then the status (ver_182).
+    text(buildLine(release, c), mid, top + 48, 12, { color: MUTED, align: "center", max: inner });
     const st = stateOf(c);
     g.font = font(10, 600);
     const cw = g.measureText(st.label).width + 12;
-    round(mid - cw / 2, top + 38, cw, 17, 3, st.chip.fill);
-    text(st.label, mid, top + 50, 10, { weight: 600, color: st.chip.text, align: "center" });
-    text([c.build, c.extra].filter(Boolean).join(" · "), mid, top + 72, 12, { color: MUTED, align: "center", max: inner });
+    round(mid - cw / 2, top + 58, cw, 17, 3, st.chip.fill);
+    text(st.label, mid, top + 70, 10, { weight: 600, color: st.chip.text, align: "center" });
     text(`${percent(c)}%`, mid, top + 112, 32, { weight: 600, align: "center" });
     text(`${c.done} of ${c.total} cases run · +${ranToday(c, now)} today${runsText(c)}`, mid, top + 132, 12, { color: MUTED, align: "center", max: inner });
     const barX = x + 16;
@@ -431,10 +456,9 @@ function drawImage(release: string, columns: RcColumn[], bugs: RcBug[], now: Dat
       g.fillRect(at, top + 142, Math.max(w - 2, 1), 8);
       at += w;
     }
-    text(resultLine(c), mid, top + 168, 12, { align: "center", max: inner });
-    const crit = severeCount(c, scale) > 0;
-    text(bugLine(c, scale), mid, top + 186, 12, { align: "center", weight: crit ? 600 : 400, color: crit ? "#B10202" : INK, max: inner });
-    if (hasAutomation(columns)) text(automationLine(c).replace("🤖 ", ""), mid, top + 204, 12, { align: "center", color: MUTED, max: inner });
+    if (!c.bugList.length) text("No bugs filed", mid, top + 168, 12, { align: "center", color: MUTED, max: inner });
+    c.bugList.forEach((b, k) => text(`${b.key}  ${b.title}`, x + 16, top + 168 + k * 18, 12, { max: inner }));
+    if (hasAutomation(columns)) text(automationLine(c).replace("🤖 ", ""), mid, top + 168 + Math.max(1, c.bugList.length) * 18, 12, { align: "center", color: MUTED, max: inner });
   });
 
   let y = top + colH + 34;

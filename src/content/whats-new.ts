@@ -22,6 +22,19 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 182,
+    date: "2026-11-05",
+    items: [
+      {
+        kind: "better",
+        title: "Release status cards list their bugs",
+        text: "Each platform card now shows the release and build at the top, like RC 23 · 4.20.1, then the status and progress bar, then the bugs found, each linking to Jira. The passed and failed counts, the severity line and run numbers like R1 are gone, so nothing on the card disagrees.",
+        who: "all",
+        link: "/g/{umbrella}/rc",
+      },
+    ],
+  },
+  {
     version: 181,
     date: "2026-11-05",
     items: [

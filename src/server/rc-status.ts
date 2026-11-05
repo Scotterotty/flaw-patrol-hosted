@@ -158,10 +158,17 @@ export async function rcStatus(
       where: { result: { runId: { in: [...ids, ...bashOnly] } } },
       select: {
         defect: { select: { id: true, number: true, title: true, severity: true, status: true, externalPriority: true, externalKey: true, externalUrl: true, externalStatus: true, project: { select: { key: true } } } },
-        result: { select: { runId: true, entryId: true, entry: { select: { status: true } } } },
+        result: { select: { id: true, runId: true, entryId: true, entry: { select: { status: true } } } },
       },
     }),
   ]);
+  // The card lists the bugs on each case's latest result (Scott, ver_182), so a case
+  // retested since doesn't keep an old result's bug on the card.
+  const latest = new Map<string, { id: string; at: number }>();
+  for (const r of await db.testResult.findMany({ where: { runId: { in: ids } }, select: { id: true, entryId: true, createdAt: true } })) {
+    const was = latest.get(r.entryId);
+    if (!was || r.createdAt.getTime() >= was.at) latest.set(r.entryId, { id: r.id, at: r.createdAt.getTime() });
+  }
   // Run fields, automation uploads and still-broken regressions don't depend on each other.
   const groups = [...new Set(runs.map((r) => r.project.groupId).filter((g): g is string => !!g))];
   const wideIds = groups.length ? db.project.findMany({ where: { groupId: { in: groups } }, select: { id: true } }).then((ps) => ps.map((p) => p.id)) : Promise.resolve([...new Set(runs.map((r) => r.projectId))]);
@@ -186,7 +193,7 @@ export async function rcStatus(
     const mine = perRun.filter((r) => r.label === label).map((r) => r.run);
     // A platform nobody has run yet: NOT STARTED, with its automation line if any.
     if (!mine.length)
-      return { id: `platform:${label}`, runIds: [], href: "", label, runName: "No manual run yet", runs: [], build: "", extra: "", completed: false, total: 0, done: 0, counts: {}, testedAt: [], severities: {}, platform: label };
+      return { id: `platform:${label}`, runIds: [], href: "", label, runName: "No manual run yet", runs: [], build: "", extra: "", completed: false, total: 0, done: 0, counts: {}, testedAt: [], severities: {}, bugList: [], platform: label };
     const ids = new Set(mine.map((r) => r.id));
     const entries = mine.flatMap((r) => r.entries);
     const counts: Partial<Record<ResultStatus, number>> = {};
@@ -197,6 +204,13 @@ export async function rcStatus(
     for (const l of links) if (ids.has(l.result.runId)) bugs.set(l.defect.id, l.defect.severity);
     const severities: Partial<Record<Severity, number>> = {};
     for (const s of bugs.values()) severities[s] = (severities[s] ?? 0) + 1;
+    // The bugs listed on the card: on each case's latest result, enhancements left out, worst first.
+    const listed = new Map<string, (typeof links)[number]["defect"]>();
+    for (const l of links)
+      if (ids.has(l.result.runId) && latest.get(l.result.entryId)?.id === l.result.id && l.defect.severity !== "ENHANCEMENT") listed.set(l.defect.id, l.defect);
+    const bugList = [...listed.values()]
+      .sort((a, b) => SEVERITIES.indexOf(a.severity) - SEVERITIES.indexOf(b.severity) || a.number - b.number)
+      .map((d) => ({ key: d.externalKey ?? `${d.project.key}-D${d.number}`, url: d.externalUrl, title: d.title }));
     // The newest run's build and CSP stand for the column.
     const newest = mine[mine.length - 1];
     return {
@@ -206,7 +220,8 @@ export async function rcStatus(
       label,
       runName: mine.map((r) => `${r.name} · ${r.project.key}`).join(", "),
       runs: mine.length > 1 ? mine.map((r) => ({ name: r.name, href: `/p/${r.project.key}/runs/${r.number}` })) : [],
-      kinds: mine.map((r) => `${kindLabel(parseRunKinds(r.project.group?.runKinds), shownKind(r))} R${r.number}`).join(", "),
+      // Only a kind other than Release candidate (a Smoke test, say), and never a run number like R1 (Scott, ver_182).
+      kinds: [...new Set(mine.filter((r) => shownKind(r) !== "rc").map((r) => kindLabel(parseRunKinds(r.project.group?.runKinds), shownKind(r))))].join(", "),
       build: newest.build,
       extra: pickValues(newest, defsOf.get(newest.projectId) ?? [], "rc").map((v) => (v.id === "csp" ? `CSP ${v.value}` : `${v.name} ${v.value}`)).join(" · "),
       completed: mine.every((r) => r.state === "COMPLETED"),
@@ -215,6 +230,7 @@ export async function rcStatus(
       counts,
       testedAt: done.map((e) => e.lastTestedAt?.getTime() ?? 0),
       severities,
+      bugList,
       bash: label === "Bug bash",
     };
   });

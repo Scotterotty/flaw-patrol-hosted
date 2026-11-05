@@ -8,7 +8,7 @@ import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from "pdf
 import { clock, NOTE_LABEL } from "./charter";
 import { parseFindingFilters, sessionFindings } from "./findings";
 import { caseKey } from "./format";
-import { bugLine, percent, pickRelease, resultLine, stateOf } from "./rc-status";
+import { bugKeys, buildLine, percent, pickRelease, resultLine, stateOf } from "./rc-status";
 import { caseHealth, defectReport, runReport, stepHistory, trends, type ReportFilters, type ReportScope, type RunRow } from "./reports";
 import { runValues } from "./run-fields";
 import { runFieldsFor } from "./run-fields-server";
@@ -255,7 +255,7 @@ export async function rcTable(ctx: ExportCtx, f: ReportFilters) {
     scale,
     rows: [
       ["Platform", "Build", "State", "Done", "Cases run", "Cases", "Results", "Bugs", "Regressions"],
-      ...columns.map((c) => [c.label, [c.build, c.extra].filter(Boolean).join(" - "), stateOf(c).label, `${percent(c)}%`, c.done, c.total, resultLine(c), bugLine(c, scale), c.regressions ? `${c.regressions.count} (${c.regressions.keys.join(", ")})` : ""]),
+      ...columns.map((c) => [c.label, buildLine(release, c), stateOf(c).label, `${percent(c)}%`, c.done, c.total, resultLine(c), bugKeys(c), c.regressions ? `${c.regressions.count} (${c.regressions.keys.join(", ")})` : ""]),
       ...(bugs.length
         ? [[], ["Critical and blocking bugs", "Title", "Severity", "Priority", "Jira status", "Platforms", "Cases"], ...bugs.map((b) => [b.key, b.title, scale.labels[b.severity], b.priority, b.status, b.clients.join(", "), b.cases.length])]
         : []),

@@ -862,6 +862,20 @@ export const HOW_TO: HowToTask[] = [
     next: "custom-report",
   },
   {
+    id: "release-bugs",
+    group: "Results",
+    title: "See the bugs found in a release",
+    sub: "Each platform's bugs on Release status, with Jira links",
+    words: "release status rc bugs jira found failed card build platform",
+    steps: [
+      { text: "In the left menu, under **Results**, press **Reports**.", see: "**Reports**.", target: "menu-reports" },
+      { text: "Press the **Release status** tab.", see: "A card for each platform, with the release and build at the top.", target: "reports-release" },
+      { text: "Pick the release in **Release**, like RC 23.", see: "Each card's bar shows how far testing has got." },
+      { text: "Look under the bar on a card.", see: "The bugs on that platform's cases, by their latest result. Press a bug's key to open it in Jira.", target: "rc-bugs" },
+    ],
+    next: "reports",
+  },
+  {
     id: "custom-report",
     group: "Results",
     title: "Build your own report",

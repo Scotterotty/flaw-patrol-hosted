@@ -72,9 +72,12 @@ test("Release status gathers each client's run of a release, ready for Confluenc
   await expect(webCol).toContainText("100%");
   await expect(webCol).toContainText("2 of 2 cases run");
   await expect(webCol).toContainText("DONE");
-  await expect(webCol).toContainText("1 passed · 1 blocked");
-  await expect(webCol).toContainText("1 bug: Critical");
-  await expect(webCol).toContainText("4.20.0 · CSP 7.0.0");
+  // ver_182: the release and build above the status, then just the bugs (no passed/failed or severity line, no run number).
+  await expect(webCol.getByTestId("rc-column-build")).toHaveText(`${RC} · 4.20.0 · CSP 7.0.0`);
+  await expect(webCol.getByTestId("rc-column-bugs").getByRole("listitem")).toHaveText([`${KEY}-D1 Upload button missing`]);
+  await expect(webCol).not.toContainText("1 passed · 1 blocked");
+  await expect(webCol).not.toContainText(/ R\d/);
+  await expect(unityCol).toContainText("No bugs filed");
   await expect(unityCol).toContainText("NOT STARTED");
   await expect(unityCol).toContainText("0%");
   await expect(page.getByRole("region", { name: "Unreal" })).toHaveCount(0);

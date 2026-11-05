@@ -1,6 +1,6 @@
 import { clockTime, shortDate, type Spelling } from "./spelling";
 import type { ResultStatus, Severity } from "@prisma/client";
-import { AE_SCALE, SEVERITIES, type SeverityScale } from "./severity";
+import { AE_SCALE, type SeverityScale } from "./severity";
 import { chipFor } from "./sheet-colors";
 import { isOpen, STATUS_LABEL, STATUS_STYLE, STATUSES } from "./status";
 
@@ -44,6 +44,8 @@ export type RcColumn = {
   /** When each run case was last tested, to count today's progress in the viewer's own time zone. */
   testedAt: number[];
   severities: Partial<Record<Severity, number>>;
+  /** The bugs on each case's latest result, listed on the card under the bar with a link to Jira (ver_182). */
+  bugList: { key: string; url: string | null; title: string }[];
   /** The latest automation upload for this client and release, shown as its own line. */
   automation?: { passed: number; total: number; build: string; href: string } | null;
   /** Regressions in this release that are still broken, with their case keys. */
@@ -119,14 +121,12 @@ export function resultLine(c: RcColumn) {
   return parts.length ? parts.join(" · ") : "No results yet";
 }
 
-export function bugLine(c: RcColumn, scale: SeverityScale = AE_SCALE) {
-  // Enhancements aren't bugs worth counting in a status report. Names are the team's own.
-  // The severity exactly as everywhere else ("1 bug: C - Problematic"), not a lowercased short name.
-  const parts = SEVERITIES.filter((s) => s !== "ENHANCEMENT" && c.severities[s]).map((s) => `${c.severities[s]} ${c.severities[s] === 1 ? "bug" : "bugs"}: ${scale.labels[s]}`);
-  return parts.length ? parts.join(" · ") : "No bugs filed";
-}
+/** The card's top line: "RC 23 · 4.20.1 · CSP 7.1.0". The release, never a run number. */
+export const buildLine = (release: string, c: Pick<RcColumn, "build" | "extra">) => [release.trim(), c.build, c.extra].filter(Boolean).join(" · ");
 
-export const severeCount = (c: RcColumn, scale: SeverityScale = AE_SCALE) => scale.critical.reduce((n, s) => n + (c.severities[s] ?? 0), 0);
+/** "OB-6048, OB-6050" for spreadsheets, or "No bugs". */
+export const bugKeys = (c: Pick<RcColumn, "bugList">) => (c.bugList.length ? c.bugList.map((b) => b.key).join(", ") : "No bugs");
+
 
 /** The levels the team counts as critical, shown in red. */
 export const severe = (b: Pick<RcBug, "severity">, scale: SeverityScale = AE_SCALE) => scale.critical.includes(b.severity);
@@ -142,16 +142,14 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 export function confluenceHtml(release: string, columns: RcColumn[], bugs: RcBug[], now = new Date(), spelling: Spelling = "us", scale: SeverityScale = AE_SCALE) {
   const cell = (c: RcColumn) => {
     const st = stateOf(c);
-    const crit = severeCount(c, scale);
     return `<td style="text-align:center;vertical-align:top">
 <p style="text-align:center"><strong>${esc(c.label)}</strong></p>
-${c.build || c.extra ? `<p style="text-align:center">${esc([c.build, c.extra].filter(Boolean).join(" - "))}</p>` : ""}
+<p style="text-align:center">${esc(buildLine(release, c))}</p>
 <p style="text-align:center"><span style="background-color:${st.chip.fill};color:${st.chip.text}"><strong>&nbsp;${st.label}&nbsp;</strong></span></p>
 <h2 style="text-align:center">${percent(c)}%</h2>
 <p style="text-align:center">${c.done} of ${c.total} cases run · +${ranToday(c, now)} today</p>
 ${c.runs.length > 1 ? `<p style="text-align:center"><em>${esc(c.runs.map((r) => r.name).join(", "))}</em></p>` : ""}
-<p style="text-align:center">${esc(resultLine(c))}</p>
-<p style="text-align:center">${crit ? `<span style="color:#B10202"><strong>${esc(bugLine(c, scale))}</strong></span>` : esc(bugLine(c, scale))}</p>
+${c.bugList.map((b) => `<p>${b.url ? `<a href="${esc(b.url)}">${esc(b.key)}</a>` : esc(b.key)} ${esc(b.title)}</p>`).join("\n")}
 ${auto ? `<p style="text-align:center">${esc(automationLine(c))}</p>` : ""}
 ${c.regressions ? `<p style="text-align:center"><span style="color:#BE185D"><strong>${esc(regressionLine(c))}</strong></span></p>` : ""}
 </td>`;
@@ -181,8 +179,9 @@ export function plainText(release: string, columns: RcColumn[], bugs: RcBug[], n
   const lines = [`${release.toUpperCase()} TESTING STATUS`, asOfText(now, spelling), ""];
   for (const c of columns) {
     lines.push(
-      `${c.label}${c.build || c.extra ? ` (${[c.build, c.extra].filter(Boolean).join(" - ")})` : ""}: ${stateOf(c).label}, ${percent(c)}%`,
-      `  ${c.done} of ${c.total} cases run${runsText(c)}, +${ranToday(c, now)} today. ${resultLine(c)}. ${bugLine(c, scale)}.`,
+      `${c.label} (${buildLine(release, c)}): ${stateOf(c).label}, ${percent(c)}%`,
+      `  ${c.done} of ${c.total} cases run${runsText(c)}, +${ranToday(c, now)} today.`,
+      ...c.bugList.map((b) => `  ${b.key} ${b.title}`),
     );
     if (hasAutomation(columns)) lines.push(`  ${automationLine(c).replace("🤖 ", "")}.`);
     if (c.regressions) lines.push(`  ${regressionLine(c)}.`);

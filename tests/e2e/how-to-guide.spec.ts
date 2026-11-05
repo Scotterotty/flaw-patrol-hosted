@@ -264,6 +264,8 @@ test("Show me on the tasks for every other feature", async ({ page }) => {
   await walk(page, "regression", false, { to: 4 });
   await walk(page, "schedule-bash", false, { to: 1 });
   await walk(page, "saved-views");
+  // ver_182: the bugs on each Release status card.
+  await walk(page, "release-bugs", false, { to: 2 });
   await walk(page, "requirements-report", false, { to: 1 });
   await walk(page, "member-roles", false, { to: 3 });
   await walk(page, "run-fields");

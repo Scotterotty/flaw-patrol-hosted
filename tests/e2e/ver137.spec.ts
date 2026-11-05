@@ -82,7 +82,8 @@ test("1. a Smoke test marked 2.1 counts on Release status, and the release box p
   await page.goto(`/g/${ids.group}/rc?release=2.1`);
   const ios = page.getByRole("region", { name: "iOS" });
   await expect(ios).toContainText("1 of 3 cases run");
-  await expect(ios.getByTestId("rc-column-kind")).toHaveText("Smoke test R1");
+  // ver_182: the kind, never a run number like R1.
+  await expect(ios.getByTestId("rc-column-kind")).toHaveText("Smoke test");
   await expect(page.getByRole("region", { name: "Android" })).toContainText("No manual run yet");
 
   // The umbrella card follows the same rule.
