@@ -353,8 +353,11 @@ function Form({
       // "Opening…" lasts until the next page replaces this one. Already on that page (a runs
       // list): it just updates, so the box goes now.
       const to = res.runs.length === 1 ? `/p/${first.key}/runs/${first.number}${goTest ? "/execute" : handed ? `?handed=${assignee}` : ""}` : opts.umbrella ? `/g/${opts.umbrella.id}/runs` : `/p/${first.key}/runs`;
-      // Keep the refresh: without it, later refreshes and Save and next on the new page were
+      // The runner loads fresh: its address redirects to pick a case, and a refresh sent alongside
+      // a soft push could land after that and leave it blank, about 1 in 3 (ver156 e2e). Other pages
+      // keep the refresh: without it, later refreshes and Save and next on the new page were
       // ignored (ver_108 e2e: run-edit, history, long-text).
+      if (to.endsWith("/execute")) return window.location.assign(to);
       router.refresh();
       router.push(to);
       if (to === pathname) onClose();
