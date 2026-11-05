@@ -1,3 +1,4 @@
+import { HowToLink } from "@/components/how-to-link";
 import { type GroupChoice } from "@/components/group-dialogs";
 import { ProjectsBrowser } from "@/components/projects-browser";
 import { LIVE_BASH, NOT_BASH_CASE, NOT_BASH_RUN } from "@/lib/bash-cases";
@@ -162,17 +163,21 @@ export default async function HomePage() {
             <EmptyState
               title="Start with an umbrella"
               action={
-                maker ? (
-                  <NewUmbrellaButton
-                    choices={choices}
-                    label="Make your first umbrella"
-                  />
-                ) : undefined
+                <span className="inline-flex flex-wrap items-center justify-center gap-2">
+                  {maker && <NewUmbrellaButton choices={choices} label="Make your first umbrella" />}
+                  {/* ver_178: there's no left menu here yet, so the How-to guide gets its own button. */}
+                  <HowToLink
+                    task="find-your-way"
+                    testId="home-how-to"
+                    className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-surface px-3.5 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50"
+                  >
+                    Show me how it works
+                  </HowToLink>
+                </span>
               }
             >
-              An umbrella holds one product&apos;s test cases, Jira settings and
-              team. Then you add a test cycle for each round of testing, such as
-              one release on one platform.
+              An umbrella is one product. It holds your test cases, your team
+              and its test cycles, where you run tests.
               {maker ? "" : " Ask an admin to add you to one."}
             </EmptyState>
           </>

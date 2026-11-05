@@ -22,6 +22,44 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 178,
+    date: "2026-11-05",
+    items: [
+      {
+        kind: "better",
+        title: "A simpler umbrella Overview",
+        text: "A new umbrella opens on one Start here list, in the order you'd do it. The cards that repeated the left menu are gone, and Shortcuts and How testing is going show up once there are results.",
+        who: "lead",
+        link: "/g/{umbrella}",
+      },
+      {
+        kind: "better",
+        title: "Create a run asks less",
+        text: "When there's only one test cycle, it's ticked for you. Release candidate stays in Create a run, with Change to pick another kind, and offers Whole Case library like the other kinds do.",
+        who: "all",
+        link: "/g/{umbrella}?start=run",
+      },
+      {
+        kind: "better",
+        title: "Spreadsheets in one place",
+        text: "On a run's page, More now has a Spreadsheet group: Bring in results from a sheet, Download as Excel and Send to a Google Sheet.",
+        who: "all",
+      },
+      {
+        kind: "better",
+        title: "Help from the very first page",
+        text: "Show me how it works opens the How-to guide before you have an umbrella. The guide now starts with Start here: the first-day tasks in order. Colors, fonts and the radio moved to Make it yours.",
+        who: "all",
+      },
+      {
+        kind: "better",
+        title: "Test cycle pages without repeats",
+        text: "Invite is a button at the top, and empty boxes fold into one line until there's something in them.",
+        who: "all",
+      },
+    ],
+  },
+  {
     version: 177,
     date: "2026-11-05",
     items: [

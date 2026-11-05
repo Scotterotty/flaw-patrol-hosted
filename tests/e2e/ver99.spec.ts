@@ -54,11 +54,12 @@ test("Create a run opens blank: Use it, Use the release, a typed CSP version and
   await pickKind(page);
   const todo = box.getByTestId("run-todo");
   await expect(todo).toContainText("Pick what to run");
-  await expect(todo).toContainText("Tick a test cycle");
+  // ver_178: the umbrella's only test cycle is ticked for you.
+  await expect(todo).toContainText(`Goes in Demo RC 1 ${TAG}`);
   await expect(todo).toContainText("Fill in CSP version");
-  // The kind's usual suite is offered, not picked; no test cycle is ticked.
+  // The kind's usual suite is offered, not picked.
   for (const name of [/Whole Case library/, /A suite/, /Pick cases/]) await expect(box.getByRole("button", { name })).toHaveAttribute("aria-pressed", "false");
-  await expect(box.getByRole("checkbox", { name: `Demo RC 1 ${TAG}` })).not.toBeChecked();
+  await expect(box.getByRole("checkbox", { name: `Demo RC 1 ${TAG}` })).toBeChecked();
   await box.getByTestId("usual-suite").getByRole("button", { name: "Use it" }).click();
   await expect(box.getByRole("radio", { name: /Smoke/ })).toBeChecked();
   await expect(todo).toContainText("3 cases");

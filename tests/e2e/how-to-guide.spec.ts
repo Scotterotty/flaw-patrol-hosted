@@ -257,7 +257,6 @@ test("Show me on the tasks for every other feature", async ({ page }) => {
   await walk(page, "bulk-edit-cases", false, { to: 5 });
   await walk(page, "personas", true);
   await walk(page, "charter-reminders");
-  await walk(page, "import-run-results", false, { to: 5 });
   await walk(page, "update-run-sheet", false, { to: 4 });
   await page.goto(`/g/${ids.group}`);
   await walk(page, "edit-run", true, { to: 9 });

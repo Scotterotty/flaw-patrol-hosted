@@ -110,6 +110,9 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
     .sort((a, b) => b.flips - a.flips || b.lastAt.getTime() - a.lastAt.getTime())
     .slice(0, 6);
 
+  // The side boxes with nothing in them, named in one line instead (ver_178).
+  const quiet = [myWork.length ? "" : "your work", openBugs.length ? "" : "open bugs", flagged.length ? "" : "flagged cases", flaky.length ? "" : "flaky cases"].filter(Boolean);
+
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader
@@ -122,6 +125,13 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
             {canExecute && (
               <LinkButton href={`/p/${project.key}/bugs?write=1`} data-testid="overview-write-bug">
                 + Write a bug
+              </LinkButton>
+            )}
+            {/* ver_178: in an umbrella, people are invited on its Members page (the Overview's Start here
+                list links there too), so the test cycle has a button instead of a third invite box. */}
+            {umbrella && !umbrella.isHub && can(who, "members:manage") && (
+              <LinkButton href={`/g/${umbrella.group.id}/settings#members`} data-testid="cycle-invite">
+                Invite
               </LinkButton>
             )}
           </div>
@@ -149,7 +159,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
         />
       )}
 
-      {can(who, "members:manage") && (
+      {can(who, "members:manage") && !(umbrella && !umbrella.isHub) && (
         <InviteTeam
           nudge={(umbrella ? !umbrella.group.rolesChosenAt : !project.rolesChosenAt) && <RolesNudge target={umbrella ? { groupId: umbrella.group.id } : { projectId: project.id }} href={umbrella ? `/g/${umbrella.group.id}/settings#roles` : await cycleSettingsHref(project, user, "roles")} />}
           alone={memberCount === 1}
@@ -236,18 +246,26 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
             </Section>
           )}
 
-          <Section title="Pass rate, last 30 days" more={{ href: `/p/${project.key}/reports?view=trends`, label: "Trends" }}>
-            <div className="px-4 py-3">
-              <PassRateOverTime buckets={trend.buckets} />
-            </div>
-          </Section>
+          {/* The tile above has the number; the chart only shows once there are results to draw. */}
+          {trend.results > 0 && (
+            <Section title="Pass rate, last 30 days" more={{ href: `/p/${project.key}/reports?view=trends`, label: "Trends" }}>
+              <div className="px-4 py-3">
+                <PassRateOverTime buckets={trend.buckets} />
+              </div>
+            </Section>
+          )}
         </div>
 
         <div className="min-w-0 space-y-5">
+          {/* ver_178: empty boxes fold into one line, so a new test cycle isn't a wall of "nothing yet". */}
+          {quiet.length > 0 && (
+            <p className="rounded-lg border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-500" data-testid="cycle-nothing-yet">
+              {quiet.length === 4 ? "Nothing needs a look yet. Your work, open bugs, flagged and flaky cases show here when there are some." : `Nothing yet: ${quiet.join(", ")}.`}
+            </p>
+          )}
+          {myWork.length > 0 && (
           <Section title="My work">
-            {myWork.length === 0 ? (
-              <p className="px-4 py-4 text-sm text-slate-500">Nothing assigned to you is waiting.</p>
-            ) : (
+            {(
               <ul className="divide-y divide-slate-100">
                 {myWork.map((r) => (
                   <li key={r.number}>
@@ -262,11 +280,11 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
               </ul>
             )}
           </Section>
+          )}
 
+          {openBugs.length > 0 && (
           <Section title="Open bugs" more={openBugCount > 0 ? { href: `/p/${project.key}/bugs?status=open`, label: `All ${openBugCount}` } : undefined}>
-            {openBugs.length === 0 ? (
-              <p className="px-4 py-4 text-sm text-slate-500">No open bugs.</p>
-            ) : (
+            {(
               <ul className="divide-y divide-slate-100">
                 {openBugs.map((d) => (
                   <li key={d.id} className="px-4 py-2.5 text-sm">
@@ -290,11 +308,11 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
               </ul>
             )}
           </Section>
+          )}
 
+          {flagged.length > 0 && (
           <Section title="Flagged cases" more={flaggedCount > 0 ? { href: `/p/${project.key}/cases?flagged=1`, label: `All ${flaggedCount}` } : undefined}>
-            {flagged.length === 0 ? (
-              <p className="px-4 py-4 text-sm text-slate-500">No cases are flagged for attention.</p>
-            ) : (
+            {(
               <ul className="divide-y divide-slate-100">
                 {flagged.map((c) => (
                   <li key={c.number}>
@@ -312,11 +330,11 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
               </ul>
             )}
           </Section>
+          )}
 
-          <Section title="Flaky cases" more={flaky.length > 0 ? { href: `/p/${project.key}/reports?view=cases`, label: "Case history" } : undefined}>
-            {flaky.length === 0 ? (
-              <p className="px-4 py-4 text-sm text-slate-500">No case has flipped between passing and failing in the last 90 days.</p>
-            ) : (
+          {flaky.length > 0 && (
+          <Section title="Flaky cases" more={{ href: `/p/${project.key}/reports?view=cases`, label: "Case history" }}>
+            {(
               <ul className="divide-y divide-slate-100">
                 {flaky.map((c) => (
                   <li key={c.caseKey}>
@@ -329,6 +347,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
               </ul>
             )}
           </Section>
+          )}
         </div>
       </div>
     </div>

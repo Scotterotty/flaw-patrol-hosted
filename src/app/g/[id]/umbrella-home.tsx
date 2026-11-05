@@ -5,6 +5,7 @@ import { HomeTrends, HomeTrendsLoading } from "@/components/home-trends";
 import { Card, cx, EmptyState, InfoTip, LinkButton } from "@/components/ui";
 import { StartBashButton } from "@/components/bash-start";
 import { StartRunBox } from "@/components/start-run-box";
+import { HowToLink } from "@/components/how-to-link";
 import { anyGo, RunsInProgressList, type ProgressRun } from "@/components/runs-in-progress";
 import { NOT_BASH_RUN } from "@/lib/bash-cases";
 import { parseRunKinds, shownKind } from "@/lib/run-kinds";
@@ -35,7 +36,6 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
   const canRc = can(u.who, "umbrella:rc") && !archived && runsOn;
   const [counts, jira] = await Promise.all([hubCounts(u, user.id), jiraConfigFor(u.hub.id)]);
   const platformNames = u.platforms.map((p) => p.name);
-  const across = platformNames.length ? `Across ${list(platformNames)}` : "Across every test cycle under it";
   const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
   // Test cycles that still keep their own cases, outside the Case library.
   const own = await db.testCase.groupBy({ by: ["projectId"], where: { projectId: { in: u.projects.map((p) => p.id) }, archived: false }, _count: true });
@@ -105,10 +105,10 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
   const kinds = parseRunKinds(u.group.runKinds);
   const goWaiting = anyGo(waiting, canExecute);
   // What a new umbrella still needs. Jira is optional, so it never holds the list open on its own.
+  // "Start here" (ver_178): the core loop first, the optional extras last.
+  const isAdmin = can(u.who, "members:manage");
   const allSetup = [
     { done: u.counts.cases > 0, tool: "cases" as ToolId, label: "Add your test cases (import a file or write them)", note: plural(u.counts.cases, "case"), href: `${hub}/import`, action: "Import cases" },
-    // Optional: runs work without a suite, so it never keeps the list open. A team that already ran tests has it ticked.
-    { done: u.counts.suites > 0 || !!firstRun, tool: "cases" as ToolId, label: "Make a suite (optional)", note: u.counts.suites ? plural(u.counts.suites, "suite") : "", href: `${hub}/suites/new`, action: "Make a suite", tip: "A saved list of cases you run together, like Smoke or Full regression. You can also run the whole Case library or pick cases." },
     {
       done: !!firstRun,
       tool: "runs" as ToolId,
@@ -123,13 +123,23 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
           { done: bashCount > 0, tool: "bashes" as ToolId, label: "Start your first bug bash", note: plural(bashCount, "bug bash").replace("bashs", "bashes"), href: `${hub}/bashes?bash=start`, action: "Start a bug bash" },
           { done: ratings > 0, tool: "risk" as ToolId, label: "Look over the risk board", note: "", href: `${hub}/risk`, action: "Open it", tip: "Rate which requirements in a release are most likely to break, and how much it would hurt." },
         ]),
-    // Admins choose what roles can do before inviting; saving it once, or Keep everyone open, ticks it.
-    ...(can(u.who, "members:manage")
-      ? [{ done: !!u.group.rolesChosenAt, label: "Choose what roles can do", note: "", href: `${g}/settings#roles`, action: "Review", tip: "Everyone can use everything except archive, delete and connections. Tighten it before you invite." }]
+    // Who's on the team is for Admins only (ver_168), so only they get the Invite step. Choosing what
+    // roles can do comes first, as a link on the same step (Members also asks before the first invite).
+    ...(isAdmin
+      ? [
+          {
+            done: memberCount > 1,
+            label: "Invite your team",
+            note: plural(memberCount, "person").replace("persons", "people"),
+            href: `${g}/settings#members`,
+            action: "Invite",
+            first: u.group.rolesChosenAt ? undefined : { label: "Choose what roles can do first", href: `${g}/settings#roles` },
+          },
+        ]
       : []),
-    // Who's on the team is for Admins only (ver_168), so only they get the Invite step.
-    ...(can(u.who, "members:manage") ? [{ done: memberCount > 1, label: "Invite your team", note: plural(memberCount, "person").replace("persons", "people"), href: `${g}/settings#members`, action: "Invite" }] : []),
     { done: !!jira, label: on("stories") ? "Connect Jira" : "Connect Jira (optional)", note: "", href: `${g}/settings#jira`, action: "Connect" },
+    // Optional: runs work without a suite, so it never keeps the list open. A team that already ran tests has it ticked.
+    { done: u.counts.suites > 0 || !!firstRun, tool: "cases" as ToolId, label: "Make a suite (optional)", note: u.counts.suites ? plural(u.counts.suites, "suite") : "", href: `${hub}/suites/new`, action: "Make a suite", tip: "A saved list of cases you run together, like Smoke or Full regression. You can also run the whole Case library or pick cases." },
     { done: slackCount > 0, label: "Send alerts to Slack (optional)", note: plural(slackCount, "channel"), href: `${g}/settings#slack`, action: "Add channels", tip: "Post regressions, serious bugs and finished runs to Slack channels. Every test cycle follows them." },
   ];
   const setup = allSetup.filter((s) => !("tool" in s) || !s.tool || on(s.tool));
@@ -149,22 +159,9 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
     { label: "Reports", href: `${g}/reports`, icon: "chart" },
   ];
   const shortcuts = allShortcuts.filter((s) => !s.tool || on(s.tool));
-  const allCards: { label: string; href: string; icon: IconName; count: string; text: string; tool?: ToolId }[] = [
-    // Without Test runs the tools that are left get their own cards, first.
-    ...(runsOn
-      ? []
-      : [
-          { label: "Bug bashes", href: `${hub}/bashes`, icon: "bug" as const, count: u.live ? "Live" : String(bashCount), text: u.live ? `${u.live.name} is running now` : "Everyone explores for a set time and logs bugs", tool: "bashes" as ToolId },
-          { label: "Risk board", href: `${hub}/risk`, icon: "chart" as const, count: "", text: "Which requirements in a release are most likely to break", tool: "risk" as ToolId },
-        ]),
-    { label: "Case library", href: `${hub}/cases`, icon: "book", count: String(u.counts.cases), text: runsOn ? `Whole test cases every ${u.group.name} test cycle runs` : `Whole test cases for ${u.group.name}`, tool: "cases" },
-    { label: "Suites", href: `${hub}/suites`, icon: "layers", count: String(u.counts.suites), text: "Groups of cases you run together", tool: "cases" },
-    { label: "Shared steps", href: `${hub}/shared-steps`, icon: "link", count: String(u.counts.shared), text: "Steps like \u201cSign in\u201d you add to new or existing cases", tool: "cases" },
-    { label: "Test runs", href: `${g}/runs`, icon: "play", count: `${u.counts.activeRuns} active`, text: across, tool: "runs" },
-    { label: "Bugs", href: `${g}/bugs`, icon: "bug", count: `${u.counts.openBugs} open`, text: `Everything filed from ${u.group.name}${jira ? `, in Jira ${jira.jiraProjectKey}` : ""}` },
-    { label: "Settings", href: `${g}/settings`, icon: "cog", count: "", text: "Jira, bug template and team, set once" },
-  ];
-  const cards = allCards.filter((c) => !c.tool || on(c.tool));
+  // Shortcuts and How testing is going wait for the first results (ver_178): on day one they were empty.
+  // An umbrella without Test runs keeps its shortcuts from the start.
+  const started = !!firstRun || !runsOn;
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -214,7 +211,7 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
       {!ready && canManage && (
         <Card className="mb-6 p-4">
           <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="font-semibold text-slate-900">Get {u.group.name} set up</h2>
+            <h2 className="font-semibold text-slate-900">Start here</h2>
             <span className="text-xs text-slate-500">{setup.filter((s) => s.done).length} of {setup.length} done · hides when finished</span>
           </div>
           {/* The first-time welcome on a new umbrella, for admins until roles are chosen. */}
@@ -239,6 +236,11 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
                   {s.label}
                   {s.done && s.note && <span className="ml-1.5 text-xs">· {s.note}</span>}
                   {"tip" in s && s.tip && !s.done && <InfoTip text={s.tip} className="ml-1 align-middle" />}
+                  {"first" in s && s.first && !s.done && (
+                    <Link href={s.first.href} className="ml-2 text-xs text-accent-700 hover:underline" data-testid="setup-roles-first">
+                      {s.first.label}
+                    </Link>
+                  )}
                 </span>
                 {!s.done && (
                   <LinkButton size="sm" href={s.href}>
@@ -248,6 +250,9 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
               </li>
             ))}
           </ol>
+          <p className="mt-3 text-xs text-slate-500">
+            New here? <HowToLink className="text-accent-700 hover:underline">Open the How-to guide</HowToLink> for step-by-step help with Show me.
+          </p>
         </Card>
       )}
 
@@ -262,6 +267,8 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
         </div>
       )}
 
+      {started && (
+        <>
       <p className="mb-2 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Shortcuts</p>
       <ul className="mb-6 flex flex-wrap gap-2">
         {shortcuts.map((s) => (
@@ -281,23 +288,8 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
           <HomeTrends u={u} userId={user.id} startHref={canRun ? `${g}?start=run` : null} />
         </Suspense>
       )}
-
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map((c) => (
-          <Link key={c.label} href={c.href} className="group">
-            <Card className="h-full p-5 transition group-hover:border-accent-500 group-hover:shadow">
-              <span className="mb-3 grid size-9 place-items-center rounded-lg bg-accent-50 text-accent-600">
-                <ShortcutIcon icon={c.icon} className="size-5" />
-              </span>
-              <span className="flex items-baseline justify-between gap-2">
-                <span className="text-lg font-semibold text-slate-900">{c.label}</span>
-                <span className="text-sm font-medium text-slate-600 tabular-nums">{c.count}</span>
-              </span>
-              <span className="mt-1 block text-sm text-slate-500">{c.text}</span>
-            </Card>
-          </Link>
-        ))}
-      </div>
+        </>
+      )}
 
       {runsOn && (
       <Card>
@@ -367,8 +359,4 @@ export function ProjectBadge({ name, color, small }: { name: string; color: stri
       {initials(name)}
     </span>
   );
-}
-
-function list(names: string[]) {
-  return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 }

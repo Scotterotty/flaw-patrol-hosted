@@ -118,7 +118,7 @@ export function StartRcButton({
       {plan.data ? (
         <RcBox {...box} plan={plan.data} open={open} setOpen={setOpen} reload={plan.reload} />
       ) : (
-        <Modal open={open} onClose={() => setOpen(false)} title={`Start a new release in ${umbrella}`} wide>
+        <Modal open={open} onClose={() => setOpen(false)} title={RC_TITLE} wide>
           <BoxWait testId="rc-box-wait" failed={plan.failed} onRetry={plan.reload}>
             Getting {umbrella}&apos;s {hasRelease ? "last release" : "platforms"} ready…
           </BoxWait>
@@ -160,6 +160,8 @@ function RcBox({
   // "Also include the automated cases": off, suites' automated-only cases stay out.
   const [withAuto, setWithAuto] = useState(false);
   const autoIds = useMemo(() => new Set(plan.autoCaseIds), [plan.autoCaseIds]);
+  // Whole Case library: every case by hand, like Create a run's first choice.
+  const wholeIds = useMemo(() => plan.library.cases.filter((x) => !autoIds.has(x.id)).map((x) => x.id), [plan.library.cases, autoIds]);
   // Platforms added here (ver_118: each picks its test cases like the others, keyed new:<id> in choices).
   const [added, setAdded] = useState<{ id: number; name: string }[]>(() => (plan.platforms.length || !canManage ? [] : [{ id: 1, name: "" }]));
   const addPlatform = () => setAdded((l) => [...l, { id: Math.max(0, ...l.map((a) => a.id)) + 1, name: "" }]);
@@ -410,7 +412,7 @@ function RcBox({
                 </>
               )}
               <>
-                  <p className={cx("px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase", !isNew && "mt-1 border-t border-slate-100")}>Suites in {plan.umbrella}</p>
+                  <p className={cx("px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase", !isNew && "mt-1 border-t border-slate-100")}>A suite</p>
                   {!plan.allSuites.length && (
                     <p className="px-2 pb-1.5 text-xs text-slate-500" data-testid="no-suites-yet">
                       None yet. You don&apos;t need one: pick cases below{canSuites ? ", or start a new suite" : ""}.
@@ -435,7 +437,21 @@ function RcBox({
                     );
                   })}
               </>
-              <p className="mt-1 border-t border-slate-100 px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Pick cases</p>
+              <p className="mt-1 border-t border-slate-100 px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Whole Case library or pick cases</p>
+              {/* ver_178: the same choices as Create a run's What to run. Automated cases stay out, as there. */}
+              <button
+                type="button"
+                className="flex w-full gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!wholeIds.length}
+                data-testid="rc-whole-library"
+                onClick={() => choose(key, { kind: "cases", ids: wholeIds })}
+              >
+                <span className="w-3.5 font-semibold text-accent-700">{c?.kind === "cases" && sameIds(c.ids, wholeIds) ? "✓" : ""}</span>
+                <span>
+                  <span className="block font-medium">Whole Case library</span>
+                  <span className="block text-xs text-slate-500">{wholeIds.length ? `All ${plural(wholeIds.length, "case")}` : "No cases yet"}</span>
+                </span>
+              </button>
               <button
                 type="button"
                 className="flex w-full gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -446,13 +462,13 @@ function RcBox({
                   setMenu(null);
                 }}
               >
-                <span className="w-3.5 font-semibold text-accent-700">{c?.kind === "cases" && !sameIds(c.ids, p.lastCaseIds) ? "✓" : ""}</span>
+                <span className="w-3.5 font-semibold text-accent-700">{c?.kind === "cases" && !sameIds(c.ids, p.lastCaseIds) && !sameIds(c.ids, wholeIds) ? "✓" : ""}</span>
                 <span>
-                  <span className="block font-medium">Choose from folders…</span>
+                  <span className="block font-medium">Pick cases…</span>
                   <span className="block text-xs text-slate-500">{noCases ? "No cases yet" : `Tick whole folders or single cases · ${plural(plan.library.cases.length, "case")}${plan.library.folders.length ? ` in ${plural(plan.library.folders.length, "folder")}` : ""}`}</span>
                 </span>
               </button>
-              <p className="mt-1 border-t border-slate-100 px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Start brand new</p>
+              <p className="mt-1 border-t border-slate-100 px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Or start empty</p>
               <button type="button" className="flex w-full gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50" onClick={() => choose(key, { kind: "empty" })}>
                 <span className="w-3.5 font-semibold text-accent-700">{c?.kind === "empty" ? "✓" : "＋"}</span>
                 <span>
@@ -529,7 +545,7 @@ function RcBox({
               <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-800">Same cases as {p.prev?.rc || last}</span> {plural(c.ids.length, "case")}
             </>
           ) : (
-            <>Cases from folders · {c.ids.length} picked</>
+            sameIds(c.ids, wholeIds) ? <>Whole Case library · {plural(c.ids.length, "case")}</> : <>Cases from folders · {c.ids.length} picked</>
           )}
         </span>
       );
@@ -568,14 +584,27 @@ function RcBox({
           setRemoved([]);
           setMenu(null);
         }}
-        title={`Start a new release in ${plan.umbrella}`}
+        title={RC_TITLE}
         wide
         locked={busy}
       >
-        <p className="text-sm text-slate-500">
-          For testing a release candidate: makes one test cycle per platform in one go. Cases, suites, Jira and members come from {plan.umbrella}. For any
-          other testing, like a sprint, a smoke check or a retest, use <b>Create a run</b>.
+        {/* ver_178: the same Create a run box, on its Release candidate kind, not a box of its own. */}
+        <p className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+          <span className="text-xs font-semibold text-slate-600">Kind of run</span>
+          <span className="rounded-full bg-accent-50 px-2 py-0.5 text-accent-700">Release candidate</span>
+          <button
+            type="button"
+            className="text-xs text-accent-700 hover:underline"
+            data-testid="rc-change-kind"
+            onClick={() => {
+              setOpen(false);
+              if (!startRunWith("")) router.push(`/g/${groupId}?start=run`);
+            }}
+          >
+            Change
+          </button>
         </p>
+        <p className="mt-1 text-sm text-slate-500">Makes one test cycle per platform for the release, in one go. Cases, suites, Jira and members come from {plan.umbrella}.</p>
         <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
         {noCases && (
           <div className="mt-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900" data-testid="rc-no-cases">
@@ -947,6 +976,9 @@ function RcBox({
     </>
   );
 }
+
+/** The release box is Create a run on its Release candidate kind (ver_178). */
+export const RC_TITLE = "Create a run · Release candidate";
 
 export function list(names: string[]) {
   return names.length < 2

@@ -59,7 +59,7 @@ test("a run's results export to a spreadsheet and send to a linked Google Sheet"
     await page.goto(runUrl);
     await page.getByRole("button", { name: "More" }).click();
     const download = page.waitForEvent("download");
-    await page.getByRole("link", { name: "Export to spreadsheet" }).click();
+    await page.getByRole("link", { name: "Download as Excel" }).click();
     const file = await (await download).path();
     const book = new ExcelJS.Workbook();
     await book.xlsx.readFile(file!);
@@ -86,7 +86,7 @@ test("a run's results export to a spreadsheet and send to a linked Google Sheet"
 
     // Link a Google Sheet tab.
     await page.getByRole("button", { name: "More" }).click();
-    await page.getByRole("button", { name: "Google Sheet" }).click();
+    await page.getByRole("button", { name: "Send to a Google Sheet" }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByLabel("Script")).toHaveValue(/const KEY = "[\w-]+";/);
     const script = await dialog.getByLabel("Script").inputValue();
@@ -128,7 +128,7 @@ test("a run's results export to a spreadsheet and send to a linked Google Sheet"
     expect(pushes[1].rows[3][9]).toBe("Failed");
 
     await page.getByRole("button", { name: "More" }).click();
-    await page.getByRole("button", { name: "Google Sheet" }).click();
+    await page.getByRole("button", { name: "Send to a Google Sheet" }).click();
     await dialog.getByLabel("Send automatically each time a result is saved").check();
     await expect(dialog.getByLabel("Send automatically each time a result is saved")).toBeChecked();
     await page.keyboard.press("Escape");

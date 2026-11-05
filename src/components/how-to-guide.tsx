@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { findHowTo, HOW_TO, HOW_TO_GROUPS, howToById, plainText, type HowToStep, type HowToTask } from "@/lib/how-to";
+import { findHowTo, HOW_TO, HOW_TO_GROUPS, HOW_TO_START, howToById, plainText, type HowToStep, type HowToTask } from "@/lib/how-to";
 import { useSpell } from "./spelling";
 import { cx } from "./ui";
 
@@ -388,6 +388,7 @@ export function HowToGuide() {
             {shown.length === 0 && <p className="text-sm text-slate-500">Nothing matches. Try one word, like bug, run or import.</p>}
             {(q.trim() ? [null] : HOW_TO_GROUPS).map((g) => {
               const list = g ? shown.filter((t) => t.group === g) : shown;
+              if (g === "Start here") list.sort((a, b) => HOW_TO_START.indexOf(a.id) - HOW_TO_START.indexOf(b.id));
               if (!list.length) return null;
               return (
                 <section key={g ?? "found"} className="mb-3" aria-label={g ?? "Matching tasks"}>

@@ -117,7 +117,8 @@ test("a new umbrella with no results says so", async ({ page }) => {
   }
   await signIn(page, "lead@example.com", "Demo Lead");
   await page.goto(`/g/${id}`);
-  const box = visibleBox(page);
-  await expect(box.getByText("No finished runs yet")).toBeVisible();
-  await expect(box.getByTestId("trends-count")).toHaveCount(0);
+  // ver_178: before the first run, the Overview shows Start here instead of an empty trends box.
+  await expect(page.getByRole("heading", { name: "Start here" })).toBeVisible();
+  await expect(page.getByText("No finished runs yet")).toHaveCount(0);
+  await expect(page.getByTestId("trends-count")).toHaveCount(0);
 });

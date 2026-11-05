@@ -234,8 +234,10 @@ function Form({
   const sheetRun = sheetTarget?.run != null ? sheetCycle?.runs.find((r) => r.number === sheetTarget.run) : undefined;
   const [suiteId, setSuiteId] = useState(preset?.what === "suite" ? preset.suiteId : "");
   const [picked, setPicked] = useState<string[]>(preset?.what === "cases" ? preset.caseIds.filter((id) => opts.cases.some((c) => c.id === id)) : []);
-  // Nothing ticked for you (Scott, ver_99), except the test cycle the box was opened from.
-  const [cycles, setCycles] = useState<string[]>(opts.hereId && opts.cycles.some((c) => c.id === opts.hereId) ? [opts.hereId] : []);
+  // Nothing ticked for you (Scott, ver_99), except the test cycle the box was opened from, or the
+  // only test cycle there is (Scott, ver_178: one test cycle isn't a choice, and new people stopped there).
+  const onlyOne = opts.cycles.length === 1 ? opts.cycles[0].id : null;
+  const [cycles, setCycles] = useState<string[]>(opts.hereId && opts.cycles.some((c) => c.id === opts.hereId) ? [opts.hereId] : onlyOne ? [onlyOne] : []);
   // "Also include the automated cases": off, automation's own cases stay out of the run.
   const [withAuto, setWithAuto] = useState(false);
   const [q, setQ] = useState("");
@@ -401,6 +403,26 @@ function Form({
 
   // Steps are numbered from the kind question when it's asked.
   const step = (n: number) => n + (askKind ? 1 : 0);
+  // No cases yet: said up front (ver_178), before the kind question, then again under What to run.
+  const noCasesNote = (
+          <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900" data-testid="run-no-cases">
+            <p>There are no test cases here yet, so there&apos;s nothing to run.</p>
+            {(opts.canCases || opts.canImport) && (
+              <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                {opts.canCases && (
+                  <a href={`/p/${opts.libraryKey}/cases/new`} target="_blank" rel="noopener" className="font-medium text-accent-700 underline">
+                    Write the first case ↗
+                  </a>
+                )}
+                {opts.canImport && (
+                  <a href={`/p/${opts.libraryKey}/import`} target="_blank" rel="noopener" className="font-medium text-accent-700 underline">
+                    Import cases ↗
+                  </a>
+                )}
+              </p>
+            )}
+          </div>
+  );
   return (
     <div className="space-y-4" onInput={() => setTyped((t) => t + 1)}>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
@@ -411,6 +433,7 @@ function Form({
         </BusyStrip>
       )}
       <div inert={busy} className={cx("space-y-4", busy && "opacity-50")}>
+      {askKind && kindId === null && noCases && noCasesNote}
       {askKind && (
         <KindStep
           kinds={kinds}
@@ -451,23 +474,7 @@ function Form({
         )}
         {noCases ? (
           // Nothing to run yet: one note instead of "All 0 active cases".
-          <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900" data-testid="run-no-cases">
-            <p>There are no test cases here yet, so there&apos;s nothing to run.</p>
-            {(opts.canCases || opts.canImport) && (
-              <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                {opts.canCases && (
-                  <a href={`/p/${opts.libraryKey}/cases/new`} target="_blank" rel="noopener" className="font-medium text-accent-700 underline">
-                    Write the first case ↗
-                  </a>
-                )}
-                {opts.canImport && (
-                  <a href={`/p/${opts.libraryKey}/import`} target="_blank" rel="noopener" className="font-medium text-accent-700 underline">
-                    Import cases ↗
-                  </a>
-                )}
-              </p>
-            )}
-          </div>
+          noCasesNote
         ) : (
           <div className={cx("grid gap-2", opts.sheetCycles.length ? "sm:grid-cols-2 md:grid-cols-4" : "sm:grid-cols-3")}>
             {choice("all", opts.umbrella ? "Whole Case library" : "Every case", opts.autoCount ? `${opts.allCount} ${opts.allCount === 1 ? "case" : "cases"} you test by hand` : `All ${opts.allCount} active cases`)}

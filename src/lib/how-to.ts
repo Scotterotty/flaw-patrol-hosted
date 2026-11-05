@@ -43,7 +43,9 @@ export type HowToTask = {
   words?: string;
 };
 
-export const HOW_TO_GROUPS = ["Get started", "Write tests", "Run tests", "Bugs", "Bug bashes", "Results", "Settings"] as const;
+export const HOW_TO_GROUPS = ["Start here", "Write tests", "Run tests", "Bugs", "Bug bashes", "Results", "Settings", "Make it yours"] as const;
+/** "Start here" (ver_178): the first day, in the order you'd do it. */
+export const HOW_TO_START = ["find-your-way", "import-cases", "write-case", "create-run", "test-case", "report-bug", "invite", "search"];
 export type HowToGroup = (typeof HOW_TO_GROUPS)[number];
 
 /** Every task has Show me on the steps that have a button to point at (ver_174 did 13, ver_175 the rest). ver_176 added a task for every feature that had none (Scott: every feature goes in the guide, so a new feature adds its task in the same build). */
@@ -51,7 +53,7 @@ export const HOW_TO: HowToTask[] = [
   // ───────────── Get started ─────────────
   {
     id: "find-your-way",
-    group: "Get started",
+    group: "Start here",
     title: "Find your way around",
     sub: "Umbrellas, test cycles and the left menu",
     words: "start new umbrella test cycle menu home overview where",
@@ -66,7 +68,7 @@ export const HOW_TO: HowToTask[] = [
   },
   {
     id: "search",
-    group: "Get started",
+    group: "Start here",
     title: "Find anything with Search",
     sub: "Cases, runs, bugs, test cycles and pages",
     words: "find look up ctrl k command key jump",
@@ -81,7 +83,7 @@ export const HOW_TO: HowToTask[] = [
   },
   {
     id: "appearance",
-    group: "Get started",
+    group: "Make it yours",
     title: "Change your colors and fonts",
     sub: "Light or dark, your color, your fonts",
     words: "theme dark mode light mode color font look appearance",
@@ -96,7 +98,7 @@ export const HOW_TO: HowToTask[] = [
   },
   {
     id: "profile",
-    group: "Get started",
+    group: "Make it yours",
     title: "Set up your profile and password",
     sub: "Your name, picture and password",
     words: "name avatar photo picture password account email",
@@ -112,7 +114,7 @@ export const HOW_TO: HowToTask[] = [
   },
   {
     id: "accessibility",
-    group: "Get started",
+    group: "Make it yours",
     title: "Make it easier to see and use",
     sub: "Text size, contrast, color vision, motion",
     words: "accessibility color blind colour vision contrast bigger text motion underline",
@@ -128,7 +130,7 @@ export const HOW_TO: HowToTask[] = [
   },
   {
     id: "arrange-menu",
-    group: "Get started",
+    group: "Make it yours",
     title: "Put the left menu in your order",
     sub: "Drag links into the order you use them",
     words: "menu order arrange drag reorder sidebar",
@@ -142,7 +144,7 @@ export const HOW_TO: HowToTask[] = [
   },
   {
     id: "whats-new",
-    group: "Get started",
+    group: "Make it yours",
     title: "See what's new",
     sub: "What changed in the latest versions",
     words: "release notes changes updates version",
@@ -156,7 +158,7 @@ export const HOW_TO: HowToTask[] = [
 
   {
     id: "send-feedback",
-    group: "Get started",
+    group: "Make it yours",
     title: "Send feedback about Flaw Patrol",
     sub: "Tell us what's wrong or what would help, with a picture",
     words: "feedback suggestion idea complain report problem screenshot reply",
@@ -171,7 +173,7 @@ export const HOW_TO: HowToTask[] = [
   },
   {
     id: "jira-account",
-    group: "Get started",
+    group: "Make it yours",
     title: "Use your own Jira account for bugs",
     sub: "So bugs you file show you as the Reporter",
     words: "jira email account reporter my name filed by",
@@ -185,7 +187,7 @@ export const HOW_TO: HowToTask[] = [
   },
   {
     id: "radio",
-    group: "Get started",
+    group: "Make it yours",
     title: "Play the radio while you test",
     sub: "Free music stations in a small player",
     words: "music radio spotify pandora lofi listen sound player",
@@ -199,7 +201,7 @@ export const HOW_TO: HowToTask[] = [
   },
   {
     id: "older-cycles",
-    group: "Get started",
+    group: "Run tests",
     title: "Find an older test cycle",
     sub: "Open a test cycle that's no longer current, or keep it in the menu",
     words: "older old previous past test cycle project pin keep current",
@@ -213,7 +215,7 @@ export const HOW_TO: HowToTask[] = [
   // ───────────── Write tests ─────────────
   {
     id: "write-case",
-    group: "Write tests",
+    group: "Start here",
     title: "Write a test case",
     sub: "A title, then steps with what should happen",
     words: "new case create test case steps expected",
@@ -230,7 +232,7 @@ export const HOW_TO: HowToTask[] = [
   },
   {
     id: "import-cases",
-    group: "Write tests",
+    group: "Start here",
     title: "Import cases from a spreadsheet",
     sub: "A CSV or Excel (.xlsx) file from another tool",
     words: "import csv excel xlsx testrail qtest zephyr xray spreadsheet upload move",
@@ -454,7 +456,7 @@ export const HOW_TO: HowToTask[] = [
   // ───────────── Run tests ─────────────
   {
     id: "create-run",
-    group: "Run tests",
+    group: "Start here",
     title: "Create a run",
     sub: "Pick what to test and where",
     words: "start run new run test run execute begin testing",
@@ -471,7 +473,7 @@ export const HOW_TO: HowToTask[] = [
   },
   {
     id: "test-case",
-    group: "Run tests",
+    group: "Start here",
     title: "Test a case in a run",
     sub: "Mark each step and save, with the keyboard if you like",
     words: "runner execute pass fail blocked retest skip step result keyboard save",
@@ -561,32 +563,14 @@ export const HOW_TO: HowToTask[] = [
       { text: "Press **Next: check results**.", see: "Each test matched to a case with the same name, or offered **Link** or **Make new case**.", target: "upload-check" },
       { text: "Press **Save … results**.", see: "A 🤖 Automated run with every result. Failed Playwright tests show their screenshot, video and replay.", target: "upload-save", saves: true },
     ],
-    next: "import-run-results",
-  },
-  {
-    id: "import-run-results",
-    group: "Run tests",
-    title: "Bring in results from a spreadsheet",
-    sub: "Add results tracked in Excel or Google Sheets to a run in progress, or make a new run",
-    words: "import spreadsheet sheet excel google csv xlsx results run in progress manual tracked by hand",
-    steps: [
-      { text: "In the left menu, under **Testing**, press **Test runs**.", see: "**Bring in results** at the top right.", target: "menu-runs" },
-      { text: "Open **Bring in results**.", see: "**Automated test results** and **Results from a spreadsheet**.", target: "runs-bring-in" },
-      { text: "Choose **Results from a spreadsheet**.", see: "In an umbrella, a box asks which test cycle the run is for. In a test cycle, the **Import a run** page.", target: "bring-sheet" },
-      { text: "In an umbrella, pick the test cycle and press **Continue**.", see: "The **Import a run** page.", target: "sheet-cycle-go" },
-      { text: "Drop your sheet in the box, or click it to choose a file. Use a .csv (in Google Sheets: File → Download → .csv) or an .xlsx, one row per step.", see: "**Columns in** your file, matched to case, step, result and tester. Change any that are wrong.", target: "run-import-drop", type: true },
-      { text: "Under **Where should the results go?**, pick **A run in progress**.", see: "The run list, with how many cases each run has tested.", target: "import-into-run" },
-      { text: "Pick the run the results belong to.", see: "**Updating** that run. Untested cases get the sheet's result. **Use the sheet's results** is ticked, so results that differ are replaced too; untick it, or open **Show the … that differ**, to keep any.", target: "import-run-pick" },
-      { text: "Check **Testers** and **Needs a look**, then press **Update … results**.", see: "The run, with the sheet's results in it. Old results stay in each case's history. Keep testing the rest there.", target: "import-add", saves: true },
-    ],
     next: "update-run-sheet",
   },
   {
     id: "update-run-sheet",
     group: "Run tests",
-    title: "Update a run from a sheet",
-    sub: "Start or update a run with results from a spreadsheet, right from Create a run",
-    words: "update run from sheet spreadsheet excel google csv xlsx in progress overwrite replace results create a run import",
+    title: "Bring in results from a spreadsheet",
+    sub: "Results tracked in Excel or Google Sheets: a new run, or update one in progress",
+    words: "update run from sheet spreadsheet excel google csv xlsx in progress overwrite replace results create a run import tracked by hand bring in manual",
     steps: [
       { text: "In the left menu, under **Testing**, press **Test runs**.", see: "Every run, with **Create a run** at the top right.", target: "menu-runs" },
       { text: "Press **Create a run**.", see: "The **Create a run** box.", target: "run-create" },
@@ -594,7 +578,8 @@ export const HOW_TO: HowToTask[] = [
       { text: "Under **What to run**, pick **From a spreadsheet**.", see: "A box to drop your sheet in.", target: "run-sheet" },
       { text: "Drop your .csv or .xlsx in the box, or click it to choose a file.", see: "The file's name and how many rows it has.", target: "run-sheet-file", type: true },
       { text: "Under **Where it goes**, pick **Update a run in progress** and the run, or **A new run**.", see: "Your choice lit up.", target: "run-sheet-where" },
-      { text: "Press **Next: check the sheet**.", see: "The **Import a run** page with your sheet loaded. Press **Update … results** (or **Create run with … cases**) there. Already in a run? Use **More** → **Update from a sheet** on its page.", target: "run-sheet-next", saves: true },
+      { text: "Press **Next: check the sheet**.", see: "The **Import a run** page with your sheet loaded. Press **Update … results** (or **Create run with … cases**) there. Already in a run? Use **More** → **Bring in results from a sheet** on its page.", target: "run-sheet-next", saves: true },
+      { text: "Already on a run's page? Open **More** → **Bring in results from a sheet** (under **Spreadsheet**) instead. **Test runs** → **Bring in results** → **Results from a spreadsheet** goes to the same place.", see: "The same **Import a run** page, set to update that run." },
     ],
     next: "github-pull",
   },
@@ -655,11 +640,11 @@ export const HOW_TO: HowToTask[] = [
     steps: [
       { text: "In the left menu, under **Testing**, press **Test runs**.", see: "The active runs.", target: "menu-runs" },
       { text: "Click the run's name.", see: "The run's page.", target: "run-row" },
-      { text: "Open **More** at the top right.", see: "**Export to spreadsheet**, **Edit details**, **Google Sheet** and **Close run**.", target: "run-more" },
+      { text: "Open **More** at the top right.", see: "**Edit details**, then **Spreadsheet** with **Download as Excel** and **Send to a Google Sheet**, then **Close run**.", target: "run-more" },
       { text: "Press **Edit details**.", see: "The **Edit run details** box: **Run name**, **Release**, **Environment**, **Build** and **Notes**.", target: "run-edit" },
       { text: "Change what's wrong and press **Save**. Results stay as they are.", see: "The run with its new details.", target: "run-edit-save", saves: true },
-      { text: "To save a copy, open **More** again.", see: "**Export to spreadsheet** at the top of the list.", target: "run-more" },
-      { text: "Press **Export to spreadsheet**.", see: "An .xlsx file of the run with every result.", target: "run-export" },
+      { text: "To save a copy, open **More** again.", see: "**Download as Excel** under **Spreadsheet**.", target: "run-more" },
+      { text: "Press **Download as Excel**.", see: "An .xlsx file of the run with every result.", target: "run-export" },
       { text: "To remove the run, open **More** again.", see: "**Delete** at the bottom of the list.", target: "run-more" },
       { text: "Press **Delete**. It asks first, and it can't be undone.", see: "**Test runs** again, without that run.", target: "run-delete", saves: true },
     ],
@@ -699,7 +684,7 @@ export const HOW_TO: HowToTask[] = [
   // ───────────── Bugs ─────────────
   {
     id: "report-bug",
-    group: "Bugs",
+    group: "Start here",
     title: "Report a bug from a failed step",
     sub: "Flaw Patrol fills most of it in for you",
     words: "bug report file jira defect issue failed step",
@@ -881,8 +866,8 @@ export const HOW_TO: HowToTask[] = [
     steps: [
       { text: "In the left menu, under **Testing**, press **Test runs**.", see: "The active runs.", target: "menu-runs" },
       { text: "Click the run's name.", see: "The run's page.", target: "run-row" },
-      { text: "Open **More** at the top right.", see: "**Google Sheet** in the list.", target: "run-more" },
-      { text: "Press **Google Sheet**.", see: "The **Send results to a Google Sheet** box.", target: "run-google-sheet" },
+      { text: "Open **More** at the top right.", see: "**Send to a Google Sheet** under **Spreadsheet**.", target: "run-more" },
+      { text: "Press **Send to a Google Sheet**.", see: "The **Send results to a Google Sheet** box.", target: "run-google-sheet" },
       { text: "Press **Copy script**. In your Google Sheet, open **Extensions › Apps Script**, replace what's there with it, and save.", see: "The script saved in your sheet.", target: "sheet-copy-script" },
       { text: "In Apps Script, click **Deploy › New deployment**, pick **Web app**, set **Who has access** to **Anyone**, and deploy.", see: "A Web app URL from Google." },
       { text: "Paste it into **Web app URL**.", see: "The URL in the box.", target: "sheet-url", type: true },
@@ -939,7 +924,7 @@ export const HOW_TO: HowToTask[] = [
   // ───────────── Settings ─────────────
   {
     id: "invite",
-    group: "Settings",
+    group: "Start here",
     title: "Invite someone",
     sub: "Add a teammate and send their invite link",
     admins: true,

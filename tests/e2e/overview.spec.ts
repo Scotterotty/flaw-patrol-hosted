@@ -56,7 +56,7 @@ test("the project overview shows runs in progress, my work and flagged cases", a
   await expect(flagged).toContainText("Sign out");
   await expect(flagged).toContainText("Needs updating");
   await expect(page.getByRole("link", { name: /Test cases\s*2\s*1 flagged/ })).toBeVisible();
-  await expect(page.getByText("No open bugs.")).toBeVisible();
+  await expect(page.getByTestId("cycle-nothing-yet")).toContainText("open bugs");
   await mine.getByRole("link", { name: /Both/ }).click();
   await expect(page.getByRole("heading", { name: "Sign out", level: 1 })).toBeVisible();
 

@@ -67,7 +67,7 @@ test("Start next release: Choose from folders, Same N cases, and who gets what",
   const menu = box.getByRole("group", { name: "Pick test cases for Web" });
   await menu.getByRole("button", { name: /Same 2 cases as RC1/ }).click();
   await box.getByRole("button", { name: "Test cases for Web" }).click();
-  await menu.getByRole("button", { name: /Choose from folders/ }).click();
+  await menu.getByRole("button", { name: /Pick cases…/ }).click();
   const picker = box.getByRole("group", { name: "Choose Web's cases" });
   await expect(picker.getByText("2 cases picked.")).toBeVisible();
   await picker.getByLabel("All of Login").check();

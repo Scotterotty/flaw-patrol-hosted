@@ -30,11 +30,16 @@ test("no cases and no suites: setup card, release box and Create a run", async (
   await signIn(page, "admin@example.com", "Demo Admin");
   const home = await newUmbrella(page, NAME, HUB);
 
-  // Setup card: Make a suite (optional) is step 2, before Run your first tests.
+  // Start here (ver_178): Run your first tests is step 2; Make a suite (optional) comes after Jira.
   const steps = page.locator("ol").filter({ hasText: "Make a suite (optional)" }).locator("li");
-  await expect(steps.nth(1)).toContainText("Make a suite (optional)");
-  await expect(steps.nth(1).getByRole("link", { name: "Make a suite" })).toHaveAttribute("href", `/p/${HUB}/suites/new`);
-  await expect(steps.nth(2)).toContainText("Run your first tests");
+  await expect(steps.nth(1)).toContainText("Run your first tests");
+  await expect(steps.nth(2)).toContainText("Invite your team");
+  await expect(steps.nth(2).getByTestId("setup-roles-first")).toHaveAttribute("href", /\/settings#roles$/);
+  await expect(steps.nth(4)).toContainText("Make a suite (optional)");
+  await expect(steps.nth(4).getByRole("link", { name: "Make a suite" })).toHaveAttribute("href", `/p/${HUB}/suites/new`);
+  // No cards repeating the left menu, and no shortcuts before the first run.
+  await expect(page.getByText("Shortcuts", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Groups of cases you run together")).toHaveCount(0);
 
   // Create a run: no cases, so one note with links instead of "All 0 active cases".
   await page.getByRole("button", { name: /Create a run/ }).first().click();
@@ -54,7 +59,7 @@ test("no cases and no suites: setup card, release box and Create a run", async (
   await rc.getByRole("checkbox", { name: "Web", exact: true }).check();
   const menu = rc.getByRole("group", { name: "Pick test cases for Web" });
   await expect(menu.getByTestId("no-suites-yet")).toContainText("None yet");
-  await expect(menu.getByRole("button", { name: /Choose from folders/ })).toBeDisabled();
+  await expect(menu.getByRole("button", { name: /Pick cases…/ })).toBeDisabled();
   await menu.getByRole("button", { name: /No runs yet/ }).click();
   // A new platform starts on No runs yet when there are no cases.
   await rc.getByRole("button", { name: "＋ New platform" }).click();
@@ -113,11 +118,12 @@ test("cases but no suites: a new platform picks cases from folders, and Create a
   const menu = rc.getByRole("group", { name: "Pick test cases for Switch" });
   await expect(menu.getByTestId("no-suites-yet")).toBeVisible();
   await expect(menu).not.toContainText("Last release");
-  await menu.getByRole("button", { name: /Choose from folders/ }).click();
+  await menu.getByRole("button", { name: /Pick cases…/ }).click();
   const tree = rc.getByRole("group", { name: "Choose Switch's cases" });
   await tree.getByRole("checkbox", { name: new RegExp(`Sign in ${TAG}`) }).first().check();
   await tree.getByRole("button", { name: "Done" }).click();
-  await expect(rc.getByRole("button", { name: "Test cases for Switch" })).toContainText("1 picked");
+  // The library has only this one case, so picking it is the whole Case library (ver_178 names it so).
+  await expect(rc.getByRole("button", { name: "Test cases for Switch" })).toContainText("Whole Case library · 1 case");
   await rc.getByLabel("Release", { exact: true }).fill("6.0");
   await rc.getByRole("button", { name: "Start 6.0 · 1 platform" }).click();
   await expect(page).toHaveURL(/\/runs$/);

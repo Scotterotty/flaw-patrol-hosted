@@ -72,8 +72,9 @@ test("one Create a run button: pick the kind, add a kind, make the test cycle on
   await expect(box.getByRole("button", { name: "Create smoke test" })).toBeDisabled();
   await box.getByTestId("usual-suite").getByRole("button", { name: "Use it" }).click();
   await expect(box.getByRole("radio", { name: /Smoke/ })).toBeChecked();
-  // Test cycle: nothing is ticked for you, and + New test cycle is made on Start.
-  await expect(box.getByRole("checkbox", { name: `Demo RC 1 ${TAG}` })).not.toBeChecked();
+  // Test cycle: the only one is ticked for you (ver_178); untick it, and + New test cycle is made on Start.
+  await expect(box.getByRole("checkbox", { name: `Demo RC 1 ${TAG}` })).toBeChecked();
+  await box.getByRole("checkbox", { name: `Demo RC 1 ${TAG}` }).uncheck();
   await box.getByRole("button", { name: "＋ New test cycle" }).click();
   await box.getByLabel("Name", { exact: true }).fill(`Sprint 14 ${TAG}`);
   await expect(box.getByText(`Goes in Sprint 14 ${TAG} (new)`)).toBeVisible();

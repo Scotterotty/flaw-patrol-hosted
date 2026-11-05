@@ -93,7 +93,7 @@ test("1. a Smoke test marked 2.1 counts on Release status, and the release box p
   await page.goto(`/g/${ids.group}`);
   await page.getByRole("button", { name: /Create a run/ }).first().click();
   await page.getByRole("dialog").getByRole("button", { name: /^Release candidate/ }).click();
-  const rc = page.getByRole("dialog", { name: `Start a new release in ${UMB}` });
+  const rc = page.getByRole("dialog", { name: "Create a run · Release candidate" });
   await rc.getByLabel("Release", { exact: true }).fill("2.1");
   const note = rc.getByTestId("rc-release-exists");
   await expect(note).toHaveText(`${UMB} already has 2.1 test cycles for iOS and Android. To test in them, use Create a run and set Release to 2.1.Create a run instead`);

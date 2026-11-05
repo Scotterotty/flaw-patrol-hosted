@@ -158,7 +158,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   // Every case has a result: the run only needs closing.
   const finished = run.state === "ACTIVE" && t.total > 0 && t.tested === t.total;
   // Just started and handed to someone else: a link to send them.
-  // Update from a sheet: open runs you test by hand, for whoever can bring in results.
+  // Bring in results from a sheet: open runs you test by hand, for whoever can bring in results.
   const fromSheet = run.state === "ACTIVE" && run.kind !== "bash" && can(who, "run:import");
   const updatedCount = Math.max(0, Math.floor(Number(updated) || 0));
   const handedTo = handed ? members.find((m) => m.id === handed) : undefined;
@@ -209,17 +209,6 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           )}
           {(SHEETS_ENABLED || fromSheet || can(who, "run:create") || can(who, "run:manage") || can(who, "run:delete")) && (
             <MoreMenu howto="run-more">
-              {fromSheet && (
-                // ver_177: bring a spreadsheet's results into this run, where people already are.
-                <Link href={`/p/${project.key}/runs/import?run=${run.number}`} className={buttonClass("ghost")} data-howto="run-update-sheet">
-                  Update from a sheet
-                </Link>
-              )}
-              {SHEETS_ENABLED && (
-                <a href={`/p/${project.key}/runs/${run.number}/export`} download className={buttonClass("ghost")} data-howto="run-export">
-                  Export to spreadsheet
-                </a>
-              )}
               {can(who, "run:create") && (
                 <EditRunButton
                   projectId={project.id}
@@ -229,7 +218,26 @@ export default async function RunPage({ params, searchParams }: { params: Promis
                   fields={runFields}
                 />
               )}
-              {SHEETS_ENABLED && can(who, "run:create") && <RunSheetButton projectId={project.id} runId={run.id} runName={run.name} sheet={sheet} />}
+              {/* ver_178: every spreadsheet action under one heading, with one word for them. */}
+              {(fromSheet || SHEETS_ENABLED) && (
+                <div role="group" aria-label="Spreadsheet" className="my-1 border-y border-slate-100 py-1">
+                  <p className="px-3 pt-1 pb-0.5 text-[11px] font-semibold tracking-wide text-slate-500 uppercase" aria-hidden>
+                    Spreadsheet
+                  </p>
+                  {fromSheet && (
+                    // ver_177: bring a spreadsheet's results into this run, where people already are.
+                    <Link href={`/p/${project.key}/runs/import?run=${run.number}`} className={buttonClass("ghost")} data-howto="run-update-sheet">
+                      Bring in results from a sheet
+                    </Link>
+                  )}
+                  {SHEETS_ENABLED && (
+                    <a href={`/p/${project.key}/runs/${run.number}/export`} download className={buttonClass("ghost")} data-howto="run-export">
+                      Download as Excel
+                    </a>
+                  )}
+                  {SHEETS_ENABLED && can(who, "run:create") && <RunSheetButton projectId={project.id} runId={run.id} runName={run.name} sheet={sheet} />}
+                </div>
+              )}
               {(can(who, "run:manage") || can(who, "run:delete")) && <RunStateButtons projectId={project.id} projectKey={project.key} runId={run.id} state={run.state} canClose={can(who, "run:manage")} canDelete={can(who, "run:delete")} />}
             </MoreMenu>
           )}
