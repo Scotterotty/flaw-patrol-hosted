@@ -41,7 +41,7 @@ export function AutomationFilesPanel({ groupId, settings, usage, canEdit }: { gr
         <div className="space-y-1.5">
           {KEEP.map((k) => (
             <label key={k.id} className="flex items-start gap-2 text-sm text-slate-800">
-              <input type="radio" name="keep" className="mt-1" checked={s.keep === k.id} disabled={!canEdit} onChange={() => setS({ ...s, keep: k.id })} />
+              <input type="radio" name="keep" className="mt-1" data-howto="media-keep" checked={s.keep === k.id} disabled={!canEdit} onChange={() => setS({ ...s, keep: k.id })} />
               <span>
                 {k.label}
                 <span className="block text-xs text-slate-500">{k.tip}</span>
@@ -82,7 +82,7 @@ export function AutomationFilesPanel({ groupId, settings, usage, canEdit }: { gr
             Save
           </Button>
           <Button onClick={close}>Cancel</Button>
-          <Button className="ml-auto" onClick={() => setDeleting(true)} disabled={!usage.bytes}>
+          <Button className="ml-auto" onClick={() => setDeleting(true)} disabled={!usage.bytes} data-howto="media-delete-older">
             Delete files from runs older than…
           </Button>
         </div>

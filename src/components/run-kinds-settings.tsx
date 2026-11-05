@@ -40,7 +40,7 @@ export function RunKindsPanel({ groupId, umbrella, kinds: initial, suites, canEd
   const form = (onSave: () => void, onCancel: () => void, nameLocked = false) => (
     <div className="grid gap-2 sm:grid-cols-[1fr_14rem_auto] sm:items-end">
       <Field label="Name" htmlFor="rk-name">
-        <Input id="rk-name" value={draft.name} disabled={nameLocked} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Regression" maxLength={60} />
+        <Input id="rk-name" data-howto="run-kind-name" value={draft.name} disabled={nameLocked} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Regression" maxLength={60} />
       </Field>
       <Field label="Usual suite (optional)" htmlFor="rk-suite">
         {suites.length ? (
@@ -65,7 +65,7 @@ export function RunKindsPanel({ groupId, umbrella, kinds: initial, suites, canEd
         )}
       </Field>
       <span className="flex gap-1.5">
-        <Button variant="primary" size="sm" disabled={pending || !draft.name.trim()} onClick={onSave}>
+        <Button variant="primary" size="sm" disabled={pending || !draft.name.trim()} onClick={onSave} data-howto="run-kind-save">
           Save
         </Button>
         <Button size="sm" variant="ghost" onClick={onCancel}>
@@ -144,6 +144,7 @@ export function RunKindsPanel({ groupId, umbrella, kinds: initial, suites, canEd
               setDraft({ name: "", suiteId: "" });
               setAdding(true);
             }}
+            data-howto="run-kind-add"
           >
             ＋ Add a kind
           </Button>

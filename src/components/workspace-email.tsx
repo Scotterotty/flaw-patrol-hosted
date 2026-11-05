@@ -39,7 +39,7 @@ export function WorkspaceEmail({ saved }: { saved: MailView }) {
   };
 
   return (
-    <Card id="email" className="scroll-mt-28 p-5" role="region" aria-labelledby="email-heading">
+    <Card id="email" data-howto="workspace-email" className="scroll-mt-28 p-5" role="region" aria-labelledby="email-heading">
       <h2 id="email-heading" className="text-sm font-semibold text-slate-800">
         Email
       </h2>

@@ -37,7 +37,7 @@ export async function ActivityLog({ filters, spelling }: { filters: ActivityFilt
   const query = new URLSearchParams(Object.entries(filters).filter(([k, v]) => v && k !== "limit") as [string, string][]).toString();
 
   return (
-    <Card id="activity" className="scroll-mt-28 p-5" role="region" aria-labelledby="activity-heading">
+    <Card id="activity" data-howto="workspace-activity" className="scroll-mt-28 p-5" role="region" aria-labelledby="activity-heading">
       <h2 id="activity-heading" className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
         Activity log
         <InfoTip text="Sign-ins, people and roles, settings, deletes and archives, and runs opened or closed. Test results, cases run and bugs filed are never logged, and there are no per-person counts. Nobody, including admins, can edit or delete entries." />

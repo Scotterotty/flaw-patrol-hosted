@@ -207,7 +207,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           {(SHEETS_ENABLED || can(who, "run:create") || can(who, "run:manage") || can(who, "run:delete")) && (
             <MoreMenu howto="run-more">
               {SHEETS_ENABLED && (
-                <a href={`/p/${project.key}/runs/${run.number}/export`} download className={buttonClass("ghost")}>
+                <a href={`/p/${project.key}/runs/${run.number}/export`} download className={buttonClass("ghost")} data-howto="run-export">
                   Export to spreadsheet
                 </a>
               )}

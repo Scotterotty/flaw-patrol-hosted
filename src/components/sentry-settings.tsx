@@ -95,7 +95,7 @@ export function SentryPanel({ projectId, saved, fields, canManage }: { projectId
               Sentry token
               <InfoTip text={sp("In Sentry: Settings → Developer Settings → Personal Tokens (or an internal integration). Give it Project, Issue & Event and Organization read.")} />
             </label>
-            <Input id="sentry-token" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder={saved ? "Leave blank to keep the saved token" : "sntrys_…"} />
+            <Input id="sentry-token" data-howto="sentry-token" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder={saved ? "Leave blank to keep the saved token" : "sntrys_…"} />
             <p className="mt-1 text-xs text-slate-500">Read-only is enough. Stored locked, like the Jira token.</p>
           </div>
           {orgs.length > 0 && (
@@ -115,6 +115,7 @@ export function SentryPanel({ projectId, saved, fields, canManage }: { projectId
               <Button
                 variant="primary"
                 disabled={pending}
+                data-howto="sentry-check"
                 onClick={() =>
                   start(async () => {
                     setError(null);

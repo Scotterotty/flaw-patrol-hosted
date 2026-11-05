@@ -4,7 +4,7 @@ import { cx } from "@/components/ui";
 
 /** Tabs that switch which part of a list you are looking at (Active / Closed, Active / Archived). */
 /** Tabs the How-to guide points at with Show me (data-howto). */
-const HOWTO_TABS: Record<string, string> = { "Release status": "reports-release", "Custom reports": "reports-custom" };
+const HOWTO_TABS: Record<string, string> = { "Release status": "reports-release", "Custom reports": "reports-custom", Requirements: "reports-requirements", Personas: "charters-personas" };
 
 export function ViewTabs({ label, tabs }: { label: string; tabs: { label: string; href: string; count?: number; current: boolean }[] }) {
   return (

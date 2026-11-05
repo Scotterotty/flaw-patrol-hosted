@@ -65,12 +65,12 @@ export function TakeCase({
         </Button>
       )}
       {!closed && assignee && !mine && (
-        <Button size="sm" disabled={pending} onClick={() => act(true, true)} className="ml-auto">
+        <Button size="sm" disabled={pending} onClick={() => act(true, true)} className="ml-auto" data-howto="take-over">
           Take it over
         </Button>
       )}
       {!closed && mine && (
-        <Button size="sm" disabled={pending} onClick={() => act(false)} className={resume?.onResume ? undefined : "ml-auto"}>
+        <Button size="sm" disabled={pending} onClick={() => act(false)} className={resume?.onResume ? undefined : "ml-auto"} data-howto="stop-testing">
           Stop testing
         </Button>
       )}

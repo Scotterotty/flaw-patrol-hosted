@@ -86,7 +86,7 @@ export function WorkspaceSignIn({
   const working = providers.some((p) => p.saved?.enabled && p.saved.testedAt);
 
   return (
-    <Card id="sign-in" className="scroll-mt-28 p-5" role="region" aria-labelledby="sign-in-heading">
+    <Card id="sign-in" data-howto="workspace-sign-in" className="scroll-mt-28 p-5" role="region" aria-labelledby="sign-in-heading">
       <h2 id="sign-in-heading" className="text-sm font-semibold text-slate-800">
         Sign-in
       </h2>

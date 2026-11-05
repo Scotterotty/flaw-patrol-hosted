@@ -37,7 +37,7 @@ export function ReminderRows({ reminders, onChange, idPrefix }: { reminders: Rem
         </div>
       ))}
       {reminders.length < MAX_REMINDERS && (
-        <Button size="sm" onClick={() => onChange([...reminders, blankReminder()])}>
+        <Button size="sm" onClick={() => onChange([...reminders, blankReminder()])} data-howto="add-reminder">
           + Add reminder
         </Button>
       )}

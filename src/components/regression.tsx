@@ -17,6 +17,7 @@ export function CompareWith({ label, only, choices, count, path }: { label: stri
       {choices.length > 1 ? (
         <select
           aria-label="Compare with"
+          data-howto="run-compare"
           className="h-7 rounded-md border border-slate-300 bg-surface px-1.5 text-xs"
           value={only ?? ""}
           onChange={(e) => router.push(e.target.value ? `${path}?compare=${encodeURIComponent(e.target.value)}` : path)}

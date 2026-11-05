@@ -38,10 +38,10 @@ const VIEWS = [
   { id: "trends", label: "Trends" },
   { id: "steps", label: "Step results" },
   { id: "failing", label: "Failing steps" },
-  { id: "regression", label: "Regression" },
+  { id: "regression", label: "Regression", howto: "report-regression" },
   { id: "defects", label: "Bugs found" },
   { id: "cases", label: "Case history" },
-  { id: "findings", label: "Session findings" },
+  { id: "findings", label: "Session findings", howto: "report-findings" },
 ] as const;
 type View = (typeof VIEWS)[number]["id"];
 
@@ -198,6 +198,7 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
         {VIEWS.map((v) => (
           <Link
             key={v.id}
+            data-howto={"howto" in v ? v.howto : undefined}
             // Your filters stay when you switch tabs.
             href={`?${qs({ view: v.id })}`}
             className={cx("-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap", view === v.id ? "border-accent-600 font-medium text-accent-700" : "border-transparent text-slate-600 hover:text-slate-900")}

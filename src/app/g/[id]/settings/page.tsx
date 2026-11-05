@@ -406,14 +406,14 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               />
             </ExpandRow>
             {!on("stories") ? null : manage && jira ? (
-              <ExpandRow id="stories" hashes={["stories"]} title="Requirements" text={storiesText} label="Change">
+              <ExpandRow id="stories" howto="settings-requirements" hashes={["stories"]} title="Requirements" text={storiesText} label="Change">
                 <StoriesPanel projectId={u.hub.id} stories={parseStoriesConfig(jira.stories)} bugProject={jira.jiraProjectKey} />
               </ExpandRow>
             ) : (
               <Row title="Requirements" text={storiesText} />
             )}
             {on("runs") && (
-            <ExpandRow
+            <ExpandRow howto="settings-run-fields"
               id="run-fields"
               hashes={["run-fields"]}
               title="Run fields"
@@ -424,7 +424,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             </ExpandRow>
             )}
             {on("runs") && (
-            <ExpandRow
+            <ExpandRow howto="settings-run-kinds"
               id="run-kinds"
               hashes={["run-kinds"]}
               title="Run kinds"
@@ -458,7 +458,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             <ExpandRow id="email-digests" howto="settings-digests" hashes={["email-digests"]} title="Email digests" text={digest.summary} label={manage ? (digest.settings.on ? "Change" : "Set up") : "View"}>
               <DigestCard target={{ groupId: u.group.id }} data={digest} canManage={manage && !u.group.archivedAt} team={name} isAdmin={user.isAdmin} />
             </ExpandRow>
-            <ExpandRow
+            <ExpandRow howto="settings-sentry"
               id="sentry"
               hashes={["sentry"]}
               title="Sentry"
@@ -509,7 +509,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               <Row title="CI uploads" text={ciText} />
             )}
             {on("runs") && (
-              <ExpandRow
+              <ExpandRow howto="settings-qase"
                 id="qase"
                 hashes={["qase"]}
                 title="Qase"
@@ -528,7 +528,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               </ExpandRow>
             )}
             {on("auto") && (
-            <ExpandRow
+            <ExpandRow howto="settings-media"
               id="automation-files"
               hashes={["automation-files"]}
               title="Screenshots, videos and replays"
@@ -539,7 +539,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             </ExpandRow>
             )}
             {on("runs") && (
-            <ExpandRow
+            <ExpandRow howto="settings-regression"
               id="regression"
               hashes={["regression"]}
               title="Regression flag"

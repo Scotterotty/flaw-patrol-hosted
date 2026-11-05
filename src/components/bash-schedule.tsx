@@ -25,6 +25,7 @@ export function AddToCalendar({ bash, size, className }: { bash: CalendarBash; s
       size={size}
       className={className}
       data-testid="bash-add-calendar"
+      data-howto="bash-calendar"
       onClick={() => {
         const url = `${window.location.origin}/p/${bash.homeKey}/bashes/${bash.id}?join=1`;
         const blob = new Blob([bashIcs({ ...bash, url })], {
@@ -81,10 +82,11 @@ export function ScheduleControls({ bashId, startsAt, homeKey }: { bashId: string
             setError(null);
             setMode("move");
           }}
+          data-howto="bash-change-time"
         >
           Change time
         </button>
-        <button type="button" className={cx(link, "text-red-700")} onClick={() => (setError(null), setMode("cancel"))}>
+        <button type="button" className={cx(link, "text-red-700")} onClick={() => (setError(null), setMode("cancel"))} data-howto="bash-cancel">
           Cancel bash
         </button>
       </span>

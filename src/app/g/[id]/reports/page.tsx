@@ -39,7 +39,7 @@ const VIEWS = [
   { id: "trends", label: "Trends" },
   { id: "steps", label: "Step results" },
   { id: "failing", label: "Failing steps" },
-  { id: "regression", label: "Regression" },
+  { id: "regression", label: "Regression", howto: "report-regression" },
   { id: "defects", label: "Bugs found" },
   { id: "cases", label: "Case history" },
 ] as const;
@@ -173,6 +173,7 @@ export default async function UmbrellaReportsPage({ params, searchParams }: { pa
         {VIEWS.map((v) => (
           <Link
             key={v.id}
+            data-howto={"howto" in v ? v.howto : undefined}
             href={`?${qs({ view: v.id })}`}
             aria-current={view === v.id ? "page" : undefined}
             className={cx("-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap", view === v.id ? "border-accent-600 font-medium text-accent-700" : "border-transparent text-slate-600 hover:text-slate-900")}

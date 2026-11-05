@@ -64,7 +64,7 @@ export function AccountMenu({ children, label, admin, signOut, joins }: { childr
             Mini game and quests
           </Link>
           {admin && (
-            <Link role="menuitem" href="/workspace" className={item}>
+            <Link role="menuitem" href="/workspace" className={item} data-howto="account-workspace">
               Workspace settings
             </Link>
           )}

@@ -27,7 +27,7 @@ export function CycleRowMenu({ groupId, cycle }: { groupId: string; cycle: { id:
   }, [open]);
   return (
     <span ref={box} className="relative inline-block">
-      <Button size="sm" aria-haspopup="menu" aria-expanded={open} aria-label={`More for ${cycle.name}`} onClick={() => setOpen((o) => !o)}>
+      <Button size="sm" aria-haspopup="menu" aria-expanded={open} aria-label={`More for ${cycle.name}`} onClick={() => setOpen((o) => !o)} data-howto="cycle-more">
         ⋯
       </Button>
       {open && (

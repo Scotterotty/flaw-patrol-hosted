@@ -33,7 +33,7 @@ export function BulkEditButton({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button size="sm" className="h-7 px-2.5 text-xs" disabled={disabled} onClick={() => setOpen(true)}>
+      <Button size="sm" className="h-7 px-2.5 text-xs" disabled={disabled} onClick={() => setOpen(true)} data-howto="cases-edit-fields">
         Edit fields…
       </Button>
       {open && (
@@ -123,7 +123,7 @@ function BulkEditDialog({
         <p className="text-sm text-slate-600">Only the fields you change are updated. &ldquo;Leave as is&rdquo; keeps each case&apos;s own value.</p>
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label="Priority" htmlFor="be-priority">
-            <Select id="be-priority" value={priority} onChange={(e) => setPriority(e.target.value as Priority | "")}>
+            <Select id="be-priority" data-howto="bulk-priority" value={priority} onChange={(e) => setPriority(e.target.value as Priority | "")}>
               <option value={KEEP}>Leave as is</option>
               {PRIORITIES.map((p) => (
                 <option key={p} value={p}>
@@ -161,7 +161,7 @@ function BulkEditDialog({
         <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>Cancel</Button>
-          <Button variant="primary" disabled={pending || nothing} onClick={save}>
+          <Button variant="primary" disabled={pending || nothing} onClick={save} data-howto="bulk-update">
             {pending ? "Updating…" : `Update ${plural(n)}`}
           </Button>
         </div>

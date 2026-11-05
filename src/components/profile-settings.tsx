@@ -129,7 +129,7 @@ export async function ProfileSettings({ user }: { user: Me }) {
         <AccountCard id="language" howto="account-language" title="Language" summary={`${spelling === "uk" ? "UK English" : "US English"} · dates like ${sample}`}>
           <LanguageSettings mine={isSpelling(user.spelling) ? user.spelling : null} />
         </AccountCard>
-        <AccountCard id="jira" title="Jira" summary={user.jiraEmail ? `Uses ${user.jiraEmail}` : "Uses your sign-in email"}>
+        <AccountCard id="jira" howto="account-jira" title="Jira" summary={user.jiraEmail ? `Uses ${user.jiraEmail}` : "Uses your sign-in email"}>
           <JiraEmailForm jiraEmail={user.jiraEmail} email={user.email} />
         </AccountCard>
         <AccountCard id="emails" howto="account-emails" title="Emails I get" summary={prefsSummary(parsePrefs(user.digestPrefs))}>
@@ -154,7 +154,7 @@ export async function ProfileSettings({ user }: { user: Me }) {
         >
           <GameCard user={user} stats={stats} />
         </AccountCard>
-        <AccountCard id="radio" title="Radio" summary={user.radioEnabled ? "On" : "Off"}>
+        <AccountCard id="radio" howto="account-radio" title="Radio" summary={user.radioEnabled ? "On" : "Off"}>
           <RadioSettings enabled={user.radioEnabled} station={validStation(user.radioStation, parseSpotifyLinks(user.spotifyLinks))} spotify={parseSpotifyLinks(user.spotifyLinks)} />
         </AccountCard>
         <AccountCard id="password" howto="account-password" title="Password" summary={user.passwordSetAt ? `Set · last changed ${longDate(user.passwordSetAt, spelling)}` : "Not set yet"}>

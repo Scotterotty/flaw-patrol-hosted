@@ -96,6 +96,7 @@ export function RunStateButtons({
         <Button
           variant="ghost"
           className="text-red-700"
+          data-howto="run-delete"
           disabled={busy}
           onClick={() => {
             if (!confirm("Delete this run and all its results? This can't be undone.")) return;

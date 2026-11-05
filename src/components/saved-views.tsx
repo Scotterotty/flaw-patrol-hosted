@@ -72,11 +72,11 @@ export function SavedViews({ projectId, views, current }: { projectId: string; v
           </span>
         ))}
         <span className="ml-auto flex gap-2">
-          <Button size="sm" variant="ghost" onClick={copy}>
+          <Button size="sm" variant="ghost" onClick={copy} data-howto="view-copy-link">
             {copied ? "Link copied" : "Copy link"}
           </Button>
           {!saving && (
-            <Button size="sm" onClick={() => setSaving(true)}>
+            <Button size="sm" onClick={() => setSaving(true)} data-howto="view-save-open">
               Save this view…
             </Button>
           )}
@@ -90,12 +90,12 @@ export function SavedViews({ projectId, views, current }: { projectId: string; v
             save();
           }}
         >
-          <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Name this view" aria-label="View name" className="h-8 w-64" maxLength={80} />
+          <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Name this view" aria-label="View name" data-howto="view-name" className="h-8 w-64" maxLength={80} />
           <label className="flex items-center gap-1.5 text-xs text-slate-700">
             <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} className="accent-accent-600" />
             Share with everyone in this test cycle
           </label>
-          <Button size="sm" variant="primary" type="submit" disabled={pending || !name.trim()}>
+          <Button size="sm" variant="primary" type="submit" disabled={pending || !name.trim()} data-howto="view-save">
             Save view
           </Button>
           <Button size="sm" variant="ghost" type="button" onClick={() => setSaving(false)}>

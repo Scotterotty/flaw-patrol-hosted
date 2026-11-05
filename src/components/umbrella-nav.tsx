@@ -60,7 +60,7 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
               { href: `${g}/runs`, id: "runs", label: "Test runs", count: u.counts.activeRuns ? `${u.counts.activeRuns} active` : undefined },
               ...cycleHeading,
               ...u.current.flatMap((p) => (c && p.key === c.key ? cycleLinks : [{ href: `/p/${p.key}`, id: cycleKey(p.key), label: shortName(p), dot: p.color, sub: true, tip: p.name }])),
-              ...(u.older ? [{ href: `${g}/projects`, label: "Older test cycles", count: u.older, sub: true }] : []),
+              ...(u.older ? [{ href: `${g}/projects`, howto: "older-cycles", label: "Older test cycles", count: u.older, sub: true }] : []),
               // An older test cycle shows under Older test cycles while you're in it.
               ...(c?.older ? cycleLinks : []),
             ]

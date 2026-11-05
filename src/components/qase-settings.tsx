@@ -92,7 +92,7 @@ export function QasePanel({ groupId, saved, linkHref, links, canEdit }: { groupI
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Qase API token" htmlFor="qase-token" hint={saved ? "Leave empty to keep the saved token." : undefined}>
           <span className="flex items-center gap-1.5">
-            <Input id="qase-token" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder={saved ? "••••••••" : "Paste the token"} />
+            <Input id="qase-token" data-howto="qase-token" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder={saved ? "••••••••" : "Paste the token"} />
             <InfoTip text="Make one in Qase: click your avatar → API tokens → Create a new API token. Results sent from here show in Qase under that token's person. Saved encrypted, like the Jira token." />
           </span>
         </Field>
@@ -107,7 +107,7 @@ export function QasePanel({ groupId, saved, linkHref, links, canEdit }: { groupI
               ))}
             </Select>
           ) : (
-            <Button onClick={load} disabled={pending || !token.trim()}>
+            <Button onClick={load} disabled={pending || !token.trim()} data-howto="qase-load">
               {pending ? "Checking…" : "Check token and load projects"}
             </Button>
           )}
@@ -173,11 +173,11 @@ export function QasePanel({ groupId, saved, linkHref, links, canEdit }: { groupI
       </details>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="primary" onClick={save} disabled={pending || !code}>
+        <Button variant="primary" onClick={save} disabled={pending || !code} data-howto="qase-save">
           {pending ? "Saving…" : saved ? "Save" : "Save and connect"}
         </Button>
         {saved && (
-          <Link href={linkHref} className="text-sm font-medium text-accent-700 hover:underline" data-testid="qase-link-cases">
+          <Link href={linkHref} className="text-sm font-medium text-accent-700 hover:underline" data-testid="qase-link-cases" data-howto="qase-link-cases">
             Link cases{links ? ` · ${links.linked} of ${links.total} linked` : ""} →
           </Link>
         )}

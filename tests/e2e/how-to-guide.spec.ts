@@ -82,6 +82,9 @@ async function act(page: Page, el: Locator, name: string, task = "") {
   else if (name === "case-step" && task === "test-data") {
     await el.fill(`Sign in as {{role}} ${TAG}`);
     await el.press("Tab");
+  } else if (type === "checkbox" && (await el.isChecked())) {
+    // ver_176: already ticked (the Regression flag starts on). Clicking it is the step; it's never saved here.
+    await el.click();
   } else if (type === "checkbox" || type === "radio") await el.check();
   else if (name === "run-what") await el.getByRole("button", { name: /^Whole Case library/ }).click();
   else if (name === "run-where") await el.getByText(/Web 1\.0/).click();
@@ -234,4 +237,39 @@ test("Show me on the rest of the tasks", async ({ page }) => {
   await walk(page, "tools");
   await walk(page, "add-cycle", false);
   await walk(page, "archive", false, { to: 2 });
+});
+
+// ver_176 (Scott, Nov 5 2026): every feature in Flaw Patrol has a How-to task. These are the ones added then.
+// Steps that need Jira, Sentry, Qase, a teammate or a planned bash only have to glow.
+test("Show me on the tasks for every other feature", async ({ page }) => {
+  test.setTimeout(600_000);
+  await signIn(page, "admin@example.com", "Demo Admin");
+  await page.goto(`/g/${ids.group}`);
+  await walk(page, "write-case", true);
+  await expect(page.getByText("Version history")).toBeVisible({ timeout: 60_000 });
+  await walk(page, "create-run", true);
+  await expect(page.locator("dialog[open]")).toHaveCount(0, { timeout: 60_000 });
+
+  await walk(page, "send-feedback");
+  await walk(page, "jira-account");
+  await walk(page, "radio", false, { to: 4 });
+  await page.goto(`/g/${ids.group}`);
+  await walk(page, "bulk-edit-cases", false, { to: 5 });
+  await walk(page, "personas", true);
+  await walk(page, "charter-reminders");
+  await walk(page, "import-run-results", false, { to: 5 });
+  await walk(page, "edit-run", true, { to: 9 });
+  await walk(page, "take-over", false, { to: 3 });
+  await walk(page, "regression", false, { to: 4 });
+  await walk(page, "schedule-bash", false, { to: 1 });
+  await walk(page, "saved-views");
+  await walk(page, "requirements-report", false, { to: 1 });
+  await walk(page, "member-roles", false, { to: 3 });
+  await walk(page, "run-fields");
+  await walk(page, "run-kinds");
+  await walk(page, "requirements-settings", false, { to: 1 });
+  await walk(page, "media-files", false, { to: 3 });
+  await walk(page, "sentry", false, { to: 4 });
+  await walk(page, "qase", false, { to: 4 });
+  await walk(page, "workspace");
 });

@@ -94,7 +94,7 @@ export function RunFieldsPanel({ groupId, umbrella, fields: initial, canEdit }: 
           >
             <div className="grid gap-2.5 sm:grid-cols-2">
               <Field label="Field name" htmlFor="rf-name">
-                <Input id="rf-name" name="name" required maxLength={40} autoFocus placeholder="For example Firmware" />
+                <Input id="rf-name" data-howto="run-field-name" name="name" required maxLength={40} autoFocus placeholder="For example Firmware" />
               </Field>
               <Field label="Type" htmlFor="rf-type">
                 <Select id="rf-type" value={type} onChange={(e) => setType(e.target.value as "text" | "list")}>
@@ -121,7 +121,7 @@ export function RunFieldsPanel({ groupId, umbrella, fields: initial, canEdit }: 
               ))}
             </div>
             <div className="flex gap-2">
-              <Button type="submit" variant="primary" size="sm" disabled={pending}>
+              <Button type="submit" variant="primary" size="sm" disabled={pending} data-howto="run-field-save">
                 {pending ? "Adding…" : "Add field"}
               </Button>
               <Button size="sm" onClick={() => setAdding(false)}>
@@ -130,7 +130,7 @@ export function RunFieldsPanel({ groupId, umbrella, fields: initial, canEdit }: 
             </div>
           </form>
         ) : fields.length < MAX_RUN_FIELDS ? (
-          <Button size="sm" onClick={() => setAdding(true)}>
+          <Button size="sm" onClick={() => setAdding(true)} data-howto="run-field-add">
             ＋ Add a field
           </Button>
         ) : (

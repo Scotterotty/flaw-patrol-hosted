@@ -79,6 +79,7 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
               <>
                 <Select
                   aria-label={`Role for ${m.email}`}
+                  data-howto="member-role"
                   className="h-8 w-auto max-w-full text-xs"
                   value={m.role}
                   disabled={pending}

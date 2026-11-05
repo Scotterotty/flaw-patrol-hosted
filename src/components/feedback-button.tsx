@@ -178,6 +178,7 @@ export function FeedbackButton({ unseen = 0, waiting = 0 }: { unseen?: number; w
       <button
         type="button"
         aria-expanded={open}
+        data-howto="top-feedback"
         title="Send feedback about Flaw Patrol"
         onClick={() => {
           begin();
@@ -220,11 +221,12 @@ export function FeedbackButton({ unseen = 0, waiting = 0 }: { unseen?: number; w
               setOpen(false);
               setStage("send");
             }}
+            data-howto="feedback-note"
           >
             Just write a note
           </button>
           <div className="my-1 h-px bg-slate-200" />
-          <Link role="menuitem" href="/feedback" className={item} onClick={() => setOpen(false)}>
+          <Link role="menuitem" href="/feedback" className={item} onClick={() => setOpen(false)} data-howto="feedback-see">
             See feedback
             {unseen > 0 && <span className="ml-1.5 text-xs font-medium text-red-600">{unseen === 1 ? "1 new reply" : `${unseen} new replies`}</span>}
             {waiting > 0 && <span className="ml-1.5 text-xs text-slate-500">{waiting} new</span>}
@@ -266,7 +268,7 @@ export function FeedbackButton({ unseen = 0, waiting = 0 }: { unseen?: number; w
             <label htmlFor="feedback-message" className="mb-1.5 block text-sm font-medium text-slate-800">
               Tell us more
             </label>
-            <Textarea id="feedback-message" rows={4} value={message} maxLength={10000} onChange={(e) => setMessage(e.target.value)} placeholder="What happened, or what would make this better?" />
+            <Textarea id="feedback-message" data-howto="feedback-message" rows={4} value={message} maxLength={10000} onChange={(e) => setMessage(e.target.value)} placeholder="What happened, or what would make this better?" />
           </div>
           <div className="flex flex-wrap items-start gap-3">
             {shots.map((s, n) => (
@@ -324,7 +326,7 @@ export function FeedbackButton({ unseen = 0, waiting = 0 }: { unseen?: number; w
             <Button onClick={close} disabled={busy}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={send} disabled={busy}>
+            <Button variant="primary" onClick={send} disabled={busy} data-howto="feedback-send">
               {busy ? "Sending…" : "Send feedback"}
             </Button>
           </div>

@@ -31,7 +31,7 @@ export function RegressionPanel({ groupId, settings, canEdit }: { groupId: strin
     >
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <label className="flex items-start gap-2 text-sm text-slate-800">
-        <input type="checkbox" className="mt-1" checked={s.on} disabled={!canEdit} onChange={(e) => setS({ ...s, on: e.target.checked })} />
+        <input type="checkbox" className="mt-1" data-howto="regression-on" checked={s.on} disabled={!canEdit} onChange={(e) => setS({ ...s, on: e.target.checked })} />
         <span>
           Flag tests that passed before and fail now
           <span className="block text-xs text-slate-500">Turn off to hide the Regression badge, filter, report tab and Jira label everywhere in this umbrella.</span>
@@ -52,7 +52,7 @@ export function RegressionPanel({ groupId, settings, canEdit }: { groupId: strin
       <p className="text-xs text-slate-500">To tell Slack, tick Regression on a channel in Slack alerts above.</p>
       {canEdit && (
         <div className="flex gap-2">
-          <Button type="submit" variant="primary" disabled={pending}>
+          <Button type="submit" variant="primary" disabled={pending} data-howto="regression-save">
             Save
           </Button>
           <Button onClick={close}>Cancel</Button>

@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 176,
+    date: "2026-11-05",
+    items: [
+      {
+        kind: "better",
+        title: "The How-to guide covers every feature",
+        text: "23 more tasks, each with Show me: bring in results from a spreadsheet, change or export a run, change many cases at once, test personas, regressions, saved report views, run fields and kinds, Sentry, Qase, feedback and more.",
+        who: "all",
+      },
+    ],
+  },
+  {
     version: 175,
     date: "2026-11-05",
     items: [

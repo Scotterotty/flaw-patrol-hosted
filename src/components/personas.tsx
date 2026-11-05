@@ -44,7 +44,7 @@ export function PersonasBoard({ projectId, projectKey, personas, canManage, canA
             </button>
           )}
           {canManage && (
-            <Button variant="primary" onClick={() => setEditing("new")}>
+            <Button variant="primary" onClick={() => setEditing("new")} data-howto="persona-new">
               + New persona
             </Button>
           )}
@@ -171,7 +171,7 @@ export function PersonaForm({
       >
         <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
         <Field label="Name" htmlFor="persona-name">
-          <Input id="persona-name" autoFocus required value={name} onChange={(e) => setName(e.target.value)} placeholder="First-time player" />
+          <Input id="persona-name" data-howto="persona-name" autoFocus required value={name} onChange={(e) => setName(e.target.value)} placeholder="First-time player" />
         </Field>
         <fieldset>
           <legend className="mb-1 text-sm font-medium text-slate-700">Icon</legend>
@@ -191,7 +191,7 @@ export function PersonaForm({
           <Button onClick={onClose}>Cancel</Button>
           {!persona && writeCharterIn ? (
             <>
-              <Button type="submit" disabled={pending}>
+              <Button type="submit" disabled={pending} data-howto="persona-save">
                 Add persona
               </Button>
               <Button variant="primary" disabled={pending || !name.trim()} onClick={() => save(true)}>
@@ -199,7 +199,7 @@ export function PersonaForm({
               </Button>
             </>
           ) : (
-            <Button type="submit" variant="primary" disabled={pending}>
+            <Button type="submit" variant="primary" disabled={pending} data-howto="persona-save">
               {persona ? "Save" : "Add persona"}
             </Button>
           )}

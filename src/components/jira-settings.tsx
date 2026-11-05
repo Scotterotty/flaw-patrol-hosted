@@ -990,6 +990,7 @@ function StoriesSettings({ projectId, saved, bugProject, standalone = false }: {
           <Input
             className="h-8 w-36 border-dashed"
             aria-label="Add a Jira project"
+            data-howto="req-project"
             placeholder={checking ? "Checking…" : "+ Add project"}
             value={adding}
             disabled={checking}
@@ -1053,7 +1054,7 @@ function StoriesSettings({ projectId, saved, bugProject, standalone = false }: {
       </label>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <div className="flex items-center gap-3">
-        <Button size="sm" variant="primary" disabled={pending || (mode === "these" && !keys.length)} onClick={save}>
+        <Button size="sm" variant="primary" disabled={pending || (mode === "these" && !keys.length)} onClick={save} data-howto="req-save">
           Save requirements
         </Button>
         <span role="status" className="text-xs text-emerald-700">

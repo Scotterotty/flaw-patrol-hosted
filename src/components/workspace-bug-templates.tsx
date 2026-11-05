@@ -23,7 +23,7 @@ export function WorkspaceBugTemplates({ list, sources, joinDomains }: { list: Sh
   const [sharing, setSharing] = useState(false);
   const [editing, setEditing] = useState<SharedListItem | null>(null);
   return (
-    <Card id="bug-templates" className="scroll-mt-20 p-5" data-testid="workspace-bug-templates">
+    <Card id="bug-templates" data-howto="workspace-templates" className="scroll-mt-20 p-5" data-testid="workspace-bug-templates">
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
           Shared bug templates <InfoTip text="A shared template shows up in the Bug template section of every umbrella and test cycle, for people whose email ends one of the ways you list. Edits here reach every place that uses it." />

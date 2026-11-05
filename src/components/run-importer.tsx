@@ -120,6 +120,7 @@ export function RunImporter({
       <Card className="p-6">
         <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
         <label
+          data-howto="run-import-drop"
           className="flex cursor-pointer flex-col items-center gap-1 rounded-lg border-2 border-dashed border-slate-300 px-6 py-10 text-center hover:bg-slate-50"
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
@@ -183,7 +184,7 @@ export function RunImporter({
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             <div className={cx("grid gap-1.5 rounded-md border p-3 text-sm", target === "run" ? "border-accent-500 bg-accent-50" : "border-slate-200")}>
               <label className="flex cursor-pointer items-center gap-2">
-                <input type="radio" name="imp-target" checked={target === "run"} onChange={() => setTarget("run")} />
+                <input type="radio" name="imp-target" data-howto="import-into-run" checked={target === "run"} onChange={() => setTarget("run")} />
                 <span className="font-medium text-slate-800">
                   A run in progress <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">Recommended</span>
                 </span>
@@ -191,6 +192,7 @@ export function RunImporter({
               <span className="grid min-w-0 gap-1.5 pl-5">
                 <Select
                   aria-label="Run in progress"
+                  data-howto="import-run-pick"
                   value={runId}
                   onChange={(e) => {
                     setRunId(e.target.value);
@@ -374,6 +376,7 @@ export function RunImporter({
                   <Button onClick={() => setRows(null)}>Cancel</Button>
                   <Button
                     variant="primary"
+                    data-howto="import-add"
                     disabled={pending || checking || p.into.fill + useSheet.size === 0}
                     onClick={() =>
                       start(async () => {

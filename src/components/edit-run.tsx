@@ -18,7 +18,7 @@ export function EditRunButton({ projectId, runId, details, releases, fields }: {
   const router = useRouter();
   return (
     <>
-      <Button variant="ghost" onClick={() => setOpen(true)}>
+      <Button variant="ghost" data-howto="run-edit" onClick={() => setOpen(true)}>
         Edit details
       </Button>
       <Modal open={open} onClose={() => setOpen(false)} title="Edit run details">
@@ -68,7 +68,7 @@ export function EditRunButton({ projectId, runId, details, releases, fields }: {
           <p className="text-xs text-slate-500">Results stay as they are. If you set a release, Reports and Trends group this run under it.</p>
           <div className="flex justify-end gap-2">
             <Button onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="primary" disabled={pending}>
+            <Button type="submit" variant="primary" disabled={pending} data-howto="run-edit-save">
               {pending ? "Saving…" : "Save"}
             </Button>
           </div>

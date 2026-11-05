@@ -47,7 +47,7 @@ export function RadioSettings({ enabled, station, spotify }: { enabled: boolean;
     <div className="space-y-2 text-sm">
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <label className="flex cursor-pointer items-start gap-3">
-        <input type="checkbox" checked={on} disabled={pending} onChange={(e) => toggle(e.target.checked)} className="mt-1 size-4 accent-accent-600" />
+        <input type="checkbox" checked={on} disabled={pending} onChange={(e) => toggle(e.target.checked)} className="mt-1 size-4 accent-accent-600" data-howto="radio-on" />
         <span>
           <span className="block text-slate-800">Show the radio player</span>
           <span className="block text-xs text-slate-500">

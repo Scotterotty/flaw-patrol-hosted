@@ -147,6 +147,7 @@ export function BringInResults({
           <button
             type="button"
             role="menuitem"
+            data-howto="bring-sheet"
             onClick={() => setPicking(true)}
             className="grid w-72 max-w-[80vw] gap-0.5 rounded-md px-3 py-2 text-left text-sm text-slate-800 hover:bg-slate-100"
           >
@@ -158,6 +159,7 @@ export function BringInResults({
           <Link
             href={importHref}
             role="menuitem"
+            data-howto="bring-sheet"
             className="grid w-72 max-w-[80vw] gap-0.5 rounded-md px-3 py-2 text-left text-sm text-slate-800 hover:bg-slate-100"
           >
             <span>Results from a spreadsheet</span>
@@ -217,7 +219,7 @@ function PickImportCycle({ cycles, onClose, handoff = false }: { cycles: ImportC
         <Button type="button" onClick={onClose}>
           Cancel
         </Button>
-        <Button type="submit" variant="primary" disabled={!key || pending}>
+        <Button type="submit" variant="primary" disabled={!key || pending} data-howto="sheet-cycle-go">
           {pending ? "Opening…" : "Continue"}
         </Button>
       </div>
