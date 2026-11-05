@@ -22,6 +22,24 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 172,
+    date: "2026-11-04",
+    items: [
+      {
+        kind: "new",
+        title: "Bug bashes say which build and environment",
+        text: "When you start a bug bash, fill in Build, Environment and a Link to what's being tested (all optional). Everyone sees them when they join and while they test, and each bug filed from the bash gets the build and environment.",
+        who: "all",
+      },
+      {
+        kind: "better",
+        title: "New build in the middle of a bash?",
+        text: "Whoever started it opens What's being tested → Edit and changes the build. People testing see \"Build changed\" right away, and bugs already logged keep the build they were found on.",
+        who: "all",
+      },
+    ],
+  },
+  {
     version: 171,
     date: "2026-11-04",
     items: [
