@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acceptOf, answersText, autoRow, blankLayout, deviceCell, fileAllowed, isWritten, layoutFromImported, layoutTitle, listWords, missing, parseAnswers, parseLayout, plainLayout, readyMadeLayout, startAnswers, withFileNames, type BugLayout } from "./bug-layout";
+import { acceptOf, answersText, autoRow, blankLayout, deviceCell, fileAllowed, isWritten, layoutFromImported, layoutFromSettings, layoutTitle, listWords, missing, parseAnswers, parseLayout, plainLayout, readyMadeLayout, startAnswers, withFileNames, type BugLayout } from "./bug-layout";
 import { answersAdf } from "./jira-format";
 
 const auto = { now: "Oct 31, 2026, 6:14 PM PDT", build: "4.2.0-118", env: "Staging", device: "Chrome 141 · Windows", who: "Sam Lee" };
@@ -131,5 +131,22 @@ describe("bug layouts", () => {
     expect(isWritten(null)).toBe(false);
     // Reading the layout back drops the mark, so it never reaches the form.
     expect("written" in parseLayout({ ...plainLayout(), written: true })).toBe(false);
+  });
+});
+
+describe("layoutFromSettings (Write a bug's first choice)", () => {
+  const base = { on: false, clientTag: "", team: "", clients: [], olyEnv: [], imported: null, priority: null };
+  it("is nothing for the plain layout", () => {
+    expect(layoutFromSettings(base)).toBeNull();
+  });
+  it("turns the OKO layout into its headings, with Team and Client/SKUs to pick", () => {
+    const l = layoutFromSettings({ ...base, on: true, team: "Web", clients: ["Web"] })!;
+    expect(l.sections.map((s) => s.heading)).toContain("Bug impact");
+    expect(l.fields.find((f) => f.name === "Team")).toMatchObject({ source: "default", value: ["Web"] });
+    expect(l.fields.find((f) => f.name === "Oly Environment")).toMatchObject({ source: "tester", value: [] });
+  });
+  it("uses a copied Jira bug's layout as it is", () => {
+    const imported = { from: "QA-1", title: { tag: true, feature: false }, sections: [{ heading: "Steps", source: "steps" as const }], fields: [] };
+    expect(layoutFromSettings({ ...base, on: true, imported })?.from).toBe("QA-1");
   });
 });

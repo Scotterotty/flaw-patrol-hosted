@@ -197,3 +197,64 @@ test("with Jira: file it straight into Jira, or keep it here and send it later",
   const after = (await (await fetch(`${JIRA}/__issues`)).json()) as Record<string, { summary: string; description: unknown }>;
   expect(JSON.stringify(Object.values(after).find((i) => i.summary === `Typo on the pricing page ${TAG}`)?.description)).toContain("It says Pirce");
 });
+
+test("the test cycle's own layout (like the shared OKO one) comes first, with Plain still there", async ({ page }) => {
+  // Scott, Nov 5 2026: Write a bug only offered Plain, never the OKO bug layout Settings → Bug templates lists first.
+  test.setTimeout(180_000);
+  const JIRA = `http://localhost:${process.env.MOCK_JIRA_PORT ?? 3199}`;
+  const OK = `WO${TAG}`;
+  await signIn(page, "admin@example.com", "Demo Admin");
+  const db = new PrismaClient();
+  try {
+    const admin = await db.user.findUniqueOrThrow({ where: { email: "admin@example.com" } });
+    await db.project.create({ data: { key: OK, name: `OKO writing ${TAG}`, members: { create: [{ userId: admin.id, role: "ADMIN" }] } } });
+  } finally {
+    await db.$disconnect();
+  }
+  await page.goto(`/p/${OK}/settings`);
+  await page.getByLabel("Jira site").fill(JIRA);
+  await page.getByLabel("Jira project key").fill("QA");
+  await page.getByLabel("Account email").fill("qa-bot@example.com");
+  await page.getByLabel("API token").fill("secret-token");
+  await page.getByRole("button", { name: "Connect Jira" }).click();
+  await expect(page.getByText(`Connected to ${JIRA}, Jira project QA`)).toBeVisible();
+  const db2 = new PrismaClient();
+  try {
+    const p = await db2.project.findUniqueOrThrow({ where: { key: OK } });
+    await db2.jiraConfig.update({ where: { projectId: p.id }, data: { sharedTemplateId: "shared_oko_layout" } });
+  } finally {
+    await db2.$disconnect();
+  }
+
+  await page.goto(`/p/${OK}/bugs?write=1`);
+  const box = page.getByRole("dialog", { name: "Write a bug" });
+  const picker = box.getByTestId("template-picker");
+  await expect(picker.getByRole("radio", { name: "OKO bug layout" })).toHaveAttribute("aria-checked", "true");
+  await expect(picker.getByRole("radio", { name: "Plain" })).toBeVisible();
+  await expect(box.getByLabel("Repro steps")).toBeVisible();
+  await expect(box.getByLabel("Bug impact")).toBeVisible();
+  await box.getByLabel("Summary").fill(`Avatar flickers ${TAG}`);
+  await box.getByLabel("Description").fill("The avatar flickers when walking");
+  await box.getByLabel("Repro steps").fill("1. Walk forward");
+  await box.getByRole("button", { name: "Save and file in Jira" }).click();
+  await expect(box).toHaveCount(0);
+  const filed = page.locator("tr").filter({ hasText: `Avatar flickers ${TAG}` });
+  await expect(filed.getByRole("link", { name: /^QA-\d+$/ })).toBeVisible();
+  const issues = (await (await fetch(`${JIRA}/__issues`)).json()) as Record<string, { summary: string; description: unknown }>;
+  const issue = Object.values(issues).find((i) => i.summary.includes(`Avatar flickers ${TAG}`));
+  expect(JSON.stringify(issue?.description)).toContain("Bug impact");
+  expect(JSON.stringify(issue?.description)).toContain("The avatar flickers when walking");
+  const db3 = new PrismaClient();
+  try {
+    const bug = await db3.defect.findFirstOrThrow({ where: { title: { contains: `Avatar flickers ${TAG}` } } });
+    expect(bug.templateName).toBe("OKO bug layout");
+  } finally {
+    await db3.$disconnect();
+  }
+
+  // Plain is one click away.
+  await page.getByTestId("write-bug").click();
+  await picker.getByRole("radio", { name: "Plain" }).click();
+  await expect(box.getByLabel("What happened")).toBeVisible();
+  await expect(box.getByLabel("Bug impact")).toHaveCount(0);
+});

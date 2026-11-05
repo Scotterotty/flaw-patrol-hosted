@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 179,
+    date: "2026-11-05",
+    items: [
+      {
+        kind: "fix",
+        title: "Write a bug offers your team's bug layout",
+        text: "Write a bug now starts with the first template in Settings → Bug templates, like the OKO bug layout, the same as Report a bug in a run. Plain is still there as one of the choices.",
+        who: "all",
+      },
+    ],
+  },
+  {
     version: 178,
     date: "2026-11-05",
     items: [

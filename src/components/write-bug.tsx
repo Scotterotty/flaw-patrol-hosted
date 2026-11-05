@@ -8,20 +8,23 @@
 import type { Severity } from "@prisma/client";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { deviceCell, nowCell, PLAIN_ID, plainLayout, startAnswers } from "@/lib/bug-layout";
+import { CURRENT_ID, deviceCell, nowCell, PLAIN_ID, plainLayout, startAnswers, type BugLayout } from "@/lib/bug-layout";
 import { defaultSeverityOf, type SeverityScale } from "@/lib/severity";
 import { bugTemplateChoices } from "@/server/bug-templates";
 import { fileTemplatedBug, startTemplatedBug } from "@/server/jira";
 import { uploadAttachment } from "@/server/results";
 import { sendWrittenBug, writeBugStart } from "@/server/write-bug";
 import { Modal } from "./modal";
+import type { CurrentLayout } from "@/lib/bug-templates-data";
 import { missingLine, TemplatedForm, TemplatePicker, type TemplateChoice, type TemplatedDraft } from "./templated-bug-form";
 import { Button, ErrorText, Input, Select } from "./ui";
 
 export type WriteBugCycle = { id: string; name: string };
 
 /** "Plain" is the built-in choice: three boxes to write in. */
-const PLAIN = { name: "Plain", kind: "plain" as const };
+const PLAIN: CurrentLayout = { name: "Plain", kind: "plain" };
+/** Listed after the team's templates when the first choice is the test cycle's own layout (like OKO). */
+const PLAIN_CHOICE: TemplateChoice = { id: PLAIN_ID, name: "Plain", hint: "Three boxes to write in", layout: plainLayout() };
 
 /**
  * The + Write a bug button and its box. `cycles`: where the bug can go (an umbrella's current
@@ -61,6 +64,8 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
   const [projectId, setProjectId] = useState(cycles[0].id);
   const [choices, setChoices] = useState<TemplateChoice[]>([]);
   const [chosen, setChosen] = useState("");
+  // The first choice: the test cycle's own layout (Settings → Bug templates, first row), or Plain.
+  const [first, setFirst] = useState<{ label: CurrentLayout; layout: BugLayout | null }>({ label: PLAIN, layout: null });
   const [draft, setDraft] = useState<TemplatedDraft | null>(null);
   const [severity, setSeverity] = useState<Severity>(defaultSeverityOf(scale));
   const [foundIn, setFoundIn] = useState("");
@@ -77,12 +82,13 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
   draftRef.current = draft;
 
   /** Switch template: what was typed under a heading with the same name comes along. */
-  const pick = (id: string, list: TemplateChoice[], forProject = projectId) => {
+  const pick = (id: string, list: TemplateChoice[], forProject = projectId, top = first) => {
     setChosen(id);
-    const layout = id ? list.find((t) => t.id === id)?.layout : undefined;
+    const layout = id ? list.find((t) => t.id === id)?.layout : (top.layout ?? undefined);
     if (id && !layout) return;
+    const templateId = id || (top.layout ? CURRENT_ID : PLAIN_ID);
     startLoad(async () => {
-      const res = await startTemplatedBug(forProject, "", null, "", id || PLAIN_ID);
+      const res = await startTemplatedBug(forProject, "", null, "", templateId);
       if (!res.ok) return setError(res.error);
       const before = draftRef.current;
       const real = layout ?? plainLayout();
@@ -91,7 +97,7 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
         const old = typed.get(a.heading.trim().toLowerCase());
         return old && !a.rows && !a.files ? { ...a, text: old.text } : a;
       });
-      setDraft({ templateId: id || PLAIN_ID, layout: real, platform: before?.platform ?? "", area: before?.area ?? "", build: before?.build ?? "", summary: before?.summary ?? "", answers, fields: res.fields });
+      setDraft({ templateId, layout: real, platform: before?.platform ?? "", area: before?.area ?? "", build: before?.build ?? "", summary: before?.summary ?? "", answers, fields: res.fields });
     });
   };
 
@@ -104,9 +110,11 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
       if (!s.ok) return setError(s.error);
       setFoundIn(s.foundIn);
       setJiraKey(s.jiraKey);
-      const list = c.ok ? c.templates : [];
+      const top = c.ok && c.currentLayout ? { label: c.current, layout: c.currentLayout } : { label: PLAIN, layout: null };
+      const list = [...(c.ok ? c.templates : []), ...(top.layout ? [PLAIN_CHOICE] : [])];
+      setFirst(top);
       setChoices(list);
-      pick(c.ok && c.defaultId && list.some((t) => t.id === c.defaultId) ? c.defaultId : "", list, projectId);
+      pick(c.ok && c.defaultId && list.some((t) => t.id === c.defaultId) ? c.defaultId : "", list, projectId, top);
     });
     // Only when the test cycle changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -196,9 +204,9 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
             </div>
           )}
           <div className="rounded-lg bg-accent-50 px-3 py-2.5" data-howto="write-bug-template">
-            <TemplatePicker current={PLAIN} templates={choices} value={chosen} onChange={(id) => pick(id, choices)} />
+            <TemplatePicker current={first.label} templates={choices} value={chosen} onChange={(id) => pick(id, choices)} />
           </div>
-          {draft && draft.templateId === (chosen || PLAIN_ID) ? (
+          {draft && draft.templateId === (chosen || (first.layout ? CURRENT_ID : PLAIN_ID)) ? (
             <>
               <TemplatedForm projectId={projectId} draft={draft} setDraft={(fn) => setDraft((d) => (d ? fn(d) : d))} severity={severity} setSeverity={setSeverity} scale={scale} setError={setError} />
               <div>

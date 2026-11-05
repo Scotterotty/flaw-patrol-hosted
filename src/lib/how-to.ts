@@ -708,9 +708,9 @@ export const HOW_TO: HowToTask[] = [
     steps: [
       { text: "In the left menu, press **+** next to **Bugs**. (**+ Write a bug** on the Overview does the same.)", see: "The **Write a bug** box.", target: "menu-bugs-plus" },
       { text: "If you're asked, pick the test cycle it **Goes to**.", see: "The test cycle picked." },
-      { text: "Pick a template. **Plain** is fine for most bugs.", see: "The template's boxes.", target: "write-bug-template" },
+      { text: "Pick a template. The first one is your team's bug layout from **Settings → Bug templates**; **Plain** is three boxes to write in.", see: "The template's boxes.", target: "write-bug-template" },
       { text: "Type a short **Summary** that says what's wrong.", see: "Your summary.", target: "bug-summary", type: true },
-      { text: "Fill in **Steps to reproduce**, **What happened** and **What you expected**, then pick a **Severity**.", see: "Every box filled in. Anything still needed is listed by the save button." },
+      { text: "Fill in the template's boxes (with **Plain**: **Steps to reproduce**, **What happened** and **What you expected**), then pick a **Severity**.", see: "Every box filled in. Anything still needed is listed by the save button." },
       { text: "Add **Found in** and **+ Attach files** if you have them. Tick **Also file it in Jira** to send it there too.", see: "Your files listed." },
       { text: "Press **Save bug** (or **Save and file in Jira**).", see: "Saved, with the bug's key. It's on the **Bugs** page.", target: "write-bug-save", saves: true },
     ],

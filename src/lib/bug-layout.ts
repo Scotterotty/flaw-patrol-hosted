@@ -3,7 +3,7 @@
 // heading says where its text comes from. Pure, so the settings editor, the bug form, the
 // server and the tests share it.
 
-import type { ImportedTemplate } from "./bug-template";
+import { FIELD, templateKind, type ImportedTemplate, type TemplateSettings } from "./bug-template";
 
 /** Where a heading's text comes from on a new bug. */
 export const SOURCES = {
@@ -163,6 +163,8 @@ export function blankLayout(): BugLayout {
 export const PLAIN_ID = "plain";
 /** Send to Jira for a written bug: file it with the layout it was saved with. */
 export const SAVED_ID = "saved";
+/** Write a bug: the test cycle's own layout (Settings → Bug templates, first row), like a shared OKO layout. */
+export const CURRENT_ID = "current";
 
 /** A bug written on its own (Write a bug), not from a test: its saved layout says so. */
 export const isWritten = (layout: unknown) => !!layout && typeof layout === "object" && (layout as { written?: unknown }).written === true;
@@ -209,6 +211,23 @@ export function layoutFromImported(t: ImportedTemplate): BugLayout {
     shot: false,
     fields: t.fields,
     from: t.from,
+  };
+}
+
+/**
+ * The first row of Settings → Bug templates (a copied Jira bug, or the detailed OB-5292 / OKO
+ * layout) as a template, for Write a bug. Null when it's the plain one-line bug.
+ * The detailed one's Jira fields (Team, Client/SKUs, Oly Environment) become fields to pick,
+ * starting at the test cycle's defaults.
+ */
+export function layoutFromSettings(t: TemplateSettings): BugLayout | null {
+  const kind = templateKind(t);
+  if (kind === "plain") return null;
+  if (kind === "imported" && t.imported) return layoutFromImported(t.imported);
+  const field = (name: string, value: string[]) => ({ id: name, name, required: false, source: (value.length ? "default" : "tester") as "default" | "tester", value });
+  return {
+    ...readyMadeLayout(),
+    fields: [field(FIELD.team, [t.team].filter(Boolean)), field(FIELD.clients, t.clients), field(FIELD.olyEnv, t.olyEnv)],
   };
 }
 

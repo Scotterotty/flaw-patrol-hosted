@@ -7,7 +7,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity";
-import { COLUMN_FILLS, parseLayout, SOURCES } from "@/lib/bug-layout";
+import { COLUMN_FILLS, layoutFromSettings, parseLayout, SOURCES } from "@/lib/bug-layout";
+import { parseTemplateSettings } from "@/lib/bug-template";
+import { jiraConfigFor } from "@/lib/umbrella";
 import { loadBugTemplates, templateHome } from "@/lib/bug-templates-data";
 import { db } from "@/lib/db";
 import { requireProjectAction } from "@/lib/session";
@@ -137,6 +139,8 @@ export async function bugTemplateChoices(projectId: string) {
   return attempt(async () => {
     const { project } = await requireProjectAction(projectId, "run:execute");
     const t = await loadBugTemplates(project);
-    return { current: t.current, templates: t.templates.map(({ id, name, hint, layout }) => ({ id, name, hint, layout })), defaultId: t.defaultId };
+    // Write a bug files the first row (current layout) as a template too, so it needs it as one.
+    const currentAsLayout = layoutFromSettings(parseTemplateSettings((await jiraConfigFor(projectId))?.bugTemplate));
+    return { current: t.current, currentLayout: currentAsLayout, templates: t.templates.map(({ id, name, hint, layout }) => ({ id, name, hint, layout })), defaultId: t.defaultId };
   });
 }

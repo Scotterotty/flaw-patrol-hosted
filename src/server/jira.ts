@@ -44,8 +44,8 @@ import { attempt, UserError } from "./result";
 import { jiraConfigFor } from "@/lib/umbrella";
 import { entryRegression } from "@/lib/regression-data";
 import { bugContext } from "@/lib/bug-context";
-import { answersText, layoutFromImported, layoutTitle, listWords, missing, parseAnswers, parseLayout, PLAIN_ID, plainLayout, SAVED_ID, withFileNames, type Answer, type BugLayout, type RunFill } from "@/lib/bug-layout";
-import { templateHome } from "@/lib/bug-templates-data";
+import { answersText, CURRENT_ID, layoutFromImported, layoutFromSettings, layoutTitle, listWords, missing, parseAnswers, parseLayout, PLAIN_ID, plainLayout, SAVED_ID, withFileNames, type Answer, type BugLayout, type RunFill } from "@/lib/bug-layout";
+import { currentLayout, templateHome } from "@/lib/bug-templates-data";
 import { FOUND_IN_FIELDS, foundInDraft, foundInRelease, matchVersion, parseFoundIn, type FoundInDraft } from "@/lib/found-in";
 
 async function wrap<T extends object>(fn: () => Promise<T>) {
@@ -1012,6 +1012,11 @@ export async function setPlainLayout(projectId: string) {
 /** The template a test cycle's bug uses, from its umbrella's list. */
 async function layoutOf(projectId: string, templateId: string) {
   if (templateId === PLAIN_ID) return { name: "Plain", layout: plainLayout() };
+  if (templateId === CURRENT_ID) {
+    // Write a bug: the test cycle's own layout (a shared OKO layout or a copied Jira bug).
+    const layout = layoutFromSettings(parseTemplateSettings((await jiraConfigFor(projectId))?.bugTemplate));
+    return layout ? { name: (await currentLayout(projectId)).name, layout } : { name: "Plain", layout: plainLayout() };
+  }
   const project = await db.project.findUniqueOrThrow({ where: { id: projectId }, select: { id: true, key: true, groupId: true } });
   const home = await templateHome(project);
   const t = await db.bugTemplate.findFirst({ where: { id: templateId, projectId: home.id } });
