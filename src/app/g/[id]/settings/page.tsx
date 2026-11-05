@@ -550,6 +550,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               id="members"
               hashes={["members"]}
               title="Members"
+              howto="settings-members"
               text={`${requests.length ? `${requests.length} asking to join · ` : ""}${members.length} ${members.length === 1 ? "person" : "people"} · ${leads} ${leads === 1 ? "lead or admin" : "leads and admins"} · everyone gets every ${name} test cycle unless it keeps members separate`}
               label="Manage"
             >

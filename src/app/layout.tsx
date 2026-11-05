@@ -104,6 +104,7 @@ import { GlossaryProvider } from "@/components/glossary";
 import { BusyCorner } from "@/components/busy-corner";
 import { ZoneCookie } from "@/components/zone-cookie";
 import { viewerZone } from "@/lib/zone-server";
+import { HowToGuide } from "@/components/how-to-guide";
 
 export const metadata: Metadata = { title: { default: "Flaw Patrol", template: "%s · Flaw Patrol" } };
 
@@ -161,6 +162,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {/* Your spinner whenever something takes more than a third of a second. */}
           <BusyCorner />
           {whatsNew.length > 0 && <WhatsNewWindow entries={whatsNew} />}
+          {/* The How-to guide: closed until someone opens it from the left menu or Search. */}
+          {user && <HowToGuide />}
           </NavOrderProvider>
         </SpellingProvider>
       </body>

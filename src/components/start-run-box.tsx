@@ -85,6 +85,7 @@ export function StartRunBox({
           setOpen(true);
         }}
         disabled={disabled}
+        data-howto={session ? undefined : "run-create"}
       >
         {label}
       </Button>
@@ -406,7 +407,7 @@ function Form({
       )}
       {kindId !== null && (
       <>
-      <section aria-labelledby="rb-what">
+      <section aria-labelledby="rb-what" data-howto="run-what">
         <h3 id="rb-what" className="mb-1.5 text-xs font-semibold text-slate-600">
           {step(1)}. What to run
         </h3>
@@ -629,7 +630,7 @@ function Form({
         </div>
       )}
 
-      <section aria-labelledby="rb-where">
+      <section aria-labelledby="rb-where" data-howto="run-where">
         <h3 id="rb-where" className="mb-1.5 text-xs font-semibold text-slate-600">
           {step(2)}. Test cycle <span className="font-normal text-slate-500">· Where the chosen test cases will go</span>
         </h3>
@@ -685,7 +686,7 @@ function Form({
 
       <div className="grid items-start gap-3 sm:grid-cols-2">
         <Field label="Run name (optional)" htmlFor="rb-name" hint={grayName ? "Leave it blank to use the suggested name shown." : undefined}>
-          <Input id="rb-name" value={typedName} onChange={(e) => setName(e.target.value)} placeholder={grayName || "Pick what to run first"} />
+          <Input id="rb-name" data-howto="run-name" value={typedName} onChange={(e) => setName(e.target.value)} placeholder={grayName || "Pick what to run first"} />
         </Field>
         <Field
           label="Release (optional)"
@@ -790,7 +791,7 @@ function Form({
           </Button>
           {kindId !== null &&
             (runCount > 1 ? (
-              <Button variant="primary" disabled={busy || !ready} onClick={() => submit(false)}>
+              <Button variant="primary" disabled={busy || !ready} onClick={() => submit(false)} data-howto={session ? undefined : "run-go"}>
                 {busy ? <Working opening={!!opening} session={session} /> : session ? `Start ${runCount} sessions` : `Create ${runCount} runs`}
               </Button>
             ) : session ? (
@@ -799,12 +800,12 @@ function Form({
               </Button>
             ) : (
               <>
-                <Button disabled={busy || !ready} onClick={() => submit(false)}>
+                <Button disabled={busy || !ready} onClick={() => submit(false)} data-howto={handed ? "run-go" : undefined}>
                   {busy && pressed === "plain" ? <Working opening={!!opening} session={session} /> : kind ? `Create ${kind.name.toLowerCase()}` : "Create run"}
                 </Button>
                 {/* Handing every case to someone else: no "test now" for you. */}
                 {!handed && (
-                  <Button variant="primary" disabled={busy || !ready} onClick={() => submit(true)}>
+                  <Button variant="primary" disabled={busy || !ready} onClick={() => submit(true)} data-howto="run-go">
                     {busy && pressed === "test" ? <Working opening={!!opening} session={session} /> : "Create and test now"}
                   </Button>
                 )}
@@ -934,7 +935,7 @@ function KindStep({
       <h3 id="rb-kind" className="mb-1.5 text-xs font-semibold text-slate-600">
         1. What kind of run?
       </h3>
-      <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Kind of run">
+      <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Kind of run" data-howto="run-kind">
         {shown.map((k) => (
           <button
             key={k.id}

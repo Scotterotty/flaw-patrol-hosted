@@ -349,7 +349,7 @@ export function FeedbackButton({ unseen = 0, waiting = 0 }: { unseen?: number; w
 
 function Busy() {
   return createPortal(
-    <div role="status" data-feedback-skip className="fixed right-4 bottom-4 z-50 rounded-md bg-slate-900 px-3 py-2 text-sm text-white shadow-lg">
+    <div role="status" data-feedback-skip className="fp-right fixed right-4 bottom-4 z-50 rounded-md bg-slate-900 px-3 py-2 text-sm text-white shadow-lg">
       Taking a screenshot…
     </div>,
     document.body,

@@ -281,7 +281,7 @@ export function CsvImporter({
           >
             Import another file
           </Button>
-          <Link href={`/p/${done.place.key}/cases${done.folderId ? `?folder=${done.folderId}` : ""}`} className="inline-flex h-9 items-center rounded-md bg-accent-600 px-3.5 text-sm font-medium text-white hover:bg-accent-700">
+          <Link href={`/p/${done.place.key}/cases${done.folderId ? `?folder=${done.folderId}` : ""}`} data-howto="import-view" className="inline-flex h-9 items-center rounded-md bg-accent-600 px-3.5 text-sm font-medium text-white hover:bg-accent-700">
             View cases
           </Link>
         </div>
@@ -305,6 +305,7 @@ export function CsvImporter({
     <div className="space-y-5">
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <label
+        data-howto="import-drop"
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
@@ -390,6 +391,7 @@ export function CsvImporter({
             <Field label="Where is this file from?" htmlFor="import-source" hint="Matches that tool's columns, folders and formatting exactly. We picked it from the column names.">
               <Select
                 id="import-source"
+                data-howto="import-source"
                 value={source}
                 onChange={(e) => chooseSource(e.target.value as ImportSource, header)}
                 className="sm:max-w-xs"
@@ -598,7 +600,7 @@ export function CsvImporter({
           <Card className="p-5">
             <h2 className="mb-1 text-sm font-semibold text-slate-800">Have these cases been run before?</h2>
             <p className="mb-3 text-xs text-slate-500">So runs know whether to tag them New.</p>
-            <div className="space-y-2" role="radiogroup" aria-label="Have these cases been run before?">
+            <div className="space-y-2" role="radiogroup" aria-label="Have these cases been run before?" data-howto="import-run-before">
               <Choice checked={runBefore === true} onSelect={() => setRunBefore(true)} name="run-before">
                 <span className="font-medium text-slate-900">Yes, we&apos;ve run them before</span>
                 <span className="mt-0.5 block text-xs text-slate-500">For cases you already test with, for example from TestRail or a spreadsheet. Runs won&apos;t call them new.</span>
@@ -610,7 +612,7 @@ export function CsvImporter({
             </div>
           </Card>
 
-          <Card className="p-5">
+          <Card className="p-5" data-howto="import-columns">
             <h2 className="mb-1 text-sm font-semibold text-slate-800">Match your columns</h2>
             <p className="mb-4 text-xs text-slate-500">We guessed from the header names. Only Title is required. Rows that share a case ID, as in qTest exports, become one case.</p>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -678,6 +680,7 @@ export function CsvImporter({
                   disabled={pending || needsName || runBefore === null || !result.cases.length || result.cases.length > MAX_IMPORT}
                   title={needsName ? "Name the new folder first" : runBefore === null ? "Answer “Have these cases been run before?” first" : undefined}
                   onClick={doImport}
+                  data-howto="import-go"
                 >
                   {pending ? "Importing…" : intoLabel ? `Import ${count(result.cases.length, "case")} into "${intoLabel}"` : `Import ${count(result.cases.length, "case")}`}
                 </Button>

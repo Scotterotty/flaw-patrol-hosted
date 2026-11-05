@@ -1153,13 +1153,14 @@ export function Runner({
                         )}
                       </div>
                       <div className="min-w-0 md:col-start-2 md:border-l md:border-slate-200 md:pl-3">
-                        <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-dashed border-slate-200 pt-2 select-none" role="group" aria-label={`Step ${step.number} status`}>
+                        <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-dashed border-slate-200 pt-2 select-none" role="group" aria-label={`Step ${step.number} status`} data-howto="runner-status">
                           {SETTABLE.map(({ status }) => (
                             <button
                               key={status}
                               type="button"
                               title={`${STATUS_LABEL[status]}: ${STATUS_HELP[status]}`}
                               aria-pressed={s === status}
+                              data-howto={status === "FAILED" ? "runner-fail" : undefined}
                               disabled={runClosed}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1223,12 +1224,13 @@ export function Runner({
                       <Textarea
                         rows={2}
                         aria-label={`Step ${step.number} actual result`}
+                        data-howto="runner-actual"
                         placeholder="What actually happened?"
                         value={actuals[i]}
                         onChange={(e) => setActuals((a) => a.map((x, j) => (j === i ? e.target.value : x)))}
                       />
                       <div className="flex flex-wrap items-center gap-2">
-                        <Button size="sm" variant={s === "FAILED" ? "primary" : "secondary"} onClick={() => setBugFor(i)} disabled={runClosed}>
+                        <Button size="sm" variant={s === "FAILED" ? "primary" : "secondary"} onClick={() => setBugFor(i)} disabled={runClosed} data-howto="runner-report-bug">
                           {jiraConnected ? "Report bug in Jira" : "Report bug"}
                         </Button>
                         <Button
@@ -1373,6 +1375,7 @@ export function Runner({
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             aria-label="Comment"
+            data-howto="runner-comment"
             className={cx("min-h-9 resize-none transition-[min-height] focus:min-h-20", comment.includes("\n") && "min-h-20")}
           />
           <div className="flex flex-wrap items-start gap-2">
@@ -1450,7 +1453,7 @@ export function Runner({
           <Button disabled={saving || runClosed} onClick={() => submit(false)}>
             {partial ? "Save progress" : "Save"}
           </Button>
-          <Button variant="primary" disabled={saving || runClosed} onClick={() => submit(true)}>
+          <Button variant="primary" disabled={saving || runClosed} onClick={() => submit(true)} data-howto="runner-save">
             {saving
               ? "Saving…"
               : partial

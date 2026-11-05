@@ -9,6 +9,7 @@ import { saveMyNavOrder } from "@/server/account";
 import { useNavOrder } from "./nav-order";
 import { Button, cx } from "./ui";
 import { VersionLine } from "./version-line";
+import { toggleHowTo } from "./how-to-guide";
 
 /**
  * One menu link. `sub` indents it under the link above; `inner` indents it one more step (under the test cycle you're in).
@@ -35,6 +36,12 @@ export type MenuItem = {
   tool?: string;
   /** A small + at the end of the row that's always showing, like Write a bug next to Bugs. */
   plus?: { href: string; label: string };
+  /** A button instead of a link: "how-to" opens the How-to guide panel. */
+  action?: "how-to";
+  /** A small NEW tag after the label, for a little while after something ships. */
+  isNew?: boolean;
+  /** The How-to guide finds the link by data-howto="menu-<howto or id>". */
+  howto?: string;
 };
 export type MenuGroup = { label: string; items: MenuItem[] };
 
@@ -141,8 +148,11 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
     save(moved(mine, group, d, at + by));
   };
 
+  const guideName = (i: MenuItem) => (i.howto ?? i.id ? `menu-${i.howto ?? i.id}` : undefined);
   const row = (i: MenuItem) =>
-    i.plus ? (
+    i.action ? (
+      actionButton(i)
+    ) : i.plus ? (
       <div className="flex items-center gap-1">
         <div className="min-w-0 flex-1">{link(i)}</div>
         <Link
@@ -150,6 +160,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
           aria-label={i.plus.label}
           title={i.plus.label}
           data-testid="menu-plus"
+          data-howto={guideName(i) && `${guideName(i)}-plus`}
           className="grid size-7 flex-none place-items-center rounded-md text-base leading-none font-semibold text-accent-700 ring-1 ring-accent-200 ring-inset hover:bg-accent-50 focus-visible:outline-2 focus-visible:outline-accent-500"
         >
           +
@@ -163,6 +174,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
       href={i.href}
       aria-current={active(i) ? "page" : undefined}
       title={i.tip}
+      data-howto={guideName(i)}
       className={cx(
         "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm",
         i.inner && "py-1 text-[13px]",
@@ -179,6 +191,22 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
       {i.note && <span className="size-2 flex-none rounded-full bg-accent-600" title="New answer to your question" aria-label="New answer to your question" data-testid="menu-note" />}
       {i.count !== undefined && <span className="text-xs font-normal text-slate-400 tabular-nums">{i.count}</span>}
     </Link>
+  );
+  /** A menu row that does something on this page instead of opening one, like How-to guide. */
+  const actionButton = (i: MenuItem, small = false) => (
+    <button
+      type="button"
+      title={i.tip}
+      onClick={() => i.action === "how-to" && toggleHowTo()}
+      data-testid={i.action === "how-to" ? "menu-how-to" : undefined}
+      className={cx(
+        small ? "shrink-0 rounded-md px-2.5 py-1 text-xs text-slate-600" : "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-100",
+        "focus-visible:outline-2 focus-visible:outline-accent-500",
+      )}
+    >
+      <span className={small ? undefined : "min-w-0 flex-1 truncate"}>{i.label}</span>
+      {i.isNew && <span className={cx("rounded-full bg-orange-600 px-1.5 text-[10px] font-bold text-white", small && "ml-1")}>NEW</span>}
+    </button>
   );
   /** A row while arranging: a grip to drag (or ↑/↓), and the name, which doesn't open the page. */
   const grip = (i: MenuItem, group: string, d: Dragging | null) => (
@@ -364,12 +392,13 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
         {[...shown.map((g) => ({ label: g.label, items: flat(g.units) })), ...(footer ? [{ label: "Footer", items: [footer] }] : [])].map((grp, n) => (
           <Fragment key={grp.label || "top"}>
             {n > 0 && <span aria-hidden className="mx-0.5 h-4 w-px shrink-0 bg-slate-200" />}
-            {grp.items.filter(onBar).map((i) => (
+            {grp.items.filter(onBar).map((i) => i.action ? <Fragment key={i.href + i.label}>{actionButton(i, true)}</Fragment> : (
               <Link
                 key={i.href + i.label}
                 href={i.href}
                 aria-current={active(i) ? "page" : undefined}
                 title={i.tip}
+                data-howto={guideName(i)}
                 className={cx(
                   "shrink-0 rounded-md px-2.5 py-1 text-xs",
                   active(i) ? "bg-accent-100 font-semibold text-accent-700 ring-1 ring-accent-500 ring-inset" : "text-slate-600",

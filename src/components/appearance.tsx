@@ -42,7 +42,7 @@ export function AppearancePicker({ initial }: { initial: Appearance }) {
   return (
     <div className="space-y-5">
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
-      <fieldset>
+      <fieldset data-howto="appearance-mode">
         <legend className="mb-2 text-sm font-semibold text-slate-900">Mode</legend>
         <div className="grid grid-cols-3 gap-2">
           {THEME_MODES.map((m) => {
@@ -60,7 +60,7 @@ export function AppearancePicker({ initial }: { initial: Appearance }) {
         </div>
       </fieldset>
 
-      <fieldset>
+      <fieldset data-howto="appearance-color">
         <legend className="mb-2 text-sm font-semibold text-slate-900">
           <Sp>Color</Sp>
         </legend>
@@ -70,7 +70,7 @@ export function AppearancePicker({ initial }: { initial: Appearance }) {
         </p>
       </fieldset>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2" data-howto="appearance-fonts">
         <FontPicker
           id="font-body"
           label="Text font"

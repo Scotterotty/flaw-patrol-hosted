@@ -241,7 +241,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
             </span>
           )}
           {run.state === "ACTIVE" && can(who, "run:execute") && !finished && (
-            <LinkButton variant="primary" href={`/p/${project.key}/runs/${run.number}/execute`}>
+            <LinkButton variant="primary" href={`/p/${project.key}/runs/${run.number}/execute`} data-howto="run-start-testing">
               {t.tested === 0 ? "Start testing" : "Continue testing"}
             </LinkButton>
           )}

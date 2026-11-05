@@ -62,7 +62,7 @@ export function StartBashButton({
   }, [open, ensure]);
   return (
     <>
-      {!hideButton && <Button variant={variant} size={size} onClick={() => setOpen(true)} {...prefetchOn(load)}>
+      {!hideButton && <Button variant={variant} size={size} onClick={() => setOpen(true)} {...prefetchOn(load)} data-howto={again ? undefined : "bash-start"}>
         {again ? "Run it again" : label ?? (
           <>
             <span aria-hidden>🐞</span> Start a bug bash
@@ -203,9 +203,9 @@ function StartBashForm({
       <h2 className="text-lg font-semibold text-slate-900">Start a bug bash</h2>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <Field label="Name" htmlFor="bash-name">
-        <Input id="bash-name" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Checkout bash" />
+        <Input id="bash-name" data-howto="bash-name" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Checkout bash" />
       </Field>
-      <fieldset>
+      <fieldset data-howto="bash-length">
         <legend className="mb-1.5 text-xs font-semibold text-slate-600">How long</legend>
         <div className="flex flex-wrap gap-2">
           {LENGTHS.map((m) => (
@@ -278,6 +278,7 @@ function StartBashForm({
           ))}
           <input
             aria-label="Add an area"
+            data-howto="bash-areas"
             className="min-w-40 flex-1 bg-transparent px-1 py-0.5 text-sm outline-none"
             placeholder={areas.length ? "Add another" : "Type an area and press Enter, like Checkout"}
             value={draft}
@@ -486,7 +487,7 @@ function StartBashForm({
       </div>
       <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
         <Button onClick={onClose}>Cancel</Button>
-        <Button type="submit" variant="primary" disabled={pending || !loaded || !name.trim() || (!areas.length && !draft.trim())}>
+        <Button type="submit" variant="primary" disabled={pending || !loaded || !name.trim() || (!areas.length && !draft.trim())} data-howto="bash-go">
           {pending ? "Starting…" : later ? "Schedule bug bash" : "Start bug bash"}
         </Button>
       </div>
@@ -508,6 +509,7 @@ function Invite({ bashId, homeKey, posted, later, onClose }: { bashId: string; h
         <Input readOnly value={link} aria-label="Join link" className="min-w-0 flex-1 font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
         <Button
           variant="primary"
+          data-howto="bash-copy"
           onClick={() => {
             void navigator.clipboard?.writeText(link);
             setCopied(true);

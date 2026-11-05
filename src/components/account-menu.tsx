@@ -29,6 +29,7 @@ export function AccountMenu({ children, label, admin, signOut, joins }: { childr
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
+        data-howto="top-account"
         title={label}
         onClick={() => setOpen((o) => !o)}
         className="flex max-w-80 items-center gap-2 rounded px-2 py-1 text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900"
@@ -53,7 +54,7 @@ export function AccountMenu({ children, label, admin, signOut, joins }: { childr
           <Link role="menuitem" href="/account" className={item}>
             Your account
           </Link>
-          <Link role="menuitem" href="/account#appearance" className={item}>
+          <Link role="menuitem" href="/account#appearance" className={item} data-howto="account-appearance">
             Appearance
           </Link>
           <Link role="menuitem" href="/whats-new" className={item}>

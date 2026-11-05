@@ -35,6 +35,7 @@ export function ExpandRow({
   openHash,
   buttonVariant,
   buttonTitle,
+  howto,
   children,
 }: {
   id: string;
@@ -46,6 +47,8 @@ export function ExpandRow({
   openHash?: string;
   buttonVariant?: "primary";
   buttonTitle?: string;
+  /** data-howto on the row's button, for the How-to guide's Show me. */
+  howto?: string;
   children: ReactNode;
 }) {
   const rows = useContext(RowsContext);
@@ -86,7 +89,7 @@ export function ExpandRow({
           <span className="block text-sm text-slate-500">{text}</span>
         </span>
         {status}
-        <Button size="sm" variant={open ? undefined : buttonVariant} aria-expanded={open} title={open ? undefined : buttonTitle} onClick={toggle}>
+        <Button size="sm" variant={open ? undefined : buttonVariant} aria-expanded={open} title={open ? undefined : buttonTitle} onClick={toggle} data-howto={open ? undefined : howto}>
           {open ? "Hide" : label}
         </Button>
       </div>

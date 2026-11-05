@@ -6,6 +6,9 @@ import { CloseMatchesLabel } from "./close-matches";
 import { rememberOpened, searchEverything, searchStart, type RecentItem, type SearchGroup, type SearchHit, type SearchKind } from "@/server/search";
 import { cx } from "./ui";
 import { turnOnTool } from "@/server/tools";
+import { findHowTo, isHowToQuery } from "@/lib/how-to";
+import { openHowTo } from "./how-to-guide";
+import { useSpell } from "./spelling";
 
 const KIND_LABEL: Record<SearchKind, string> = { cases: "Test cases", runs: "Test runs", bugs: "Bugs", cycles: "Umbrellas and test cycles", suites: "Suites and shared steps", pages: "Pages" };
 const FILTERS: [SearchKind | "all", string][] = [
@@ -18,7 +21,8 @@ const FILTERS: [SearchKind | "all", string][] = [
   ["pages", "Pages"],
 ];
 
-type Row = { id: string; hit: SearchHit; kind: SearchKind; seeAll?: boolean; close?: boolean };
+/** guide: a How-to guide row ("" opens the guide's task list). */
+type Row = { id: string; hit: SearchHit; kind: SearchKind; seeAll?: boolean; close?: boolean; guide?: string };
 
 /**
  * Ctrl+K search: a Search button in the top bar and a dialog that finds cases,
@@ -49,6 +53,7 @@ export function GlobalSearch({ scope }: { scope: { id: string; name: string } | 
         onClick={() => setOpen(true)}
         title={`Search cases, runs, bugs, test cycles and pages (${mac ? "⌘K" : "Ctrl+K"})`}
         aria-label="Search"
+        data-howto="top-search"
         aria-keyshortcuts={mac ? "Meta+K" : "Control+K"}
         className="flex h-8 items-center gap-2 rounded-md border border-slate-200 bg-surface px-2 text-sm text-slate-500 hover:border-slate-300 hover:text-slate-800 sm:w-48 sm:px-2.5"
       >
@@ -118,22 +123,37 @@ function SearchDialog({ scope: start, onClose }: { scope: { id: string; name: st
     };
   }, [q, scope, archived]);
 
+  const spell = useSpell();
   const shown = useMemo(() => (groups ?? []).filter((g) => filter === "all" || g.kind === filter), [groups, filter]);
+  // "how do I…" (or help, guide): the How-to guide's matching tasks come first, and Enter opens the guide.
+  const guideRows: Row[] = useMemo(() => {
+    if (!isHowToQuery(q) || (filter !== "all" && filter !== "pages")) return [];
+    const tasks = findHowTo(q).slice(0, 4);
+    return [
+      ...tasks.map((t) => ({ id: `${ids}-guide-${t.id}`, hit: { href: "#how-to-guide", label: spell(t.title), sub: `How-to guide · ${spell(t.sub)}` }, kind: "pages" as const, guide: t.id })),
+      { id: `${ids}-guide-all`, hit: { href: "#how-to-guide", label: "Open the How-to guide", sub: "Every task, step by step, with Show me" }, kind: "pages" as const, guide: "" },
+    ];
+  }, [q, filter, ids, spell]);
   const rows: Row[] = useMemo(() => {
     return q.trim()
-    ? shown.flatMap((g) => [
+    ? [...guideRows, ...shown.flatMap((g) => [
         ...g.hits.map((hit, i) => ({ id: `${ids}-${g.kind}-${i}`, hit, kind: g.kind })),
         ...(g.seeAll && g.total > g.hits.length ? [{ id: `${ids}-${g.kind}-all`, hit: { href: g.seeAll, label: `See all ${g.total} ${KIND_LABEL[g.kind].toLowerCase()} for “${q.trim()}”`, sub: "" }, kind: g.kind, seeAll: true }] : []),
         // Close matches always come after the exact ones.
         ...g.close.map((hit, i) => ({ id: `${ids}-${g.kind}-c${i}`, hit, kind: g.kind, close: true })),
-      ])
+      ])]
     : [...recent.map((r, i) => ({ id: `${ids}-recent-${i}`, hit: { href: r.href, label: r.label, sub: r.sub }, kind: r.kind })), ...goTo.map((g, i) => ({ id: `${ids}-go-${i}`, hit: g, kind: "pages" as const }))];
-  }, [shown, q, ids, recent, goTo]);
+  }, [shown, q, ids, recent, goTo, guideRows]);
   const total = shown.reduce((n, g) => n + g.total, 0);
   const closeTotal = shown.reduce((n, g) => n + g.close.length, 0);
 
   const openRow = useCallback(
     (row: Row, newTab: boolean) => {
+      if (row.guide !== undefined) {
+        onClose();
+        openHowTo(row.guide || undefined);
+        return;
+      }
       if (!row.seeAll) void rememberOpened({ href: row.hit.href, label: row.hit.key ? `${row.hit.key} ${row.hit.label}` : row.hit.label, kind: row.kind, sub: row.hit.sub.slice(0, 300) });
       if (newTab) {
         window.open(row.hit.href, "_blank", "noopener");
@@ -231,6 +251,7 @@ function SearchDialog({ scope: start, onClose }: { scope: { id: string; name: st
             aria-activedescendant={rows[active]?.id}
             aria-autocomplete="list"
             aria-label="Search cases, runs, bugs, test cycles and pages"
+            data-howto="search-input"
             placeholder="Search cases, runs, bugs, test cycles and pages"
             className="min-w-0 flex-1 bg-transparent py-1 text-base text-slate-900 outline-none placeholder:text-slate-400"
             value={q}
@@ -282,7 +303,7 @@ function SearchDialog({ scope: start, onClose }: { scope: { id: string; name: st
             )}
             {!recent.length && !goTo.length && <p className="px-3 py-6 text-center text-sm text-slate-500">Type a case key, a Jira key, a name or a page.</p>}
           </>
-        ) : groups && !shown.length ? (
+        ) : groups && !shown.length && !guideRows.length ? (
           <div className="px-3 py-6 text-center text-sm text-slate-500">
             No matches for “{q.trim()}”{scope ? ` in ${scope.name}` : ""}.
             {scope && (
@@ -292,8 +313,17 @@ function SearchDialog({ scope: start, onClose }: { scope: { id: string; name: st
             )}
           </div>
         ) : (
-          shown.map((g) => {
-            const mine = rows.filter((r) => r.kind === g.kind);
+          <>
+          {guideRows.length > 0 && (
+            <ul role="group" aria-label="How-to guide" data-testid="search-how-to">
+              <li role="presentation" className="px-3 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
+                How-to guide
+              </li>
+              {guideRows.map((r) => renderRow(r, index++))}
+            </ul>
+          )}
+          {shown.map((g) => {
+            const mine = rows.filter((r) => r.kind === g.kind && r.guide === undefined);
             return (
               <ul key={g.kind} role="group" aria-label={`${KIND_LABEL[g.kind]}, ${g.hits.length} of ${g.total}`}>
                 <li role="presentation" className="px-3 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
@@ -312,7 +342,8 @@ function SearchDialog({ scope: start, onClose }: { scope: { id: string; name: st
                 ))}
               </ul>
             );
-          })
+          })}
+          </>
         )}
       </div>
       <div className="flex flex-wrap gap-3 border-t border-slate-200 px-3 py-1.5 text-[11px] text-slate-500">

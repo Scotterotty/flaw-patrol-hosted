@@ -27,7 +27,7 @@ export function ReportSummaryBar({ summary }: { summary: ReportSummary }) {
         <p className="min-w-0 flex-1" data-testid="report-summary-line">
           {summary.line}
         </p>
-        <button type="button" onClick={copy} className="shrink-0 font-medium text-accent-700 hover:underline" data-export-skip>
+        <button type="button" onClick={copy} className="shrink-0 font-medium text-accent-700 hover:underline" data-export-skip data-howto="reports-copy">
           {copied ? "Copied" : "Copy summary"}
         </button>
       </div>

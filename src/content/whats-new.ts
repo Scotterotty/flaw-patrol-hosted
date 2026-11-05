@@ -22,6 +22,30 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 174,
+    date: "2026-11-05",
+    items: [
+      {
+        kind: "new",
+        title: "How-to guide",
+        text: "Step-by-step help for 47 tasks, from writing a test case to inviting your team. Press How-to guide under Settings in the left menu. It opens beside the page, so you can follow along.",
+        who: "all",
+      },
+      {
+        kind: "new",
+        title: "Show me",
+        text: "On the most-used tasks, Show me takes you to the right page and makes the button glow. Click the glowing button and the next one lights up. Press Esc to stop.",
+        who: "all",
+      },
+      {
+        kind: "new",
+        title: "Ask Search \"how do I…\"",
+        text: "Type something like \"how do I write a bug\" in Search and the matching task opens in the How-to guide.",
+        who: "all",
+      },
+    ],
+  },
+  {
     version: 173,
     date: "2026-11-04",
     items: [

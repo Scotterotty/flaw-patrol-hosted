@@ -41,7 +41,7 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
     });
 
   return (
-    <Card id="members" className="scroll-mt-20 p-5">
+    <Card id="members" className="scroll-mt-20 p-5" data-howto="settings-members">
       <h2 className="text-sm font-semibold text-slate-800">Members</h2>
       {/* The Roles row is the one place that says what each role can do, so it stays right when presets change. */}
       {canManage && (
@@ -223,17 +223,17 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
         >
           <div className="min-w-56 flex-1">
             <Field label="Add someone by email" htmlFor="invite">
-              <Input id="invite" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="teammate@company.com" />
+              <Input id="invite" data-howto="invite-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="teammate@company.com" />
             </Field>
           </div>
-          <Select aria-label="Role" className="w-auto max-w-full" value={role} onChange={(e) => setRole(e.target.value as Role)}>
+          <Select aria-label="Role" data-howto="invite-role" className="w-auto max-w-full" value={role} onChange={(e) => setRole(e.target.value as Role)}>
             {ROLES_PICK.map((r) => (
               <option key={r} value={r}>
                 {ROLE_LABEL[r]}
               </option>
             ))}
           </Select>
-          <Button type="submit" variant="primary" disabled={pending}>
+          <Button type="submit" variant="primary" disabled={pending} data-howto="invite-add">
             Add
           </Button>
           {/* The hint sits under the whole row so the role and Add line up with the email box. */}

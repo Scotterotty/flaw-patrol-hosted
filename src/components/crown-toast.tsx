@@ -58,7 +58,7 @@ export function CrownToaster({ changes }: { changes: CrownChange[] }) {
   if (!notes.length) return null;
   const close = (n: Note) => setGone((s) => new Set([...s, ...n.changes.map((c) => c.id)]));
   return (
-    <div aria-live="polite" className="pointer-events-none fixed right-4 bottom-16 z-50 flex flex-col items-end gap-2 md:bottom-4" data-testid="crown-toasts">
+    <div aria-live="polite" className="fp-right pointer-events-none fixed right-4 bottom-16 z-50 flex flex-col items-end gap-2 md:bottom-4" data-testid="crown-toasts">
       {notes.map((n) => (
         <CrownNote key={n.key} changes={n.changes} onClose={() => close(n)} onWorn={(id) => setGone((s) => new Set([...s, id]))} />
       ))}

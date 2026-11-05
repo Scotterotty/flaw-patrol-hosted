@@ -50,7 +50,7 @@ export default async function SuitesPage({ params, searchParams }: { params: Pro
               {archived ? "Show active" : "Show archived"}
             </Link>
             {can(who, "suite:manage") && (
-              <LinkButton variant="primary" href={newSuite}>
+              <LinkButton variant="primary" href={newSuite} data-howto="suites-new">
                 New suite
               </LinkButton>
             )}
@@ -62,7 +62,7 @@ export default async function SuitesPage({ params, searchParams }: { params: Pro
           title={archived ? "Nothing archived" : "No suites yet"}
           action={
             !archived && can(who, "suite:manage") ? (
-              <LinkButton variant="primary" href={newSuite}>
+              <LinkButton variant="primary" href={newSuite} data-howto="suites-new">
                 New suite
               </LinkButton>
             ) : null

@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import type { UmbrellaNav as NavData } from "@/lib/umbrella";
 import { MenuHead, SideMenu, type MenuGroup, type MenuItem } from "./side-menu";
 import { everything, reportsHome, type ToolId } from "@/lib/tools";
+import { HOW_TO_NEW_UNTIL } from "./how-to-guide";
 
 /**
  * The umbrella's left menu: its Case library, runs across its test cycles (with the current RC ones), bugs and settings.
@@ -39,7 +40,7 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
   const on = (t: ToolId) => u.tools.includes(t);
   const runsOn = on("runs");
   const all: MenuGroup[] = [
-    { label: "", items: [{ href: g, label: "Overview", exact: true }] },
+    { label: "", items: [{ href: g, label: "Overview", exact: true, howto: "overview" }] },
     {
       label: "Library",
       items: [
@@ -83,6 +84,7 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
       items: [
         { href: `${g}/settings`, id: "settings", label: "Settings", tip: runsOn ? `${u.name} and its test cycles` : `${u.name}'s settings` },
         ...(u.canTools && !everything(u.tools) ? [{ href: `${g}/settings#tools`, label: "+ Add tools", sub: true, tip: "Turn on tools this umbrella doesn't use yet" }] : []),
+        howToItem(),
       ],
     },
   ];
@@ -104,6 +106,11 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
       active={active}
     />
   );
+}
+
+/** How-to guide: under Settings in every left menu. It opens the guide panel instead of a page. */
+export function howToItem(): MenuItem {
+  return { href: "#how-to-guide", label: "How-to guide", action: "how-to", isNew: new Date().toISOString().slice(0, 10) < HOW_TO_NEW_UNTIL, tip: "Step-by-step help for every task, with Show me" };
 }
 
 export function UmbrellaIcon({ className }: { className?: string }) {

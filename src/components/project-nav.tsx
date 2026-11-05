@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { MenuHead, SideMenu, type MenuGroup, type MenuItem } from "./side-menu";
+import { howToItem } from "./umbrella-nav";
 
 export { SectionIcon } from "./side-menu";
 
@@ -19,7 +20,7 @@ export function ProjectNav({ projectKey, projectName, quests = false, counts, li
   // Grouped in the order the team works: write tests, run them, then see what broke.
   const glossaryItem: MenuItem = { href: `${base}/glossary`, id: "glossary", label: "Glossary", count: glossary?.count || undefined, note: glossary?.unseen, tip: "The team's words and what they mean" };
   const groups: MenuGroup[] = [
-    { label: "", items: [{ href: base, label: "Overview", exact: true }] },
+    { label: "", items: [{ href: base, label: "Overview", exact: true, howto: "overview" }] },
     {
       label: "Library",
       items: library
@@ -56,7 +57,7 @@ export function ProjectNav({ projectKey, projectName, quests = false, counts, li
         { href: `${base}/reports`, id: "reports", label: "Reports" },
       ],
     },
-    { label: "Settings", items: [{ href: `${base}/settings`, id: "cycle-settings", label: `${projectName} settings` }] },
+    { label: "Settings", items: [{ href: `${base}/settings`, id: "cycle-settings", howto: "settings", label: `${projectName} settings` }, howToItem()] },
   ];
   // Import lives under Test cases (its button is there), so that link stays lit while importing.
   const active = (i: MenuItem) => (i.exact ? path === i.href : path === i.href || path.startsWith(`${i.href}/`)) || (i.href === `${base}/cases` && path.startsWith(`${base}/import`));

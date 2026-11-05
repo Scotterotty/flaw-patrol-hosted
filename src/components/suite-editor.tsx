@@ -99,7 +99,7 @@ export function SuiteEditor({
             </span>
           )}
           <Button onClick={() => router.back()}>Cancel</Button>
-          <Button variant="primary" onClick={save} disabled={pending || todo.length > 0}>
+          <Button variant="primary" onClick={save} disabled={pending || todo.length > 0} data-howto="suite-save">
             {suiteId ? "Save suite" : "Create suite"}
           </Button>
         </div>
@@ -107,7 +107,7 @@ export function SuiteEditor({
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <Card className="grid gap-4 p-5 md:grid-cols-2">
         <Field label="1. Name" htmlFor="suite-name">
-          <Input id="suite-name" aria-label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Checkout regression" autoFocus={!suiteId} />
+          <Input id="suite-name" data-howto="suite-name" aria-label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Checkout regression" autoFocus={!suiteId} />
         </Field>
         <Field label="Description (optional)" htmlFor="suite-desc">
           <Textarea id="suite-desc" rows={1} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional. e.g. Login, checkout and account pages on the website" />
@@ -122,7 +122,7 @@ export function SuiteEditor({
       </Card>
 
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
-        <Card className="flex min-h-0 flex-col">
+        <Card className="flex min-h-0 flex-col" data-howto="suite-cases">
           <div className="space-y-2 border-b border-slate-200 p-3">
             <h2 className="text-sm font-semibold text-slate-800">
               2. Add cases <span className="font-normal text-slate-500">· tick the ones this suite runs</span>
@@ -202,7 +202,7 @@ export function SuiteEditor({
           <CantFindCase archived={archived} bracketTitles={bracketTitles} umbrellaName={umbrellaName} libraryKey={libraryKey} />
         </Card>
 
-        <Card className="flex min-h-0 flex-col">
+        <Card className="flex min-h-0 flex-col" data-howto="suite-chosen">
           <div className="flex items-center justify-between border-b border-slate-200 p-3">
             <h2 className="text-sm font-semibold text-slate-800">
               3. In this suite ({selected.length}) <span className="font-normal text-slate-500">· runs in this order</span>

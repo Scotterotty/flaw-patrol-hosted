@@ -279,10 +279,10 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
           actions={
             <>
               {can(who, "import") && (
-                <LinkButton href={`/p/${project.key}/import${folder ? `?folder=${folder.id}` : ""}`}>Import cases</LinkButton>
+                <LinkButton href={`/p/${project.key}/import${folder ? `?folder=${folder.id}` : ""}`} data-howto="cases-import">Import cases</LinkButton>
               )}
               {can(who, "case:edit") && (
-                <LinkButton variant="primary" href={newCase("")}>
+                <LinkButton variant="primary" href={newCase("")} data-howto="cases-new">
                   New case
                 </LinkButton>
               )}

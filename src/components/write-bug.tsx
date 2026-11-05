@@ -195,7 +195,7 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
               </Select>
             </div>
           )}
-          <div className="rounded-lg bg-accent-50 px-3 py-2.5">
+          <div className="rounded-lg bg-accent-50 px-3 py-2.5" data-howto="write-bug-template">
             <TemplatePicker current={PLAIN} templates={choices} value={chosen} onChange={(id) => pick(id, choices)} />
           </div>
           {draft && draft.templateId === (chosen || PLAIN_ID) ? (
@@ -247,7 +247,7 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
               </span>
             )}
             <Button onClick={onClose}>Cancel</Button>
-            <Button type="submit" variant="primary" disabled={pending || uploading || loading || !draft || !!gaps}>
+            <Button type="submit" variant="primary" disabled={pending || uploading || loading || !draft || !!gaps} data-howto="write-bug-save">
               {pending ? "Saving…" : toJira ? "Save and file in Jira" : "Save bug"}
             </Button>
           </div>

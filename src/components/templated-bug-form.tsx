@@ -141,7 +141,7 @@ export function TemplatedForm({
           <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="tb-summary">
             Summary
           </label>
-          <Input id="tb-summary" value={draft.summary} onChange={(e) => setDraft((d) => ({ ...d, summary: e.target.value }))} required placeholder="What's wrong, in a few words" />
+          <Input id="tb-summary" data-howto="bug-summary" value={draft.summary} onChange={(e) => setDraft((d) => ({ ...d, summary: e.target.value }))} required placeholder="What's wrong, in a few words" />
         </div>
       </div>
       {(t.platform || t.area || t.build) && (

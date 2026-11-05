@@ -541,7 +541,7 @@ export function BugDialog({
               ) : (
                 <>
                   <Field label="Summary" htmlFor="bug-summary" hint={focus !== null && stepIndex === null ? "Filled from the failed step. Change it to say what's wrong." : undefined}>
-                    <Input id="bug-summary" value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="What went wrong? For example: Pay button does nothing" required autoFocus />
+                    <Input id="bug-summary" data-howto="bug-summary" value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="What went wrong? For example: Pay button does nothing" required autoFocus />
                   </Field>
                   {!jiraConnected && (
                     <Field label="What happened" htmlFor="bug-notes">
@@ -630,6 +630,7 @@ export function BugDialog({
                 <Button
                   type="submit"
                   variant="primary"
+                  data-howto="bug-submit"
                   disabled={
                     pending ||
                     uploading ||

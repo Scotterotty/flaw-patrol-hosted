@@ -130,7 +130,7 @@ export function ExportMenu({
 
   const item = "flex w-full flex-col items-start gap-0 rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-slate-50";
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2" data-howto="reports-export">
       {note && (
         <span role="status" className="text-xs text-emerald-700">
           {note}

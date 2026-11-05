@@ -385,6 +385,7 @@ export function CaseEditor(props: CaseEditorProps) {
             <TagPills tags={tags} colors={props.tagColors} />
             <input
               id="title"
+              data-howto="case-title"
               required
               autoFocus={!caseId}
               value={title}
@@ -481,6 +482,7 @@ export function CaseEditor(props: CaseEditorProps) {
           <Field label="Folder" htmlFor="folder">
             <Select
               id="folder"
+              data-howto="case-folder"
               value={folderId}
               onChange={(e) => {
                 setFolderId(e.target.value);
@@ -793,6 +795,7 @@ export function CaseEditor(props: CaseEditorProps) {
                         <Textarea
                           rows={2}
                           aria-label={`Step ${index + 1} action`}
+                          data-howto="case-step"
                           placeholder="Action"
                           value={item.action}
                           onKeyDown={(e) => {
@@ -898,7 +901,7 @@ export function CaseEditor(props: CaseEditorProps) {
             ))}
           </ol>
           <div className="mt-2 flex gap-2">
-            <Button size="sm" onClick={() => insertStepAfter(items.length - 1)}>
+            <Button size="sm" onClick={() => insertStepAfter(items.length - 1)} data-howto="case-add-step">
               + Add step
             </Button>
             <Button
@@ -953,7 +956,7 @@ export function CaseEditor(props: CaseEditorProps) {
             Create and new
           </Button>
         )}
-        <Button type="submit" variant="primary" disabled={pending}>
+        <Button type="submit" variant="primary" disabled={pending} data-howto="case-save">
           {pending
             ? "Saving…"
             : props.queue

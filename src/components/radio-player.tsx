@@ -182,7 +182,7 @@ export function RadioProvider({ initialStation, spotify, children }: { initialSt
           role="group"
           aria-label="Spotify player"
           className={cx(
-            "fixed top-13 right-4 z-30 w-80 overflow-hidden rounded-xl border border-slate-200 bg-surface shadow-xl print:hidden",
+            "fp-right fixed top-13 right-4 z-30 w-80 overflow-hidden rounded-xl border border-slate-200 bg-surface shadow-xl print:hidden",
             !playerShown && "hidden",
           )}
         >

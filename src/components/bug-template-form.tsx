@@ -179,7 +179,7 @@ export function BugTemplateForm({
           </div>
           <div>
             <L htmlFor="t-brief">Brief summary</L>
-            <Input id="t-brief" value={bug.brief} onChange={(e) => set("brief", e.target.value)} required autoFocus placeholder="What's wrong, in a few words" />
+            <Input id="t-brief" data-howto="bug-summary" value={bug.brief} onChange={(e) => set("brief", e.target.value)} required autoFocus placeholder="What's wrong, in a few words" />
           </div>
         </div>
         <p className="text-[13px] text-slate-600">

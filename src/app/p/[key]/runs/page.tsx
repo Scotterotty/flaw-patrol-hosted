@@ -97,7 +97,7 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
             const t = totals(c);
             const mine = r.entries.filter((e) => e.assigneeId === user.id && isOpen(e.status)).length;
             return (
-              <Link key={r.id} href={`/p/${project.key}/runs/${r.number}`} className="grid gap-2 px-4 py-3 hover:bg-slate-50 sm:grid-cols-[1fr_18rem]">
+              <Link key={r.id} href={`/p/${project.key}/runs/${r.number}`} data-howto="run-row" className="grid gap-2 px-4 py-3 hover:bg-slate-50 sm:grid-cols-[1fr_18rem]">
                 <div className="min-w-0">
                   <p className="font-medium text-slate-900">
                     <span className="font-mono text-xs text-slate-500">R{r.number}</span> {r.name}

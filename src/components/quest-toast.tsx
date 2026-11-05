@@ -25,7 +25,7 @@ export function QuestToaster() {
     return () => window.removeEventListener(EVENT, on);
   }, []);
   return (
-    <div aria-live="polite" className="pointer-events-none fixed right-4 bottom-16 z-50 flex flex-col items-end gap-2 md:bottom-4">
+    <div aria-live="polite" className="fp-right pointer-events-none fixed right-4 bottom-16 z-50 flex flex-col items-end gap-2 md:bottom-4">
       {shown.map((m) => (
         <div key={m.id} className="pointer-events-auto flex max-w-sm items-center gap-3 rounded-lg bg-slate-900 px-3.5 py-2.5 text-slate-50 shadow-lg">
           <span aria-hidden className="text-2xl leading-none">
