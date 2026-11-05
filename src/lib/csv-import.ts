@@ -692,3 +692,6 @@ export const MAX_IMPORT = 5000;
 
 /** sessionStorage key: the case importer hands its sheet to "Results from a spreadsheet" (ver_169). */
 export const SHEET_HANDOFF = "fp-run-sheet";
+
+/** What's handed over in SHEET_HANDOFF. Create a run → From a spreadsheet (ver_177) also sends where it goes and the new run's details. */
+export type SheetHandoff = { fileName: string; rows: string[][]; at: number; target?: "run" | "new"; name?: string; release?: string; runKind?: string };

@@ -16,10 +16,11 @@ import { BusyStrip, SpinnerArt } from "./loading-spinner";
 import { RunFieldInputs } from "./run-field-inputs";
 import { CantFindCase, FolderList, inFolder } from "./folder-list";
 import { PlatformPicker } from "./platform-picker";
+import { firstSheetTarget, handOffSheet, SheetPick, SheetWhere, type PickedSheet, type SheetTarget } from "./start-run-sheet";
 import { Button, cx, ErrorText, Field, InfoTip, Input, Select, Textarea } from "./ui";
 
-type What = "all" | "suite" | "cases";
-export type RunBoxPreset = { what: "all" } | { what: "suite"; suiteId: string } | { what: "cases"; caseIds: string[] };
+type What = "all" | "suite" | "cases" | "sheet";
+export type RunBoxPreset = { what: "all" } | { what: "suite"; suiteId: string } | { what: "cases"; caseIds: string[] } | { what: "sheet" };
 
 /**
  * "Create a run": one box everywhere. Pick what to run from the library
@@ -59,9 +60,12 @@ export function StartRunBox({
   const asked = params.get("start");
   // Release filled in when the release box's "Create a run instead" opened this.
   const [release, setRelease] = useState("");
+  // ?start=run&what=sheet (Ctrl+K "Update a run from a sheet"): opens on From a spreadsheet.
+  const [sheetAsked, setSheetAsked] = useState(false);
   useEffect(() => {
     if (openParam && asked === openParam && !disabled) {
       setRelease(params.get("release") ?? "");
+      setSheetAsked(params.get("what") === "sheet");
       setOpen(true);
     }
   }, [asked, openParam, disabled, params]);
@@ -82,6 +86,7 @@ export function StartRunBox({
         size={size}
         onClick={() => {
           setRelease("");
+          setSheetAsked(false);
           setOpen(true);
         }}
         disabled={disabled}
@@ -90,7 +95,7 @@ export function StartRunBox({
         {label}
       </Button>
       <Modal open={open} onClose={() => setOpen(false)} title={session ? "Start a session" : "Create a run"} wide locked={busy}>
-        <Box scope={scope} preset={preset} defaultName={defaultName} session={session} release={release} onClose={() => setOpen(false)} onBusy={setBusy} />
+        <Box scope={scope} preset={sheetAsked ? { what: "sheet" } : preset} defaultName={defaultName} session={session} release={release} onClose={() => setOpen(false)} onBusy={setBusy} />
       </Modal>
     </>
   );
@@ -220,7 +225,13 @@ function Form({
   const pathname = usePathname();
   const [error, setError] = useState<string | null>(null);
   // Every box opens fresh (Scott, ver_77): nothing picked, ticked or remembered from the last run.
-  const [what, setWhat] = useState<What | null>(preset?.what ?? null);
+  const [what, setWhat] = useState<What | null>(preset?.what === "sheet" && !opts.sheetCycles.length ? null : (preset?.what ?? null));
+  // From a spreadsheet (ver_177): the sheet picked here, and where it goes.
+  const [sheet, setSheet] = useState<PickedSheet | null>(null);
+  const [sheetTarget, setSheetTarget] = useState<SheetTarget | null>(() => firstSheetTarget(opts.sheetCycles, opts.hereId));
+  const isSheet = what === "sheet";
+  const sheetCycle = opts.sheetCycles.find((c) => c.id === sheetTarget?.cycleId);
+  const sheetRun = sheetTarget?.run != null ? sheetCycle?.runs.find((r) => r.number === sheetTarget.run) : undefined;
   const [suiteId, setSuiteId] = useState(preset?.what === "suite" ? preset.suiteId : "");
   const [picked, setPicked] = useState<string[]>(preset?.what === "cases" ? preset.caseIds.filter((id) => opts.cases.some((c) => c.id === id)) : []);
   // Nothing ticked for you (Scott, ver_99), except the test cycle the box was opened from.
@@ -250,7 +261,7 @@ function Form({
   const chosen = opts.cycles.filter((c) => ticked.includes(c.id));
   // Each ticked test cycle's release, offered as a "Use 2.1" suggestion, never filled in.
   const rcs = [...new Set(chosen.map((c) => c.rcName.trim()).filter(Boolean))];
-  const autoName = kind ? `${kind.name} ${today()}` : what === "all" ? `Full library ${today()}` : what === "suite" ? `${suite?.name ?? "Suite"} ${today()}` : what === "cases" ? `Picked cases ${today()}` : "";
+  const autoName = isSheet ? (sheet ? sheet.fileName.replace(/\.(csv|tsv|txt|xlsx)$/i, "") : "") : kind ? `${kind.name} ${today()}` : what === "all" ? `Full library ${today()}` : what === "suite" ? `${suite?.name ?? "Suite"} ${today()}` : what === "cases" ? `Picked cases ${today()}` : "";
   const samePick = !!preset && what === preset.what && (preset.what !== "suite" || suiteId === preset.suiteId);
   const grayName = samePick && presetName ? presetName : autoName;
   const name = typedName.trim() || grayName;
@@ -315,9 +326,19 @@ function Form({
     ],
     ...missingFields.map((f): [boolean, string] => [false, `Fill in ${f.name}`]),
   ];
-  const ready = todo.every(([ok]) => ok);
+  const sheetTodo: [boolean, string][] = [
+    ...(askKind ? [todo[0]] : []),
+    [!!sheet, sheet ? `${sheet.fileName}` : "Pick your sheet"],
+    [!!sheetCycle, sheetRun ? `Updates R${sheetRun.number} ${sheetRun.name}` : sheetCycle ? `A new run in ${sheetCycle.name}` : "Pick where it goes"],
+  ];
+  const ready = isSheet ? sheetTodo.every(([ok]) => ok) : todo.every(([ok]) => ok);
+  const nextSheet = () => {
+    if (!sheet || !sheetCycle || !sheetTarget) return;
+    setPressed("plain");
+    handOffSheet(sheetCycle, sheet, sheetTarget, { name: name.trim() || autoName, release: release.trim(), runKind: kindId ?? "" });
+  };
   const submit = (goTest: boolean) => {
-    if (!what) return;
+    if (!what || what === "sheet") return;
     // Outside the transition, so the pressed button and the strip show straight away.
     setPressed(goTest ? "test" : "plain");
     start(async () => {
@@ -369,6 +390,7 @@ function Form({
     <button
       type="button"
       aria-pressed={what === w}
+      data-howto={w === "sheet" ? "run-sheet" : undefined}
       onClick={() => setWhat(w)}
       className={cx("rounded-md border px-3 py-2 text-left", what === w ? "border-accent-500 bg-accent-50 ring-1 ring-accent-500" : "border-slate-200 hover:bg-slate-50")}
     >
@@ -447,10 +469,11 @@ function Form({
             )}
           </div>
         ) : (
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className={cx("grid gap-2", opts.sheetCycles.length ? "sm:grid-cols-2 md:grid-cols-4" : "sm:grid-cols-3")}>
             {choice("all", opts.umbrella ? "Whole Case library" : "Every case", opts.autoCount ? `${opts.allCount} ${opts.allCount === 1 ? "case" : "cases"} you test by hand` : `All ${opts.allCount} active cases`)}
             {choice("suite", "A suite", opts.suites.length ? opts.suites.map((s) => s.name).join(", ") : "None yet")}
             {choice("cases", "Pick cases", "Search and tick")}
+            {opts.sheetCycles.length > 0 && choice("sheet", "From a spreadsheet", "A run you already started in a sheet")}
           </div>
         )}
       </section>
@@ -468,6 +491,7 @@ function Form({
         </label>
       )}
 
+      {isSheet && <SheetPick projectId={sheetCycle?.id ?? opts.sheetCycles[0].id} sheet={sheet} onSheet={setSheet} />}
       {what === "all" && <p className="text-xs text-slate-500">Every active case as it is now. Cases added later aren&apos;t in this run.</p>}
 
       {what === "suite" &&
@@ -630,6 +654,14 @@ function Form({
         </div>
       )}
 
+      {isSheet ? (
+        <section aria-labelledby="rb-sheet-where">
+          <h3 id="rb-sheet-where" className="mb-1.5 text-xs font-semibold text-slate-600">
+            {step(2)}. Where it goes
+          </h3>
+          <SheetWhere cycles={opts.sheetCycles} value={sheetTarget} onChange={setSheetTarget} />
+        </section>
+      ) : (
       <section aria-labelledby="rb-where" data-howto="run-where">
         <h3 id="rb-where" className="mb-1.5 text-xs font-semibold text-slate-600">
           {step(2)}. Test cycle <span className="font-normal text-slate-500">· Where the chosen test cases will go</span>
@@ -683,7 +715,21 @@ function Form({
           </div>
         )}
       </section>
+      )}
 
+      {isSheet ? (
+        sheetTarget?.run == null && (
+          <div className="grid items-start gap-3 sm:grid-cols-2">
+            <Field label="Run name (optional)" htmlFor="rb-name" hint={grayName ? "Leave it blank to use the sheet's name." : undefined}>
+              <Input id="rb-name" value={typedName} onChange={(e) => setName(e.target.value)} placeholder={grayName || "Pick your sheet first"} />
+            </Field>
+            <Field label="Release (optional)" htmlFor="rb-release">
+              <Input id="rb-release" aria-label="Release" value={release} onChange={(e) => setRelease(e.target.value)} placeholder="e.g. 2.1" />
+            </Field>
+          </div>
+        )
+      ) : (
+      <>
       <div className="grid items-start gap-3 sm:grid-cols-2">
         <Field label="Run name (optional)" htmlFor="rb-name" hint={grayName ? "Leave it blank to use the suggested name shown." : undefined}>
           <Input id="rb-name" data-howto="run-name" value={typedName} onChange={(e) => setName(e.target.value)} placeholder={grayName || "Pick what to run first"} />
@@ -768,6 +814,8 @@ function Form({
           </div>
         )}
       </div>
+      </>
+      )}
 
       </>
       )}
@@ -776,7 +824,7 @@ function Form({
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-3">
         {/* What's still needed, so it's clear why Start is grayed out. */}
         <ul className="space-y-0.5 text-xs" aria-live="polite" data-testid="run-todo">
-          {todo.map(([ok, text]) => (
+          {(isSheet ? sheetTodo : todo).map(([ok, text]) => (
             <li key={text} className={ok ? "text-slate-700" : "text-slate-500"}>
               <span className={cx("mr-1", ok ? "text-emerald-600" : "text-slate-400")} aria-hidden>
                 {ok ? "✓" : "○"}
@@ -790,7 +838,11 @@ function Form({
             Cancel
           </Button>
           {kindId !== null &&
-            (runCount > 1 ? (
+            (isSheet ? (
+              <Button variant="primary" disabled={busy || pressed !== null || !ready} onClick={nextSheet} data-howto="run-sheet-next">
+                {pressed ? "Opening…" : "Next: check the sheet"}
+              </Button>
+            ) : runCount > 1 ? (
               <Button variant="primary" disabled={busy || !ready} onClick={() => submit(false)} data-howto={session ? undefined : "run-go"}>
                 {busy ? <Working opening={!!opening} session={session} /> : session ? `Start ${runCount} sessions` : `Create ${runCount} runs`}
               </Button>

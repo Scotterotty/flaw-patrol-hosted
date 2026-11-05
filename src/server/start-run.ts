@@ -21,6 +21,7 @@ import { attempt, UserError } from "./result";
 import { addUmbrellaProject } from "./umbrella";
 import { createRun } from "./runs";
 import { ONLY_AUTOMATED } from "@/lib/automated-cases";
+import { NOT_BASH_RUN } from "@/lib/bash-cases";
 
 // The Create a run box: pick what to run from the library (all of it, a
 // suite, or ticked cases), then the test cycles to run it in, one run in each.
@@ -110,6 +111,16 @@ export async function runBoxOptions(scope: RunBoxScope) {
       db.testCase.count({ where: { ...wholeLib, type: { not: "AUTOMATED" } } }),
       db.testCase.count({ where: { ...wholeLib, type: "AUTOMATED" } }),
     ]);
+    // From a spreadsheet (ver_177): test cycles where the viewer can bring in results, with their runs in progress.
+    const importRules = (c: { id: string }) => can({ role: user.isAdmin ? "ADMIN" : (roleOf.get(c.id) ?? null), rules }, "run:import");
+    const sheetIds = cycles.filter(importRules).map((c) => c.id);
+    const openRuns = sheetIds.length
+      ? await db.testRun.findMany({
+          where: { projectId: { in: sheetIds }, state: "ACTIVE", automated: false, ...NOT_BASH_RUN },
+          orderBy: { createdAt: "desc" },
+          select: { projectId: true, number: true, name: true, entries: { select: { status: true } } },
+        })
+      : [];
     const colorOf = (platform: string) => (umbrella ? platformColor(umbrella.platforms, platform) : "#94a3b8");
     // Run kinds: what kind of run it is, asked first in an umbrella.
     // Without Bug bashes the Bug bash kind isn't offered.
@@ -128,6 +139,14 @@ export async function runBoxOptions(scope: RunBoxScope) {
       // Run fields: the umbrella's, or CSP version for a test cycle outside one.
       runFields: umbrella ? parseRunFields(umbrella.group.runFields) : [CSP_FIELD],
       cycles: cycles.map((c, i): RunBoxCycle => ({ id: c.id, key: c.key, name: c.name, color: colorOf(c.platform), current: c.current, rcName: c.rcName, members: assignable(members[i]).map((m) => ({ id: m.id, name: m.name })) })),
+      sheetCycles: cycles
+        .filter((c) => sheetIds.includes(c.id))
+        .map((c) => ({
+          id: c.id,
+          key: c.key,
+          name: c.name,
+          runs: openRuns.filter((r) => r.projectId === c.id).map((r) => ({ number: r.number, name: r.name, total: r.entries.length, tested: r.entries.filter((e) => e.status !== "UNTESTED").length })),
+        })),
       allCount,
       autoCount,
       // Whether the "Make a suite", "Write the first case" and "Import cases" links show.

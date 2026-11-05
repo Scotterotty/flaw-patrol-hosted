@@ -51,14 +51,14 @@ import { KnownBugsHeadsUp, KnownBugsPanel, type RunKnown } from "@/components/kn
 
 export const metadata = { title: "Test run" };
 
-export default async function RunPage({ params, searchParams }: { params: Promise<{ key: string; number: string }>; searchParams: Promise<{ handed?: string; compare?: string }> }) {
+export default async function RunPage({ params, searchParams }: { params: Promise<{ key: string; number: string }>; searchParams: Promise<{ handed?: string; compare?: string; updated?: string }> }) {
   // FP_TIMING=1 prints how long each part took. The independent lookups run side by
   // side instead of one after another, so the page shows sooner after Start.
   const timing = startTiming("Run page");
   // Live rows read after this replace the list's rows straight away.
   const renderedAt = Date.now();
   const { key, number } = await params;
-  const { handed, compare } = await searchParams;
+  const { handed, compare, updated } = await searchParams;
   const [spelling, { project, user, who }] = await Promise.all([mySpelling(), timing.step("sign-in and project", projectAccess(key))]);
   const n = Number(number);
   if (!Number.isInteger(n)) notFound();
@@ -158,6 +158,9 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   // Every case has a result: the run only needs closing.
   const finished = run.state === "ACTIVE" && t.total > 0 && t.tested === t.total;
   // Just started and handed to someone else: a link to send them.
+  // Update from a sheet: open runs you test by hand, for whoever can bring in results.
+  const fromSheet = run.state === "ACTIVE" && run.kind !== "bash" && can(who, "run:import");
+  const updatedCount = Math.max(0, Math.floor(Number(updated) || 0));
   const handedTo = handed ? members.find((m) => m.id === handed) : undefined;
   const handedCases = handedTo ? run.entries.filter((e) => e.assigneeId === handedTo.id).length : 0;
 
@@ -204,8 +207,14 @@ export default async function RunPage({ params, searchParams }: { params: Promis
               href={can(who, "jira:manage") ? (project.groupId && project.slackMode === "umbrella" ? `/g/${project.groupId}/settings#slack` : await cycleSettingsHref(project, user, "slack")) : null}
             />
           )}
-          {(SHEETS_ENABLED || can(who, "run:create") || can(who, "run:manage") || can(who, "run:delete")) && (
+          {(SHEETS_ENABLED || fromSheet || can(who, "run:create") || can(who, "run:manage") || can(who, "run:delete")) && (
             <MoreMenu howto="run-more">
+              {fromSheet && (
+                // ver_177: bring a spreadsheet's results into this run, where people already are.
+                <Link href={`/p/${project.key}/runs/import?run=${run.number}`} className={buttonClass("ghost")} data-howto="run-update-sheet">
+                  Update from a sheet
+                </Link>
+              )}
               {SHEETS_ENABLED && (
                 <a href={`/p/${project.key}/runs/${run.number}/export`} download className={buttonClass("ghost")} data-howto="run-export">
                   Export to spreadsheet
@@ -250,6 +259,11 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         </div>
       </div>
 
+      {updatedCount > 0 && (
+        <div role="status" className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900" data-testid="sheet-updated">
+          ✓ Updated {updatedCount} {updatedCount === 1 ? "result" : "results"} from the sheet. Old results are in each case&apos;s history.
+        </div>
+      )}
       {handedTo && handedCases > 0 && <HandOffNote runLabel={`R${run.number}`} cases={handedCases} name={handedTo.name} />}
 
       {finished && (

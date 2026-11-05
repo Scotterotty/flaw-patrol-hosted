@@ -4,7 +4,7 @@ import { signIn } from "./auth";
 
 // ver_166: an umbrella's Test runs page has Bring in results → Results from a spreadsheet,
 // with the test cycle picked first. The sheet can go into a run in progress: it only fills
-// untested cases, lists disagreements with an unticked box, and never clears anything.
+// untested cases, lists disagreements (ver_177: replaced by default, one tick), and never clears anything.
 
 const TAG = Date.now().toString(36).slice(-4).toUpperCase();
 const HUB = `SH${TAG}`;
@@ -83,20 +83,26 @@ test("a sheet goes into a run in progress from the umbrella, filling only untest
   await expect(where.getByRole("radio", { name: /A run in progress/ })).toBeChecked();
   await expect(where.getByLabel("Run in progress", { exact: true })).toContainText("R1 R1 Web check · 2 of 4 tested");
 
-  const into = page.getByRole("region", { name: "Adding to the run" });
-  await expect(into.getByTestId("into-summary")).toContainText("1 case gets a result · 2 already done here, skipped · 1 blank in the sheet, left as they are · 1 not in this run, skipped");
-  const disagree = into.getByRole("group", { name: "Disagrees with the sheet" });
-  await expect(disagree).toContainText("1 case disagrees with the sheet");
-  await expect(disagree).toContainText("Flaw Patrol: Failed · Sheet: Passed");
+  // ver_177: results that differ use the sheet's by default (one tick), listed folded up with who saved them.
+  const into = page.getByRole("region", { name: "Updating the run" });
+  await expect(into.getByTestId("into-summary")).toContainText("1 case gets a result · 1 differs from the sheet · 1 already matches, skipped · 1 blank in the sheet, left as they are · 1 not in this run, skipped");
+  const disagree = into.getByRole("group", { name: "Differs from the sheet" });
+  await expect(disagree.getByRole("checkbox", { name: /Use the sheet's results for the 1 that differs/ })).toBeChecked();
+  await disagree.getByText("Show the 1 that differ").click();
+  await expect(disagree).toContainText(/Flaw Patrol: Failed \(Demo Admin, [^)]+\) · Sheet: Passed/);
   const box = disagree.getByRole("checkbox", { name: `Use the sheet's result for ${HUB}-3` });
-  await expect(box).not.toBeChecked();
-  await expect(into.getByRole("button", { name: "Add 1 result to the run" })).toBeVisible();
+  await expect(box).toBeChecked();
+  await expect(into.getByRole("button", { name: "Update 2 results" })).toBeVisible();
   // "Select" is an untouched dropdown, not an unknown word.
   await expect(page.getByText("Results Flaw Patrol doesn't recognize")).toHaveCount(0);
 
+  // Unticking one keeps the result here.
+  await box.uncheck();
+  await expect(into.getByRole("button", { name: "Update 1 result" })).toBeVisible();
   await box.check();
-  await into.getByRole("button", { name: "Add 2 results to the run" }).click();
-  await expect(page).toHaveURL(new RegExp(`/p/${CYCLE}/runs/1$`));
+  await into.getByRole("button", { name: "Update 2 results" }).click();
+  await expect(page).toHaveURL(new RegExp(`/p/${CYCLE}/runs/1\\?updated=2$`));
+  await expect(page.getByTestId("sheet-updated")).toContainText("Updated 2 results from the sheet. Old results are in each case's history.");
 
   const db = new PrismaClient();
   try {
@@ -120,7 +126,7 @@ test("A new run is still there, and leaves the run in progress alone", async ({ 
   await page.goto(`/p/${CYCLE}/runs/import`);
   await page.getByLabel("Sheet file").setInputFiles({ name: "Fresh.csv", mimeType: "text/csv", buffer: Buffer.from(sheet) });
   await page.getByRole("radio", { name: /A new run/ }).check();
-  await expect(page.getByRole("region", { name: "Adding to the run" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Updating the run" })).toHaveCount(0);
   await expect(page.getByLabel("Run name")).toHaveValue("Fresh");
   await expect(page.getByRole("button", { name: "Create run with 5 cases" })).toBeVisible();
 });

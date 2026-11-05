@@ -133,7 +133,8 @@ export async function previewRunImport(projectId: string, input: SheetInput, run
         fill: into.fill.length,
         fillInProgress: into.fill.filter((f) => f.outcome === "IN_PROGRESS").length,
         skipped: into.skipped,
-        disagree: into.disagree.map((d) => ({ caseId: d.row.caseId, key: d.key, title: d.row.title, here: d.here, sheet: d.sheet })),
+        disagree: into.disagree.map((d) => ({ caseId: d.row.caseId, key: d.key, title: d.row.title, here: d.here, sheet: d.sheet, by: d.by, at: d.at })),
+        automated: into.automated,
         notInRun: into.notInRun,
         blank: into.blank,
       },
@@ -158,6 +159,8 @@ const runSchema = z.object({
   release: z.string().trim().max(200).default(""),
   testedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick the date it was tested"),
   suiteId: z.string().nullable().default(null),
+  /** The run kind picked in Create a run (ver_177). Blank: Release candidate when there's a release, as before. */
+  runKind: z.string().trim().max(40).default(""),
 });
 
 /** Create the run from the sheet. It stays open so unfinished cases can be finished here. */
@@ -185,7 +188,7 @@ export async function importRun(projectId: string, input: SheetInput, run: z.inp
             suiteVersion: suite?.currentVersion ?? null,
             name: meta.name,
             release: meta.release,
-            kind: meta.release ? "rc" : "",
+            kind: meta.runKind || (meta.release ? "rc" : ""),
             description: note,
             createdById: user.id,
             createdBy: user.name ?? user.email,
@@ -240,13 +243,23 @@ async function intoPlan(projectId: string, runId: string, p: Plan) {
     where: { runId: run.id, caseId: { in: p.rows.map((r) => r.caseId) } },
     select: { id: true, caseId: true, caseVersion: true, status: true, steps: true, assigneeId: true, draft: true, lastTestedAt: true, kind: true },
   });
+  // Who saved each result here and when, shown next to a result the sheet would replace (ver_177).
+  const latest = await db.testResult.findMany({
+    where: { entryId: { in: entries.map((e) => e.id) } },
+    orderBy: { createdAt: "desc" },
+    distinct: ["entryId"],
+    select: { entryId: true, testerName: true, createdAt: true },
+  });
+  const latestOf = new Map(latest.map((l) => [l.entryId, l]));
   const entryOf = new Map(entries.map((e) => [e.caseId, e]));
   type Entry = (typeof entries)[number];
   const fill: { row: Plan["rows"][number]; entry: Entry; steps: number; outcome: ImportStatus | "IN_PROGRESS" }[] = [];
-  const disagree: { row: Plan["rows"][number]; entry: Entry; steps: number; key: string; here: string; sheet: ImportStatus }[] = [];
+  const disagree: { row: Plan["rows"][number]; entry: Entry; steps: number; key: string; here: string; sheet: ImportStatus; by: string; at: string | null }[] = [];
   const notInRun: { key: string; title: string }[] = [];
   let skipped = 0;
   let blank = 0;
+  // Automated cases are left to the automation: a sheet never changes them (ver_177).
+  let automated = 0;
   for (const r of p.rows) {
     const key = r.key;
     const entry = entryOf.get(r.caseId);
@@ -254,21 +267,28 @@ async function intoPlan(projectId: string, runId: string, p: Plan) {
       notInRun.push({ key: r.sheet.key || key, title: r.title });
       continue;
     }
+    if (entry.kind === "AUTOMATED") {
+      automated++;
+      continue;
+    }
     const steps = Array.isArray(entry.steps) ? entry.steps.length : 0;
     const outcome = caseOutcome(r.sheet, steps);
     const action = intoRunAction(entry.status, entry.draft !== null, outcome);
     if (action === "blank") blank++;
     else if (action === "fill") fill.push({ row: r, entry, steps, outcome });
-    else if (action === "disagree") disagree.push({ row: r, entry, steps, key, here: entry.status, sheet: outcome as ImportStatus });
+    else if (action === "disagree") {
+      const last = latestOf.get(entry.id);
+      disagree.push({ row: r, entry, steps, key, here: entry.status, sheet: outcome as ImportStatus, by: last?.testerName ?? "", at: (last?.createdAt ?? entry.lastTestedAt)?.toISOString() ?? null });
+    }
     else skipped++;
   }
-  return { run, fill, disagree, notInRun, skipped, blank };
+  return { run, fill, disagree, notInRun, skipped, blank, automated };
 }
 
 const intoSchema = z.object({
   runId: z.string().min(1).max(40),
   testedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick the date it was tested"),
-  /** Disagreeing cases where the sheet's result should be used. Off unless ticked. */
+  /** Cases where the sheet's result replaces the one here. Create a run and the check page tick them all (ver_177). */
   useSheet: z.array(z.string().max(40)).max(50_000).default([]),
 });
 

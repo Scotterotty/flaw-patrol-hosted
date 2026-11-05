@@ -6,7 +6,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { RUN_FIELD_LABEL, RUN_FIELDS, type ColumnMap, type RunField } from "@/lib/run-import";
 import { importIntoRun, importRun, previewRunImport } from "@/server/run-import";
 import { readSpreadsheet } from "@/server/spreadsheet";
-import { SHEET_HANDOFF } from "@/lib/csv-import";
+import { SHEET_HANDOFF, type SheetHandoff } from "@/lib/csv-import";
+import { relativeTime } from "@/lib/format";
 import { Sp } from "./spelling";
 import { Button, Card, cx, ErrorText, Field, Input, Select } from "./ui";
 
@@ -50,8 +51,13 @@ export function RunImporter({
   // Where should the results go: a run in progress (Recommended) when there is one.
   const [target, setTarget] = useState<"run" | "new">(runs.length ? "run" : "new");
   const [runId, setRunId] = useState(runs.find((r) => r.id === pickRun || String(r.number) === pickRun)?.id ?? runs[0]?.id ?? "");
-  const [useSheet, setUseSheet] = useState<Set<string>>(new Set());
+  // Results that differ: the sheet's is used for all of them (ver_177, Scott: "why import if you don't
+  // want what the sheet has"), except the ones unticked here.
+  const [keep, setKeep] = useState<Set<string>>(new Set());
+  const [runKind, setRunKind] = useState("");
   const into = target === "run" && runId ? runId : null;
+  // How many results that differ will use the sheet's.
+  const used = (pv: Preview) => (pv.into ? pv.into.disagree.filter((d) => !keep.has(d.caseId)).length : 0);
   const [pending, start] = useTransition();
   const [checking, startCheck] = useTransition();
   const file = useRef<HTMLInputElement>(null);
@@ -78,7 +84,7 @@ export function RunImporter({
     setName(n.replace(/\.(csv|tsv|txt|xlsx)$/i, ""));
     setMap(null);
     setLinks({});
-    setUseSheet(new Set());
+    setKeep(new Set());
     setRows(data);
   };
   // The sheet the case importer handed over, so nobody picks the same file twice. Used once, within an hour.
@@ -87,11 +93,20 @@ export function RunImporter({
     try {
       const saved = sessionStorage.getItem(SHEET_HANDOFF);
       sessionStorage.removeItem(SHEET_HANDOFF);
-      const sheet = saved ? (JSON.parse(saved) as { fileName?: string; rows?: string[][]; at?: number }) : null;
-      if (sheet?.rows?.length && sheet.fileName && Date.now() - (sheet.at ?? 0) < 60 * 60 * 1000) accept(sheet.fileName, sheet.rows);
+      const sheet = saved ? (JSON.parse(saved) as Partial<SheetHandoff>) : null;
+      if (sheet?.rows?.length && sheet.fileName && Date.now() - (sheet.at ?? 0) < 60 * 60 * 1000) {
+        accept(sheet.fileName, sheet.rows);
+        // From Create a run: where it goes and the new run's details come along.
+        if (sheet.target === "new" || (sheet.target === "run" && runs.length)) setTarget(sheet.target);
+        if (sheet.name) setName(sheet.name);
+        if (sheet.release) setRelease(sheet.release);
+        if (sheet.runKind) setRunKind(sheet.runKind);
+      }
     } catch {
       // Nothing handed over: pick the file as usual.
     }
+    // Read once, when the page opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handoff]);
 
   const load = (f: File) => {
@@ -197,7 +212,7 @@ export function RunImporter({
                   onChange={(e) => {
                     setRunId(e.target.value);
                     setTarget("run");
-                    setUseSheet(new Set());
+                    setKeep(new Set());
                   }}
                 >
                   {runs.map((r) => (
@@ -206,7 +221,7 @@ export function RunImporter({
                     </option>
                   ))}
                 </Select>
-                <span className="text-xs text-slate-500">Only cases still untested get the sheet&apos;s result. Anything already marked here stays as it is.</span>
+                <span className="text-xs text-slate-500">Untested cases get the sheet&apos;s result. Results that differ are replaced by the sheet&apos;s, and stay in history.</span>
               </span>
             </div>
             <label className={cx("flex cursor-pointer gap-2 rounded-md border p-3 text-sm", target === "new" ? "border-accent-500 bg-accent-50" : "border-slate-200")}>
@@ -311,11 +326,24 @@ export function RunImporter({
           )}
 
           {target === "run" && p.into && (
-            <Card className="p-4" role="region" aria-label="Adding to the run">
-              <h2 className="text-sm font-semibold text-slate-800">Adding to {runLabel(runs, runId)}</h2>
+            <Card className="p-4" role="region" aria-label="Updating the run">
+              <h2 className="text-sm font-semibold text-slate-800">Updating {runLabel(runs, runId)}</h2>
               <p className="mt-1 text-sm text-slate-700" data-testid="into-summary">
                 <strong>{p.into.fill}</strong> {p.into.fill === 1 ? "case gets" : "cases get"} a result
-                {p.into.fillInProgress > 0 && ` (${p.into.fillInProgress} in progress)`} · <strong>{p.into.skipped + p.into.disagree.length}</strong> already done here, skipped
+                {p.into.fillInProgress > 0 && ` (${p.into.fillInProgress} in progress)`}
+                {p.into.disagree.length > 0 && (
+                  <>
+                    {" "}
+                    · <strong>{p.into.disagree.length}</strong> {p.into.disagree.length === 1 ? "differs" : "differ"} from the sheet
+                  </>
+                )}{" "}
+                · <strong>{p.into.skipped}</strong> already {p.into.skipped === 1 ? "matches" : "match"}, skipped
+                {p.into.automated > 0 && (
+                  <>
+                    {" "}
+                    · <strong>{p.into.automated}</strong> automated, left to the automation
+                  </>
+                )}
                 {p.into.blank > 0 && (
                   <>
                     {" "}
@@ -334,40 +362,62 @@ export function RunImporter({
                   Not in this run: <span className="font-mono">{p.into.notInRun.slice(0, 12).map((n) => n.key || n.title).join(", ")}{p.into.notInRun.length > 12 && "…"}</span>
                 </p>
               )}
-              {p.into.disagree.length > 0 && (
-                <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3" role="group" aria-label="Disagrees with the sheet">
-                  <p className="text-sm font-semibold text-amber-900">
-                    {p.into.disagree.length} {p.into.disagree.length === 1 ? "case disagrees" : "cases disagree"} with the sheet
-                  </p>
-                  <p className="text-xs text-amber-900/80">Nothing changes unless you tick it. If you do, the result here stays in the case&apos;s history.</p>
-                  <ul className="mt-2 divide-y divide-amber-200">
-                    {p.into.disagree.map((d) => (
-                      <li key={d.caseId} className="flex flex-wrap items-center justify-between gap-2 py-1.5 text-sm">
-                        <span className="min-w-0">
-                          <span className="font-mono text-xs text-slate-500">{d.key}</span> <span className="text-slate-800">{d.title}</span>
-                          <span className="block text-xs text-slate-600">
-                            Flaw Patrol: <strong>{WORD[d.here] ?? d.here}</strong> · Sheet: <strong>{WORD[d.sheet] ?? d.sheet}</strong>
-                          </span>
-                        </span>
-                        <label className="flex items-center gap-1.5 text-xs text-slate-800">
-                          <input
-                            type="checkbox"
-                            aria-label={`Use the sheet's result for ${d.key}`}
-                            checked={useSheet.has(d.caseId)}
-                            onChange={(e) => {
-                              const next = new Set(useSheet);
-                              if (e.target.checked) next.add(d.caseId);
-                              else next.delete(d.caseId);
-                              setUseSheet(next);
-                            }}
-                          />
-                          Use the sheet&apos;s result
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              {p.into.disagree.length > 0 && (() => {
+                const all = p.into.disagree.every((d) => !keep.has(d.caseId));
+                const some = !all && p.into.disagree.some((d) => !keep.has(d.caseId));
+                return (
+                  <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3" role="group" aria-label="Differs from the sheet">
+                    <label className="flex cursor-pointer items-start gap-2 text-sm text-amber-950">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        data-howto="import-use-sheet"
+                        checked={all}
+                        ref={(el) => {
+                          if (el) el.indeterminate = some;
+                        }}
+                        onChange={() => setKeep(all ? new Set(p.into!.disagree.map((d) => d.caseId)) : new Set())}
+                      />
+                      <span>
+                        <b>Use the sheet&apos;s results</b> for {p.into.disagree.length === 1 ? "the 1 that differs" : `all ${p.into.disagree.length} that differ`}
+                        <span className="block text-xs text-amber-900/80">The result here stays in each case&apos;s history.</span>
+                      </span>
+                    </label>
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-xs font-medium text-amber-900 hover:underline">
+                        Show the {p.into.disagree.length} that differ
+                      </summary>
+                      <ul className="mt-1 divide-y divide-amber-200">
+                        {p.into.disagree.map((d) => (
+                          <li key={d.caseId} className="flex flex-wrap items-center justify-between gap-2 py-1.5 text-sm">
+                            <span className="min-w-0">
+                              <span className="font-mono text-xs text-slate-500">{d.key}</span> <span className="text-slate-800">{d.title}</span>
+                              <span className="block text-xs text-slate-600">
+                                Flaw Patrol: <strong>{WORD[d.here] ?? d.here}</strong>
+                                {(d.by || d.at) && ` (${[d.by, d.at ? relativeTime(new Date(d.at)) : ""].filter(Boolean).join(", ")})`} · Sheet: <strong>{WORD[d.sheet] ?? d.sheet}</strong>
+                              </span>
+                            </span>
+                            <label className="flex items-center gap-1.5 text-xs text-slate-800">
+                              <input
+                                type="checkbox"
+                                aria-label={`Use the sheet's result for ${d.key}`}
+                                checked={!keep.has(d.caseId)}
+                                onChange={(e) => {
+                                  const next = new Set(keep);
+                                  if (e.target.checked) next.delete(d.caseId);
+                                  else next.add(d.caseId);
+                                  setKeep(next);
+                                }}
+                              />
+                              Use the sheet&apos;s result
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  </div>
+                );
+              })()}
               <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
                 <Field label="Tested on" htmlFor="imp-date">
                   <Input id="imp-date" type="date" value={testedOn} max={today()} onChange={(e) => setTestedOn(e.target.value)} />
@@ -377,16 +427,16 @@ export function RunImporter({
                   <Button
                     variant="primary"
                     data-howto="import-add"
-                    disabled={pending || checking || p.into.fill + useSheet.size === 0}
+                    disabled={pending || checking || p.into.fill + used(p) === 0}
                     onClick={() =>
                       start(async () => {
-                        const res = await importIntoRun(projectId, { rows, map, links, fileName }, { runId, testedOn, useSheet: [...useSheet] });
+                        const res = await importIntoRun(projectId, { rows, map, links, fileName }, { runId, testedOn, useSheet: p.into!.disagree.filter((d) => !keep.has(d.caseId)).map((d) => d.caseId) });
                         if (!res.ok) return setError(res.error);
-                        router.push(`/p/${projectKey}/runs/${res.number}`);
+                        router.push(`/p/${projectKey}/runs/${res.number}?updated=${res.filled + res.replaced}`);
                       })
                     }
                   >
-                    {pending ? "Adding…" : addLabel(p.into.fill + p.into.disagree.filter((d) => useSheet.has(d.caseId)).length)}
+                    {pending ? "Updating…" : addLabel(p.into.fill + used(p))}
                   </Button>
                 </div>
               </div>
@@ -435,7 +485,7 @@ export function RunImporter({
                 disabled={pending || checking || !p.matched || !name.trim()}
                 onClick={() =>
                   start(async () => {
-                    const res = await importRun(projectId, { rows, map, links, fileName }, { name, release, testedOn, suiteId: suiteId || null });
+                    const res = await importRun(projectId, { rows, map, links, fileName }, { name, release, testedOn, suiteId: suiteId || null, runKind });
                     if (!res.ok) return setError(res.error);
                     router.push(`/p/${projectKey}/runs/${res.number}`);
                   })
@@ -469,5 +519,5 @@ function runLabel(runs: ActiveRun[], id: string) {
 }
 
 function addLabel(n: number) {
-  return n ? `Add ${n} ${n === 1 ? "result" : "results"} to the run` : "Nothing to add";
+  return n ? `Update ${n} ${n === 1 ? "result" : "results"}` : "Nothing to update";
 }

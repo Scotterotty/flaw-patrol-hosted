@@ -81,6 +81,7 @@ const UMBRELLA_PAGES: { label: string; path: (g: string, hub: string) => string;
   { label: "Personas", path: (_, h) => `/p/${h}/charters?tab=personas`, words: "personas test persona charters exploratory", tool: "charters" },
   { label: "Charters", path: (_, h) => `/p/${h}/charters`, words: "charters exploratory sessions tours checklists", tool: "charters" },
   { label: "Test runs", path: (g) => `/g/${g}/runs`, words: "test runs runs automated", tool: "runs" },
+  { label: "Update a run from a sheet", path: (g) => `/g/${g}?start=run&what=sheet`, words: "update run from sheet spreadsheet import results excel csv xlsx google sheets in progress bring in", tool: "runs" },
   { label: "Bug bashes", path: (_, h) => `/p/${h}/bashes`, words: "bug bashes bash blitz hunt", tool: "bashes" },
   { label: "Start a bug bash", path: (_, h) => `/p/${h}/bashes?bash=start`, words: "start new bug bash blitz", tool: "bashes" },
   { label: "Risk board", path: (_, h) => `/p/${h}/risk`, words: "risk board rc plan likelihood impact", tool: "risk" },

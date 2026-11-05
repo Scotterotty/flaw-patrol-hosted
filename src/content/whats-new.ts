@@ -22,6 +22,31 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 177,
+    date: "2026-11-05",
+    items: [
+      {
+        kind: "new",
+        title: "Create a run from a spreadsheet",
+        text: "In Create a run, pick From a spreadsheet under What to run. Drop your sheet in, then choose Update a run in progress or A new run, and press Next: check the sheet.",
+        who: "all",
+        link: "/g/{umbrella}?start=run&what=sheet",
+      },
+      {
+        kind: "better",
+        title: "A sheet can update a run in progress",
+        text: "Results in the sheet now replace ones that differ, with one tick: Use the sheet's results. Untick any you want to keep. Old results stay in each case's history, and blank cells never clear a result.",
+        who: "all",
+      },
+      {
+        kind: "new",
+        title: "Update from a sheet on every run",
+        text: "On a run's page, press More, then Update from a sheet. It's in Ctrl+K too.",
+        who: "all",
+      },
+    ],
+  },
+  {
     version: 176,
     date: "2026-11-05",
     items: [
