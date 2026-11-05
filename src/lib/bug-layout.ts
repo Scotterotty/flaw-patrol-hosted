@@ -217,17 +217,20 @@ export function layoutFromImported(t: ImportedTemplate): BugLayout {
 /**
  * The first row of Settings → Bug templates (a copied Jira bug, or the detailed OB-5292 / OKO
  * layout) as a template, for Write a bug. Null when it's the plain one-line bug.
- * The detailed one's Jira fields (Team, Client/SKUs, Oly Environment) become fields to pick,
- * starting at the test cycle's defaults.
+ * Section ids are fixed, so what the box sends matches the layout the server builds again.
+ * Nothing comes from the test cycle's presets: a bug written on its own may be about another
+ * product (an Unreal umbrella, a Unity bug; Scott, Nov 5), so Team, Client/SKUs and
+ * Oly Environment start empty for the writer to pick.
  */
 export function layoutFromSettings(t: TemplateSettings): BugLayout | null {
   const kind = templateKind(t);
   if (kind === "plain") return null;
-  if (kind === "imported" && t.imported) return layoutFromImported(t.imported);
-  const field = (name: string, value: string[]) => ({ id: name, name, required: false, source: (value.length ? "default" : "tester") as "default" | "tester", value });
+  const layout = kind === "imported" && t.imported ? layoutFromImported(t.imported) : readyMadeLayout();
+  const blankField = (name: string) => ({ id: name, name, required: false, source: "tester" as const, value: [] as string[] });
   return {
-    ...readyMadeLayout(),
-    fields: [field(FIELD.team, [t.team].filter(Boolean)), field(FIELD.clients, t.clients), field(FIELD.olyEnv, t.olyEnv)],
+    ...layout,
+    sections: layout.sections.map((s, i) => ({ ...s, id: `current-${i}` })),
+    fields: kind === "imported" ? layout.fields.map((f) => (f.source === "default" ? { ...f, source: "tester" as const, value: [] } : f)) : [blankField(FIELD.team), blankField(FIELD.clients), blankField(FIELD.olyEnv)],
   };
 }
 

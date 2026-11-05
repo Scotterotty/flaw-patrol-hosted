@@ -139,11 +139,15 @@ describe("layoutFromSettings (Write a bug's first choice)", () => {
   it("is nothing for the plain layout", () => {
     expect(layoutFromSettings(base)).toBeNull();
   });
-  it("turns the OKO layout into its headings, with Team and Client/SKUs to pick", () => {
+  it("turns the OKO layout into its headings, with Team and Client/SKUs to pick and no presets", () => {
     const l = layoutFromSettings({ ...base, on: true, team: "Web", clients: ["Web"] })!;
     expect(l.sections.map((s) => s.heading)).toContain("Bug impact");
-    expect(l.fields.find((f) => f.name === "Team")).toMatchObject({ source: "default", value: ["Web"] });
-    expect(l.fields.find((f) => f.name === "Oly Environment")).toMatchObject({ source: "tester", value: [] });
+    expect(l.fields.find((f) => f.name === "Team")).toMatchObject({ source: "tester", value: [] });
+    expect(l.fields.find((f) => f.name === "Client/SKUs")).toMatchObject({ source: "tester", value: [] });
+  });
+  it("gives the same section ids every time, so typed answers line up", () => {
+    const t = { ...base, on: true };
+    expect(layoutFromSettings(t)!.sections.map((s) => s.id)).toEqual(layoutFromSettings(t)!.sections.map((s) => s.id));
   });
   it("uses a copied Jira bug's layout as it is", () => {
     const imported = { from: "QA-1", title: { tag: true, feature: false }, sections: [{ heading: "Steps", source: "steps" as const }], fields: [] };

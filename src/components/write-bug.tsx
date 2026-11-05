@@ -66,6 +66,8 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
   const [chosen, setChosen] = useState("");
   // The first choice: the test cycle's own layout (Settings → Bug templates, first row), or Plain.
   const [first, setFirst] = useState<{ label: CurrentLayout; layout: BugLayout | null }>({ label: PLAIN, layout: null });
+  // The choices shown are this test cycle's (no stand-in "Plain" while they load).
+  const [loadedFor, setLoadedFor] = useState("");
   const [draft, setDraft] = useState<TemplatedDraft | null>(null);
   const [severity, setSeverity] = useState<Severity>(defaultSeverityOf(scale));
   const [foundIn, setFoundIn] = useState("");
@@ -114,6 +116,7 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
       const list = [...(c.ok ? c.templates : []), ...(top.layout ? [PLAIN_CHOICE] : [])];
       setFirst(top);
       setChoices(list);
+      setLoadedFor(projectId);
       pick(c.ok && c.defaultId && list.some((t) => t.id === c.defaultId) ? c.defaultId : "", list, projectId, top);
     });
     // Only when the test cycle changes.
@@ -204,7 +207,11 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
             </div>
           )}
           <div className="rounded-lg bg-accent-50 px-3 py-2.5" data-howto="write-bug-template">
-            <TemplatePicker current={first.label} templates={choices} value={chosen} onChange={(id) => pick(id, choices)} />
+            {loadedFor === projectId ? (
+              <TemplatePicker current={first.label} templates={choices} value={chosen} onChange={(id) => pick(id, choices)} />
+            ) : (
+              <p className="text-xs text-slate-500">Loading templates…</p>
+            )}
           </div>
           {draft && draft.templateId === (chosen || (first.layout ? CURRENT_ID : PLAIN_ID)) ? (
             <>

@@ -242,7 +242,7 @@ test("the test cycle's own layout (like the shared OKO one) comes first, with Pl
   await expect(filed.getByRole("link", { name: /^QA-\d+$/ })).toBeVisible();
   const issues = (await (await fetch(`${JIRA}/__issues`)).json()) as Record<string, { summary: string; description: unknown }>;
   const issue = Object.values(issues).find((i) => i.summary.includes(`Avatar flickers ${TAG}`));
-  expect(JSON.stringify(issue?.description)).toContain("Bug impact");
+  expect(JSON.stringify(issue?.description)).toContain("Repro steps");
   expect(JSON.stringify(issue?.description)).toContain("The avatar flickers when walking");
   const db3 = new PrismaClient();
   try {
