@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { ZodError } from "zod";
 import { Forbidden } from "@/lib/session";
+import { duplicateMessage } from "@/lib/duplicate-message";
 
 export type ActionResult<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -15,7 +16,7 @@ export async function attempt<T extends object>(fn: () => Promise<T>): Promise<A
       return { ok: false, error: e.issues[0].message };
     }
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-      return { ok: false, error: "That name is already taken." };
+      return { ok: false, error: duplicateMessage(e.meta?.target) };
     }
     // Let Next.js redirects and not-found signals through.
     if (e && typeof e === "object" && "digest" in e) throw e;
@@ -25,3 +26,4 @@ export async function attempt<T extends object>(fn: () => Promise<T>): Promise<A
 }
 
 export class UserError extends Error {}
+

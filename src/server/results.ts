@@ -106,7 +106,14 @@ export async function submitResult(projectId: string, entryId: string, input: Re
           data: { resultId: result.id },
         });
       }
+      // One bug can sit on two steps (or a step and the case) in the runner, but a result
+      // links each bug once, so the first spot wins instead of a duplicate-key error.
+      const seen = new Set<string>();
       for (const d of data.defects) {
+        if ("existingId" in d) {
+          if (seen.has(d.existingId)) continue;
+          seen.add(d.existingId);
+        }
         let defectId: string;
         if ("existingId" in d) {
           const found = await tx.defect.findFirst({ where: { id: d.existingId, projectId } });
