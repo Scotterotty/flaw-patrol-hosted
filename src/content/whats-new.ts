@@ -22,6 +22,42 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 173,
+    date: "2026-11-04",
+    items: [
+      {
+        kind: "better",
+        title: "Shared steps look like every other step",
+        text: "In a run, a shared step's checks now sit under Expected, each with its own P F B R S buttons, and the step's Passed / Failed buttons come right after them.",
+        who: "all",
+      },
+      {
+        kind: "better",
+        title: "Short Title Case names become section titles",
+        text: "A short step name like \"Space Lists\" with nothing in Expected now shows as a section title in runs, with no result buttons, the same as names in capitals.",
+        who: "all",
+      },
+      {
+        kind: "fix",
+        title: "Create and test now opens the case every time",
+        text: "Sometimes the runner opened blank after Create and test now. It now always opens the first case.",
+        who: "all",
+      },
+      {
+        kind: "fix",
+        title: "Link existing bug starts with an empty search",
+        text: "The search box no longer shows the last bug you linked.",
+        who: "all",
+      },
+      {
+        kind: "fix",
+        title: "Saving a case with one bug on two steps works",
+        text: "Linking the same bug to two steps no longer stops the save with \"That name is already taken\".",
+        who: "all",
+      },
+    ],
+  },
+  {
     version: 172,
     date: "2026-11-04",
     items: [
