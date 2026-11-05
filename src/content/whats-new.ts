@@ -22,6 +22,24 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 171,
+    date: "2026-11-04",
+    items: [
+      {
+        kind: "new",
+        title: "Fill in your own Google Sheet",
+        text: "On a run, More → Google Sheet → Fill in my columns. We find your header row and fill only the columns you pick (Result, Executed By, step Status, Bug Ticket, Summary) on each test's row, matched by Key or title. Cells someone typed in are never changed.",
+        who: "lead",
+      },
+      {
+        kind: "better",
+        title: "Works with checklists and RC cycle sheets",
+        text: "Pick which set of columns to fill when a checklist has Run 1, Run 2 and Run 3 side by side. On a cycle sheet with one row per step, each step's Status is filled too. Linked a sheet before? Copy the script again, it's new.",
+        who: "lead",
+      },
+    ],
+  },
+  {
     version: 170,
     date: "2026-11-04",
     items: [
