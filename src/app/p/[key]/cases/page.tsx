@@ -333,7 +333,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
 
         {/* Search and filters only once there's something to search. */}
         {(activeCount + archivedCount > 0 || filtered) && (
-        <AutoFilterForm className="mb-4 flex flex-wrap items-center gap-2" role="search">
+        <AutoFilterForm className="mb-4 flex flex-wrap items-center gap-2" role="search" data-howto="cases-filters">
           {sp.folder && <input type="hidden" name="folder" value={sp.folder} />}
           {sp.archived && <input type="hidden" name="archived" value={sp.archived} />}
           {sp.tag && <input type="hidden" name="tag" value={sp.tag} />}

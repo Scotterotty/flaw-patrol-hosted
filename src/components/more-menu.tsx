@@ -12,6 +12,7 @@ export function MoreMenu({
   ariaLabel,
   caret = true,
   size,
+  howto,
 }: {
   children: React.ReactNode;
   label?: string;
@@ -20,6 +21,8 @@ export function MoreMenu({
   ariaLabel?: string;
   caret?: boolean;
   size?: "sm" | "md";
+  /** The How-to guide's Show me name for the More button. */
+  howto?: string;
 }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -38,7 +41,7 @@ export function MoreMenu({
   }, [open]);
   return (
     <div ref={box} className="relative">
-      <Button aria-expanded={open} aria-haspopup="menu" aria-label={ariaLabel} title={title} size={size} onClick={() => setOpen((o) => !o)}>
+      <Button aria-expanded={open} aria-haspopup="menu" aria-label={ariaLabel} title={title} size={size} onClick={() => setOpen((o) => !o)} data-howto={howto}>
         {label}
         {caret && (
           <>

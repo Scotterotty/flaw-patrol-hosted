@@ -94,6 +94,7 @@ export async function ProfileSettings({ user }: { user: Me }) {
       <div className="space-y-3">
         <AccountCard
           id="profile"
+          howto="account-profile"
           title="Your profile"
           summary={
             <span className="inline-flex items-center gap-1.5">
@@ -125,16 +126,16 @@ export async function ProfileSettings({ user }: { user: Me }) {
             <PaneSizesReset />
           </div>
         </AccountCard>
-        <AccountCard id="language" title="Language" summary={`${spelling === "uk" ? "UK English" : "US English"} · dates like ${sample}`}>
+        <AccountCard id="language" howto="account-language" title="Language" summary={`${spelling === "uk" ? "UK English" : "US English"} · dates like ${sample}`}>
           <LanguageSettings mine={isSpelling(user.spelling) ? user.spelling : null} />
         </AccountCard>
         <AccountCard id="jira" title="Jira" summary={user.jiraEmail ? `Uses ${user.jiraEmail}` : "Uses your sign-in email"}>
           <JiraEmailForm jiraEmail={user.jiraEmail} email={user.email} />
         </AccountCard>
-        <AccountCard id="emails" title="Emails I get" summary={prefsSummary(parsePrefs(user.digestPrefs))}>
+        <AccountCard id="emails" howto="account-emails" title="Emails I get" summary={prefsSummary(parsePrefs(user.digestPrefs))}>
           <DigestPrefsForm initial={parsePrefs(user.digestPrefs)} />
         </AccountCard>
-        <AccountCard id="accessibility" title="Accessibility" summary={access}>
+        <AccountCard id="accessibility" howto="account-accessibility" title="Accessibility" summary={access}>
           <AccessibilitySettings
             initial={{
               textSize: isTextSize(user.textSize) ? user.textSize : "100",
@@ -156,7 +157,7 @@ export async function ProfileSettings({ user }: { user: Me }) {
         <AccountCard id="radio" title="Radio" summary={user.radioEnabled ? "On" : "Off"}>
           <RadioSettings enabled={user.radioEnabled} station={validStation(user.radioStation, parseSpotifyLinks(user.spotifyLinks))} spotify={parseSpotifyLinks(user.spotifyLinks)} />
         </AccountCard>
-        <AccountCard id="password" title="Password" summary={user.passwordSetAt ? `Set · last changed ${longDate(user.passwordSetAt, spelling)}` : "Not set yet"}>
+        <AccountCard id="password" howto="account-password" title="Password" summary={user.passwordSetAt ? `Set · last changed ${longDate(user.passwordSetAt, spelling)}` : "Not set yet"}>
           <ChangePasswordForm hasPassword={!!user.passwordSetAt} />
         </AccountCard>
       </div>

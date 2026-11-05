@@ -359,6 +359,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             <SettingsRows>
             <ExpandRow
               id="tools"
+              howto="settings-tools"
               hashes={["tools"]}
               title="Tools"
               text={everything(u.tools) ? "Every tool: test cases, runs, bug bashes, risk board and the rest" : toolsLine(u.tools)}
@@ -369,6 +370,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             {manage ? (
               <ExpandRow
                 id="jira"
+                howto="settings-jira"
                 hashes={["jira"]}
                 title="Jira connection"
                 text={jira ? `${site} · Jira project ${jira.jiraProjectKey} · token from ${jira.email}` : `Not connected. Connect it once here and every ${name} test cycle files bugs into it.`}
@@ -391,7 +393,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                 action={jira ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">✓ Connected</span> : null}
               />
             )}
-            <ExpandRow id="bug-templates" hashes={["bug-templates", "template", "import-template"]} title="Bug templates" text={templatesText} label={canTemplates ? "Change" : "Open"}>
+            <ExpandRow id="bug-templates" howto="settings-bug-templates" hashes={["bug-templates", "template", "import-template"]} title="Bug templates" text={templatesText} label={canTemplates ? "Change" : "Open"}>
               <BugTemplatesSettings
                 projectId={u.hub.id}
                 current={bugTemplates.current}
@@ -445,6 +447,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             )}
             <ExpandRow
               id="slack"
+              howto="settings-slack"
               hashes={["slack"]}
               title="Slack alerts"
               text={slack.length ? `${slackPaused ? "Paused · " : ""}${slack.map((c) => c.name).join(", ")} · every test cycle follows unless changed` : "No channels yet. Post regressions, serious bugs and finished runs to Slack."}
@@ -452,7 +455,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             >
               <SlackCard target={{ groupId: u.group.id }} channels={slack} canManage={manage} tip={`Post to Slack when something needs the team's eyes. Each channel picks its own alerts. Every ${name} test cycle follows these channels unless its own Settings change that.`} />
             </ExpandRow>
-            <ExpandRow id="email-digests" hashes={["email-digests"]} title="Email digests" text={digest.summary} label={manage ? (digest.settings.on ? "Change" : "Set up") : "View"}>
+            <ExpandRow id="email-digests" howto="settings-digests" hashes={["email-digests"]} title="Email digests" text={digest.summary} label={manage ? (digest.settings.on ? "Change" : "Set up") : "View"}>
               <DigestCard target={{ groupId: u.group.id }} data={digest} canManage={manage && !u.group.archivedAt} team={name} isAdmin={user.isAdmin} />
             </ExpandRow>
             <ExpandRow
@@ -473,6 +476,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             {!on("auto") ? null : manage ? (
               <ExpandRow
                 id="github"
+                howto="settings-github"
                 hashes={["github"]}
                 title="GitHub"
                 text={githubText}
@@ -486,7 +490,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               <Row title="GitHub" text={githubText} action={githubStatus} />
             )}
             {!on("auto") ? null : manage ? (
-              <ExpandRow id="ci-uploads" hashes={["ci-uploads"]} title="CI uploads" text={ciText} label={ciTokens.length ? "Manage" : "Set up"}>
+              <ExpandRow id="ci-uploads" howto="settings-ci" hashes={["ci-uploads"]} title="CI uploads" text={ciText} label={ciTokens.length ? "Manage" : "Set up"}>
                 <CiUploadsPanel
                   groupId={u.group.id}
                   canManage={!u.group.archivedAt}

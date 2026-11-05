@@ -647,7 +647,9 @@ export function CaseEditor(props: CaseEditorProps) {
 
       {isCharter ? (
         <>
-          <CharterFields charter={charter} onChange={setCharterField} />
+          <div data-howto="charter-mission">
+            <CharterFields charter={charter} onChange={setCharterField} />
+          </div>
           <TestPersonaPicker
             projectId={projectId}
             personas={personas}
@@ -679,7 +681,7 @@ export function CaseEditor(props: CaseEditorProps) {
             <h2 className="text-sm font-semibold text-slate-800">Steps</h2>
             <div className="flex items-center gap-2">
               {props.canManageShared && selectedPlain.length > 0 && (
-                <Button size="sm" onClick={() => setConverting(true)} title="Shares only these steps, not the whole case">
+                <Button size="sm" onClick={() => setConverting(true)} title="Shares only these steps, not the whole case" data-howto="case-make-shared">
                   Make shared step from {selectedPlain.length} selected
                 </Button>
               )}
@@ -772,6 +774,7 @@ export function CaseEditor(props: CaseEditorProps) {
                   {props.canManageShared && item.kind === "step" && (
                     <input
                       type="checkbox"
+                      data-howto="case-step-tick"
                       title="Select to turn into a shared step"
                       aria-label={`Select step ${index + 1}`}
                       checked={selected.has(item.uid)}
@@ -908,6 +911,7 @@ export function CaseEditor(props: CaseEditorProps) {
               size="sm"
               onClick={() => setPicker({ at: items.length })}
               disabled={defs.size === 0}
+              data-howto="case-insert-shared"
               title={
                 defs.size === 0
                   ? props.inLibrary
@@ -941,6 +945,7 @@ export function CaseEditor(props: CaseEditorProps) {
           >
             <Input
               id="changeNote"
+              data-howto="case-change-note"
               value={changeNote}
               onChange={(e) => setChangeNote(e.target.value)}
               placeholder="Updated expected result for new checkout copy"

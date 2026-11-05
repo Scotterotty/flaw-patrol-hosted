@@ -40,7 +40,7 @@ export function KnownBugsBox({
   if (!bugs.length) return null;
   const live = bugs.filter((b) => b.state !== "expected");
   return (
-    <section className="mb-4 rounded-lg border border-amber-300 bg-amber-50" data-testid="known-bugs" aria-label="Known bugs">
+    <section className="mb-4 rounded-lg border border-amber-300 bg-amber-50" data-testid="known-bugs" data-howto="runner-known-bugs" aria-label="Known bugs">
       <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <span aria-hidden>🐞</span>
         <span className="flex-1">
@@ -89,10 +89,10 @@ export function KnownBugsBox({
                   </span>
                 ) : (
                   <span className="flex gap-1.5">
-                    <Button size="sm" disabled={disabled} onClick={() => onCheck(b, "still")} title="Marks its step Failed, links this bug and adds a line to the comment">
+                    <Button size="sm" disabled={disabled} onClick={() => onCheck(b, "still")} data-howto="known-still" title="Marks its step Failed, links this bug and adds a line to the comment">
                       Still happens
                     </Button>
-                    <Button size="sm" disabled={disabled} onClick={() => onCheck(b, "gone")} title="Records that this run didn't see it. Jira isn't changed.">
+                    <Button size="sm" disabled={disabled} onClick={() => onCheck(b, "gone")} data-howto="known-gone" title="Records that this run didn't see it. Jira isn't changed.">
                       Didn&apos;t happen
                     </Button>
                   </span>

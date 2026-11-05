@@ -113,6 +113,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
       key={label}
       href={href}
       aria-current={on ? "page" : undefined}
+      data-howto={label === "Open" || label === "Open and closed" ? "bugs-open" : undefined}
       className={cx("inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm", on ? "border-accent-500 bg-accent-50 font-medium text-accent-700" : "border-slate-200 text-slate-700 hover:border-accent-500")}
     >
       {dot && <span aria-hidden className="size-1.5 rounded-full" style={{ background: dot }} />}
@@ -137,7 +138,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
       {sendable.size > 0 && sp.jira !== "local" && (
         <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="not-in-jira">
           {sendable.size === 1 ? "1 bug isn't" : `${sendable.size} bugs aren't`} in Jira yet.{" "}
-          <Link href={link({ jira: "local", all: undefined })} className="font-medium underline">
+          <Link href={link({ jira: "local", all: undefined })} className="font-medium underline" data-howto="bugs-send-jira">
             Send {sendable.size === 1 ? "it" : "them"} to Jira
           </Link>
         </p>
@@ -145,7 +146,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <AutoFilterForm className="min-w-60 flex-1">
           {Object.entries({ all: sp.all, rc: sp.rc, platform: sp.platform, sev: sp.sev, jira: sp.jira, version: sp.version, from: sp.from }).map(([k, v]) => v && <input key={k} type="hidden" name={k} value={v} />)}
-          <Input name="q" type="search" defaultValue={sp.q} placeholder="Search bugs, Jira keys or case IDs" aria-label="Search bugs" className="w-full" />
+          <Input name="q" type="search" defaultValue={sp.q} placeholder="Search bugs, Jira keys or case IDs" aria-label="Search bugs" data-howto="bugs-search" className="w-full" />
         </AutoFilterForm>
         {chip(showAll ? "Open and closed" : "Open", !showAll, link({ all: showAll ? undefined : "1" }))}
         {sp.jira === "local" && chip("Not in Jira", true, link({ jira: undefined }))}

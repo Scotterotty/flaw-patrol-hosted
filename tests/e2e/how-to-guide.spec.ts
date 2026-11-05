@@ -39,19 +39,50 @@ async function openTask(page: Page, task: HowToTask) {
   const back = panel(page).getByRole("button", { name: "‹ All tasks" });
   if (await back.isVisible()) await back.click();
   await panel(page).getByLabel("Search the How-to guide").fill(task.title);
-  await panel(page).getByRole("button", { name: new RegExp(`^${task.title}`) }).first().click();
+  await panel(page).getByRole("button", { name: new RegExp(`^${task.title}`) }).first().click({ timeout: 20_000 });
   await expect(panel(page).getByRole("heading", { name: task.title })).toBeVisible();
 }
 
 let typed = 0;
 
 /** Does what a step asks to its glowing element, the way a person would. */
-async function act(page: Page, el: Locator, name: string) {
+async function act(page: Page, el: Locator, name: string, task = "") {
   const tag = await el.evaluate((n) => n.tagName);
+  const type = await el.evaluate((n) => (n instanceof HTMLInputElement ? n.type : ""));
   if (name === "import-drop") {
     const csv = "Title,Steps,Expected Result\nSign in with email,Type your email,You're signed in\nSign out,Press Sign out,You're signed out\n";
     await el.locator('input[type="file"]').setInputFiles({ name: "cases.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
-  } else if (name === "run-kind") await el.getByRole("button", { name: /^Smoke test/ }).click();
+  } else if (name === "run-kind") await el.getByRole("button", { name: task === "release-candidate" ? /^Release candidate/ : /^Smoke test/ }).click();
+  // ver_175: the rest of the tasks.
+  else if (name.startsWith("account-") && tag === "DIV") {
+    // A card that folds: open it if it's folded (a click on its open part is enough otherwise).
+    const head = el.locator("button[aria-expanded]").first();
+    if ((await head.getAttribute("aria-expanded")) !== "true") await head.click();
+    else await el.locator(":scope > div").last().click({ position: { x: 2, y: 2 } });
+  } else if (name === "settings-roles") {
+    const head = el.locator("button[aria-expanded]").first();
+    if ((await head.getAttribute("aria-expanded")) !== "true") await head.click();
+    else await el.locator(":scope > div").last().click({ position: { x: 2, y: 2 } });
+  } else if (name === "arrange-reset") {
+    // Reset is only on once the order changed: move a link with the keyboard first.
+    await page.locator('[data-howto="arrange-grip"]').nth(1).focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(el).toBeEnabled();
+    await el.click();
+  } else if (name === "case-insert-shared") {
+    await el.click();
+    // The Insert shared step box; close it to carry on with the next step, which is on the page.
+    await expect(page.locator("dialog[open]")).toHaveCount(1);
+    await page.keyboard.press("Escape");
+  } else if (name === "cases-filters") {
+    // Picking a filter is the step: a priority here.
+    await el.getByRole("combobox").first().selectOption({ index: 1 });
+  } else if (name === "cases-move") await el.selectOption({ index: 1 });
+  else if (name === "run-assign") await el.selectOption({ index: (await el.locator("option").count()) > 2 ? 2 : 1 });
+  else if (name === "case-step" && task === "test-data") {
+    await el.fill(`Sign in as {{role}} ${TAG}`);
+    await el.press("Tab");
+  } else if (type === "checkbox" || type === "radio") await el.check();
   else if (name === "run-what") await el.getByRole("button", { name: /^Whole Case library/ }).click();
   else if (name === "run-where") await el.getByText(/Web 1\.0/).click();
   else if (name === "suite-cases") await el.getByRole("checkbox").first().check();
@@ -69,13 +100,16 @@ async function act(page: Page, el: Locator, name: string) {
 /**
  * Walks a task with Show me: every step with a button must glow, and doing the step must move the
  * guide on. Steps that save are pressed only when `saves` says so; the walk stops at the first one that isn't.
+ * `from` and `to` (step numbers, from 1) walk part of a task: steps outside need data the test doesn't
+ * have, like Jira. The `to` step only has to glow.
  */
-async function walk(page: Page, id: string, saves = false) {
+async function walk(page: Page, id: string, saves = false, { from = 1, to = 0 }: { from?: number; to?: number } = {}) {
   const task = howToById.get(id)!;
   await openTask(page, task);
   const steps = panel(page).getByTestId("how-to-step");
   for (const [i, s] of task.steps.entries()) {
-    if (!s.target) continue;
+    if (!s.target || i + 1 < from) continue;
+    if (to && i + 1 > to) return;
     // The glow carries on from the step before; Show me is only needed to start (or after a text step outside a box).
     // "Showing now": it's glowing already, or will as soon as the page shows the button.
     const show = panel(page).getByRole("button", { name: `Show me step ${i + 1}`, exact: true });
@@ -83,8 +117,8 @@ async function walk(page: Page, id: string, saves = false) {
     await expect(glow(page), `${id} step ${i + 1}`).toHaveAttribute("data-howto", s.target, { timeout: 45_000 });
     await expect(glow(page)).toHaveCount(1);
     await expect(page.getByTestId("how-to-tip")).toBeVisible();
-    if (s.saves && !saves) return;
-    await act(page, glow(page).first(), s.target);
+    if ((s.saves && !saves) || i + 1 === to) return;
+    await act(page, glow(page).first(), s.target, id);
     if (i + 1 < task.steps.length) await expect(steps.nth(i + 1), `${id}: step ${i + 1} moves on`).toHaveAttribute("aria-current", "step");
     else await expect(panel(page).getByTestId("how-to-done")).toBeVisible();
   }
@@ -154,4 +188,50 @@ test("Show me finds every button, glowing, and clicking it goes to the next step
   await walk(page, "reports");
   await walk(page, "invite");
   await walk(page, "import-cases");
+});
+
+// ver_175: Show me on the rest of the tasks. Each one walks as far as the test's umbrella allows
+// (no Jira, GitHub, live bug bash or screen sharing here); the unit test checks every name is in the code.
+test("Show me on the rest of the tasks", async ({ page }) => {
+  test.setTimeout(600_000);
+  await signIn(page, "admin@example.com", "Demo Admin");
+  await page.goto(`/g/${ids.group}`);
+  // Something to work with: a case with two steps, a run with a failed case.
+  await walk(page, "write-case", true);
+  await expect(page.getByText("Version history")).toBeVisible({ timeout: 60_000 });
+  await walk(page, "create-run", true);
+  await expect(page.locator("dialog[open]")).toHaveCount(0, { timeout: 60_000 });
+  await walk(page, "test-case", true);
+
+  await page.goto(`/g/${ids.group}`);
+  await walk(page, "profile");
+  await walk(page, "accessibility");
+  await walk(page, "whats-new");
+  await page.goto(`/g/${ids.group}`);
+  await walk(page, "arrange-menu");
+  await walk(page, "edit-case", true, { to: 6 });
+  await expect(page).not.toHaveURL(/\/edit/, { timeout: 60_000 });
+  await walk(page, "folders-tags");
+  await walk(page, "shared-steps", true);
+  await walk(page, "test-data", false, { to: 7 });
+  await walk(page, "charters", false, { to: 5 });
+  await walk(page, "requirements", false, { to: 1 });
+  await walk(page, "glossary", false, { from: 4 });
+  await walk(page, "flag-case", true);
+  await walk(page, "assign-cases");
+  await walk(page, "retest", false);
+  await walk(page, "close-run", false);
+  await walk(page, "google-sheet", false);
+  await walk(page, "automated-results", false, { to: 4 });
+  await walk(page, "release-candidate", false, { to: 5 });
+  await walk(page, "find-bugs", false, { to: 3 });
+  await walk(page, "custom-report", false, { to: 3 });
+  await walk(page, "bug-templates", false);
+  await walk(page, "alerts", false, { to: 5 });
+  await walk(page, "roles", false);
+  await walk(page, "connect-jira", false);
+  await walk(page, "connect-github", false);
+  await walk(page, "tools");
+  await walk(page, "add-cycle", false);
+  await walk(page, "archive", false, { to: 2 });
 });

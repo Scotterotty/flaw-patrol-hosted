@@ -15,12 +15,12 @@ export function NewCharterMenu({ projectKey, teamCount }: { projectKey: string; 
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
-      <Button variant="primary" aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((o) => !o)} onBlur={(e) => !e.currentTarget.parentElement?.contains(e.relatedTarget) && setOpen(false)}>
+      <Button variant="primary" data-howto="charters-new" aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((o) => !o)} onBlur={(e) => !e.currentTarget.parentElement?.contains(e.relatedTarget) && setOpen(false)}>
         New charter <span aria-hidden className="ml-1 text-xs">▾</span>
       </Button>
       {open && (
         <div role="menu" className="absolute top-full right-0 z-30 mt-1 w-72 rounded-lg border border-slate-200 bg-surface p-1 shadow-lg">
-          <Link role="menuitem" href={`/p/${projectKey}/cases/new?charter=1`} className="block rounded-md px-3 py-2 hover:bg-slate-50">
+          <Link role="menuitem" href={`/p/${projectKey}/cases/new?charter=1`} className="block rounded-md px-3 py-2 hover:bg-slate-50" data-howto="charters-blank">
             <span className="block text-sm font-medium text-slate-900">Blank charter</span>
             <span className="block text-xs text-slate-500">Write your own mission</span>
           </Link>

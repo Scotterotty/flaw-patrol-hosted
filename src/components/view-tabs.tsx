@@ -3,6 +3,9 @@ import { ScrollTabs } from "@/components/scroll-tabs";
 import { cx } from "@/components/ui";
 
 /** Tabs that switch which part of a list you are looking at (Active / Closed, Active / Archived). */
+/** Tabs the How-to guide points at with Show me (data-howto). */
+const HOWTO_TABS: Record<string, string> = { "Release status": "reports-release", "Custom reports": "reports-custom" };
+
 export function ViewTabs({ label, tabs }: { label: string; tabs: { label: string; href: string; count?: number; current: boolean }[] }) {
   return (
     // Scrolls sideways on a phone, with a fade while more tabs are off the edge (ver_54 audit #14).
@@ -12,6 +15,7 @@ export function ViewTabs({ label, tabs }: { label: string; tabs: { label: string
           key={t.label}
           href={t.href}
           aria-current={t.current ? "page" : undefined}
+          data-howto={HOWTO_TABS[t.label]}
           className={cx(
             "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm whitespace-nowrap",
             t.current ? "border-accent-600 font-medium text-accent-700" : "border-transparent text-slate-600 hover:text-slate-900",

@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 175,
+    date: "2026-11-05",
+    items: [
+      {
+        kind: "better",
+        title: "Show me on every task in the How-to guide",
+        text: "All 47 tasks now have Show me, from your profile and the menu order to shared steps, charters, Google Sheets, Slack alerts and bug templates. It goes to the right page and makes each button glow in turn.",
+        who: "all",
+      },
+    ],
+  },
+  {
     version: 174,
     date: "2026-11-05",
     items: [

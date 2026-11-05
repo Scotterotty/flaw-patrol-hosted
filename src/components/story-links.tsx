@@ -154,7 +154,7 @@ export function StoryLinks({ projectId, caseId, stories, canEdit, jira }: { proj
               />
             </div>
           ) : jira ? (
-            <Button size="sm" variant="ghost" onClick={() => setAdding(true)}>
+            <Button size="sm" variant="ghost" onClick={() => setAdding(true)} data-howto="case-link-req">
               + Link requirement
             </Button>
           ) : (

@@ -113,7 +113,7 @@ export function AddToReport({ part, title }: { part: PartId; title: string }) {
 
   return (
     <div ref={box} className="relative inline-block" data-export-skip="">
-      <Button size="sm" variant="ghost" className="h-6 px-2 text-accent-700 ring-1 ring-accent-200 ring-inset hover:bg-accent-50" aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((o) => !o)} data-testid={`add-${part}`}>
+      <Button size="sm" variant="ghost" className="h-6 px-2 text-accent-700 ring-1 ring-accent-200 ring-inset hover:bg-accent-50" aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((o) => !o)} data-testid={`add-${part}`} data-howto="report-add">
         + Add to report
       </Button>
       {open && (

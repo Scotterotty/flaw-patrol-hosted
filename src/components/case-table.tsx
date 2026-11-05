@@ -113,6 +113,7 @@ export function CaseTable({
           {canEdit && !archivedView && (
             <Select
               aria-label="Move to folder"
+              data-howto="cases-move"
               className="h-7 w-auto text-xs"
               value=""
               disabled={pending}
@@ -271,6 +272,7 @@ export function CaseTable({
                   <td className="px-3 py-2">
                     <input
                       type="checkbox"
+                      data-howto="case-tick"
                       aria-label={`Select ${caseKey(projectKey, r.number)}`}
                       checked={selected.has(r.id)}
                       onChange={(e) =>
@@ -292,7 +294,7 @@ export function CaseTable({
                         <TagPills tags={r.tags} colors={tagColors} hits={tagHits} />
                       </span>
                     )}
-                    <Link href={`/p/${projectKey}/cases/${r.number}`} draggable={false} className="font-medium text-slate-900 hover:text-accent-700 hover:underline">
+                    <Link href={`/p/${projectKey}/cases/${r.number}`} draggable={false} className="font-medium text-slate-900 hover:text-accent-700 hover:underline" data-howto="case-row">
                       {r.title}
                     </Link>
                     {r.dataRows ? (

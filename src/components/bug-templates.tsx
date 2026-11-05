@@ -110,7 +110,7 @@ export function BugTemplatesSettings({ projectId, current, templates, defaultId,
           People pick one of these when they report a bug. <InfoTip text="The default is already picked for them, and they can switch. Bugs already reported keep their layout when a template changes." />
         </p>
         {canEdit && (
-          <Button variant="primary" size="sm" onClick={() => setStarting(true)}>
+          <Button variant="primary" size="sm" onClick={() => setStarting(true)} data-howto="templates-new">
             New template
           </Button>
         )}
@@ -339,7 +339,7 @@ function NewTemplate({
         }}
       >
         <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
-        <fieldset className="space-y-2">
+        <fieldset className="space-y-2" data-howto="template-start">
           <legend className="sr-only">Start from</legend>
           {opt("blank", "Start blank")}
           {opt(
@@ -370,11 +370,11 @@ function NewTemplate({
           <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="bt-new-name">
             Name
           </label>
-          <Input id="bt-new-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Crash or freeze" maxLength={80} required />
+          <Input id="bt-new-name" data-howto="template-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Crash or freeze" maxLength={80} required />
         </div>
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="primary" disabled={pending || !name.trim() || (from === "jira" && !example.trim())}>
+          <Button type="submit" variant="primary" disabled={pending || !name.trim() || (from === "jira" && !example.trim())} data-howto="template-next">
             {pending ? "Reading…" : "Next"}
           </Button>
         </div>
@@ -527,7 +527,7 @@ export function TemplateEditor({
                 </li>
               ))}
             </ol>
-            <Button size="sm" className="mt-1" onClick={() => setLayout((l) => ({ ...l, sections: [...l.sections, blankSection("text")] }))}>
+            <Button size="sm" className="mt-1" onClick={() => setLayout((l) => ({ ...l, sections: [...l.sections, blankSection("text")] }))} data-howto="template-add-heading">
               + Add heading
             </Button>
           </div>
@@ -570,7 +570,7 @@ export function TemplateEditor({
       </div>
       <div className="mt-4 flex justify-end gap-2 border-t border-slate-100 pt-3">
         <Button onClick={onClose}>Cancel</Button>
-        <Button variant="primary" disabled={pending || !name.trim() || clash} onClick={save}>
+        <Button variant="primary" disabled={pending || !name.trim() || clash} onClick={save} data-howto="template-save">
           {pending ? "Saving…" : "Save template"}
         </Button>
       </div>

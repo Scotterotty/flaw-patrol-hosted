@@ -51,13 +51,13 @@ export function AccountMenu({ children, label, admin, signOut, joins }: { childr
               <div className="my-1 h-px bg-slate-200" />
             </>
           )}
-          <Link role="menuitem" href="/account" className={item}>
+          <Link role="menuitem" href="/account" className={item} data-howto="account-page">
             Your account
           </Link>
           <Link role="menuitem" href="/account#appearance" className={item} data-howto="account-appearance">
             Appearance
           </Link>
-          <Link role="menuitem" href="/whats-new" className={item}>
+          <Link role="menuitem" href="/whats-new" className={item} data-howto="account-whats-new">
             What&apos;s new
           </Link>
           <Link role="menuitem" href="/account#game" className={item}>

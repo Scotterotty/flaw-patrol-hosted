@@ -93,7 +93,7 @@ function ToolOff({ info, tool }: { info: GateInfo; tool: ToolId }) {
 /** One row per tool with its switch; used in Settings → Tools and in the New umbrella box's Pick my own. */
 function ToolList({ on, onToggle, disabled, compact, extra }: { on: ToolId[]; onToggle: (id: ToolId, next: boolean) => void; disabled?: boolean; compact?: boolean; extra?: (id: ToolId) => ReactNode }) {
   return (
-    <ul className={cx("divide-y divide-slate-100", !compact && "rounded-md border border-slate-200")} aria-label="Tools">
+    <ul className={cx("divide-y divide-slate-100", !compact && "rounded-md border border-slate-200")} aria-label="Tools" data-howto="tools-list">
       {TOOLS.map((t) => {
         const isOn = on.includes(t.id);
         return (

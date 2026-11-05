@@ -63,7 +63,7 @@ export function useOpenCards() {
  * One card on Your account, folded to a line that says what's set. A link that
  * ends in one of its hashes (#jira…) opens it and puts you in its first box.
  */
-export function AccountCard({ id, title, summary, pill, children }: { id: string; title: string; summary: ReactNode; pill?: ReactNode; children: ReactNode }) {
+export function AccountCard({ id, title, summary, pill, howto, children }: { id: string; title: string; summary: ReactNode; pill?: ReactNode; /** The How-to guide's Show me name for this card. */ howto?: string; children: ReactNode }) {
   const { open, toggle, set } = useOpenCard(`acct:${id}`);
   useEffect(() => {
     const check = () => {
@@ -81,7 +81,7 @@ export function AccountCard({ id, title, summary, pill, children }: { id: string
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
   return (
-    <FoldCard id={id} title={title} summary={summary} pill={pill} open={open} onToggle={toggle}>
+    <FoldCard id={id} title={title} summary={summary} pill={pill} open={open} onToggle={toggle} howto={howto}>
       {children}
     </FoldCard>
   );

@@ -18,8 +18,11 @@ export function FoldCard({
   children,
   className,
   tip,
+  howto,
 }: {
   id?: string;
+  /** The How-to guide's Show me name (data-howto) for the whole card. */
+  howto?: string;
   title: ReactNode;
   summary?: ReactNode;
   pill?: ReactNode;
@@ -30,7 +33,7 @@ export function FoldCard({
   tip?: ReactNode;
 }) {
   return (
-    <Card id={id} className={cx("scroll-mt-20", className)}>
+    <Card id={id} className={cx("scroll-mt-20", className)} data-howto={howto}>
       <FoldHeader title={title} summary={summary} pill={pill} open={open} onToggle={onToggle} tip={tip} big />
       {open && <div className="border-t border-slate-100 p-5">{children}</div>}
     </Card>

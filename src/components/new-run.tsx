@@ -35,6 +35,7 @@ export function NewRunButton({
   meId,
   fields = [],
   autoCases = 0,
+  "data-howto": howto,
 }: {
   /** The signed-in person, so cases go to them unless they pick someone else. */
   meId?: string;
@@ -58,6 +59,8 @@ export function NewRunButton({
   openRunner?: boolean;
   /** Automated-only cases in the suite: left out unless "Also include" is ticked. */
   autoCases?: number;
+  /** The How-to guide's Show me name for the button. */
+  "data-howto"?: string;
 }) {
   const [open, setOpen] = useState(initialOpen && !disabled);
   const [error, setError] = useState<string | null>(null);
@@ -89,7 +92,7 @@ export function NewRunButton({
   const router = useRouter();
   return (
     <>
-      <Button variant={variant} onClick={openFresh} disabled={disabled}>
+      <Button variant={variant} onClick={openFresh} disabled={disabled} data-howto={howto}>
         {label}
       </Button>
       <Modal open={open} onClose={() => setOpen(false)} title={label}>
@@ -187,7 +190,7 @@ export function NewRunButton({
               </Button>
             ) : (
               <>
-                <Button type="submit" name="go" value="page" disabled={pending}>
+                <Button type="submit" name="go" value="page" disabled={pending} data-howto="new-run-go">
                   Create run
                 </Button>
                 {/* Handing every case to someone else: no "test now" for you. */}

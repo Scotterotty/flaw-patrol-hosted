@@ -173,7 +173,7 @@ export function ArchiveCard({ data }: { data: ArchiveCardData }) {
               onNo={() => setAsking(null)}
             />
           ) : (
-            <Button onClick={() => setAsking("restore-umbrella")}>Restore…</Button>
+            <Button onClick={() => setAsking("restore-umbrella")} data-howto="settings-restore">Restore…</Button>
           ))}
       </Card>
     );
@@ -197,7 +197,7 @@ export function ArchiveCard({ data }: { data: ArchiveCardData }) {
       )}
       {(umbrella.cycles.length > 0 || umbrella.canArchive) && (
         <div>
-          <Button aria-expanded={open} onClick={() => (setOpen(!open), setAsking(null))}>
+          <Button aria-expanded={open} onClick={() => (setOpen(!open), setAsking(null))} data-howto="settings-archive">
             Archive…
           </Button>
         </div>

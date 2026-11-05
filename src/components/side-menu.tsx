@@ -253,6 +253,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
         <button
           type="button"
           data-grip={d.id}
+          data-howto="arrange-grip"
           aria-label={`Move ${i.label}. Use the up and down arrow keys.`}
           className="grid h-5 w-4 flex-none cursor-grab place-items-center rounded text-slate-400 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-accent-500"
           onKeyDown={(e) => {
@@ -358,10 +359,10 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
             {footer && <div className="border-t border-slate-200 pt-2">{row(footer)}</div>}
             {arranging ? (
               <div className="mt-2 grid gap-1.5 border-t border-slate-200 pt-2">
-                <Button size="sm" variant="primary" onClick={() => setArranging(false)}>
+                <Button size="sm" variant="primary" onClick={() => setArranging(false)} data-howto="arrange-done">
                   Done
                 </Button>
-                <Button size="sm" variant="ghost" disabled={!changed} onClick={() => save(EMPTY_NAV_ORDER)}>
+                <Button size="sm" variant="ghost" disabled={!changed} onClick={() => save(EMPTY_NAV_ORDER)} data-howto="arrange-reset">
                   Reset to default order
                 </Button>
                 {note && <p className="text-xs text-red-700">{note}</p>}
@@ -371,6 +372,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
                 type="button"
                 className="mt-2 flex w-full items-center gap-1.5 rounded-md px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                 title="Drag the links in this menu into your own order. Only you see it."
+                data-howto="arrange-menu"
                 onClick={() => {
                   setNote("");
                   setArranging(true);

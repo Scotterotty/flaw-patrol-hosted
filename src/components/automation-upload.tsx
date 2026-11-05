@@ -130,11 +130,12 @@ export function BringInResults({
   if (!auto && !sheet) return null;
   return (
     <>
-      <MoreMenu label="Bring in results">
+      <MoreMenu label="Bring in results" howto="runs-bring-in">
         {auto && (
           <button
             type="button"
             role="menuitem"
+            data-howto="bring-automated"
             onClick={() => setOpen(true)}
             className="grid w-72 max-w-[80vw] gap-0.5 rounded-md px-3 py-2 text-left text-sm text-slate-800 hover:bg-slate-100"
           >
@@ -407,6 +408,7 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
               void dropped(dt).then(take);
             }}
             className={cx("rounded-lg border-2 border-dashed px-4 py-8 text-center text-sm", over ? "border-accent-500 bg-accent-50" : "border-slate-300")}
+            data-howto="upload-drop"
           >
             <p className="text-slate-700">
               📄 Drop your results file, the test-results folder, or one zip of both, or{" "}
@@ -462,7 +464,7 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
               GitHub run {pulled.run.number}&apos;s results are already in Flaw Patrol as Run {pulled.already.number}. Saving makes a second run.
             </p>
           )}
-          <section aria-labelledby="au-cycle" className={INSET}>
+          <section aria-labelledby="au-cycle" className={INSET} data-howto="upload-where">
             <h3 id="au-cycle" className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
               Which test cycle should the run go in?
               <InfoTip text="Only open test cycles you can upload to are listed. A run counts toward a release only when you tick it." />
@@ -565,7 +567,7 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
           </div>
           <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
             <Button onClick={onClose}>Cancel</Button>
-            <Button variant="primary" disabled={!ready || pending} onClick={check}>
+            <Button variant="primary" disabled={!ready || pending} onClick={check} data-howto="upload-check">
               {pending ? (makeNew ? "Making the test cycle…" : "Matching…") : "Next: check results"}
             </Button>
           </div>
@@ -800,7 +802,7 @@ function Check({
           </Button>
         )}
         <Button onClick={onBack}>Back</Button>
-        <Button variant="primary" disabled={pending || !saving} onClick={onSave}>
+        <Button variant="primary" disabled={pending || !saving} onClick={onSave} data-howto="upload-save">
           {pending ? "Saving…" : `Save ${saving} ${saving === 1 ? "result" : "results"}`}
         </Button>
       </div>

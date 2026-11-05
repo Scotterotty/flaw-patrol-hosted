@@ -28,7 +28,7 @@ export function WhatsNewLine({ i, showMe, onGo }: { i: WhatsNewItem; showMe?: bo
         <p className="text-sm font-medium text-slate-900">{sp(i.title)}</p>
         {i.text && <p className="mt-0.5 text-sm text-slate-600">{sp(i.text)}</p>}
         {showMe && i.link && (
-          <Link href={i.link} onClick={onGo} className="mt-1 inline-block text-sm text-accent-700 hover:underline">
+          <Link href={i.link} onClick={onGo} className="mt-1 inline-block text-sm text-accent-700 hover:underline" data-howto="whats-new-show-me">
             Show me
           </Link>
         )}

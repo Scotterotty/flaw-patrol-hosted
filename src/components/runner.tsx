@@ -656,7 +656,7 @@ export function Runner({
   };
   const captureButtons = (i: number | null) => (
     <>
-      <Button size="sm" disabled={!capture.ok || uploading || runClosed} title={capture.ok ? `Pick a tab, window or screen and attach a still image of it to ${stepLabel(i)}` : capture.why} onClick={() => void screenshot(i)}>
+      <Button size="sm" disabled={!capture.ok || uploading || runClosed} title={capture.ok ? `Pick a tab, window or screen and attach a still image of it to ${stepLabel(i)}` : capture.why} onClick={() => void screenshot(i)} data-howto="runner-screenshot">
         📷 Take screenshot
       </Button>
       <Button
@@ -664,6 +664,7 @@ export function Runner({
         disabled={!capture.ok || runClosed || recorder.rec !== null}
         title={capture.ok ? `Record a tab, window or screen for up to 5 minutes and attach the video to ${stepLabel(i)}` : capture.why}
         onClick={() => record(i)}
+        data-howto="runner-record"
       >
         <span aria-hidden className="text-red-600">●</span> {i === null ? "Record screen for case" : "Record screen"}
       </Button>
@@ -1389,6 +1390,7 @@ export function Runner({
                 uploadStep.current = null;
                 fileInput.current?.click();
               }}
+              data-howto="runner-attach"
             >
               Attach file to case
             </Button>

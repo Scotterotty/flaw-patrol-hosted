@@ -98,7 +98,7 @@ export function RunSheetButton({ projectId, runId, runName, sheet }: { projectId
 
   return (
     <>
-      <Button variant="ghost" onClick={show}>
+      <Button variant="ghost" onClick={show} data-howto="run-google-sheet">
         Google Sheet
       </Button>
       <Modal open={open} onClose={() => setOpen(false)} title="Send results to a Google Sheet" wide>
@@ -175,6 +175,7 @@ export function RunSheetButton({ projectId, runId, runName, sheet }: { projectId
                   <Button
                     type="button"
                     disabled={!script}
+                    data-howto="sheet-copy-script"
                     onClick={() =>
                       script &&
                       void navigator.clipboard?.writeText(script).then(() => {
@@ -197,9 +198,9 @@ export function RunSheetButton({ projectId, runId, runName, sheet }: { projectId
               <li>Paste the Web app URL it gives you here.</li>
             </ol>
             <Field label="Web app URL" htmlFor="sheet-hook">
-              <Input id="sheet-hook" required value={hook} onChange={(e) => changed(() => setHook(e.target.value))} placeholder="https://script.google.com/macros/s/…/exec" />
+              <Input id="sheet-hook" data-howto="sheet-url" required value={hook} onChange={(e) => changed(() => setHook(e.target.value))} placeholder="https://script.google.com/macros/s/…/exec" />
             </Field>
-            <fieldset className="space-y-2">
+            <fieldset className="space-y-2" data-howto="sheet-how">
               <legend className="mb-1 text-xs font-medium text-slate-600">How to send</legend>
               {(
                 [
@@ -317,11 +318,11 @@ export function RunSheetButton({ projectId, runId, runName, sheet }: { projectId
                 Cancel
               </Button>
               {mode === "fill" && !preview ? (
-                <Button type="submit" variant="primary" disabled={pending}>
+                <Button type="submit" variant="primary" disabled={pending} data-howto="sheet-send">
                   {pending ? "Looking…" : "Look at the sheet"}
                 </Button>
               ) : (
-                <Button type="submit" variant="primary" disabled={pending || (mode === "fill" && !roles.length)}>
+                <Button type="submit" variant="primary" disabled={pending || (mode === "fill" && !roles.length)} data-howto="sheet-send">
                   {pending ? "Sending…" : "Link and send"}
                 </Button>
               )}

@@ -157,7 +157,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
             />
           )}
           {(can(who, "case:edit") || can(who, "case:archive")) && (
-            <MoreMenu>
+            <MoreMenu howto="case-more">
               <CaseActions
                 projectId={project.id}
                 projectKey={project.key}
@@ -170,7 +170,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
           )}
           {isCharter && can(who, "shared:manage") && !c.archived && <SaveAsTemplate projectId={project.id} title={c.title} charter={parseCharter(latest?.charter)} />}
           {can(who, "case:edit") && !c.archived && (
-            <LinkButton variant={isCharter && can(who, "run:create") ? "secondary" : "primary"} href={`/p/${project.key}/cases/${c.number}/edit`}>
+            <LinkButton variant={isCharter && can(who, "run:create") ? "secondary" : "primary"} href={`/p/${project.key}/cases/${c.number}/edit`} data-howto="case-edit">
               Edit
             </LinkButton>
           )}
@@ -238,7 +238,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
             <ol className="space-y-2.5">
               {c.versions.map((v) => (
                 <li key={v.id} className="text-sm">
-                  <Link href={`/p/${project.key}/cases/${c.number}/versions/${v.version}`} className="font-medium text-slate-800 hover:underline">
+                  <Link href={`/p/${project.key}/cases/${c.number}/versions/${v.version}`} className="font-medium text-slate-800 hover:underline" data-howto="case-version">
                     Version {v.version}
                   </Link>
                   {v.version === c.currentVersion && <span className="ml-1.5 text-xs text-emerald-700">current</span>}

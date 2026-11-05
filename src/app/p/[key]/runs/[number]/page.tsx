@@ -205,7 +205,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
             />
           )}
           {(SHEETS_ENABLED || can(who, "run:create") || can(who, "run:manage") || can(who, "run:delete")) && (
-            <MoreMenu>
+            <MoreMenu howto="run-more">
               {SHEETS_ENABLED && (
                 <a href={`/p/${project.key}/runs/${run.number}/export`} download className={buttonClass("ghost")}>
                   Export to spreadsheet
@@ -234,6 +234,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
               defaultName={`${run.name} (retest)`}
               members={members}
               label={`Retest ${failedish} not passed`}
+              data-howto="run-retest"
               variant="secondary"
               suggest={{ from: `R${run.number}`, environment: run.environment, release: run.release }}
               fields={runFields}

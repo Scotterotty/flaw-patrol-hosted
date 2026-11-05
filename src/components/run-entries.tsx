@@ -353,6 +353,7 @@ export function RunEntries({
                 value=""
                 disabled={pending}
                 aria-label="Assign selected"
+                data-howto="run-assign"
                 onChange={(e) => e.target.value && assign(e.target.value === "__none" ? null : e.target.value)}
               >
                 <option value="">Assign {selected.size} selected to…</option>
@@ -380,6 +381,7 @@ export function RunEntries({
                   <input
                     type="checkbox"
                     aria-label="Select all shown"
+                    data-howto="run-tick-all"
                     checked={shown.length > 0 && shown.every((r) => selected.has(r.id))}
                     onChange={(e) =>
                       // Adds or removes only the cases shown, so picks made under an earlier search stay picked.

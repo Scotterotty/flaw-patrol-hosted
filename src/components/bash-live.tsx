@@ -523,7 +523,7 @@ export function FindDetail({
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {!mine && i.kind !== "question" && live && (
-            <Button size="sm" variant={iPlus ? "secondary" : "primary"} disabled={pending} onClick={() => act(() => plusOneBash(i.id, !iPlus, seenHere()))}>
+            <Button size="sm" variant={iPlus ? "secondary" : "primary"} disabled={pending} onClick={() => act(() => plusOneBash(i.id, !iPlus, seenHere()))} data-howto="bash-plus-one">
               {iPlus ? "✓ You see it too" : i.kind === "bug" ? "+1, I see it too" : "+1"}
             </Button>
           )}

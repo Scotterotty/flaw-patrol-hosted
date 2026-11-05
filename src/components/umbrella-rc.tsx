@@ -619,7 +619,7 @@ function RcBox({
                   ) : undefined
                 }
               >
-                <Input id="rc-name" value={rc} onChange={(e) => setRc(e.target.value)} placeholder="e.g. 2.1 or RC 22" />
+                <Input id="rc-name" data-howto="rc-name" value={rc} onChange={(e) => setRc(e.target.value)} placeholder="e.g. 2.1 or RC 22" />
               </Field>
             </div>
             {existing.length > 0 && (
@@ -919,6 +919,7 @@ function RcBox({
           <Button
             variant="primary"
             disabled={busy || !allReady}
+            data-howto="rc-go"
             onClick={() => {
               setPressedStart(true);
               run(

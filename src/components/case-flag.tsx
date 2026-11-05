@@ -75,6 +75,7 @@ export function CaseFlagButton({
     <>
       <button
         type="button"
+        data-howto="case-flag"
         onClick={() => {
           setOpen(true);
           setEditing(false);
@@ -103,7 +104,7 @@ export function CaseFlagButton({
             }}
           >
             <p className="text-sm text-slate-600">Flagged cases show a flag in Test cases, so whoever looks after them can find what needs fixing.</p>
-            <fieldset className="flex flex-wrap gap-2">
+            <fieldset className="flex flex-wrap gap-2" data-howto="flag-reason">
               <legend className="sr-only">Reason</legend>
               {(Object.keys(FLAG_REASONS) as FlagReason[]).map((r) => (
                 <label
@@ -125,7 +126,7 @@ export function CaseFlagButton({
               <Button type="button" onClick={() => (flag ? setEditing(false) : setOpen(false))}>
                 Cancel
               </Button>
-              <Button type="submit" variant="primary" disabled={pending}>
+              <Button type="submit" variant="primary" disabled={pending} data-howto="flag-save">
                 <FlagIcon className="size-3.5" />
                 {flag ? "Update flag" : "Flag case"}
               </Button>

@@ -186,8 +186,9 @@ export function HowToGuide() {
       if (now !== el) {
         el?.classList.remove("fp-howto-glow");
         el = now;
-        el?.classList.add("fp-howto-glow");
       }
+      // Always put it back: React rewrites class when the button changes, like Flag turning into Needs updating.
+      if (el && !el.classList.contains("fp-howto-glow")) el.classList.add("fp-howto-glow");
       if (!el) {
         tip.remove();
         return;
@@ -233,7 +234,9 @@ export function HowToGuide() {
       if (panel.current?.contains(e.target as Node)) return;
       if (inGlow(e.target)) {
         // Boxes you type in or pick from move on when you've changed them, not on the first click.
-        if (s.type || (e.target instanceof Element && typing(e.target))) return;
+        // A tick box or a choice is done with one click, even one that's already picked (it fires no change).
+        const pick = e.target instanceof HTMLInputElement && (e.target.type === "radio" || e.target.type === "checkbox");
+        if (s.type || (e.target instanceof Element && typing(e.target) && !pick)) return;
         const link = e.target instanceof Element ? e.target.closest<HTMLAnchorElement>("a[href]") : null;
         if (link && !e.defaultPrevented && link.target !== "_blank") {
           const to = new URL(link.href, location.href);

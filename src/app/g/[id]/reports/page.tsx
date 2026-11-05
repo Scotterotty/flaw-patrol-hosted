@@ -118,7 +118,7 @@ export default async function UmbrellaReportsPage({ params, searchParams }: { pa
         <AttachWrapUps scope={{ groupId: u.group.id }} prefKey={wrapKey} pick={wrapPick} count={wrapUps.length} release={f.release ?? undefined} />
       </div>
 
-      <AutoFilterForm className="mb-4 flex flex-wrap items-end gap-2">
+      <AutoFilterForm className="mb-4 flex flex-wrap items-end gap-2" data-howto="reports-filters">
         <input type="hidden" name="view" value={view} />
         <Select name="release" defaultValue={f.release ?? ""} className="w-auto" aria-label="Release">
           <option value="">Any release</option>

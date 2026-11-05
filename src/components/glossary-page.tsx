@@ -128,7 +128,7 @@ export function GlossaryPage({
           <>
             <Button onClick={() => g?.openAdd("ask")}>Ask the team</Button>
             {rights.edit && (
-              <Button variant="primary" onClick={() => g?.openAdd("add")}>
+              <Button variant="primary" onClick={() => g?.openAdd("add")} data-howto="glossary-add">
                 + Add a term
               </Button>
             )}

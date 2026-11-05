@@ -174,6 +174,7 @@ export function RiskBoard({
                           key={c.key}
                           type="button"
                           draggable={canMove}
+                          data-howto="risk-card"
                           onDragStart={() => setDrag(c.key)}
                           onDragEnd={() => setDrag(null)}
                           onClick={() => setOpen(c.key)}

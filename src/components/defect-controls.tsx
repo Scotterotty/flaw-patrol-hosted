@@ -77,7 +77,7 @@ export function SendToJiraButton({ data }: { data: SendToJiraData }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button size="sm" onClick={() => setOpen(true)}>
+      <Button size="sm" onClick={() => setOpen(true)} data-howto="bug-send-jira">
         Send to Jira
       </Button>
       {open && (

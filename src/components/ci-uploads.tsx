@@ -126,8 +126,8 @@ export function CiUploadsPanel({ groupId, tokens, platforms, canManage }: { grou
             make();
           }}
         >
-          <Input aria-label="Token name" placeholder="What uses it, like GitHub Actions" className="h-8 w-72" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
-          <Button size="sm" type="submit" variant="primary" disabled={pending}>
+          <Input aria-label="Token name" data-howto="ci-token-name" placeholder="What uses it, like GitHub Actions" className="h-8 w-72" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
+          <Button size="sm" type="submit" variant="primary" disabled={pending} data-howto="ci-new-token">
             + New token
           </Button>
         </form>

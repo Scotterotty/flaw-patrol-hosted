@@ -40,8 +40,8 @@ export function AddUmbrellaProject({
   return (
     <>
       {as === "menu" ? (
-        <MoreMenu label={label} title="A test cycle is one round of testing, such as one release on one platform. It holds that round's test runs, results and bugs.">
-          <Button onClick={() => setBox("new")} className="!items-start text-left">
+        <MoreMenu label={label} howto="settings-add-cycle" title="A test cycle is one round of testing, such as one release on one platform. It holds that round's test runs, results and bugs.">
+          <Button onClick={() => setBox("new")} className="!items-start text-left" data-howto="add-cycle-new">
             <span>
               New test cycle
               <span className="block text-xs text-slate-500">Uses {umbrella}&apos;s cases, Jira and team</span>
@@ -93,7 +93,7 @@ function NewUmbrellaProject({ groupId, umbrella, platforms, onClose }: { groupId
           <PlatformPicker id="ap-platform" platforms={platforms} umbrella={umbrella} value={platform} onChange={setPlatform} />
         </Field>
         <Field label="Name" htmlFor="ap-name" hint={grayName && !name.trim() ? "Leave it blank to use the suggested name shown." : undefined}>
-          <Input id="ap-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={grayName || "Name this round of testing, like Sprint 14"} />
+          <Input id="ap-name" data-howto="cycle-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={grayName || "Name this round of testing, like Sprint 14"} />
         </Field>
       </div>
       <div className="mt-3 max-w-[8rem]">
@@ -112,6 +112,7 @@ function NewUmbrellaProject({ groupId, umbrella, platforms, onClose }: { groupId
         <Button
           variant="primary"
           disabled={pending || !shownName}
+          data-howto="cycle-create"
           onClick={() =>
             run(
               () => addUmbrellaProject(groupId, { name: shownName, key: shownKey, platform }),

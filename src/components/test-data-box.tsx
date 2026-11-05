@@ -41,6 +41,7 @@ export function TestDataBox({
         <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
+            data-howto="case-add-data"
             onClick={() => {
               // Start with the blanks the steps already have, so the table matches them.
               const found = [...new Set([...plainTexts.flatMap((t) => [...t.text.matchAll(/\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g)].map((m) => m[1])), ...sharedBlanks])];
@@ -174,7 +175,7 @@ export function TestDataBox({
         </table>
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
-        <Button size="sm" onClick={addRow}>
+        <Button size="sm" onClick={addRow} data-howto="data-add-row">
           + Add row
         </Button>
         <Button size="sm" onClick={addColumn} disabled={d.columns.length >= MAX_COLUMNS}>

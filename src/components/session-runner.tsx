@@ -410,7 +410,7 @@ export function SessionRunner({
               <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
                 <SaveState state={saveState} />
                 <Button onClick={() => setEnding(false)}>Back to exploring</Button>
-                <Button variant="primary" disabled={pending || leaving || runClosed} onClick={() => save(true)}>
+                <Button variant="primary" disabled={pending || leaving || runClosed} onClick={() => save(true)} data-howto="charter-finish-save">
                   {pending || leaving ? "Saving…" : "Finish"}
                 </Button>
               </div>
@@ -435,6 +435,7 @@ export function SessionRunner({
                 className="mt-2"
                 rows={2}
                 aria-label="New note"
+                data-howto="charter-log"
                 disabled={runClosed}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -561,7 +562,7 @@ export function SessionRunner({
                   </Button>
                 )}
                 {started && (
-                  <Button size="sm" variant="primary" disabled={runClosed} onClick={end}>
+                  <Button size="sm" variant="primary" disabled={runClosed} onClick={end} data-howto="charter-finish">
                     Finish exploring
                   </Button>
                 )}

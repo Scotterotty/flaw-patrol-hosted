@@ -326,6 +326,7 @@ function LookItUp() {
     <button
       type="button"
       data-testid="glossary-lookup"
+      data-howto="glossary-lookup"
       data-glossary-ignore
       // Keep the selection: a mousedown here would otherwise clear it before the click.
       onMouseDown={(e) => e.preventDefault()}

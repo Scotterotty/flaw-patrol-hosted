@@ -124,7 +124,7 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
         <AttachWrapUps scope={{ projectKey: project.key }} prefKey={wrapKey} pick={wrapPick} count={wrapUps.length} release={f.release ?? undefined} />
       </div>
 
-      <AutoFilterForm className="mb-4 flex flex-wrap items-end gap-2">
+      <AutoFilterForm className="mb-4 flex flex-wrap items-end gap-2" data-howto="reports-filters">
         <input type="hidden" name="view" value={view} />
         <label className="text-xs text-slate-600">
           From

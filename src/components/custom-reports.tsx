@@ -25,7 +25,7 @@ export function CustomReportsList({ cs, reports, canCreate }: { cs: CustomScope;
           const parts = r.items.filter((i) => i.k === "part");
           const tabs = [...new Set(parts.map((p) => tabLabel(partOf(p.part).tab)))];
           return (
-            <Link key={r.id} href={`${base}/${r.id}`} className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-surface p-4 shadow-sm hover:border-accent-400" data-testid="custom-report-card">
+            <Link key={r.id} href={`${base}/${r.id}`} className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-surface p-4 shadow-sm hover:border-accent-400" data-testid="custom-report-card" data-howto="custom-report-open">
               <span className="font-semibold text-slate-900">{r.name}</span>
               <span className="text-xs text-slate-500">
                 {parts.length} {parts.length === 1 ? "part" : "parts"} · {r.shared ? "Shared" : "Only you"} · made by {r.createdByName}

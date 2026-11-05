@@ -132,7 +132,7 @@ function RepoForm({ groupId, repo, onCancel, onSaved }: { groupId: string; repo?
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Repository" htmlFor={`gh-repo-${prefix}`}>
-          <Input id={`gh-repo-${prefix}`} value={name} onChange={(e) => setName(e.target.value)} placeholder="your-org/web-tests" />
+          <Input id={`gh-repo-${prefix}`} data-howto="github-repo" value={name} onChange={(e) => setName(e.target.value)} placeholder="your-org/web-tests" />
         </Field>
         <Field label="Access token" htmlFor={`gh-token-${prefix}`} hint={repo ? "Leave empty to keep the saved token." : undefined}>
           <span className="flex items-center gap-1.5">
@@ -188,7 +188,7 @@ function RepoForm({ groupId, repo, onCancel, onSaved }: { groupId: string; repo?
             {pending ? "Saving…" : "Save"}
           </Button>
         ) : (
-          <Button variant="primary" disabled={pending || !name.trim()} onClick={test}>
+          <Button variant="primary" disabled={pending || !name.trim()} onClick={test} data-howto="github-test">
             {pending ? "Testing…" : repo ? "Change and test" : "Save and test"}
           </Button>
         )}
@@ -275,7 +275,7 @@ export function PullFromGitHubButton({
           {label}
         </button>
       ) : (
-        <Button variant={variant} size={size} disabled={disabled || !repos.length} title={repos.length ? undefined : "Connect a repo first"} onClick={() => setOpen(true)}>
+        <Button variant={variant} size={size} disabled={disabled || !repos.length} title={repos.length ? undefined : "Connect a repo first"} onClick={() => setOpen(true)} data-howto="repos-pull">
           {label}
         </Button>
       )}
@@ -354,7 +354,7 @@ function Pull({ groupId, repos, runId, onClose }: { groupId: string; repos: { id
       {!list && !error && <p className="py-4 text-center text-sm text-slate-500">Asking GitHub for the newest runs…</p>}
       {list &&
         (list.runs.length ? (
-          <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto rounded-md border border-slate-200" role="radiogroup" aria-label="GitHub run">
+          <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto rounded-md border border-slate-200" role="radiogroup" aria-label="GitHub run" data-howto="pull-pick">
             {list.runs.map((r) => {
               const off = r.gone || r.status !== "completed";
               return (
@@ -397,7 +397,7 @@ function Pull({ groupId, repos, runId, onClose }: { groupId: string; repos: { id
         ))}
       <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
         <Button onClick={onClose}>Cancel</Button>
-        <Button variant="primary" disabled={!pick || pending || !list} onClick={next}>
+        <Button variant="primary" disabled={!pick || pending || !list} onClick={next} data-howto="pull-next">
           {pending ? "Downloading results…" : "Next: where they go"}
         </Button>
       </div>

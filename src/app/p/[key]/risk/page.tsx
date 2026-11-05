@@ -114,7 +114,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
     <div className="mx-auto max-w-6xl">
       {header}
       <RequirementsViews base={`/p/${project.key}`} current="risk" query={reqQuery({ releases: chosen, proj })} />
-      <div className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-3">
+      <div className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-3" data-howto="risk-release">
         <ProjectPicker keys={reqKeys} picked={proj} hrefFor={(k) => here({ proj: k })} />
         <ReleasePicker label="Release" releases={releases} picked={chosen} limit={10} hrefFor={(r) => here({ releases: r })} />
       </div>

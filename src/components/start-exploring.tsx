@@ -14,7 +14,7 @@ export function StartExploringButton({ caseId, label = "▶ Start exploring", si
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button size={size} variant={variant} className={className} onClick={() => setOpen(true)}>
+      <Button size={size} variant={variant} className={className} onClick={() => setOpen(true)} data-howto="charter-start">
         {label}
       </Button>
       <Modal open={open} onClose={() => setOpen(false)} title="Start exploring">
@@ -154,7 +154,7 @@ function Form({ opts, onClose }: { opts: ExploreOptions; onClose: () => void }) 
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <div className="flex justify-end gap-2">
         <Button onClick={onClose}>Cancel</Button>
-        <Button variant="primary" disabled={pending || !placeId || (picking && !people.length)} onClick={go}>
+        <Button variant="primary" disabled={pending || !placeId || (picking && !people.length)} onClick={go} data-howto="charter-start-go">
           {pending ? "Starting…" : picking && people.length > 1 ? `Start ${people.length} copies` : "Start exploring"}
         </Button>
       </div>

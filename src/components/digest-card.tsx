@@ -82,7 +82,7 @@ export function DigestCard({ target, data, canManage, team, isAdmin, id = "email
           <Button size="sm" variant="primary" disabled={pending} onClick={() => run(() => saveDigest(target, s), "Saved. Email digests are on.")}>
             Save
           </Button>
-          <Button size="sm" disabled={pending || !data.mailOn} title={data.mailOn ? "Sends the newest run here, laid out as a digest, to you only." : "Email isn't set up yet."} onClick={() => run(() => sendDigestSample(target), "Sent.")}>
+          <Button size="sm" disabled={pending || !data.mailOn} title={data.mailOn ? "Sends the newest run here, laid out as a digest, to you only." : "Email isn't set up yet."} onClick={() => run(() => sendDigestSample(target), "Sent.")} data-howto="digest-sample">
             Send me a sample
           </Button>
           {data.settings.on && (

@@ -183,13 +183,13 @@ export function StoryRows({
                 )}
                 {canEdit && (
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="primary" onClick={() => setAdding({ row: r, tab: "new" })}>
+                    <Button size="sm" variant="primary" onClick={() => setAdding({ row: r, tab: "new" })} data-howto="story-new-case">
                       + New case
                     </Button>
                     <Button size="sm" onClick={() => setAdding({ row: r, tab: "charter" })}>
                       + New charter
                     </Button>
-                    <Button size="sm" onClick={() => setAdding({ row: r, tab: "existing" })}>
+                    <Button size="sm" onClick={() => setAdding({ row: r, tab: "existing" })} data-howto="story-add-existing">
                       Add existing cases
                     </Button>
                   </div>

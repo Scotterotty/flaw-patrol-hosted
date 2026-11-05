@@ -78,6 +78,7 @@ export function RunStateButtons({
       {canClose && (
         <Button
           disabled={busy}
+          data-howto={state === "ACTIVE" ? "run-close" : "run-reopen"}
           onClick={() =>
             state === "ACTIVE"
               ? closing.click()
@@ -128,7 +129,7 @@ export function CloseRunButton({
   const closing = useCloseRun(projectId, runId, onClosed);
   return (
     <>
-      <Button size="sm" variant={variant} disabled={closing.pending} onClick={closing.click}>
+      <Button size="sm" variant={variant} disabled={closing.pending} onClick={closing.click} data-howto="run-close">
         {closing.pending ? "Closing…" : label}
       </Button>
       {closing.box}

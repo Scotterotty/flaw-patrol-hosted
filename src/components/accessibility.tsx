@@ -55,7 +55,7 @@ export function AccessibilitySettings({ initial }: { initial: Settings }) {
   return (
     <div className="space-y-4">
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
-      <fieldset>
+      <fieldset data-howto="access-text-size">
         <legend className="mb-2 text-sm font-semibold text-slate-900">Text size</legend>
         <div className="flex flex-wrap gap-2">
           {TEXT_SIZES.map((t) => (
@@ -76,7 +76,7 @@ export function AccessibilitySettings({ initial }: { initial: Settings }) {
         </div>
         <p className="mt-1.5 text-xs text-slate-500">Makes all text and controls bigger or smaller, like zooming the page.</p>
       </fieldset>
-      <fieldset data-testid="color-vision">
+      <fieldset data-testid="color-vision" data-howto="access-vision">
         <legend className="mb-0.5 text-sm font-semibold text-slate-900">
           <Sp>Color vision</Sp>
         </legend>
@@ -139,7 +139,7 @@ export function AccessibilitySettings({ initial }: { initial: Settings }) {
           ))}
         </div>
       </fieldset>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-3" data-howto="access-aids">
         {AIDS.map((o) => (
           <div key={o.key}>
             <label className="flex items-center gap-2 text-sm text-slate-800">

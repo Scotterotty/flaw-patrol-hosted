@@ -62,7 +62,7 @@ export function SharedStepEditor({
         <h1 className="text-xl font-semibold tracking-tight">{sharedStepId ? "Edit shared step" : "New shared step"}</h1>
         <div className="flex gap-2">
           <Button onClick={() => router.back()}>Cancel</Button>
-          <Button type="submit" variant="primary" disabled={pending}>
+          <Button type="submit" variant="primary" disabled={pending} data-howto="shared-save">
             {sharedStepId ? "Save new version" : "Create shared step"}
           </Button>
         </div>
@@ -76,7 +76,7 @@ export function SharedStepEditor({
 
       <div className="space-y-4 rounded-lg border border-slate-200 bg-surface p-5 shadow-sm">
         <Field label="Name" htmlFor="name">
-          <Input id="name" required autoFocus={!sharedStepId} value={name} onChange={(e) => setName(e.target.value)} placeholder="Log in as {{role}}" />
+          <Input id="name" data-howto="shared-name" required autoFocus={!sharedStepId} value={name} onChange={(e) => setName(e.target.value)} placeholder="Log in as {{role}}" />
         </Field>
         <Field label="Description" htmlFor="description">
           <Textarea id="description" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="When to use it" />
@@ -139,7 +139,7 @@ export function SharedStepEditor({
             <li key={i} className="flex gap-2 rounded-lg border border-slate-200 bg-surface p-3 shadow-sm">
               <span className="w-6 pt-1 text-sm font-semibold text-slate-500">{i + 1}</span>
               <div className="grid flex-1 gap-2 md:grid-cols-2">
-                <Textarea rows={2} aria-label={`Step ${i + 1} action`} placeholder="Action" value={s.action} onChange={(e) => setStep(i, { action: e.target.value })} />
+                <Textarea rows={2} data-howto="shared-step" aria-label={`Step ${i + 1} action`} placeholder="Action" value={s.action} onChange={(e) => setStep(i, { action: e.target.value })} />
                 <Textarea rows={2} aria-label={`Step ${i + 1} expected result`} placeholder="Expected result" value={s.expected} onChange={(e) => setStep(i, { expected: e.target.value })} />
               </div>
               <div className="flex flex-col gap-0.5 text-sm text-slate-400">
@@ -156,7 +156,7 @@ export function SharedStepEditor({
             </li>
           ))}
         </ol>
-        <Button size="sm" className="mt-2" onClick={() => setSteps((s) => [...s, { action: "", expected: "" }])}>
+        <Button size="sm" className="mt-2" onClick={() => setSteps((s) => [...s, { action: "", expected: "" }])} data-howto="shared-add-step">
           + Add step
         </Button>
       </div>

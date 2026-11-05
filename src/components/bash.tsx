@@ -274,7 +274,7 @@ export function JoinPicker({ bash, onCancel }: { bash: BashView; onCancel?: () =
   const fewest = Math.min(...bash.areas.map((a) => a.people.length));
   const isNew = useNewArea();
   return (
-    <Card className={cx("p-5", onCancel ? "border-accent-500 ring-1 ring-accent-500" : "mx-auto max-w-xl")} aria-label="Pick an area">
+    <Card className={cx("p-5", onCancel ? "border-accent-500 ring-1 ring-accent-500" : "mx-auto max-w-xl")} aria-label="Pick an area" data-howto="bash-pick-area">
       <div className="mb-3 flex items-baseline justify-between gap-3">
         <h2 className="font-semibold text-slate-900">Pick an area to test</h2>
         <Countdown bash={bash} className="text-sm text-slate-600" />
@@ -313,6 +313,7 @@ export function JoinPicker({ bash, onCancel }: { bash: BashView; onCancel?: () =
         <Button
           variant="primary"
           disabled={!pick || pending || bash.phase === "wrapped"}
+          data-howto="bash-start-bashing"
           onClick={() =>
             start(async () => {
               const r = await joinBash(bash.id, pick, bash.platforms.length ? platform.trim() : undefined);
@@ -478,6 +479,7 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
         <textarea
           ref={box}
           aria-label="What did you find?"
+          data-howto="bash-log"
           autoFocus
           disabled={!live}
           rows={2}
@@ -508,6 +510,7 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
                   size="sm"
                   variant="primary"
                   disabled={pending}
+                  data-howto="bash-plus-one"
                   onClick={() =>
                     start(async () => {
                       const r = await plusOneBash(match.id, true, seenHere());
@@ -601,7 +604,7 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
             )}{" "}
             Everyone in this bash sees what you log.
           </span>
-          <Button variant="primary" disabled={!live || pending || !text.trim()} onClick={log}>
+          <Button variant="primary" disabled={!live || pending || !text.trim()} onClick={log} data-howto="bash-log-go">
             Log {KIND_LABEL[kind].toLowerCase()}
           </Button>
         </div>
@@ -743,7 +746,7 @@ export function BashBoard({ bash, openJoin = false, openFind = null }: { bash: B
           {bash.phase === "scheduled" && <AddToCalendar bash={{ id: bash.id, name: bash.name, startsAt: bash.startsAt, endsAt: bash.endsAt, areas: bash.areas.map((a) => a.name), by: bash.createdBy, homeKey: bash.homeKey }} />}
           {bash.phase === "scheduled" && bash.isOwner && <ScheduleControls bashId={bash.id} startsAt={bash.startsAt} homeKey={bash.homeKey} />}
           {bash.isOwner && bash.phase === "live" && !ending && (
-            <Button disabled={pending} onClick={() => setEnding(true)}>
+            <Button disabled={pending} onClick={() => setEnding(true)} data-howto="bash-end-early">
               End early
             </Button>
           )}
@@ -970,7 +973,7 @@ export function FileBashBug({ bug, projectId, entryId, jiraConnected }: { bug: {
   if (!entryId) return <span className="text-xs text-slate-500">Its area isn&apos;t in the run anymore</span>;
   return (
     <>
-      <Button size="sm" variant="primary" onClick={() => setOpen(true)}>
+      <Button size="sm" variant="primary" onClick={() => setOpen(true)} data-howto="bash-file-this">
         File this bug…
       </Button>
       {error && <span className="block text-xs text-red-700">{error}</span>}
@@ -1208,7 +1211,7 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
                           </span>
                         ) : (
                           <label className="inline-flex cursor-pointer items-center gap-1.5 font-medium text-slate-700">
-                            <input type="checkbox" className="size-4 accent-accent-600" checked={b.review === "file"} disabled={pending} onChange={(e) => review(b.id, { review: e.target.checked ? "file" : "skip" })} aria-label={`File ${b.text}`} />
+                            <input type="checkbox" data-howto="wrap-file-it" className="size-4 accent-accent-600" checked={b.review === "file"} disabled={pending} onChange={(e) => review(b.id, { review: e.target.checked ? "file" : "skip" })} aria-label={`File ${b.text}`} />
                             File it
                           </label>
                         )}
@@ -1329,7 +1332,7 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
               {pending ? "Wrapping up…" : "Wrap up anyway"}
             </Button>
           ) : (
-            <Button variant="primary" disabled={pending} onClick={() => wrap(false)}>
+            <Button variant="primary" disabled={pending} onClick={() => wrap(false)} data-howto="wrap-go">
               {label}
             </Button>
           )}
@@ -1366,7 +1369,7 @@ export function LiveBashPill({ href, endsAt, compact, joined }: { href: string; 
   const left = useSecondsLeft(endsAt);
   if (left === null || left <= 0) return null;
   return (
-    <Link href={href} className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-semibold text-white hover:bg-red-700" data-testid="live-bash-pill">
+    <Link href={href} className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-semibold text-white hover:bg-red-700" data-testid="live-bash-pill" data-howto="bash-join">
       <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-white" />
       🐞 Bug bash live{!compact && ` · ${Math.ceil(left / 60)} min left`} · {joined ? "Back to it" : "Join"}
     </Link>

@@ -39,7 +39,7 @@ export function SlackCard({ target, channels, canManage, id = "slack", title = "
                 {allPaused ? "Resume all" : "Pause all"}
               </Button>
             )}
-            <Button size="sm" variant="primary" onClick={() => setEditing("new")}>
+            <Button size="sm" variant="primary" onClick={() => setEditing("new")} data-howto="slack-add">
               ＋ Add channel
             </Button>
           </div>

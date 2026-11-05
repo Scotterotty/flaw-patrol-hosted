@@ -267,6 +267,7 @@ export function FolderTree({
             type="button"
             className="rounded px-1.5 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-800"
             onClick={() => setEditing({ mode: "new", parentId: null })}
+            data-howto="folders-new"
           >
             + New
           </button>

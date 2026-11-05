@@ -99,7 +99,7 @@ export function JiraSettings({
         {ok && <p className="text-sm text-emerald-700">{ok}</p>}
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Jira site" htmlFor="jira-site">
-            <Input id="jira-site" name="siteUrl" required defaultValue={current?.siteUrl} placeholder="https://yourcompany.atlassian.net" />
+            <Input id="jira-site" data-howto="jira-site" name="siteUrl" required defaultValue={current?.siteUrl} placeholder="https://yourcompany.atlassian.net" />
           </Field>
           <Field label="Jira project key" htmlFor="jira-project">
             <Input id="jira-project" name="jiraProjectKey" required defaultValue={current?.jiraProjectKey} placeholder="QA" className="uppercase" />
@@ -131,7 +131,7 @@ export function JiraSettings({
         {current?.tokenReadable && <FoundInSettings key={`found-${checked}`} projectId={projectId} saved={foundIn} />}
         {current?.tokenReadable && <PrioritySettings key={`priority-${checked}`} projectId={projectId} />}
         <div className="flex gap-2">
-          <Button type="submit" variant="primary" disabled={pending}>
+          <Button type="submit" variant="primary" disabled={pending} data-howto="jira-connect">
             {pending ? "Checking…" : current ? "Save and test" : "Connect Jira"}
           </Button>
           {current && (

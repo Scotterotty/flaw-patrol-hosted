@@ -35,7 +35,7 @@ export default async function SharedStepsPage({ params, searchParams }: { params
               {archived ? "Show active" : "Show archived"}
             </Link>
             {can(who, "shared:manage") && (
-              <LinkButton variant="primary" href={`/p/${project.key}/shared-steps/new`}>
+              <LinkButton variant="primary" href={`/p/${project.key}/shared-steps/new`} data-howto="shared-new">
                 New shared step
               </LinkButton>
             )}
@@ -47,7 +47,7 @@ export default async function SharedStepsPage({ params, searchParams }: { params
           title={archived ? "Nothing archived" : "No shared steps yet"}
           action={
             !archived && can(who, "shared:manage") ? (
-              <LinkButton variant="primary" href={`/p/${project.key}/shared-steps/new`}>
+              <LinkButton variant="primary" href={`/p/${project.key}/shared-steps/new`} data-howto="shared-new">
                 New shared step
               </LinkButton>
             ) : null

@@ -75,7 +75,7 @@ export function RunsInProgressList({ rows, kinds, canExecute, spelling }: { rows
               <span className="relative z-10 flex shrink-0 items-center gap-2">
                 <RunKindTag kinds={kinds} kind={r.shown} live={lv?.type === "bash" && lv.live} />
                 {button && (
-                  <LinkButton variant="primary" className={GO_CLASS} href={button.href} aria-label={`${button.label} R${r.number} ${r.name}`}>
+                  <LinkButton variant="primary" className={GO_CLASS} href={button.href} aria-label={`${button.label} R${r.number} ${r.name}`} data-howto={button.label === "Join the bash" ? "bash-join" : undefined}>
                     <span aria-hidden>▶</span> {button.label}
                   </LinkButton>
                 )}

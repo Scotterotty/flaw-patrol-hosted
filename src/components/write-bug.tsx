@@ -267,6 +267,7 @@ export function SendWrittenBugButton({ projectId, defectId }: { projectId: strin
       <Button
         size="sm"
         disabled={pending}
+        data-howto="bug-send-jira"
         onClick={() =>
           start(async () => {
             setError(null);

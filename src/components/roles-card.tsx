@@ -87,6 +87,7 @@ export function RolesCard({ target, rules, appliesTo }: { target: { groupId: str
   return (
     <FoldCard
       id="roles"
+      howto="settings-roles"
       title="What can they do"
       summary={sp(FOLD_SUMMARY[preset])}
       open={open}
@@ -100,7 +101,7 @@ export function RolesCard({ target, rules, appliesTo }: { target: { groupId: str
     >
      <div className="space-y-3">
       <p className="text-xs text-slate-500">Applies to {appliesTo}. Only admins see this.</p>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Preset">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Preset" data-howto="roles-preset">
         {(["everyone", "tighter", "custom"] as RolePreset[]).map((p) => (
           <button
             key={p}
@@ -178,7 +179,7 @@ export function RolesCard({ target, rules, appliesTo }: { target: { groupId: str
           {dirty ? "Not saved yet" : saved ? "Saved" : ""}
         </span>
         {dirty && <Button onClick={cancel}>Cancel</Button>}
-        <Button variant="primary" disabled={!dirty || pending} onClick={save}>
+        <Button variant="primary" disabled={!dirty || pending} onClick={save} data-howto="roles-save">
           {pending ? "Saving…" : "Save"}
         </Button>
       </div>

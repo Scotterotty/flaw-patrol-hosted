@@ -105,6 +105,7 @@ export function RestoreVersionButton({ projectId, projectKey, caseId, number, ve
       <Button
         variant="primary"
         disabled={pending}
+        data-howto="case-restore"
         onClick={() =>
           start(async () => {
             const res = await restoreCaseVersion(projectId, caseId, version);
