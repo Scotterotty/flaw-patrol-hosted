@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 185,
+    date: "2026-11-05",
+    items: [
+      {
+        kind: "fix",
+        title: "Big videos no longer stop a bug's files reaching Jira",
+        text: "A file over Jira's size limit (24 MB) now says Too big for Jira in the bug box and starts unticked. The bug and its other files still go to Jira, and the big file stays on the bug here.",
+      },
+    ],
+  },
+  {
     version: 184,
     date: "2026-11-05",
     items: [

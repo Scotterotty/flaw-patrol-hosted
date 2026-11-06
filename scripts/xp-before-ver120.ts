@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { parseSessionLog } from "@/lib/charter";
 import { SESSION_BUG_CAP, streaks, type GameStats } from "@/lib/game";
 import { caseKey } from "@/lib/format";
-import { foundRewards, generateQuest, type Completion, type QuestMap } from "@/lib/quest";
+import { foundRewards, generateQuest, walkOrder, type Completion, type QuestMap } from "@/lib/quest";
 import { parseGear, questRecord, rescueFinds, teamwork } from "@/lib/quest-gear";
 import { glossaryStatsFrom } from "@/lib/glossary";
 import { glossaryWork } from "@/lib/glossary-data";
@@ -156,6 +156,7 @@ async function completions(runIds: string[]) {
       testerName: true,
       status: true,
       questGear: true,
+      imported: true,
       entry: { select: { testCase: { select: { number: true, project: { select: { key: true } } } } } },
     },
   });
@@ -171,6 +172,8 @@ async function completions(runIds: string[]) {
       userId: r.testerId,
       name: r.testerName || "Someone",
       status: r.status,
+      // Imported sheet results move the pawn but earn no finds or rescues, as in quest-data.ts since ver_183.
+      imported: r.imported,
       gear: r.questGear ? parseGear(r.questGear) : null,
       caseNumber: r.entry.testCase.number,
       // The case's own key (the Case library's AS-4 in an umbrella, not the test cycle's), ver_89.
@@ -178,6 +181,7 @@ async function completions(runIds: string[]) {
     });
     byRun.set(r.runId, list);
   }
+  for (const [id, list] of byRun) byRun.set(id, walkOrder(list));
   return byRun;
 }
 
