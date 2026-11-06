@@ -745,6 +745,20 @@ export const HOW_TO: HowToTask[] = [
       { text: "Type a few words, or paste a Jira key or link like QA-123.", see: "Only the matching bugs from this run and from Jira.", target: "link-bug-search", type: true },
       { text: "Press **Link** on the right bug.", see: "The bug's key on the step. Nothing new is filed." },
     ],
+    next: "attach-log",
+  },
+  {
+    id: "attach-log",
+    group: "Bugs",
+    title: "Attach a log or crash file to a bug",
+    sub: "Game logs, rotated logs and crash dumps up to 24 MB",
+    words: "log logs .log txt crash dump dmp minidump ips unreal unity output client file attach upload",
+    start: "Start in the runner, on the case you're testing (see Test a case in a run).",
+    steps: [
+      { text: "Press **Report bug in Jira** under the step.", see: "The **Report a bug** box.", target: "runner-report-bug" },
+      { text: "Press **+ Add ▾ → Upload a file** and pick the log, for example **UnrealGame.log**, **output.log.1** or **UEMinidump.dmp**.", see: "The file under **Attach to the Jira issue**, ticked.", target: "bug-files" },
+      { text: "Press **File bug in Jira**.", see: "The bug in Jira with the log attached. Logs open as text; crash dumps download.", target: "bug-submit", saves: true },
+    ],
     next: "big-files-jira",
   },
   {

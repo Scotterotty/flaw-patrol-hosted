@@ -20,6 +20,7 @@ import { queueSheetSync } from "./sheet-sync";
 import { queueQaseSend } from "@/lib/qase-sync";
 import { questMoments } from "@/lib/quest-data";
 import { parseGear } from "@/lib/quest-gear";
+import { attachmentType } from "@/lib/attachment-type";
 
 const statusEnum = z.enum(["UNTESTED", "PASSED", "FAILED", "BLOCKED", "RETEST", "SKIPPED", "EXPLORED"]);
 
@@ -240,10 +241,6 @@ export async function saveDraft(projectId: string, entryId: string, input: Draft
   });
 }
 
-const MAX_ATTACHMENT = 10 * 1024 * 1024;
-// Screen recordings run up to 5 minutes, so videos get more room.
-const MAX_VIDEO = 75 * 1024 * 1024;
-const ALLOWED = /^(image\/(png|jpeg|gif|webp)|text\/plain|application\/(pdf|json|zip|x-zip-compressed)|video\/(mp4|webm))$/;
 
 /** Upload evidence while testing; it is linked to the result when the result is submitted. */
 export async function uploadAttachment(projectId: string, form: FormData) {
@@ -261,11 +258,11 @@ export async function uploadAttachment(projectId: string, form: FormData) {
     const file = form.get("file");
     if (!(file instanceof File)) throw new UserError("Choose a file.");
     if (!file.size) throw new UserError(`${file.name || "That file"} is empty, so it wasn't attached.`);
-    const video = /^video\//.test(file.type);
-    if (file.size > (video ? MAX_VIDEO : MAX_ATTACHMENT)) throw new UserError(video ? "Videos can be up to 75 MB." : "Files can be up to 10 MB.");
-    // Client logs (.log, DxDiag.txt) often come without a type, or an odd text one.
-    const type = /\.(log|txt)$/i.test(file.name) && (!file.type || file.type.startsWith("text/")) ? "text/plain" : file.type || "application/octet-stream";
-    if (!ALLOWED.test(type)) throw new UserError("Attach images, PDFs, text logs, JSON, zip or video files.");
+    // Logs (.log, DxDiag.txt) and crash dumps are judged by name: browsers often give them no type or a binary one.
+    const head = new Uint8Array(await file.slice(0, 8192).arrayBuffer());
+    const kind = attachmentType(file.name, file.type, file.size, head);
+    if (kind.error !== undefined) throw new UserError(kind.error);
+    const type = kind.type;
     const stepIndex = form.get("stepIndex");
     const a = await db.attachment.create({
       data: {

@@ -40,7 +40,7 @@ describe("How-to guide", () => {
   // task that starts from the left menu must be a menu link (or a button that's on every page).
   it("starts each task's Show me where it can be found", () => {
     const everywhere = /^(menu-|top-|arrange-menu$)/;
-    const startsElsewhere = new Set(["glossary", "known-bugs", "screen-capture", "join-bash", "wrap-up-bash", "report-bug", "link-bug", "big-files-jira"]);
+    const startsElsewhere = new Set(["glossary", "known-bugs", "screen-capture", "join-bash", "wrap-up-bash", "report-bug", "link-bug", "big-files-jira", "attach-log"]);
     for (const t of HOW_TO) {
       const first = t.steps.find((s) => s.target)!.target!;
       if (!startsElsewhere.has(t.id)) expect(first, t.id).toMatch(everywhere);
