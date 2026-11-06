@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 190,
+    date: "2026-11-06",
+    items: [
+      {
+        kind: "new",
+        title: "Export cases",
+        text: "Press Export cases next to Import cases in the Case library, or in a test suite's More menu. Pick the cases you ticked, a folder or the whole library, then Excel or Google Sheets, Qase, qTest or TestRail. Folders and shared steps come along.",
+        link: "/g/{umbrella}",
+      },
+    ],
+  },
+  {
     version: 189,
     date: "2026-11-06",
     items: [
