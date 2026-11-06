@@ -1,4 +1,6 @@
 import { CrumbName } from "@/components/crumb-name";
+import { runTag, runTitle } from "@/lib/run-label";
+import { RunName } from "@/components/run-name";
 import { PaneResizer } from "@/components/pane-resizer";
 import { runFieldsFor } from "@/lib/run-fields-server";
 import type { ResultStatus } from "@prisma/client";
@@ -59,7 +61,7 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
   const allRuns = await db.testRun.findMany({
     where: { suiteId: suite.id, projectId: project.id },
     orderBy: { number: "desc" },
-    select: { id: true, number: true, release: true, suiteVersion: true, build: true, createdAt: true, entries: { select: { status: true } } },
+    select: { id: true, number: true, name: true, release: true, suiteVersion: true, build: true, createdAt: true, entries: { select: { status: true } } },
   });
   const byRelease = new Map<string, typeof allRuns>();
   for (const r of allRuns) {
@@ -74,7 +76,7 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
     for (const e of run.entries) {
       if (isOpen(e.status)) continue;
       const list = history.get(e.caseId) ?? [];
-      list.push({ status: e.status, title: `R${run.number}: ${e.status.toLowerCase()}`, href: `/p/${project.key}/runs/${run.number}` });
+      list.push({ status: e.status, title: `${runTitle(run, spelling)}: ${e.status.toLowerCase()}`, href: `/p/${project.key}/runs/${run.number}` });
       history.set(e.caseId, list);
     }
   }
@@ -85,7 +87,7 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
     where: { caseId: { in: suite.cases.map((c) => c.caseId) }, status: { notIn: STATUSES.filter(isOpen) }, lastTestedAt: { not: null }, run: scope },
     orderBy: { lastTestedAt: "desc" },
     distinct: ["caseId"],
-    select: { caseId: true, status: true, lastTestedAt: true, run: { select: { number: true, name: true, project: { select: { key: true, name: true, group: { select: { name: true } } } } } } },
+    select: { caseId: true, status: true, lastTestedAt: true, run: { select: { number: true, name: true, build: true, createdAt: true, project: { select: { key: true, name: true, group: { select: { name: true } } } } } } },
   });
   const lastOf = new Map(lastAnywhere.map((e) => [e.caseId, e]));
   const cycleName = (p: { name: string; group: { name: string } | null }) => (p.group && p.name.startsWith(`${p.group.name} `) ? p.name.slice(p.group.name.length + 1) : p.name);
@@ -143,7 +145,7 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
               source={{ kind: "suite", suiteId: suite.id }}
               defaultName={`${suite.name} ${new Date().toISOString().slice(0, 10)}`}
               members={members}
-              suggest={latest ? { from: `R${latest.number}`, environment: latest.environment, release: latest.release } : undefined}
+              suggest={latest ? { from: runTitle(latest, spelling), environment: latest.environment, release: latest.release } : undefined}
               disabled={activeCases.length === 0}
               releases={releases}
               suiteVersion={suite.currentVersion}
@@ -207,7 +209,7 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
                               className="mt-0.5 block text-[11px] leading-snug text-slate-500 hover:underline"
                               data-testid="last-result-run"
                             >
-                              R{last.run.number} {last.run.name} · {cycleName(last.run.project)} · {relativeTime(last.lastTestedAt!, spelling)}
+                              {runTitle(last.run, spelling)} · {cycleName(last.run.project)} · {relativeTime(last.lastTestedAt!, spelling)}
                             </Link>
                           </>
                         ) : (
@@ -258,7 +260,7 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
                             <span key={r.id}>
                               {i > 0 && ", "}
                               <Link href={`/p/${project.key}/runs/${r.number}`} className="hover:underline">
-                                R{r.number}
+                                {runTag(r, spelling) || r.name}
                               </Link>
                             </span>
                           ))}
@@ -285,8 +287,9 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
                   return (
                     <li key={r.id}>
                       <Link href={`/p/${project.key}/runs/${r.number}`} className="block hover:underline">
-                        <span className="text-sm font-medium text-slate-800">R{r.number}</span>{" "}
-                        <span className="text-sm text-slate-600">{r.name}</span>
+                        <span className="text-sm font-medium text-slate-800">
+                          <RunName run={r} spelling={spelling} />
+                        </span>
                       </Link>
                       <StatusBar counts={c} className="mt-1" />
                       <p className="mt-0.5 text-xs text-slate-500">

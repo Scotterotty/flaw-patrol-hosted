@@ -47,7 +47,7 @@ export function crumbsFor(path: string, project?: { key: string; name: string; g
   // Not a run number: Test runs › Import a run, never "Rimport" (ver_54 audit #5).
   else if (section === "runs" && id === "import") crumbs.push({ label: "Import a run" });
   else if (section === "cases") crumbs.push({ label: caseKey(project.key, Number(id)), href });
-  else if (section === "runs" || section === "quests") crumbs.push({ label: name ? `R${id} ${name}` : `R${id}`, href });
+  else if (section === "runs" || section === "quests") crumbs.push({ label: name ?? (section === "runs" ? "Run" : "Quest"), href });
   else crumbs.push({ label: name ?? "Details", href });
 
   if (sub === "edit") crumbs.push({ label: "Edit" });

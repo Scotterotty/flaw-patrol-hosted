@@ -1,4 +1,5 @@
 import type { KnownBug } from "@/lib/known-bugs";
+import { runTitle } from "@/lib/run-label";
 import { relativeTime } from "@/lib/format";
 import type { Spelling } from "@/lib/spelling";
 import { KnownStatus } from "./known-bugs";
@@ -89,14 +90,14 @@ export function KnownCountTag({ count }: { count?: number }) {
   );
 }
 
-export type LastCheck = { outcome: string; byName: string; createdAt: Date; run: { number: number } };
+export type LastCheck = { outcome: string; byName: string; createdAt: Date; run: { number: number; name: string; build: string; createdAt: Date } };
 
 /** The Bugs page's "Last checked in R20: Still happens" line. */
 export function LastCheckLine({ check, spelling }: { check?: LastCheck | null; spelling: Spelling }) {
   if (!check) return null;
   return (
     <span className="block text-xs text-slate-500">
-      Last checked in R{check.run.number}:{" "}
+      Last checked in {runTitle(check.run, spelling)}:{" "}
       <span className={check.outcome === "still" ? "font-medium text-red-700" : "font-medium text-emerald-700"}>{check.outcome === "still" ? "Still happens" : "Didn't happen"}</span> ({check.byName},{" "}
       <span suppressHydrationWarning>{relativeTime(check.createdAt, spelling)}</span>)
     </span>

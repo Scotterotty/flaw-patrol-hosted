@@ -48,7 +48,7 @@ test("quest maps are opt-in, and the pawn walks as cases get results", async ({ 
 
   await nav.getByRole("link", { name: "Quest map" }).click();
   await expect(page.getByRole("heading", { name: "Quest map" })).toBeVisible();
-  await page.getByRole("link", { name: /R\d+ Road/ }).first().click();
+  await page.getByRole("link", { name: /Road \d/ }).first().click();
   await expect(page.getByText("0 of 4 steps")).toBeVisible();
   // What lies ahead stays hidden until someone lands on it.
   await expect(page.getByText("Nothing found yet.")).toBeVisible();
@@ -66,7 +66,7 @@ test("quest maps are opt-in, and the pawn walks as cases get results", async ({ 
   }
   await expect(page.getByRole("heading", { name: "Three" })).toBeVisible();
   await page.goto(`/p/${KEY}/quests`);
-  await page.getByRole("link", { name: /R\d+ Road/ }).first().click();
+  await page.getByRole("link", { name: /Road \d/ }).first().click();
   await expect(page.getByText("2 of 4 steps")).toBeVisible();
   await expect(waiting).toHaveCount(0);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/quest-midway.png`, fullPage: true });
@@ -114,7 +114,7 @@ test("quest maps are opt-in, and the pawn walks as cases get results", async ({ 
   }
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/quest-satchel.png`, fullPage: true });
   await expect(page.getByRole("region", { name: "Team" })).toHaveCount(0);
-  await page.getByRole("link", { name: /R\d+ Road/ }).first().click();
+  await page.getByRole("link", { name: /Road \d/ }).first().click();
   await expect(page.getByText(/The team reached/)).toBeVisible();
   await expect(page.getByText(/^You (found the|defeated|met|slipped past)/)).toBeVisible();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/quest-done.png`, fullPage: true });

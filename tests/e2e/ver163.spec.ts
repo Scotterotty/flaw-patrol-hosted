@@ -44,19 +44,19 @@ test("the Overview starts with Runs in progress, and Start testing is the big bu
   await expect(box).toContainText(`in Web RC ${TAG}`);
   await expect(box).toContainText(`in Unity RC ${TAG}`);
   await expect(box).not.toContainText(`Archived run ${TAG}`);
-  await expect(box.getByRole("link", { name: `Continue testing R1 Half unity ${TAG}` })).toBeVisible();
+  await expect(box.getByRole("link", { name: new RegExp(`^Continue testing Half unity ${TAG}`) })).toBeVisible();
   // Runs are waiting, so Create a run is the quieter button.
   const create = page.getByRole("button", { name: "▶ Create a run" });
   await expect(create).toBeVisible();
   await expect(create).not.toHaveClass(/bg-accent-600/);
 
   // Start testing goes straight to the runner.
-  await box.getByRole("link", { name: `Start testing R1 Fresh web ${TAG}` }).click();
+  await box.getByRole("link", { name: new RegExp(`^Start testing Fresh web ${TAG}`) }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${webKey}/runs/1/execute`), { timeout: 60_000 });
 
   // The test cycle page: same big button; the box's last button says Create.
   await page.goto(`/p/${webKey}`);
-  await expect(page.getByRole("link", { name: `Start testing R1 Fresh web ${TAG}` })).toBeVisible();
+  await expect(page.getByRole("link", { name: new RegExp(`^Start testing Fresh web ${TAG}`) })).toBeVisible();
   await page.getByRole("button", { name: "Create a run" }).click();
   await expect(page.getByRole("dialog", { name: "Create a run" })).toBeVisible();
 });

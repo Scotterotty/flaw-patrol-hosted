@@ -43,7 +43,7 @@ async function caseNewsForRun(run: { id: string; createdAt: Date }, entries: Ent
     const edit = [...mine].reverse().find((v) => v.version > last.caseVersion && v.version <= e.caseVersion);
     out.set(e.id, {
       kind: "updated",
-      since: { run: last.run.number, at: last.run.createdAt.toISOString(), version: last.caseVersion },
+      since: { run: last.run.number, label: `R${last.run.number}`, at: last.run.createdAt.toISOString(), version: last.caseVersion },
       by: edit?.authorName || "someone",
       at: (edit?.createdAt ?? run.createdAt).toISOString(),
       what: changeSummary(now, steps, removed, pre),

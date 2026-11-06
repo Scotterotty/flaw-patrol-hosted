@@ -14,7 +14,7 @@ import { filterWords, type CustomScope } from "./custom-report-data";
 type Viewer = { id: string; isAdmin: boolean; name?: string | null; email: string };
 type Cycle = { id: string; key: string; name: string; groupId: string | null; platform: string; rcName: string };
 
-const when = (f: ReportFilters) => (f.runNumber ? `Run R${f.runNumber}` : f.release ? `Release ${f.release}` : f.allTime ? "All time" : dateRange(f.from, f.to, "us"));
+const when = (f: ReportFilters) => (f.runNumber ? "One run" : f.release ? `Release ${f.release}` : f.allTime ? "All time" : dateRange(f.from, f.to, "us"));
 
 export async function cycleScope(project: Cycle, user: Viewer): Promise<CustomScope> {
   const [library, regressionIds, rcNames] = await Promise.all([libraryProjectIds(project), regressionScope(project), newestRcNames([project])]);

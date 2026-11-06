@@ -19,7 +19,7 @@ describe("crumbsFor", () => {
   it("goes deeper for cases and runs", () => {
     expect(labels("/p/OKO/cases/12/edit", oko)).toEqual(["Umbrellas", "OKO Web", "Test cases", "OKO-12", "Edit"]);
     expect(labels("/p/OKO/cases/12/versions/3", oko)).toEqual(["Umbrellas", "OKO Web", "Test cases", "OKO-12", "Version 3"]);
-    expect(labels("/p/OKO/runs/22/execute", oko)).toEqual(["Umbrellas", "OKO Web", "Test runs", "R22", "Execute"]);
+    expect(labels("/p/OKO/runs/22/execute", oko)).toEqual(["Umbrellas", "OKO Web", "Test runs", "Run", "Execute"]);
     expect(labels("/p/OKO/suites/new", oko)).toEqual(["Umbrellas", "OKO Web", "Test suites", "New"]);
   });
 
@@ -29,7 +29,7 @@ describe("crumbsFor", () => {
 
   it("uses the name a page gives itself", () => {
     const names = { "/p/OKO/runs/22": "Smoke", "/p/OKO/suites/abc": "Checkout regression" };
-    expect(crumbsFor("/p/OKO/runs/22/execute", oko, names).map((c) => c.label)).toEqual(["Umbrellas", "OKO Web", "Test runs", "R22 Smoke", "Execute"]);
+    expect(crumbsFor("/p/OKO/runs/22/execute", oko, names).map((c) => c.label)).toEqual(["Umbrellas", "OKO Web", "Test runs", "Smoke", "Execute"]);
     expect(crumbsFor("/p/OKO/suites/abc/edit", oko, names).map((c) => c.label)).toEqual(["Umbrellas", "OKO Web", "Test suites", "Checkout regression", "Edit"]);
     expect(labels("/p/OKO/suites/abc", oko)).toEqual(["Umbrellas", "OKO Web", "Test suites", "Details"]);
   });

@@ -1,4 +1,6 @@
 import type { ResultStatus } from "@prisma/client";
+import { runTitle } from "@/lib/run-label";
+import { RunName } from "@/components/run-name";
 import { titleWithTags } from "@/lib/tags";
 import { tagColorsFor } from "@/lib/tag-data";
 import { sentryConnected } from "@/lib/sentry-config";
@@ -167,12 +169,22 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   return (
     <div className="mx-auto max-w-6xl">
       <LiveRefresh url={`/api/live/runs/${run.id}`} rows renderedAt={renderedAt} />
-      <CrumbName href={`/p/${project.key}/runs/${run.number}`} label={run.name} />
+      <CrumbName href={`/p/${project.key}/runs/${run.number}`} label={runTitle(run, spelling)} />
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
-            <span className="font-mono text-base text-slate-500">R{run.number}</span> {run.name}
+            <RunName run={run} spelling={spelling} className="font-mono text-base font-normal text-slate-500" />
             {run.state === "COMPLETED" && <Badge tone="gray">Closed</Badge>}
+            {!run.build.trim() && can(who, "run:create") && (
+              <EditRunButton
+                addVersion
+                projectId={project.id}
+                runId={run.id}
+                details={{ name: run.name, release: run.release, build: run.build, cspVersion: run.cspVersion, environment: run.environment, description: run.description, fields: parseFieldValues(run.fields) }}
+                releases={releases}
+                fields={runFields}
+              />
+            )}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
             {[
@@ -184,7 +196,6 @@ export default async function RunPage({ params, searchParams }: { params: Promis
                   {thenCalled && <span data-testid="suite-then-called"> (then called {thenCalled})</span>}
                 </Link>
               ),
-              run.build && `Build ${run.build}`,
               ...fieldBits(run),
               run.environment,
               `started ${relativeTime(run.createdAt, spelling)} by ${run.createdBy}`,
@@ -253,7 +264,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
               label={`Retest ${failedish} not passed`}
               data-howto="run-retest"
               variant="secondary"
-              suggest={{ from: `R${run.number}`, environment: run.environment, release: run.release }}
+              suggest={{ from: runTitle(run, spelling), environment: run.environment, release: run.release }}
               fields={runFields}
             />
             </span>
@@ -272,7 +283,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           ✓ Updated {updatedCount} {updatedCount === 1 ? "result" : "results"} from the sheet. Old results are in each case&apos;s history.
         </div>
       )}
-      {handedTo && handedCases > 0 && <HandOffNote runLabel={`R${run.number}`} cases={handedCases} name={handedTo.name} />}
+      {handedTo && handedCases > 0 && <HandOffNote runLabel={runTitle(run, spelling)} cases={handedCases} name={handedTo.name} />}
 
       {finished && (
         <div role="status" className="mb-5 flex flex-wrap items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">

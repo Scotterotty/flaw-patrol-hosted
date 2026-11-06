@@ -417,7 +417,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               id="run-fields"
               hashes={["run-fields"]}
               title="Run fields"
-              text={runFields.length ? `Release, Build, Environment and ${runFields.map((f) => f.name).join(", ")}` : "Release, Build and Environment. Add your own, like a firmware or API version."}
+              text={runFields.length ? `Release, Version, Environment and ${runFields.map((f) => f.name).join(", ")}` : "Release, Version and Environment. Add your own, like a firmware or API version."}
               label={can(u.who, "umbrella:fields") ? "Change" : "View"}
             >
               <RunFieldsPanel groupId={u.group.id} umbrella={name} fields={runFields} canEdit={can(u.who, "umbrella:fields") && !u.group.archivedAt} />

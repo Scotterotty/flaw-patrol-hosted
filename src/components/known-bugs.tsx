@@ -72,7 +72,7 @@ export function KnownBugsBox({
                     <KnownStatus bug={b} />
                   </span>
                   <span className="block text-xs text-slate-600">
-                    Found {b.found.step ? `at step ${b.found.step} ` : ""}in R{b.found.run} by {b.found.by}, {ago(b.found.at)}
+                    Found {b.found.step ? `at step ${b.found.step} ` : ""}in {b.found.label} by {b.found.by}, {ago(b.found.at)}
                     {b.stepIndex !== null && steps[b.stepIndex] && b.found.step !== steps[b.stepIndex].number && ` · now step ${steps[b.stepIndex].number}`}
                   </span>
                 </span>

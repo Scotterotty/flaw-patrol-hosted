@@ -14,7 +14,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ key:
   const { project, user } = await projectAccess(key);
   const sp = Object.fromEntries(req.nextUrl.searchParams.entries());
   const f = parseFilters(sp);
-  const when = f.runNumber ? `Run R${f.runNumber}` : f.release ? `Release ${f.release}` : f.allTime ? "All time" : dateRange(f.from, f.to, "us");
+  const when = f.runNumber ? "One run" : f.release ? `Release ${f.release}` : f.allTime ? "All time" : dateRange(f.from, f.to, "us");
   const res = await exportResponse(
     {
       scope: project.id,

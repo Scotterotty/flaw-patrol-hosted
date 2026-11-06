@@ -1,5 +1,6 @@
 "use server";
 
+import { runTitle } from "@/lib/run-label";
 import { queueQaseSend } from "@/lib/qase-sync";
 import { logActivity } from "@/lib/activity";
 import { Prisma } from "@prisma/client";
@@ -221,7 +222,7 @@ export async function importRun(projectId: string, input: SheetInput, run: z.inp
       },
       { timeout: 180_000 },
     );
-    await logActivity({ actor: user, kind: "run", action: `Imported a run from a spreadsheet as run R${number}`, project });
+    await logActivity({ actor: user, kind: "run", action: `Imported a run from a spreadsheet as "${meta.name}"`, project });
     queueQaseSend(projectId);
     revalidatePath(`/p/${project.key}`, "layout");
     return { number };
@@ -237,7 +238,7 @@ type Plan = Awaited<ReturnType<typeof plan>>;
  * "Select" in the sheet never clears anything.
  */
 async function intoPlan(projectId: string, runId: string, p: Plan) {
-  const run = await db.testRun.findFirst({ where: { id: runId, projectId, state: "ACTIVE", automated: false, ...NOT_BASH_RUN }, select: { id: true, number: true, name: true } });
+  const run = await db.testRun.findFirst({ where: { id: runId, projectId, state: "ACTIVE", automated: false, ...NOT_BASH_RUN }, select: { id: true, number: true, name: true, build: true, createdAt: true } });
   if (!run) throw new UserError("That run isn't in progress any more. Pick another run, or make a new one.");
   const entries = await db.runEntry.findMany({
     where: { runId: run.id, caseId: { in: p.rows.map((r) => r.caseId) } },
@@ -352,7 +353,7 @@ export async function importIntoRun(projectId: string, input: SheetInput, into: 
       },
       { timeout: 180_000 },
     );
-    await logActivity({ actor: user, kind: "run", action: `Added ${counts.filled + counts.replaced} results from a spreadsheet to run R${ip.run.number}`, project });
+    await logActivity({ actor: user, kind: "run", action: `Added ${counts.filled + counts.replaced} results from a spreadsheet to run "${runTitle(ip.run)}"`, project });
     queueQaseSend(projectId);
     revalidatePath(`/p/${project.key}`, "layout");
     return { number: ip.run.number, ...counts };

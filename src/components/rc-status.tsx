@@ -159,7 +159,7 @@ export function RcStatusView({ releases, release, pick, columns, bugs, choices, 
                     <label className="flex items-start gap-2 text-sm">
                       <input type="checkbox" checked={ticked.has(c.id)} onChange={() => toggle(c)} className="mt-1" />
                       <span>
-                        {c.name} <span className="text-slate-500">· {c.project} · R{c.number}</span>
+                        {c.name} <span className="text-slate-500">· {c.project}{c.tag && ` · ${c.tag}`}</span>
                         {pick.add.includes(c.id) && <span className="text-slate-500"> · added</span>}
                       </span>
                     </label>
@@ -178,7 +178,8 @@ export function RcStatusView({ releases, release, pick, columns, bugs, choices, 
                     <option value="">Pick another run…</option>
                     {others.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name} · {c.project} · R{c.number}
+                        {c.name} · {c.project}
+                        {c.tag ? ` · ${c.tag}` : ""}
                         {c.release ? ` · ${c.release}` : ""}
                       </option>
                     ))}

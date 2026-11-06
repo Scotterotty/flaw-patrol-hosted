@@ -22,9 +22,12 @@ test("the runner shows the case's history, and a known bug can be re-reported in
   await expect(page.getByRole("button", { name: "Create a run" })).toBeVisible();
   const suiteUrl = page.url();
 
+  // Each run tests its own version (ver_189: runs are told apart by version, not "R1").
+  let builds = 0;
   const startRun = async () => {
     await page.goto(suiteUrl);
     await page.getByRole("button", { name: "Create a run" }).click();
+    await page.getByLabel("Version", { exact: true }).fill(`1.0.${++builds}`);
     await page.getByRole("button", { name: "Create run", exact: true }).click();
     await expect(page).toHaveURL(/\/runs\/\d+$/);
     await page.getByRole("link", { name: "Start testing" }).click();
@@ -58,7 +61,7 @@ test("the runner shows the case's history, and a known bug can be re-reported in
   await expect(history.getByRole("listitem")).toHaveCount(0);
   await history.getByRole("button", { name: "Expand" }).click();
   await expect(history).toContainText("D-1");
-  await history.getByRole("button", { name: /^R1 failed/ }).click();
+  await history.getByRole("button", { name: /v1\.0\.1 failed/ }).click();
   await expect(history).toContainText("Actual: Pip went pop");
   await expect(history.getByRole("link", { name: "D-1 Pip pops" }).first()).toHaveAttribute("href", `/p/${KEY}/bugs#D-1`);
   await history.getByRole("button", { name: "Bug still occurs" }).click();
@@ -66,7 +69,7 @@ test("the runner shows the case's history, and a known bug can be re-reported in
   await expect(page.getByRole("group", { name: "Step 1 status" }).getByRole("button", { name: "Passed" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("group", { name: "Step 2 status" }).getByRole("button", { name: "Failed" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByLabel("Step 2 actual result")).toHaveValue("Pip went pop");
-  await expect(page.getByLabel("Comment")).toHaveValue("Bug still occurs: D-1 (same as R1).");
+  await expect(page.getByLabel("Comment")).toHaveValue("Bug still occurs: D-1 (same as v1.0.1).");
   await expect(page.getByRole("button", { name: "Unlink bug" })).toHaveCount(1);
   await page.getByRole("button", { name: /Save and (next|finish)/ }).click();
   await backToRun(page);
@@ -79,7 +82,7 @@ test("the runner shows the case's history, and a known bug can be re-reported in
 
   // Back to the list when no pip is picked.
   await startRun();
-  await history.getByRole("button", { name: /^R2 failed/ }).click();
+  await history.getByRole("button", { name: /v1\.0\.2 failed/ }).click();
   await history.getByRole("button", { name: "← All executions" }).click();
   await expect(history.getByRole("listitem")).toHaveCount(2);
 });

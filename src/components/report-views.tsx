@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { RunName } from "./run-name";
+import { runTag } from "@/lib/run-label";
 import { fieldBits } from "@/lib/run-fields";
 import type { Severity } from "@prisma/client";
 import type { ReactNode } from "react";
@@ -23,11 +25,14 @@ const shows = (only: PartId | undefined) => (p: PartId) => !only || only === p;
 
 // The report views, shared by a test cycle's Reports and an umbrella's Reports.
 
-/** "R12", or "Web R12" when the runs come from several test cycles, whose run numbers repeat. */
-function runLabel(r: Pick<RunRow, "number" | "projectKey" | "platform" | "projectName">, all: Pick<RunRow, "projectKey">[]) {
-  const multi = all.some((x) => x.projectKey !== all[0]?.projectKey);
-  return multi ? `${r.platform || r.projectName} R${r.number}` : `R${r.number}`;
+/** "v2.4.2", or "Web v2.4.2" when the runs come from several test cycles (ver_189: the version, never "R12"). */
+function runLabel(r: Pick<RunRow, "name" | "build" | "createdAt" | "projectKey" | "platform" | "projectName">, all: Pick<RunRow, "projectKey">[]) {
+  const tag = runTag(r);
+  return multiCycle(all) ? [r.platform || r.projectName, tag].filter(Boolean).join(" ") : tag || r.name;
 }
+const multiCycle = (all: Pick<RunRow, "projectKey">[]) => all.some((x) => x.projectKey !== all[0]?.projectKey);
+/** "Web" before a run's name when the runs come from several test cycles. */
+const cyclePrefix = (r: Pick<RunRow, "projectKey" | "platform" | "projectName">, all: Pick<RunRow, "projectKey">[]) => (multiCycle(all) ? r.platform || r.projectName : "");
 
 /** Where a run's results came from, for the Type column. */
 function RunType({ r }: { r: Pick<RunRow, "source" | "githubRunNo" | "sourceFile"> }) {
@@ -361,10 +366,11 @@ export async function RunsTable({ runs }: { runs: Awaited<ReturnType<typeof runR
             <tr key={`${r.projectKey}-${r.number}`}>
               <td className="px-4 py-2">
                 <Link href={`/p/${r.projectKey}/runs/${r.number}`} className="hover:underline">
-                  <span className="font-mono text-xs text-slate-500">{runLabel(r, runs)}</span> {r.name}
+                  {cyclePrefix(r, runs) && <span className="font-mono text-xs text-slate-500">{cyclePrefix(r, runs)} </span>}
+                  <RunName run={r} spelling={spelling} />
                 </Link>
                 <p className="text-xs text-slate-500">
-                  {[r.suite && `${r.suite}${r.suiteVersion ? ` v${r.suiteVersion}` : ""}`, r.build && `build ${r.build}`, ...fieldBits(r), relativeTime(r.createdAt, spelling)].filter(Boolean).join(" · ")}
+                  {[r.suite && `${r.suite}${r.suiteVersion ? ` v${r.suiteVersion}` : ""}`, ...fieldBits(r), relativeTime(r.createdAt, spelling)].filter(Boolean).join(" · ")}
                 </p>
               </td>
               <td className="px-4 py-2 whitespace-nowrap">
@@ -455,7 +461,8 @@ export function StepsView({ runs, stepCounts, failing, moreHref, only }: { runs:
               <tr key={`${r.projectKey}-${r.number}`}>
                 <td className="px-4 py-2">
                   <Link href={`/p/${r.projectKey}/runs/${r.number}`} className="hover:underline">
-                    <span className="font-mono text-xs text-slate-500">{runLabel(r, runs)}</span> {r.name}
+                    {cyclePrefix(r, runs) && <span className="font-mono text-xs text-slate-500">{cyclePrefix(r, runs)} </span>}
+                    <RunName run={r} />
                   </Link>
                 </td>
                 <td className="px-4 py-2 whitespace-nowrap">
@@ -543,7 +550,7 @@ export function DefectsView({ rows: all, scale = AE_SCALE, only, critical }: { r
                     {d.foundIn.map((x, i) => (
                       <p key={i}>
                         {x.caseKey}
-                        {x.step !== null && ` step ${x.step}`} · R{x.run}
+                        {x.step !== null && ` step ${x.step}`} · {x.label}
                         {x.release && ` · ${x.release}`}
                       </p>
                     ))}
@@ -689,7 +696,7 @@ export async function FailingTable({ rows, full }: { rows: StepHistory[]; full?:
               )}
             </td>
             <td className="px-4 py-2 whitespace-nowrap">
-              <HistoryStrip statuses={s.history.map((h) => ({ status: h.status, title: `R${h.run}${h.release ? ` · ${h.release}` : ""}: ${STATUS_LABEL[h.status]}`, href: `/p/${h.projectKey}/runs/${h.run}` }))} max={full ? 30 : 15} />
+              <HistoryStrip statuses={s.history.map((h) => ({ status: h.status, title: `${h.label}${h.release ? ` · ${h.release}` : ""}: ${STATUS_LABEL[h.status]}`, href: `/p/${h.projectKey}/runs/${h.run}` }))} max={full ? 30 : 15} />
             </td>
             <td className="px-4 py-2 text-right tabular-nums whitespace-nowrap">
               {s.failures} <span className="text-xs text-slate-400">of {s.runs}</span>
@@ -700,7 +707,7 @@ export async function FailingTable({ rows, full }: { rows: StepHistory[]; full?:
               {s.lastFailed ? (
                 <>
                   <Link href={`/p/${s.lastFailed.projectKey}/runs/${s.lastFailed.run}`} className="hover:underline">
-                    R{s.lastFailed.run}
+                    {s.lastFailed.label}
                   </Link>
                   {s.lastFailed.release && ` · ${s.lastFailed.release}`} · {relativeTime(s.lastFailed.at, spelling)}
                 </>

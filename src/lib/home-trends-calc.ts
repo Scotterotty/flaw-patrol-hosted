@@ -1,4 +1,5 @@
 import type { ResultStatus } from "@prisma/client";
+import { runTag } from "./run-label";
 import { verdictFlips } from "./run-history";
 import { countStatuses, totals } from "./status";
 import { bucketKey, bucketLabel } from "./trend-buckets";
@@ -35,7 +36,7 @@ export type TrendRow = {
 export type BuildPoint = {
   runId: string;
   href: string;
-  /** The build if the run has one, else "Run 12". */
+  /** The run's version, else the day it ran (ver_189: never "R12" or "Run 12"). */
   label: string;
   name: string;
   /** When the run was saved, as an ISO string; shown in the viewer's own time. */
@@ -57,6 +58,7 @@ export type ManualRunRow = {
   href: string;
   number: number;
   name: string;
+  build?: string;
   release: string;
   at: Date;
   platform: string;
@@ -233,7 +235,7 @@ export function homeTrends(rows: TrendRow[], entries: Map<string, number>, now =
       return {
         runId: r.runId,
         href: r.runKey && r.runNumber ? `/p/${r.runKey}/runs/${r.runNumber}` : "",
-        label: r.build?.trim() || `Run ${r.runNumber ?? ""}`.trim(),
+        label: runTag({ name: r.runName, build: r.build, createdAt: r.runAt }) || r.runName || "Automated run",
         name: r.runName ?? "",
         at: r.runAt.toISOString(),
         platform: r.platform,
@@ -316,7 +318,7 @@ export function manualRunPoints(runs: ManualRunRow[]): { manualRuns: BuildPoint[
       return {
         runId: r.runId,
         href: r.href,
-        label: `R${r.number}`,
+        label: runTag({ name: r.name, build: r.build, createdAt: r.at }) || r.name,
         name: r.name,
         at: r.at.toISOString(),
         platform: r.platform,

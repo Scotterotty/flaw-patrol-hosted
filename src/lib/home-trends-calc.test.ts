@@ -97,7 +97,7 @@ describe("By build (ver_133)", () => {
       row({ status: "PASSED", at: "2026-11-01T11:00:00Z", runId: "m1" }),
     ];
     const t = homeTrends(rows, new Map(), new Date("2026-11-02T00:00:00Z"));
-    expect(t.build.map((b) => b.label)).toEqual(["80", "81", "Run 3"]);
+    expect(t.build.map((b) => b.label)).toEqual(["v80", "v81", "Nov 1"]);
     expect(t.build[0]).toMatchObject({ passed: 2, failed: 0, rate: 1, href: "/p/BH/runs/1" });
     expect(t.build[1]).toMatchObject({ passed: 1, failed: 1, rate: 0.5 });
     expect(t.build[2]).toMatchObject({ rate: null, other: 1 });
@@ -137,7 +137,7 @@ describe("By run with runs tested by hand", () => {
       // Finished but never closed: left out of the open totals.
       hand("r1", "2026-10-01T10:00:00Z", { PASSED: 12 }),
     ]);
-    expect(manualRuns.map((p) => p.label)).toEqual(["R1", "R2", "R3", "R4"]);
+    expect(manualRuns.map((p) => p.label)).toEqual(["Oct 1", "Oct 20", "Nov 2", "Nov 2"]);
     const r3 = manualRuns[2];
     expect(r3.manual).toEqual({ total: 40, finished: 6, inProgress: 9, release: "RC 1.4" });
     expect(r3.rate).toBeCloseTo(5 / 6);

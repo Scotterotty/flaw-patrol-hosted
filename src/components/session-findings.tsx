@@ -87,7 +87,7 @@ function FindingRow({ f, group, projectId, projectKey, canAnswer, canWrite }: { 
           )}
         </p>
         <p className="mt-0.5 text-xs text-slate-500">
-          {f.tester || "Someone"} · R{f.run}
+          {f.tester || "Someone"} · {f.runLabel}
           {f.release && ` ${f.release}`} · {clock(note.at)} into session · {shortDate(new Date(f.at), spelling, zone)}
           {note.attachments.length > 0 && ` · 📎 ${note.attachments.length}`}
         </p>

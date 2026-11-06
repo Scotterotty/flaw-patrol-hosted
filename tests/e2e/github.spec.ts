@@ -61,7 +61,7 @@ test("connect a GitHub repo, pull a workflow run's results and see the repo's te
   await box.getByRole("button", { name: "Next: where they go" }).click();
   await expect(box.getByText("junit.xml from GitHub run 3 · 9 tests")).toBeVisible();
   await expect(box.getByLabel(`${NAME} Web RC 4`)).toBeChecked();
-  await expect(box.getByLabel("Build")).toHaveValue("3");
+  await expect(box.getByLabel("Version", { exact: true })).toHaveValue("3");
   await box.getByRole("button", { name: "Next: check results" }).click();
   await expect(box.getByText("9 tests from build 3")).toBeVisible();
   await box.getByRole("button", { name: "Save 9 results" }).click();

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { runTag, runTitle } from "@/lib/run-label";
+import { RunName } from "@/components/run-name";
 import { PastQuests } from "@/components/past-quests";
 import { QuestMapView } from "@/components/quest-map";
 import { RARITY_STYLE } from "@/components/rarity";
@@ -33,8 +35,8 @@ export default async function QuestsPage({ params, searchParams }: { params: Pro
   );
   const mine = bags.find((b) => b.userId === user.id);
   const team = bags.filter((b) => b !== mine);
-  const runName = new Map(quests.map((q) => [q.run.number, q.run.name]));
-  const where = (f: Find) => `R${f.runNumber} ${runName.get(f.runNumber) ?? ""}${f.caseNumber ? ` · ${f.caseKey ?? caseKey(project.key, f.caseNumber)}` : ""}`;
+  const runName = new Map(quests.map((q) => [q.run.number, runTitle(q.run)]));
+  const where = (f: Find) => `${runName.get(f.runNumber) ?? "A run"}${f.caseNumber ? ` · ${f.caseKey ?? caseKey(project.key, f.caseNumber)}` : ""}`;
   const active = quests.filter((q) => q.run.state === "ACTIVE");
   const finished = quests.filter((q) => q.run.state !== "ACTIVE");
   const parties = await partiesFor([...active, ...finished.slice(0, RECENT_PAST)]);
@@ -49,7 +51,7 @@ export default async function QuestsPage({ params, searchParams }: { params: Pro
     worn: parseGear(user.questGear),
     auto: user.questGearAuto.filter(isSlot),
     nearest: nearest && {
-      line: nearest.best ? `R${nearest.best.runNumber} ${nearest.best.runName}, ${nearest.best.away === 1 ? "1 case" : `${nearest.best.away} cases`} away` : null,
+      line: nearest.best ? `${nearest.best.runName}, ${nearest.best.away === 1 ? "1 case" : `${nearest.best.away} cases`} away` : null,
       href: nearest.best ? `/p/${nearest.best.projectKey}/quests/${nearest.best.runNumber}` : null,
       anyRuns: nearest.hasRuns,
     },
@@ -78,6 +80,7 @@ export default async function QuestsPage({ params, searchParams }: { params: Pro
               rows={finished.slice(RECENT_PAST).map((q) => ({
                 number: q.run.number,
                 name: q.run.name,
+                tag: runTag(q.run),
                 release: q.run.release,
                 from: q.map.from,
                 to: q.map.to,
@@ -171,7 +174,7 @@ function TeamRow({ label, projectKey, finds }: { label: string; projectKey: stri
               <Link
                 key={f.id}
                 href={`/p/${projectKey}/quests/${f.runNumber}`}
-                title={`${what} · latest R${f.runNumber}`}
+                title={what}
                 aria-label={what}
                 className={cx("relative rounded-md bg-slate-100 px-1 text-base leading-6 ring-2 ring-inset hover:bg-accent-100", RARITY_STYLE[f.rarity].ring)}
               >
@@ -218,7 +221,7 @@ function QuestGrid({
               <QuestMapView map={q.map} steps={q.steps} position={q.position} rewards={q.rewards} compact party={parties.get(q.run.id)} me={me} waiting={look} teamwork={q.teamwork} season={seasonal ? seasonFor(q.run.createdAt) : null} />
               <div className="p-3">
                 <p className="truncate text-sm font-medium text-slate-900">
-                  <span className="font-mono text-xs text-slate-500">R{q.run.number}</span> {q.run.name}
+                  <RunName run={q.run} />
                 </p>
                 <p className="text-xs text-slate-500">
                   {q.map.from} to {q.map.to} · {q.position} of {q.steps} steps · {q.rewards.length} found

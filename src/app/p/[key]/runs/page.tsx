@@ -1,4 +1,5 @@
 import { parseRunKinds, shownKind } from "@/lib/run-kinds";
+import { RunName } from "@/components/run-name";
 import { knownBugCounts } from "@/lib/known-bugs";
 import { KnownCountTag } from "@/components/known-bugs-panel";
 import { caseNewsCounts } from "@/lib/case-news-data";
@@ -100,7 +101,7 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
               <Link key={r.id} href={`/p/${project.key}/runs/${r.number}`} data-howto="run-row" className="grid gap-2 px-4 py-3 hover:bg-slate-50 sm:grid-cols-[1fr_18rem]">
                 <div className="min-w-0">
                   <p className="font-medium text-slate-900">
-                    <span className="font-mono text-xs text-slate-500">R{r.number}</span> {r.name}
+                    <RunName run={r} spelling={spelling} />
                     {r.automated && (
                       <Badge tone="violet" className="ml-2">
                         🤖 Automated

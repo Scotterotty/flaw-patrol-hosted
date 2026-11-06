@@ -57,7 +57,7 @@ test("Release status, automation suggestions and a suite's last result from any 
   // #22: the Smoke suite shows each case's last result from the library run, named underneath.
   await page.goto(`/p/${KEY}/suites`);
   await page.getByRole("link", { name: "Smoke" }).first().click();
-  await expect(page.getByTestId("last-result-run").first()).toContainText(`R1 Full library Web · Shop ${TAG}`);
+  await expect(page.getByTestId("last-result-run").first()).toContainText(new RegExp(`Full library Web.* · Shop ${TAG}`));
   await expect(page.getByText("Not run")).toHaveCount(0);
 
   // #15: a test named like an existing case is suggested; new ones go in a readable folder.

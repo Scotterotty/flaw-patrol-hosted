@@ -551,7 +551,7 @@ export function Runner({
       delete before.current[b.id];
     }
     if (outcome === "still") {
-      const line = `${b.key} still happens (same as R${b.found.run}).`;
+      const line = `${b.key} still happens (same as ${b.found.label}).`;
       before.current[b.id] = { status: b.stepIndex === null ? null : statusesRef.current[b.stepIndex], line };
       setDefects((all) => (all.some((d) => d.defect.id === b.id) ? all : [...all, { defect: { id: b.id, number: b.number, title: b.title, externalKey: b.externalKey, externalUrl: b.url, status: b.status }, stepIndex: b.stepIndex }]));
       if (b.stepIndex !== null) {
@@ -593,7 +593,7 @@ export function Runner({
       setDefects(bugs.filter((b, k) => bugs.findIndex((x) => x.defect.id === b.defect.id && x.stepIndex === b.stepIndex) === k));
       setOverride(n && deriveCaseStatus(withoutHeadings(entry.steps, nextStatuses)) === past.status ? null : past.status === "UNTESTED" ? null : past.status);
       const keys = [...new Set(past.defects.map((d) => d.defect.externalKey ?? `D-${d.defect.number}`))].join(", ");
-      setComment((c) => c || `Bug still occurs: ${keys} (same as R${past.runNumber}).`);
+      setComment((c) => c || `Bug still occurs: ${keys} (same as ${past.runTag || past.runName}).`);
       const firstProblem = nextStatuses.findIndex((x) => x !== "UNTESTED" && x !== "PASSED" && x !== "SKIPPED");
       if (firstProblem >= 0) setCurrent(firstProblem);
       setError(null);
@@ -1465,7 +1465,7 @@ export function Runner({
 
       {lastCase && (
         <div role="status" className="flex flex-wrap items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          <span className="flex-1">That was the last case in R{runNumber}. Every case has a result.</span>
+          <span className="flex-1">That was the last case in this run. Every case has a result.</span>
           <Button size="sm" onClick={() => setLastCase(null)}>
             Stay here
           </Button>

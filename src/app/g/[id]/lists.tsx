@@ -1,4 +1,5 @@
 import { mySpelling } from "@/lib/session";
+import { RunName } from "@/components/run-name";
 import { knownBugCounts } from "@/lib/known-bugs";
 import { KnownCountTag } from "@/components/known-bugs-panel";
 import { caseNewsCounts } from "@/lib/case-news-data";
@@ -45,7 +46,7 @@ export async function Runs({ projectIds, state, kind, kinds = [], canStart = tru
           <Link key={r.id} href={`/p/${r.project.key}/runs/${r.number}`} data-howto="run-row" className="grid gap-2 px-4 py-3 hover:bg-slate-50 sm:grid-cols-[1fr_18rem]">
             <div className="min-w-0">
               <p className="font-medium text-slate-900">
-                <span className="font-mono text-xs text-slate-500">R{r.number}</span> {r.name}
+                <RunName run={r} spelling={spelling} />
                 <Badge tone="gray" className="ml-2">
                   {r.project.name}
                 </Badge>

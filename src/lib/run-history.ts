@@ -8,6 +8,8 @@ export type HistoryRun = {
   entryId: string;
   runNumber: number;
   runName: string;
+  /** Its version, or the day it started (ver_189: in place of "R3"). */
+  runTag: string;
   meta: string;
   status: ResultStatus;
   comment: string;

@@ -1,4 +1,6 @@
 import { mySpelling } from "@/lib/session";
+import { runTag, runTitle } from "@/lib/run-label";
+import { RunName } from "./run-name";
 import { fieldBits } from "@/lib/run-fields";
 import type { ResultStatus } from "@prisma/client";
 import Link from "next/link";
@@ -31,7 +33,7 @@ export async function CaseHistory({ caseId, charter, canRun = true }: { caseId: 
     orderBy: { createdAt: "desc" },
     take: 100,
     include: {
-      run: { select: { number: true, name: true, release: true, build: true, cspVersion: true, fields: true, environment: true, project: { select: { key: true, platform: true } } } },
+      run: { select: { number: true, name: true, release: true, build: true, createdAt: true, cspVersion: true, fields: true, environment: true, project: { select: { key: true, platform: true } } } },
       entry: { select: { regressionOff: true, steps: true } },
       defects: { include: { defect: true } },
       attachments: { select: { id: true, fileName: true } },
@@ -58,6 +60,7 @@ export async function CaseHistory({ caseId, charter, canRun = true }: { caseId: 
             build: r.run.build,
             runNumber: r.run.number,
             runName: r.run.name,
+            runTag: runTag(r.run, spelling),
             projectKey: r.run.project.key,
             platform: r.run.project.platform,
             entryId: r.entryId,
@@ -80,7 +83,7 @@ export async function CaseHistory({ caseId, charter, canRun = true }: { caseId: 
             <HistoryStrip
               statuses={[...results].reverse().map((r) => {
                 const rows = rowsOfResult(r.entry?.steps, r.stepResults);
-                return { status: r.status, rows, title: `${r.automated ? "🤖 " : ""}R${r.run.number} ${r.run.name}: ${STATUS_LABEL[r.status].toLowerCase()}${rows ? `. ${rowsTip(rows)}` : ""}`, href: runHref(r) };
+                return { status: r.status, rows, title: `${r.automated ? "🤖 " : ""}${runTitle(r.run, spelling)}: ${STATUS_LABEL[r.status].toLowerCase()}${rows ? `. ${rowsTip(rows)}` : ""}`, href: runHref(r) };
               })}
               max={30}
             />
@@ -119,10 +122,10 @@ export async function CaseHistory({ caseId, charter, canRun = true }: { caseId: 
                     </td>
                     <td className="px-4 py-2">
                       <Link href={runHref(r)} className="hover:underline">
-                        <span className="font-mono text-xs text-slate-500">R{r.run.number}</span> {r.run.name}
+                        <RunName run={r.run} spelling={spelling} />
                       </Link>
                       <p className="text-xs text-slate-500">
-                        {[r.run.release && `Release ${r.run.release}`, r.run.build && `build ${r.run.build}`, ...fieldBits(r.run), r.run.environment, `case v${r.caseVersion}`].filter(Boolean).join(" · ")}
+                        {[r.run.release && `Release ${r.run.release}`, ...fieldBits(r.run), r.run.environment, `case v${r.caseVersion}`].filter(Boolean).join(" · ")}
                       </p>
                       {r.comment && <p className="mt-0.5 text-xs text-slate-600">“{r.comment}”</p>}
                       {session && <SessionLogDetails notes={session} elapsedSec={r.elapsedSec} />}

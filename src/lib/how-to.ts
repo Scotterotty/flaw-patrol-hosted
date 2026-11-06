@@ -466,7 +466,7 @@ export const HOW_TO: HowToTask[] = [
       { text: "In an umbrella, pick **What kind of run?**, like **Smoke test**. (**Release candidate** and **Bug bash** open their own boxes.)", see: "The kind you picked, with **Change** next to it.", target: "run-kind" },
       { text: "Under **What to run**, pick **Whole Case library**, **A suite**, or **Pick cases** to search and tick them.", see: "Your choice lit up, with the suite list or the cases to tick.", target: "run-what" },
       { text: "Under **Test cycle**, tick where the run goes. **＋ New test cycle** makes one right there.", see: "The test cycle ticked.", target: "run-where" },
-      { text: "Fill in **Run name**, **Release**, **Build**, **Environment** and **Assign every case to** if you need them. All are optional.", see: "A suggested name in gray if you leave the name blank.", target: "run-name" },
+      { text: "Fill in **Run name**, **Release**, **Version** and, under **More details**, **Environment** and **Assign every case to** if you need them. All are optional.", see: "A suggested name in gray if you leave the name blank.", target: "run-name" },
       { text: "Press **Create and test now** to start testing yourself, or **Create run** to start it for others (it names the kind, like **Create smoke test**).", see: "The runner open on the first case, or the run's page.", target: "run-go", saves: true },
     ],
     next: "test-case",
@@ -632,6 +632,21 @@ export const HOW_TO: HowToTask[] = [
   },
 
   {
+    id: "run-version",
+    group: "Run tests",
+    title: "Show which version a run tests",
+    sub: "Runs are named by their version, so a hotfix build stands apart",
+    words: "version build hotfix rc release candidate run number r1 which build label",
+    steps: [
+      { text: "In the left menu, under **Testing**, press **Test runs**.", see: "Every run, with its version in gray after its name, like **Smoke test v2.4.2**.", target: "menu-runs" },
+      { text: "Press **Create a run**.", see: "The **Create a run** box.", target: "run-create" },
+      { text: "Type the build you're testing in **Version**, like 2.4.2. Testing a hotfix? Start a new run with the hotfix's version.", see: "Every list, report and bug line shows the run by that version. A run without one shows the day it started.", target: "run-version", type: true },
+      { text: "For a run that's already going, click its name on **Test runs**.", see: "The run's page. With no version yet, **Add version** sits next to its name.", target: "run-row" },
+      { text: "Open **More** at the top right and press **Edit details**. (**Add version** opens the same box.)", see: "The **Edit run details** box with **Version**.", target: "run-more" },
+    ],
+    next: "edit-run",
+  },
+  {
     id: "edit-run",
     group: "Run tests",
     title: "Change, export or delete a run",
@@ -641,7 +656,7 @@ export const HOW_TO: HowToTask[] = [
       { text: "In the left menu, under **Testing**, press **Test runs**.", see: "The active runs.", target: "menu-runs" },
       { text: "Click the run's name.", see: "The run's page.", target: "run-row" },
       { text: "Open **More** at the top right.", see: "**Edit details**, then **Spreadsheet** with **Download as Excel** and **Send to a Google Sheet**, then **Close run**.", target: "run-more" },
-      { text: "Press **Edit details**.", see: "The **Edit run details** box: **Run name**, **Release**, **Environment**, **Build** and **Notes**.", target: "run-edit" },
+      { text: "Press **Edit details**.", see: "The **Edit run details** box: **Run name**, **Release**, **Environment**, **Version** and **Notes**.", target: "run-edit" },
       { text: "Change what's wrong and press **Save**. Results stay as they are.", see: "The run with its new details.", target: "run-edit-save", saves: true },
       { text: "To save a copy, open **More** again.", see: "**Download as Excel** under **Spreadsheet**.", target: "run-more" },
       { text: "Press **Download as Excel**.", see: "An .xlsx file of the run with every result.", target: "run-export" },
@@ -1133,7 +1148,7 @@ export const HOW_TO: HowToTask[] = [
     words: "run fields custom field firmware api version region extra details",
     steps: [
       { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
-      { text: "Find **Run fields** and press **Change**.", see: "Release, Build and Environment, plus your own fields.", target: "settings-run-fields" },
+      { text: "Find **Run fields** and press **Change**.", see: "Release, Version and Environment, plus your own fields.", target: "settings-run-fields" },
       { text: "Press **＋ Add a field**.", see: "**Field name**, **Type** and three tick boxes.", target: "run-field-add" },
       { text: "Type its name, like Firmware. Pick **Text** or **Pick from a list** (then type the choices). Tick whether it's required, shows on **Release status**, and goes into Jira bugs.", see: "Your field filled in.", target: "run-field-name", type: true },
       { text: "Press **Add field**.", see: "The field in the list. **Create a run** now asks for it.", target: "run-field-save", saves: true },

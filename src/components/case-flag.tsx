@@ -143,9 +143,9 @@ export function CaseFlagButton({
               {flag.runNumber && (
                 <>
                   {" "}
-                  in{" "}
+                  while{" "}
                   <Link href={`/p/${projectKey}/runs/${flag.runNumber}`} className="hover:underline">
-                    run R{flag.runNumber}
+                    testing a run
                   </Link>
                 </>
               )}

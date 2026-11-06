@@ -108,7 +108,7 @@ export async function startExploring(caseId: string, input: z.input<typeof start
       },
       { timeout: 60_000 },
     );
-    await logActivity({ actor: user, kind: "run", action: runs.length === 1 ? `Started exploring R${runs[0].number} "${name}"` : `Started ${runs.length} exploring runs "${name}"`, project });
+    await logActivity({ actor: user, kind: "run", action: runs.length === 1 ? `Started exploring "${name}"` : `Started ${runs.length} exploring runs "${name}"`, project });
     for (const r of runs) await alertRunStarted(project, r.runId, user.name ?? user.email).catch(() => {});
     revalidatePath(`/p/${project.key}`, "layout");
     const mine = runs.find((r) => r.userId === user.id) ?? null;

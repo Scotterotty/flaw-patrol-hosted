@@ -1,4 +1,5 @@
 import "server-only";
+import { runTitle } from "./run-label";
 import { db } from "./db";
 import { caseKey } from "./format";
 import { foeLine, foundRewards, generateQuest, questName, RARITY_LABEL, sentence, walkOrder, type Completion, type QuestMap } from "./quest";
@@ -58,7 +59,7 @@ function quest<R extends { id: string; questCatalog: number; _count: { entries: 
 
 export type QuestSummary = Awaited<ReturnType<typeof questsFor>>[number];
 
-const RUN_SELECT = { id: true, number: true, name: true, state: true, release: true, automated: true, questCatalog: true, createdAt: true, _count: { select: { entries: true } } } as const;
+const RUN_SELECT = { id: true, number: true, name: true, build: true, state: true, release: true, automated: true, questCatalog: true, createdAt: true, _count: { select: { entries: true } } } as const;
 
 /** Quests for a project's runs, newest first, with progress and the rewards found so far (unfound ones never leave the server). Automated runs never go on a quest. */
 export async function questsFor(projectId: string, take = 60) {
@@ -242,7 +243,7 @@ export async function nearestItem(userId: string, isAdmin: boolean) {
   for (const r of runs) {
     const q = quest(r, done.get(r.id) ?? []);
     const next = q.map.events.find((e) => e.kind === "item" && e.step > q.position);
-    if (next && (!best || next.step - q.position < best.away)) best = { projectKey: r.project.key, runNumber: r.number, runName: r.name, away: next.step - q.position };
+    if (next && (!best || next.step - q.position < best.away)) best = { projectKey: r.project.key, runNumber: r.number, runName: runTitle(r), away: next.step - q.position };
   }
   return { hasRuns: runs.length > 0, best };
 }

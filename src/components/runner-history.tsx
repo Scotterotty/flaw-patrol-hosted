@@ -100,8 +100,8 @@ export function RunnerHistory({
                   key={r.id}
                   type="button"
                   aria-pressed={open && r.id === selectedId}
-                  aria-label={`R${r.runNumber} ${STATUS_LABEL[r.status].toLowerCase()}, ${r.ago}`}
-                  title={`R${r.runNumber} ${r.runName}: ${STATUS_LABEL[r.status]}, ${r.ago}${r.rows ? `. ${rowsTip(r.rows)}` : ""}`}
+                  aria-label={`${[r.runName, r.runTag].filter(Boolean).join(" ")} ${STATUS_LABEL[r.status].toLowerCase()}, ${r.ago}`}
+                  title={`${[r.runName, r.runTag].filter(Boolean).join(" ")}: ${STATUS_LABEL[r.status]}, ${r.ago}${r.rows ? `. ${rowsTip(r.rows)}` : ""}`}
                   onClick={() => {
                     toggle(true);
                     setSelectedId(r.id === selectedId && open ? null : r.id);
@@ -138,7 +138,7 @@ export function RunnerHistory({
                 <button type="button" onClick={() => setSelectedId(r.id)} className="min-w-0 flex-1 text-left">
                   <span className="block text-slate-500">{r.ago}</span>
                   <span className="block truncate text-sm text-slate-800">
-                    <span className="font-mono text-xs text-slate-500">R{r.runNumber}</span> {r.runName}
+                    {r.runName}{r.runTag && <> <span className="font-mono text-xs text-slate-500">{r.runTag}</span></>}
                   </span>
                   {r.meta && <span className="block truncate text-slate-500">{r.meta}</span>}
                 </button>
@@ -178,7 +178,7 @@ function Detail({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <Link href={`/p/${projectKey}/runs/${run.runNumber}/execute?entry=${run.entryId}`} className="text-sm font-medium text-slate-900 hover:underline">
-            <span className="font-mono text-xs text-slate-500">R{run.runNumber}</span> {run.runName}
+            {run.runName}{run.runTag && <> <span className="font-mono text-xs text-slate-500">{run.runTag}</span></>}
           </Link>
           <p className="text-slate-500">
             <span title={run.at}>{run.ago}</span> · {run.testerName || "Someone"}

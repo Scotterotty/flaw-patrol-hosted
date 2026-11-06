@@ -118,7 +118,7 @@ export function SheetWhere({ cycles, value, onChange }: { cycles: SheetCycle[]; 
           >
             {runs.map((r) => (
               <option key={`${r.cycle.id}:${r.number}`} value={`${r.cycle.id}:${r.number}`}>
-                R{r.number} {r.name} · {r.tested} of {r.total} tested{many ? ` · ${r.cycle.name}` : ""}
+                {r.title} · {r.tested} of {r.total} tested{many ? ` · ${r.cycle.name}` : ""}
               </option>
             ))}
           </Select>

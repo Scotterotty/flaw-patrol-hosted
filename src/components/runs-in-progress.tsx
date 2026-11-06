@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { RunName } from "@/components/run-name";
+import { runTitle } from "@/lib/run-label";
 import { RunKindTag } from "@/components/run-kind-tag";
 import { StatusBar } from "@/components/status";
 import { LinkButton } from "@/components/ui";
@@ -16,6 +18,7 @@ export type ProgressRun = {
   id: string;
   number: number;
   name: string;
+  build: string;
   release: string | null;
   createdAt: Date;
   counts: ReturnType<typeof countStatuses>;
@@ -68,14 +71,14 @@ export function RunsInProgressList({ rows, kinds, canExecute, spelling }: { rows
                   href={`/p/${r.projectKey}/runs/${r.number}`}
                   className="min-w-0 truncate font-medium text-slate-900 after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-accent-500 focus-visible:after:ring-inset"
                 >
-                  <span className="font-mono text-xs text-slate-500">R{r.number}</span> {r.name}
+                  <RunName run={r} spelling={spelling} />
                   {r.cycle && <span className="ml-1.5 text-xs font-normal text-slate-500">in {r.cycle.name}</span>}
                 </Link>
               </span>
               <span className="relative z-10 flex shrink-0 items-center gap-2">
                 <RunKindTag kinds={kinds} kind={r.shown} live={lv?.type === "bash" && lv.live} />
                 {button && (
-                  <LinkButton variant="primary" className={GO_CLASS} href={button.href} aria-label={`${button.label} R${r.number} ${r.name}`} data-howto={button.label === "Join the bash" ? "bash-join" : undefined}>
+                  <LinkButton variant="primary" className={GO_CLASS} href={button.href} aria-label={`${button.label} ${runTitle(r, spelling)}`} data-howto={button.label === "Join the bash" ? "bash-join" : undefined}>
                     <span aria-hidden>▶</span> {button.label}
                   </LinkButton>
                 )}

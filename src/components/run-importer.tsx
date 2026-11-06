@@ -14,7 +14,7 @@ import { Button, Card, cx, ErrorText, Field, Input, Select } from "./ui";
 type Preview = Extract<Awaited<ReturnType<typeof previewRunImport>>, { ok: true }>;
 const today = () => new Date().toISOString().slice(0, 10);
 
-type ActiveRun = { id: string; number: number; name: string; total: number; tested: number };
+type ActiveRun = { id: string; number: number; name: string; title: string; total: number; tested: number };
 const WORD: Record<string, string> = { PASSED: "Passed", FAILED: "Failed", BLOCKED: "Blocked", RETEST: "Retest", SKIPPED: "Skipped" };
 
 /**
@@ -217,7 +217,7 @@ export function RunImporter({
                 >
                   {runs.map((r) => (
                     <option key={r.id} value={r.id}>
-                      R{r.number} {r.name} · {r.tested} of {r.total} tested
+                      {r.title} · {r.tested} of {r.total} tested
                     </option>
                   ))}
                 </Select>
@@ -515,7 +515,7 @@ function Tile({ label, value, sub, tone }: { label: string; value: number; sub?:
 
 function runLabel(runs: ActiveRun[], id: string) {
   const r = runs.find((x) => x.id === id);
-  return r ? `R${r.number} ${r.name}` : "the run";
+  return r ? r.title : "the run";
 }
 
 function addLabel(n: number) {

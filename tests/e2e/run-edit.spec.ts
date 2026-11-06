@@ -23,6 +23,8 @@ test("a run's details can be edited after it starts", async ({ page }) => {
   await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
   await expect(page.getByText(/Release 2\.4\.0-rc1/)).toBeVisible();
+  // ver_189: no version yet, so the title offers to add one.
+  await expect(page.getByTestId("run-add-version")).toBeVisible();
 
   await page.getByRole("button", { name: "More" }).click();
   await page.getByRole("button", { name: "Edit details" }).click();
@@ -30,13 +32,15 @@ test("a run's details can be edited after it starts", async ({ page }) => {
   await expect(dialog.getByLabel("Run name")).toHaveValue("Typo run");
   await dialog.getByLabel("Run name").fill("Smoke for RC2");
   await dialog.getByLabel("Release", { exact: true }).fill("2.4.0-rc2");
-  await dialog.getByLabel("Build").fill("#1490");
+  await dialog.getByLabel("Version", { exact: true }).fill("#1490");
   await dialog.getByLabel("CSP version").fill("3.8.1");
   await dialog.getByLabel("Environment").fill("Staging");
   await dialog.getByLabel("Notes").fill("Rerun after the hotfix");
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole("heading", { name: /Smoke for RC2/ })).toBeVisible();
-  await expect(page.getByText(/Release 2\.4\.0-rc2 · .*Build #1490 · CSP 3\.8\.1 · Staging/)).toBeVisible();
+  // The version sits next to the name now, not in the line under it.
+  await expect(page.getByRole("heading", { name: /Smoke for RC2 #1490/ })).toBeVisible();
+  await expect(page.getByTestId("run-add-version")).toHaveCount(0);
+  await expect(page.getByText(/Release 2\.4\.0-rc2 · .*CSP 3\.8\.1 · Staging/)).toBeVisible();
   await expect(page.getByText("Rerun after the hotfix")).toBeVisible();
 });

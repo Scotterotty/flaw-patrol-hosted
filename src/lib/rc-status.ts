@@ -80,7 +80,7 @@ export type RcBug = {
   fromBash?: boolean;
 };
 
-export type RcRunChoice = { id: string; name: string; project: string; projectKey: string; number: number; release: string; on: boolean };
+export type RcRunChoice = { id: string; name: string; project: string; projectKey: string; number: number; /** Its version, or the day it started (ver_189). */ tag: string; release: string; on: boolean };
 
 /** Runs someone unticked from a release, and runs from elsewhere they added to it. */
 export type RcPick = { hide: string[]; add: string[]; /** Include bug bashes, off unless switched on. */ bashes?: boolean };

@@ -112,7 +112,7 @@ test("a tester starts from Your work, and the runner keeps every step result", a
   await expect(work.getByText("Smoke", { exact: true })).toBeVisible();
   await expect(work.getByTestId("your-work-total")).toHaveText("2 cases waiting in 1 run");
   await expect(
-    work.getByText(`· ${NAME} Web RC1 · Run 1 · 2 cases waiting`),
+    work.getByText(new RegExp(`· ${NAME} Web RC1 · .+ · 2 cases waiting`)),
   ).toBeVisible();
   // Only one umbrella: nothing to reorder. (Its ⋯ menu shows since ver_96's open permissions.)
   await expect(page.getByRole("region", { name: `${NAME} umbrella` }).locator('[draggable="true"]')).toHaveCount(0);
@@ -174,7 +174,7 @@ test("a tester starts from Your work, and the runner keeps every step result", a
   // Back home: one case left.
   await page.goto("/");
   await expect(
-    page.getByText(`· ${NAME} Web RC1 · Run 1 · 1 case waiting`),
+    page.getByText(new RegExp(`· ${NAME} Web RC1 · .+ · 1 case waiting`)),
   ).toBeVisible();
 });
 

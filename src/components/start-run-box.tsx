@@ -18,6 +18,7 @@ import { CantFindCase, FolderList, inFolder } from "./folder-list";
 import { PlatformPicker } from "./platform-picker";
 import { firstSheetTarget, handOffSheet, SheetPick, SheetWhere, type PickedSheet, type SheetTarget } from "./start-run-sheet";
 import { Button, cx, ErrorText, Field, InfoTip, Input, Select, Textarea } from "./ui";
+import { runTitle } from "@/lib/run-label";
 
 type What = "all" | "suite" | "cases" | "sheet";
 export type RunBoxPreset = { what: "all" } | { what: "suite"; suiteId: string } | { what: "cases"; caseIds: string[] } | { what: "sheet" };
@@ -249,6 +250,7 @@ function Form({
   const [more, setMore] = useState(false);
   const [assignee, setAssignee] = useState("");
   const [release, setRelease] = useState(initialRelease ?? "");
+  const [build, setBuild] = useState("");
   // "Use each test cycle's own" release, when the ticked test cycles have different ones.
   const [cycleRelease, setCycleRelease] = useState(false);
   // Bumped as run fields are typed in, so the still-needed list keeps up.
@@ -332,7 +334,7 @@ function Form({
   const sheetTodo: [boolean, string][] = [
     ...(askKind ? [todo[0]] : []),
     [!!sheet, sheet ? `${sheet.fileName}` : "Pick your sheet"],
-    [!!sheetCycle, sheetRun ? `Updates R${sheetRun.number} ${sheetRun.name}` : sheetCycle ? `A new run in ${sheetCycle.name}` : "Pick where it goes"],
+    [!!sheetCycle, sheetRun ? `Updates ${sheetRun.title}` : sheetCycle ? `A new run in ${sheetCycle.name}` : "Pick where it goes"],
   ];
   const ready = isSheet ? sheetTodo.every(([ok]) => ok) : todo.every(([ok]) => ok);
   const nextSheet = () => {
@@ -362,7 +364,7 @@ function Form({
         name: name.trim() || autoName,
         release: release.trim(),
         cycleRelease: !release.trim() && cycleRelease,
-        build: more ? value("rb-build") : "",
+        build: build.trim(),
         // Required fields show outside "more", so they're always sent.
         fields: Object.fromEntries(opts.runFields.filter((f) => more || f.required).map((f) => [f.id, value(fieldId(f))])),
         environment: more ? value("rb-env") : "",
@@ -373,7 +375,7 @@ function Form({
       if (!res.ok) return setError(res.error);
       const [first] = res.runs;
       // The box stays up with "Opening it…" until the next page shows.
-      setOpening({ what: res.runs.length === 1 ? `R${first.number} ${name}` : `${res.runs.length} ${session ? "sessions" : "runs"}`, cases: count, runs: res.runs.length });
+      setOpening({ what: res.runs.length === 1 ? runTitle({ name: name.trim() || autoName, build }) : `${res.runs.length} ${session ? "sessions" : "runs"}`, cases: count, runs: res.runs.length });
       // Handed to someone else: land on the run page with a link to send them.
       // "Opening…" lasts until the next page replaces this one. Already on that page (a runs
       // list): it just updates, so the box goes now.
@@ -780,18 +782,19 @@ function Form({
         >
           <Input id="rb-release" aria-label="Release" value={release} onChange={(e) => setRelease(e.target.value)} placeholder="e.g. 2.1" />
         </Field>
+        {/* Version up front (ver_189): it's how every list names the run, in place of "R1". */}
+        <Field label="Version (optional)" htmlFor="rb-build" hint="The build you're testing. Runs show it instead of a run number.">
+          <Input id="rb-build" aria-label="Version" data-howto="run-version" value={build} onChange={(e) => setBuild(e.target.value)} placeholder="e.g. 2.4.2 (812)" maxLength={120} />
+        </Field>
         <RunFieldInputs fields={opts.runFields.filter((f) => f.required)} prefix="rb" />
       </div>
 
       <div>
         <button type="button" className="text-xs text-slate-600 hover:underline" aria-expanded={more} onClick={() => setMore((m) => !m)}>
-          {more ? "▾" : "▸"} More details (optional): {["build", ...opts.runFields.filter((f) => !f.required).map((f) => (f.id === "csp" ? "CSP" : f.name)), "environment, assign to, notes"].join(", ")}
+          {more ? "▾" : "▸"} More details (optional): {[...opts.runFields.filter((f) => !f.required).map((f) => (f.id === "csp" ? "CSP" : f.name)), "environment, assign to, notes"].join(", ")}
         </button>
         {more && (
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
-            <Field label="Build" htmlFor="rb-build">
-              <Input id="rb-build" placeholder="The build you're testing" />
-            </Field>
             <RunFieldInputs fields={opts.runFields.filter((f) => !f.required)} prefix="rb" />
             <Field label="Environment" htmlFor="rb-env">
               <Input id="rb-env" placeholder="Where you're testing" />

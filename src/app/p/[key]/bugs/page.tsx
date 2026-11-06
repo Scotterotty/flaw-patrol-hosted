@@ -1,4 +1,5 @@
 import { AutoFilterForm } from "@/components/auto-filter-form";
+import { runTitle } from "@/lib/run-label";
 import type { Prisma } from "@prisma/client";
 import Link from "next/link";
 import { LocalDefectStatus, RefreshJiraButton, SendToJiraButton } from "@/components/defect-controls";
@@ -49,9 +50,9 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
     take: 300,
     include: {
       links: {
-        include: { result: { select: { createdAt: true, entryId: true, run: { select: { number: true, name: true, release: true } }, entry: { select: { title: true, testCase: { select: { number: true, project: { select: { key: true } } } } } } } } },
+        include: { result: { select: { createdAt: true, entryId: true, run: { select: { number: true, name: true, build: true, createdAt: true, release: true } }, entry: { select: { title: true, testCase: { select: { number: true, project: { select: { key: true } } } } } } } } },
       },
-      checks: { orderBy: { createdAt: "desc" }, take: 1, select: { outcome: true, byName: true, createdAt: true, run: { select: { number: true } } } },
+      checks: { orderBy: { createdAt: "desc" }, take: 1, select: { outcome: true, byName: true, createdAt: true, run: { select: { number: true, name: true, build: true, createdAt: true } } } },
     },
   });
 
@@ -199,7 +200,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
                         <p key={l.result.entryId}>
                           <Link href={`/p/${project.key}/runs/${l.result.run.number}/execute?entry=${l.result.entryId}`} className="hover:underline">
                             {caseKey(l.result.entry.testCase.project.key, l.result.entry.testCase.number)}
-                            {l.stepIndex !== null && ` step ${l.stepIndex + 1}`} in R{l.result.run.number}
+                            {l.stepIndex !== null && ` step ${l.stepIndex + 1}`} in {runTitle(l.result.run, spelling)}
                           </Link>
                           {l.result.run.release && <span className="text-slate-500"> · {l.result.run.release}</span>}
                         </p>

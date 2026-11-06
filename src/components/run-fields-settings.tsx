@@ -34,7 +34,7 @@ export function RunFieldsPanel({ groupId, umbrella, fields: initial, canEdit }: 
         <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
           {[
             ["Release", "Groups runs by release. Leave it blank for other testing."],
-            ["Build", ""],
+            ["Version", "The build you're testing. Runs show it in place of a run number."],
             ["Environment", ""],
           ].map(([n, sub]) => (
             <li key={n} className="flex items-center gap-2 px-3 py-2">

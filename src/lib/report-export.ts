@@ -1,4 +1,5 @@
 import type { WrapUp } from "./wrap-ups";
+import { runTag } from "./run-label";
 import { WRAP_HEADING, WRAP_NOTE, wrapLine, wrapUpsRows } from "./wrap-up-text";
 import "server-only";
 import ExcelJS from "exceljs";
@@ -62,7 +63,8 @@ export type ExportCtx = {
 };
 
 const RUN_TYPE = { manual: "Manual", upload: "Automated (uploaded)", github: "Automated (GitHub)" } as const;
-const runName = (ctx: ExportCtx, r: Pick<RunRow, "projectKey" | "number">) => (ctx.umbrella ? `${r.projectKey} R${r.number}` : `R${r.number}`);
+/** The run's version (or start day), with its test cycle in an umbrella (ver_189: never "R12"). */
+const runName = (ctx: ExportCtx, r: Pick<RunRow, "projectKey" | "name" | "build" | "createdAt">) => [ctx.umbrella ? r.projectKey : "", runTag(r) || r.name].filter(Boolean).join(" ");
 export const outcomes = (c: StatusCounts) => STATUSES.filter((s) => c[s]).map((s) => `${c[s]} ${STATUS_LABEL[s].toLowerCase()}`).join(", ");
 
 /** One tab as a table: header row first. Tabs that don't apply give null. */
@@ -118,11 +120,11 @@ export async function reportTable(ctx: ExportCtx, view: ExportTab, f: ReportFilt
           s.blocked,
           pct(s.failRate),
           s.streak,
-          s.lastFailed ? (ctx.umbrella ? `${s.lastFailed.projectKey} R${s.lastFailed.run}` : `R${s.lastFailed.run}`) : "",
+          s.lastFailed ? (ctx.umbrella ? `${s.lastFailed.projectKey} ${s.lastFailed.label}` : s.lastFailed.label) : "",
           s.lastFailed?.release ?? "",
           s.lastFailed?.at.toISOString() ?? "",
           s.bugs.join(", "),
-          s.history.map((h) => `R${h.run} ${STATUS_LABEL[h.status].toLowerCase()}`).join("; "),
+          s.history.map((h) => `${h.label} ${STATUS_LABEL[h.status].toLowerCase()}`).join("; "),
         ]),
       ],
     };
@@ -138,7 +140,7 @@ export async function reportTable(ctx: ExportCtx, view: ExportTab, f: ReportFilt
           x.title,
           x.status,
           scale.labels[x.severity as keyof typeof scale.labels] ?? x.severity,
-          x.foundIn.map((i) => `${i.caseKey}${i.step !== null ? ` step ${i.step}` : ""} R${i.run}${i.release ? ` ${i.release}` : ""}`).join("; "),
+          x.foundIn.map((i) => `${i.caseKey}${i.step !== null ? ` step ${i.step}` : ""} ${i.label}${i.release ? ` ${i.release}` : ""}`).join("; "),
           x.url,
           x.createdAt.toISOString(),
         ]),
@@ -172,7 +174,7 @@ export async function reportTable(ctx: ExportCtx, view: ExportTab, f: ReportFilt
             i.note.text,
             i.note.defect ? (i.note.defect.externalKey ?? `D-${i.note.defect.number}`) : "",
             i.tester,
-            `R${i.run}`,
+            i.runLabel,
             i.release,
             clock(i.note.at),
             i.at.toISOString(),
@@ -207,7 +209,7 @@ export async function reportTable(ctx: ExportCtx, view: ExportTab, f: ReportFilt
   return {
     label,
     rows: [
-      ["Run", "Name", ...(ctx.umbrella ? ["Test cycle", "Platform"] : []), "Type", "Suite", "Suite version", "Release", "Build", ...cols.map((c) => c.name), "Started", "State", "Cases", "Tested", "Passed", "Failed", "Blocked", "Retest", "Skipped", "In progress", "Untested", "Pass rate", "Bugs"],
+      ["Run", "Name", ...(ctx.umbrella ? ["Test cycle", "Platform"] : []), "Type", "Suite", "Suite version", "Release", "Version", ...cols.map((c) => c.name), "Started", "State", "Cases", "Tested", "Passed", "Failed", "Blocked", "Retest", "Skipped", "In progress", "Untested", "Pass rate", "Bugs"],
       ...runs.map((r) => {
         const t = totals(r.counts);
         const vals = runValues(r, defs);

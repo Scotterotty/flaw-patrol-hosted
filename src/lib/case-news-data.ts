@@ -1,4 +1,5 @@
 import "server-only";
+import { runTitle } from "./run-label";
 import { changeSummary, stepChanges, type CaseNews } from "./case-news";
 import { db } from "./db";
 import type { ExpandedStep } from "./steps";
@@ -18,7 +19,7 @@ export async function caseNewsForRun(run: { id: string; createdAt: Date }, entri
   const earlier = await db.runEntry.findMany({
     where: { caseId: { in: caseIds }, runId: { not: run.id }, run: { createdAt: { lt: run.createdAt } } },
     orderBy: { run: { createdAt: "desc" } },
-    select: { caseId: true, steps: true, preconditions: true, caseVersion: true, run: { select: { number: true, createdAt: true } }, _count: { select: { results: true } } },
+    select: { caseId: true, steps: true, preconditions: true, caseVersion: true, run: { select: { number: true, name: true, build: true, createdAt: true } }, _count: { select: { results: true } } },
   });
   const tested = new Set(earlier.filter((e) => e._count.results > 0).map((e) => e.caseId));
   for (const c of await db.testCase.findMany({ where: { id: { in: caseIds }, runBefore: true }, select: { id: true } })) tested.add(c.id);
@@ -44,7 +45,7 @@ export async function caseNewsForRun(run: { id: string; createdAt: Date }, entri
     const edit = [...mine].reverse().find((v) => v.version > last.caseVersion && v.version <= e.caseVersion);
     out.set(e.id, {
       kind: "updated",
-      since: { run: last.run.number, at: last.run.createdAt.toISOString(), version: last.caseVersion },
+      since: { run: last.run.number, label: runTitle(last.run), at: last.run.createdAt.toISOString(), version: last.caseVersion },
       by: edit?.authorName || "someone",
       at: (edit?.createdAt ?? run.createdAt).toISOString(),
       what: changeSummary(now, steps, removed, pre),

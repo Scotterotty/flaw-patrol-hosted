@@ -1,4 +1,5 @@
 import { countsForRelease, kindLabel, parseRunKinds, shownKind } from "@/lib/run-kinds";
+import { runTag } from "@/lib/run-label";
 import "server-only";
 import { stillBrokenByPlatform } from "@/lib/regression-data";
 
@@ -103,7 +104,7 @@ export async function rcStatus(
   const fetched = await db.testRun.findMany({
     // Automation uploads aren't columns: they're each client's Automation line.
     where: { automated: false, ...projectScope(user), ...(scope && !scope.addAnywhere && { projectId: { in: scope.projectIds } }) },
-    select: { id: true, number: true, name: true, release: true, createdAt: true, projectId: true, kind: true, project: { select: { key: true, name: true } } },
+    select: { id: true, number: true, name: true, build: true, release: true, createdAt: true, projectId: true, kind: true, project: { select: { key: true, name: true } } },
     orderBy: { createdAt: "desc" },
     take: 500,
   });
@@ -116,6 +117,7 @@ export async function rcStatus(
     project: r.project.name,
     projectKey: r.project.key,
     number: r.number,
+    tag: runTag(r),
     release: r.release.trim(),
     on: r.release && releaseKey(r.release) === key && countsForRelease(r.kind) ? !pick.hide.includes(r.id) : pick.add.includes(r.id),
   });

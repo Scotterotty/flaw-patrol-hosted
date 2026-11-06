@@ -1,4 +1,5 @@
 import "server-only";
+import { runTitle } from "./run-label";
 import { sortTags } from "./tags";
 import { Prisma } from "@prisma/client";
 import { NOTE_KINDS, parsePersona, parseSessionLog, type NoteKind, type PersonaInfo, type SessionNote } from "./charter";
@@ -20,6 +21,8 @@ export type Finding = {
   note: SessionNote;
   tester: string;
   run: number;
+  /** "Smoke test v2.4.2" (ver_189). */
+  runLabel: string;
   release: string;
   at: Date;
   answer: { text: string; by: string; at: Date } | null;
@@ -45,7 +48,7 @@ export async function sessionFindings(projectId: string, f: ReportFilters, ff: F
       elapsedSec: true,
       testerName: true,
       createdAt: true,
-      run: { select: { number: true, release: true } },
+      run: { select: { number: true, name: true, build: true, createdAt: true, release: true } },
       entry: { select: { title: true, persona: true, testCase: { select: { number: true, title: true, personaId: true } } } },
       answers: { select: { noteId: true, text: true, answeredBy: true, createdAt: true } },
     },
@@ -81,7 +84,7 @@ export async function sessionFindings(projectId: string, f: ReportFilters, ff: F
       }
       if (ff.kinds.length && !ff.kinds.includes(note.kind)) continue;
       if (ff.openOnly && (note.kind !== "question" || answer)) continue;
-      g.items.push({ resultId: r.id, note, tester: r.testerName, run: r.run.number, release: r.run.release, at: r.createdAt, answer });
+      g.items.push({ resultId: r.id, note, tester: r.testerName, run: r.run.number, runLabel: runTitle(r.run), release: r.run.release, at: r.createdAt, answer });
     }
     groups.set(r.caseId, g);
   }

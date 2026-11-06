@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RunName } from "@/components/run-name";
 import { FlagIcon } from "@/components/case-flag";
 import { LIVE_BASH, NOT_BASH_CASE, NOT_BASH_RUN } from "@/lib/bash-cases";
 import { StartRunBox } from "@/components/start-run-box";
@@ -47,7 +48,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
       where: { projectId: project.id, state: "ACTIVE", ...NOT_BASH_RUN },
       orderBy: { number: "desc" },
       take: 50,
-      select: { id: true, number: true, name: true, kind: true, release: true, createdAt: true, entries: { select: { status: true, assigneeId: true, kind: true } } },
+      select: { id: true, number: true, name: true, kind: true, release: true, build: true, createdAt: true, entries: { select: { status: true, assigneeId: true, kind: true } } },
     }),
     db.defect.findMany({
       where: { projectId: project.id, status: "OPEN" },
@@ -236,7 +237,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
                 {finished.map((r) => (
                   <li key={r.number} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
                     <Link href={`/p/${project.key}/runs/${r.number}`} className="min-w-0 flex-1 truncate font-medium text-slate-900 hover:underline">
-                      <span className="font-mono text-xs text-slate-500">R{r.number}</span> {r.name}
+                      <RunName run={r} spelling={spelling} />
                     </Link>
                     <span className="text-xs text-slate-500">
                       All {r.t.total} cases have a result · {pct(r.t.passRate)} passed
@@ -273,7 +274,8 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
                   <li key={r.number}>
                     <Link href={`/p/${project.key}/runs/${r.number}/execute?mine=1`} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-slate-50">
                       <span className="min-w-0 truncate text-slate-800">
-                        {r.shown === EXPLORE_KIND ? <span aria-hidden>🧭 </span> : <span className="font-mono text-xs text-slate-500">{r.shown === "rc" ? "RC" : `R${r.number}`}</span>} {r.name}
+                        {r.shown === EXPLORE_KIND ? <span aria-hidden>🧭 </span> : r.shown === "rc" ? <span className="font-mono text-xs text-slate-500">RC </span> : null}
+                        <RunName run={r} spelling={spelling} />
                       </span>
                       <span className="shrink-0 text-xs font-medium text-accent-700">{r.live?.type === "explore" ? `${r.live.usedMin} of ${r.live.limitMin} min` : `${r.mineLeft} to go`}</span>
                     </Link>

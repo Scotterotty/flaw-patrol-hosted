@@ -78,7 +78,7 @@ test("each check in a shared step gets its own result, and the step's result rol
   // The heading never needs a result: the case passes.
   await expect(page.getByText("from steps: 3 passed")).toBeVisible();
   await page.getByRole("button", { name: /^Save and (finish|next)$/ }).click();
-  await expect(page.getByText(/That was the last case in R1|Passed/).first()).toBeVisible();
+  await expect(page.getByText(/That was the last case in this run|Passed/).first()).toBeVisible();
 
   // The checks are saved with the result.
   const db = new PrismaClient();

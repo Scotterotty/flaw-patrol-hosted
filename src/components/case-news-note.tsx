@@ -22,14 +22,14 @@ export function CaseNewsNote({ news, href }: { news: CaseNews | null | undefined
   return (
     <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950" data-testid="case-news">
       <b>
-        Updated since its last run (R{news.since.run}, {day(news.since.at)}).
+        Updated since its last run ({news.since.label}, {day(news.since.at)}).
       </b>{" "}
       Edited by {news.by} on {day(news.at)}: {news.what.charAt(0).toLowerCase() + news.what.slice(1)}.
       {href && (
         <>
           {" "}
           <Link href={href} className="font-medium text-accent-700 hover:underline">
-            Compare with R{news.since.run}&apos;s version
+            Compare with the version from that run
           </Link>
         </>
       )}

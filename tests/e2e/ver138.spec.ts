@@ -124,7 +124,7 @@ test("a case runs once per row of test data", async ({ page }) => {
   await page.getByRole("group", { name: "Step 2 status" }).getByRole("button", { name: "Passed" }).click();
   await expect(page.getByTestId("test-data-rows-line")).toContainText("2 of 3 rows passed, 1 failed.");
   await page.getByRole("button", { name: /^Save and (finish|next)$/ }).click();
-  await expect(page.getByText(/last case in R1|Every case has a result/)).toBeVisible();
+  await expect(page.getByText(/last case in this run|Every case has a result/)).toBeVisible();
 
   // History: one pip, striped per row, naming the failing row. Reports count the case once.
   await page.goto(`/p/${KEY}/cases/1`);

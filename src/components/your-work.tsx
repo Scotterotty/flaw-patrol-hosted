@@ -9,6 +9,8 @@ export type YourWorkRow = {
   href: string;
   run: string;
   number: number;
+  /** The run's version, or the day it started (ver_189). */
+  tag: string;
   cycle: string;
   left: number;
   started: boolean;
@@ -57,7 +59,7 @@ export function YourWork({ rows, bashes = [], open: savedOpen }: { rows: YourWor
               <span className="font-medium text-slate-900">{w.run}</span>
               <span className="text-sm text-slate-500">
                 {" "}
-                · {w.cycle} · Run {w.number} · {cases(w.left)} waiting
+                · {w.cycle}{w.tag && ` · ${w.tag}`} · {cases(w.left)} waiting
               </span>
             </span>
             <Link

@@ -68,7 +68,7 @@ test("start a run in the test cycle you're in, hand it off, close it with the ne
   await box.getByRole("button", { name: /^Create (run|smoke test)$/ }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${web}/runs/1\\?handed=`));
   const note = page.getByTestId("hand-off");
-  await expect(note).toContainText("Started R1 with 1 case for Dana Lead. No email goes out, so send them the link.");
+  await expect(note).toContainText(/Started .+ with 1 case for Dana Lead\. No email goes out, so send them the link\./);
   await expect(note).toContainText(`/p/${web}/runs/1`);
   await expect(note.getByRole("button", { name: "Copy link for Dana" })).toBeVisible();
   await note.getByRole("button", { name: "Hide this note" }).click();

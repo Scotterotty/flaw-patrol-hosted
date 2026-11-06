@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { runTitle } from "@/lib/run-label";
 import { RunImporter } from "@/components/run-importer";
 import { PageHeader } from "@/components/ui";
 import { db } from "@/lib/db";
@@ -19,10 +20,10 @@ export default async function ImportRunPage({ params, searchParams }: { params: 
     db.testRun.findMany({
       where: { projectId: project.id, state: "ACTIVE", automated: false, ...NOT_BASH_RUN },
       orderBy: { createdAt: "desc" },
-      select: { id: true, number: true, name: true, entries: { select: { status: true } } },
+      select: { id: true, number: true, name: true, build: true, createdAt: true, entries: { select: { status: true } } },
     }),
   ]);
-  const runs = active.map((r) => ({ id: r.id, number: r.number, name: r.name, total: r.entries.length, tested: r.entries.filter((e) => e.status !== "UNTESTED").length }));
+  const runs = active.map((r) => ({ id: r.id, number: r.number, name: r.name, title: runTitle(r), total: r.entries.length, tested: r.entries.filter((e) => e.status !== "UNTESTED").length }));
   return (
     // Same width as Test runs, and only the top bar's breadcrumb (ver_54 audit #5, #6).
     <div className="mx-auto max-w-6xl">

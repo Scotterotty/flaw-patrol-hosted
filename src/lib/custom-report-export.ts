@@ -1,4 +1,5 @@
 import "server-only";
+import { runTag } from "./run-label";
 import ExcelJS from "exceljs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -24,7 +25,7 @@ export type Block =
 export type PartOut = { heading: string; from: string; own: string | null; blocks: Block[] };
 
 const sum = (list: StatusCounts[]) => countStatuses(list.flatMap((c) => STATUSES.flatMap((s) => Array(c[s]).fill(s))));
-const runName = (cs: CustomScope, r: { projectKey: string; platform: string; number: number }) => (cs.umbrella ? `${r.platform || r.projectKey} R${r.number}` : `R${r.number}`);
+const runName = (cs: CustomScope, r: { projectKey: string; platform: string; name: string; build: string; createdAt: Date }) => [cs.umbrella ? r.platform || r.projectKey : "", runTag(r)].filter(Boolean).join(" ") || r.name;
 const nothing = (text: string): Block[] => [{ k: "text", text }];
 
 /** The blocks one part turns into. */
@@ -66,7 +67,7 @@ export async function partBlocks(cs: CustomScope, load: Loader, it: ReportPart, 
         return [{ k: "tiles", list: [{ label: "Bugs found", value: String(list.length) }, { label: "Still open", value: String(open) }, { label: "Fixed or closed", value: String(list.length - open) }, { label: "Critical", value: String(list.filter((r) => (scale.critical as string[]).includes(r.severity)).length) }] }];
       }
       if (!list.length) return nothing("No bugs were linked to results in this range.");
-      return [{ k: "table", rows: [["Bug", "Title", "Status", "Severity", "Found in"], ...list.map((d) => [d.key, d.title, d.status, scale.labels[d.severity as keyof typeof scale.labels] ?? d.severity, d.foundIn.map((x) => `${x.caseKey}${x.step !== null ? ` step ${x.step}` : ""} R${x.run}`).join("; ")])] }];
+      return [{ k: "table", rows: [["Bug", "Title", "Status", "Severity", "Found in"], ...list.map((d) => [d.key, d.title, d.status, scale.labels[d.severity as keyof typeof scale.labels] ?? d.severity, d.foundIn.map((x) => `${x.caseKey}${x.step !== null ? ` step ${x.step}` : ""} ${x.label}`).join("; ")])] }];
     }
     case "cases.failing":
     case "cases.flaky": {

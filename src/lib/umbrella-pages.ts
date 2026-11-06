@@ -1,4 +1,5 @@
 import "server-only";
+import { versionText } from "./run-label";
 import { cycleHash } from "./cycle-hash";
 import { db } from "./db";
 import { isSevere } from "./severity";
@@ -39,7 +40,7 @@ export async function shortcutChoices(u: Umbrella, release: string | Promise<str
   const n = (count: number, word: string) => `${count} ${word}`;
   // The release line can still be loading: it's waited for alongside this page's own queries.
   const [runs, saved, rc] = await Promise.all([
-    db.testRun.findMany({ where: { projectId: { in: u.current.map((p) => p.id) }, state: "ACTIVE" }, orderBy: { createdAt: "desc" }, select: { projectId: true, number: true, name: true } }),
+    db.testRun.findMany({ where: { projectId: { in: u.current.map((p) => p.id) }, state: "ACTIVE" }, orderBy: { createdAt: "desc" }, select: { projectId: true, number: true, name: true, build: true, createdAt: true } }),
     db.savedReport.findMany({ where: { projectId: { in: [u.hub.id, ...u.current.map((p) => p.id)] }, shared: true }, select: { projectId: true, name: true, query: true } }),
     release,
   ]);
@@ -69,7 +70,7 @@ export async function shortcutChoices(u: Umbrella, release: string | Promise<str
       section: p.name,
       items: [
         { label: `${short} · Test runs`, sub: n(p._count.runs, "active"), href: `${base}/runs`, icon: "play" },
-        ...runs.filter((r) => r.projectId === p.id).map((r) => ({ label: `${short} · ${r.name}`, sub: `R${r.number} · run in progress`, href: `${base}/runs/${r.number}`, icon: "play" as const })),
+        ...runs.filter((r) => r.projectId === p.id).map((r) => ({ label: `${short} · ${r.name}`, sub: [versionText(r.build), "run in progress"].filter(Boolean).join(" · "), href: `${base}/runs/${r.number}`, icon: "play" as const })),
         { label: `${short} · Reports`, sub: `${short} only`, href: `${base}/reports`, icon: "chart" },
         ...saved.filter((s) => s.projectId === p.id).map((s) => ({ label: `${short} · ${s.name}`, sub: "Saved report", href: `${base}/reports?${s.query}`, icon: "chart" as const })),
         { label: `${short} · Bugs`, sub: "Bugs", href: `${base}/bugs`, icon: "bug" },

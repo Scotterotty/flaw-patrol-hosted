@@ -463,7 +463,7 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
           )}
           {pulled?.already && (
             <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              GitHub run {pulled.run.number}&apos;s results are already in Flaw Patrol as Run {pulled.already.number}. Saving makes a second run.
+              GitHub run {pulled.run.number}&apos;s results are already in Flaw Patrol. Saving makes a second run.
             </p>
           )}
           <section aria-labelledby="au-cycle" className={INSET} data-howto="upload-where">
@@ -547,7 +547,7 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
 
           <div className={cx(INSET, "grid gap-3")}>
             <div className={GRID}>
-              <Field label="Build" htmlFor="au-build">
+              <Field label="Version" htmlFor="au-build">
                 <Input id="au-build" value={build} onChange={(e) => setBuild(e.target.value)} placeholder="The build that was tested" />
               </Field>
               <Field label="Run name" htmlFor="au-name">
@@ -598,11 +598,11 @@ export function Flow({ scope, onClose, pulled, onBack }: { scope: { groupId: str
             This file is already in Flaw Patrol
           </p>
           <p>
-            {files.length === 1 ? files[0].name : "These files"} {files.length === 1 ? "was" : "were"} uploaded as Run {preview.duplicate.number} by {preview.duplicate.by} on {new Date(preview.duplicate.at).toLocaleString()}.
+            {files.length === 1 ? files[0].name : "These files"} {files.length === 1 ? "was" : "were"} uploaded by {preview.duplicate.by} on {new Date(preview.duplicate.at).toLocaleString()}.
           </p>
           <div className="flex flex-wrap gap-2">
             <Link href={`/p/${cycle.key}/runs/${preview.duplicate.number}`} onClick={onClose} className="rounded-md bg-accent-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-700">
-              Open Run {preview.duplicate.number}
+              Open that run
             </Link>
             <Button disabled={pending} onClick={() => save(true)}>
               Upload it again as a new run

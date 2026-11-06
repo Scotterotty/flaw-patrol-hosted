@@ -1,4 +1,6 @@
+import { runTag, runTitle } from "@/lib/run-label";
 import { CrumbName } from "@/components/crumb-name";
+import { RunName } from "@/components/run-name";
 import { caseNewsForRun } from "@/lib/case-news-data";
 import { AutomatedResults, type AutoFileKind, type AutoRow } from "@/components/automated-results";
 import { parseSteps } from "@/lib/automation-files";
@@ -56,12 +58,12 @@ export async function AutomatedRun({ project, runId, who }: { project: { id: str
   const [flaky, jira, earlier, news] = await Promise.all([
     flakyCases({ caseIds }),
     jiraConfigFor(project.id),
-    // Each case's result in the run before this one, for "passed in R13".
+    // Each case's result in the run before this one, for "passed in v2.4.1".
     db.testResult.findMany({
       where: { caseId: { in: caseIds }, run: { projectId: project.id, number: { lt: run.number } } },
       orderBy: { createdAt: "desc" },
       distinct: ["caseId"],
-      select: { caseId: true, status: true, run: { select: { number: true } } },
+      select: { caseId: true, status: true, run: { select: { number: true, name: true, build: true, createdAt: true } } },
     }),
     // New and Updated tests.
     caseNewsForRun(run, run.entries),
@@ -85,7 +87,7 @@ export async function AutomatedRun({ project, runId, who }: { project: { id: str
       durationMs: r?.durationMs ?? null,
       flaky: flaky.get(e.caseId) ?? 0,
       news: news.get(e.id)?.kind,
-      before: prev ? { status: prev.status, run: prev.run.number } : null,
+      before: prev ? { status: prev.status, run: prev.run.number, label: runTag(prev.run, spelling) || prev.run.name } : null,
       files: (r?.attachments ?? []).map((a) => ({ ...a, kind: a.kind as AutoFileKind })),
       steps: parseSteps(r?.testSteps),
       bugs: (r?.defects ?? []).map((l) => ({ id: l.defect.id, number: l.defect.number, title: l.defect.title, externalKey: l.defect.externalKey, externalUrl: l.defect.externalUrl, status: l.defect.externalStatus ?? l.defect.status })),
@@ -99,11 +101,11 @@ export async function AutomatedRun({ project, runId, who }: { project: { id: str
 
   return (
     <div className="mx-auto max-w-6xl">
-      <CrumbName href={`/p/${project.key}/runs/${run.number}`} label={run.name} />
+      <CrumbName href={`/p/${project.key}/runs/${run.number}`} label={runTitle(run, spelling)} />
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="flex flex-wrap items-center gap-2 text-xl font-semibold tracking-tight">
-            <span className="font-mono text-base text-slate-500">R{run.number}</span> {run.name}
+            <RunName run={run} spelling={spelling} className="font-mono text-base font-normal text-slate-500" />
             <Badge tone="violet">🤖 Automated</Badge>
           </h1>
           <p className="mt-1 text-sm text-slate-500">

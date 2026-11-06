@@ -1,5 +1,6 @@
 "use server";
 
+import { runTitle } from "@/lib/run-label";
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -58,7 +59,7 @@ export async function deleteOlderFiles(groupId: string, before: string) {
 }
 
 async function requireRun(runId: string) {
-  const run = await db.testRun.findUnique({ where: { id: runId }, select: { id: true, number: true, projectId: true, project: { select: { key: true, name: true, groupId: true } } } });
+  const run = await db.testRun.findUnique({ where: { id: runId }, select: { id: true, number: true, name: true, build: true, createdAt: true, projectId: true, project: { select: { key: true, name: true, groupId: true } } } });
   if (!run) throw new UserError("That run isn't here anymore.");
   const { user } = await requireProjectAction(run.projectId, "run:delete");
   return { run, user };
@@ -76,7 +77,7 @@ export async function deleteRunFiles(runId: string) {
   return attempt(async () => {
     const { run, user } = await requireRun(runId);
     const res = await deleteMedia({ id: run.id }, user.name ?? user.email);
-    await logActivity({ actor: user, kind: "run", action: `Deleted ${res.files} screenshots, videos and replays from run R${run.number}`, project: { id: run.projectId, name: run.project.name, groupId: run.project.groupId } });
+    await logActivity({ actor: user, kind: "run", action: `Deleted ${res.files} screenshots, videos and replays from run "${runTitle(run)}"`, project: { id: run.projectId, name: run.project.name, groupId: run.project.groupId } });
     revalidatePath(`/p/${run.project.key}/runs/${run.number}`);
     return res;
   });

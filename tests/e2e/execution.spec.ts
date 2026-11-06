@@ -73,7 +73,7 @@ test("suites, runs, Jira bugs and reports", async ({ page }) => {
   // Run against an RC
   await page.getByRole("button", { name: "Create a run" }).click();
   await page.getByLabel("Release", { exact: true }).fill("2.4.0-rc1");
-  await page.getByLabel("Build").fill("#1482");
+  await page.getByLabel("Version", { exact: true }).fill("#1482");
   await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${KEY}/runs/1$`));
   await page.getByRole("link", { name: "Start testing" }).click();
@@ -108,7 +108,7 @@ test("suites, runs, Jira bugs and reports", async ({ page }) => {
   await page.keyboard.press("p");
   await page.getByRole("button", { name: "Save and finish" }).click();
   // The last case offers to close the run.
-  await expect(page.getByText("That was the last case in R1.")).toBeVisible();
+  await expect(page.getByText("That was the last case in this run.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Close run" })).toBeVisible();
 
   // Dashboard
@@ -133,7 +133,7 @@ test("suites, runs, Jira bugs and reports", async ({ page }) => {
   // Case history
   await page.goto(`/p/${KEY}/cases/1`);
   await expect(page.getByText("Execution history")).toBeVisible();
-  await expect(page.getByRole("link", { name: /R1/ }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: /#1482/ }).first()).toBeVisible();
 
   // Suite page shows the RC it tested
   await page.goto(`/p/${KEY}/suites`);

@@ -63,8 +63,8 @@ test("Your work stays short, opens in place, and skips archived test cycles", as
   await expect(work.getByTestId("your-work-total")).toHaveText("5 cases waiting in 4 runs");
   const links = work.getByRole("link", { name: /Test my cases/ });
   await expect(links).toHaveCount(3);
-  // Started runs first, then the newest; plain "Run N" after the test cycle.
-  await expect(work.getByRole("listitem").first()).toContainText(`Started first · ${NAME} Web RC 1 · Run 1 · 1 case waiting`);
+  // Started runs first, then the newest; the run's version (or start day) after the test cycle, never "Run N".
+  await expect(work.getByRole("listitem").first()).toContainText(new RegExp(`Started first · ${NAME} Web RC 1 · .+ · 1 case waiting`));
   await expect(work.getByRole("listitem").nth(1)).toContainText("Fourth newest");
   await expect(links.first()).toHaveAccessibleName("Test my cases in Started first");
   await expect(work.getByText("Left in archive")).toHaveCount(0);

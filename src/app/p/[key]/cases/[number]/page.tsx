@@ -188,9 +188,9 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
               {flag.runNumber && (
                 <>
                   {" "}
-                  in{" "}
+                  while{" "}
                   <Link href={`/p/${project.key}/runs/${flag.runNumber}`} className="underline">
-                    run R{flag.runNumber}
+                    testing a run
                   </Link>
                 </>
               )}

@@ -35,7 +35,7 @@ test("run fields, the RC platform picker, pips that open runs and ✕ on popups"
   // Run fields: only the built-ins until an admin adds one.
   await page.goto(`/g/${groupId}/settings`);
   const row = page.locator("#row-run-fields");
-  await expect(row).toContainText("Release, Build and Environment");
+  await expect(row).toContainText("Release, Version and Environment");
   await row.getByRole("button", { name: "Change" }).click();
   await expect(row.getByText("No extra fields yet.")).toBeVisible();
   await row.getByRole("button", { name: "＋ Add a field" }).click();
@@ -106,7 +106,7 @@ test("run fields, the RC platform picker, pips that open runs and ✕ on popups"
     await db2.$disconnect();
   }
   await page.goto(`/p/${HUB}/cases/${caseNumber}`);
-  const pip = page.getByRole("link", { name: /R1 Smoke: passed\. Open the run/ });
+  const pip = page.getByRole("link", { name: /Smoke.*: passed\. Open the run/ });
   await expect(pip).toBeVisible();
   await pip.click();
   await expect(page).toHaveURL(new RegExp(`/p/${webKey}/runs/1/execute\\?entry=`));

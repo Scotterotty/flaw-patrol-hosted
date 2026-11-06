@@ -31,6 +31,7 @@ test.beforeAll(async () => {
         projectId: cycle.id,
         number: 1,
         name: "R1 Web check",
+        build: "2.4.1",
         createdById: admin.id,
         createdBy: "Demo Admin",
         entries: {
@@ -81,7 +82,7 @@ test("a sheet goes into a run in progress from the umbrella, filling only untest
   await expect(found).toContainText("Not found0");
   const where = page.getByRole("radiogroup", { name: "Where should the results go?" });
   await expect(where.getByRole("radio", { name: /A run in progress/ })).toBeChecked();
-  await expect(where.getByLabel("Run in progress", { exact: true })).toContainText("R1 R1 Web check · 2 of 4 tested");
+  await expect(where.getByLabel("Run in progress", { exact: true })).toContainText("R1 Web check v2.4.1 · 2 of 4 tested");
 
   // ver_177: results that differ use the sheet's by default (one tick), listed folded up with who saved them.
   const into = page.getByRole("region", { name: "Updating the run" });

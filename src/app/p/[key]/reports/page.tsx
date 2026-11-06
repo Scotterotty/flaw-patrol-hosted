@@ -1,4 +1,5 @@
 import { reportRange } from "@/lib/zone-server";
+import { runTitle } from "@/lib/run-label";
 import { AddPartsHere } from "@/components/add-part-bar";
 import { ScrollTabs } from "@/components/scroll-tabs";
 import { TAB_ROW_LINE } from "@/components/tab-row";
@@ -60,13 +61,15 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
   const kindGroup = await umbrellaOf(project);
   const f = parseFilters(sp);
   const library = await libraryProjectIds(project);
-  const [runs, suites, releases, saved, options] = await Promise.all([
+  const [runs, suites, releases, saved, options, runChoices] = await Promise.all([
     runReport(project.id, f),
     db.testSuite.findMany({ where: { projectId: { in: library } }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     releaseOptions(project.id),
     db.savedReport.findMany({ where: { projectId: project.id, OR: [{ shared: true }, { createdById: user.id }] }, orderBy: { name: "asc" } }),
     // Priority, Folder and Tag on every tab but Regression and Session findings.
     view === "regression" || view === "findings" ? null : caseFilterOptions(project.id),
+    // One run's report: picked by its name and version (ver_189), not typed as a number.
+    db.testRun.findMany({ where: { projectId: project.id }, orderBy: { createdAt: "desc" }, take: 100, select: { number: true, name: true, build: true, createdAt: true } }),
   ]);
   const findingOpts = view === "findings" ? await findingOptions(project.id) : null;
   const qs = (extra: Record<string, string | undefined>) => {
@@ -75,7 +78,7 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
     return u.toString();
   };
   const stepCounts = sum(runs.map((r) => r.steps));
-  const scope = f.runNumber ? `Run R${f.runNumber}` : f.release ? `Release ${f.release}` : f.allTime ? "All time" : await reportRange(f.from, f.to, sp, await mySpelling());
+  const scope = f.runNumber ? (runs[0] ? `Run: ${runTitle(runs[0])}` : "One run") : f.release ? `Release ${f.release}` : f.allTime ? "All time" : await reportRange(f.from, f.to, sp, await mySpelling());
 
   // Attach wrap-ups: bug bashes and exploring carried on this report, outside its pass rates.
   const wrapKey = reportsWrapKey(`/p/${project.key}/reports`);
@@ -159,7 +162,14 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
               </option>
             ))}
           </Select>
-          <Input name="run" defaultValue={sp.run ?? ""} placeholder="Run # (optional)" className="w-36" aria-label="Run number" />
+          <Select name="run" defaultValue={sp.run ?? ""} className="w-auto max-w-64" aria-label="Run">
+            <option value="">Any run</option>
+            {runChoices.map((r) => (
+              <option key={r.number} value={String(r.number)}>
+                {runTitle(r)}
+              </option>
+            ))}
+          </Select>
           <CaseFilters f={f} options={options} tagsOnly={findingOpts?.tags} hideAll={view === "regression"} />
           {findingOpts && (
             <>

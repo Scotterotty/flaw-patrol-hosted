@@ -65,7 +65,7 @@ test("automated results go in a new test cycle with no release, and show By buil
   // Every field lines up on the same two columns, in and out of the box.
   const name = box.getByLabel("Name", { exact: true });
   const platform = box.getByLabel("Platform (optional)");
-  const build = box.getByLabel("Build", { exact: true });
+  const build = box.getByLabel("Version", { exact: true });
   const runName = box.getByLabel("Run name");
   expect(Math.abs((await left(name)) - (await left(build)))).toBeLessThan(1);
   expect(Math.abs((await left(platform)) - (await left(runName)))).toBeLessThan(1);

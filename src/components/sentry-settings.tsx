@@ -204,7 +204,7 @@ export function SentryPanel({ projectId, saved, fields, canManage }: { projectId
               <InfoTip text="Flaw Patrol looks for the Sentry release whose name contains this value, like 4.12.0 (812) finding mobile-ios@4.12.0+812." />
             </legend>
             <div className="flex flex-wrap gap-2">
-              {[{ id: "build", name: "Build" }, ...fields, { id: "", name: "Don't match builds, use time only" }].map((f) => (
+              {[{ id: "build", name: "Version" }, ...fields, { id: "", name: "Don't match builds, use time only" }].map((f) => (
                 <label key={f.id || "time"} className={cx("flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-[13px]", buildField === f.id ? "border-accent-500 bg-accent-50 text-accent-800" : "border-slate-200 text-slate-700")}>
                   <input type="radio" name="sentry-build" className="accent-accent-600" checked={buildField === f.id} onChange={() => setBuildField(f.id)} />
                   {f.name}

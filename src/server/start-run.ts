@@ -1,5 +1,6 @@
 "use server";
 
+import { runTitle } from "@/lib/run-label";
 import { assignable } from "@/lib/assignable";
 import { askForMemberAccess } from "./join-requests";
 import { libraryCaseNews } from "@/lib/case-news-data";
@@ -118,7 +119,7 @@ export async function runBoxOptions(scope: RunBoxScope) {
       ? await db.testRun.findMany({
           where: { projectId: { in: sheetIds }, state: "ACTIVE", automated: false, ...NOT_BASH_RUN },
           orderBy: { createdAt: "desc" },
-          select: { projectId: true, number: true, name: true, entries: { select: { status: true } } },
+          select: { projectId: true, number: true, name: true, build: true, createdAt: true, entries: { select: { status: true } } },
         })
       : [];
     const colorOf = (platform: string) => (umbrella ? platformColor(umbrella.platforms, platform) : "#94a3b8");
@@ -145,7 +146,7 @@ export async function runBoxOptions(scope: RunBoxScope) {
           id: c.id,
           key: c.key,
           name: c.name,
-          runs: openRuns.filter((r) => r.projectId === c.id).map((r) => ({ number: r.number, name: r.name, total: r.entries.length, tested: r.entries.filter((e) => e.status !== "UNTESTED").length })),
+          runs: openRuns.filter((r) => r.projectId === c.id).map((r) => ({ number: r.number, name: r.name, title: runTitle(r), total: r.entries.length, tested: r.entries.filter((e) => e.status !== "UNTESTED").length })),
         })),
       allCount,
       autoCount,

@@ -1,4 +1,5 @@
 import "server-only";
+import { runTitle } from "./run-label";
 import { db } from "./db";
 import { mapHistorySteps } from "./run-history";
 import type { ExpandedStep } from "./steps";
@@ -18,7 +19,7 @@ export type KnownBug = {
   state: KnownState;
   /** The step in this run's case it was found at, or null for the whole case. */
   stepIndex: number | null;
-  found: { run: number; by: string; at: string; step: string | null };
+  found: { run: number; label: string; by: string; at: string; step: string | null };
   /** This run's check on it, for this case. */
   check: { outcome: "still" | "gone"; by: string; at: string } | null;
 };
@@ -45,7 +46,7 @@ export async function knownBugsForRun(runId: string, entries: { id: string; case
       select: {
         stepIndex: true,
         defect: { select: { id: true, number: true, title: true, status: true, externalKey: true, externalUrl: true, externalStatus: true, externalCategory: true, project: { select: { key: true } } } },
-        result: { select: { caseId: true, createdAt: true, testerName: true, run: { select: { number: true } }, entry: { select: { steps: true } } } },
+        result: { select: { caseId: true, createdAt: true, testerName: true, run: { select: { number: true, name: true, build: true, createdAt: true } }, entry: { select: { steps: true } } } },
       },
       orderBy: { result: { createdAt: "desc" } },
     }),
@@ -74,7 +75,7 @@ export async function knownBugsForRun(runId: string, entries: { id: string; case
         status: l.defect.externalStatus ?? (l.defect.status === "OPEN" ? "Open" : l.defect.status === "FIXED" ? "Fixed" : "Won't fix"),
         state,
         stepIndex: at >= 0 && at < steps.length ? at : null,
-        found: { run: l.result.run.number, by: l.result.testerName, at: l.result.createdAt.toISOString(), step: l.stepIndex === null ? null : (old[l.stepIndex]?.number ?? String(l.stepIndex + 1)) },
+        found: { run: l.result.run.number, label: runTitle(l.result.run), by: l.result.testerName, at: l.result.createdAt.toISOString(), step: l.stepIndex === null ? null : (old[l.stepIndex]?.number ?? String(l.stepIndex + 1)) },
         check: check ? { outcome: check.outcome === "gone" ? "gone" : "still", by: check.byName, at: check.createdAt.toISOString() } : null,
       });
     }

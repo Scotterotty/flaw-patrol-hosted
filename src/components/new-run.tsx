@@ -144,8 +144,8 @@ export function NewRunButton({
             <Field label="Environment" htmlFor="run-env">
               <Input id="run-env" name="environment" placeholder="Where you're testing" />
             </Field>
-            <Field label="Build" htmlFor="run-build">
-              <Input id="run-build" name="build" placeholder="Build number" />
+            <Field label="Version" htmlFor="run-build">
+              <Input id="run-build" name="build" placeholder="e.g. 2.4.2 (812)" />
             </Field>
             <RunFieldInputs fields={fields} prefix="run" />
           </div>

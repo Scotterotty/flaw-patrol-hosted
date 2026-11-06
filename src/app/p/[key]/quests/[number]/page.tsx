@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RunName } from "@/components/run-name";
 import { notFound } from "next/navigation";
 import { LiveRefresh } from "@/components/live-refresh";
 import { QuestMapView } from "@/components/quest-map";
@@ -50,7 +51,7 @@ export default async function QuestPage({ params }: { params: Promise<{ key: str
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">
-            <span className="font-mono text-base text-slate-500">R{q.run.number}</span> {q.run.name}
+            <RunName run={q.run} className="font-mono text-base font-normal text-slate-500" />
           </h1>
           <p className="mt-1 text-sm text-slate-500">
             {q.map.from} to {q.map.to} · {q.position} of {q.steps} steps

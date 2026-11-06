@@ -1,4 +1,5 @@
 import { KindSelect } from "@/components/kind-select";
+import { RunName } from "@/components/run-name";
 import { parseRunKinds } from "@/lib/run-kinds";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -61,7 +62,7 @@ export default async function UmbrellaRunsPage({ params, searchParams }: { param
                 <div key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
                   <span className="min-w-0 flex-1">
                     <span className="block font-medium text-slate-900">
-                      <span className="font-mono text-xs text-slate-500">R{r.number}</span> {r.name}
+                      <RunName run={r} />
                     </span>
                     <span className="block text-xs text-slate-500">
                       {r.project.name} · {left} of {r.entries.length} still to test

@@ -62,6 +62,6 @@ test("the project overview shows runs in progress, my work and flagged cases", a
 
   // Continue testing picks the run up where it was left.
   await page.goto(`/p/${KEY}`);
-  await runs.getByRole("link", { name: /^Continue testing R\d+ Both/ }).click();
+  await runs.getByRole("link", { name: /^Continue testing Both/ }).click();
   await expect(page.getByRole("heading", { name: "Sign out", level: 1 })).toBeVisible();
 });

@@ -1,5 +1,6 @@
 "use server";
 
+import { runTag } from "@/lib/run-label";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -247,7 +248,7 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
     }
 
     // Test runs: name, RC, build.
-    // "R1" finds every test cycle's R1, each named with its test cycle.
+    // "R1" still finds every test cycle's run 1 (old habit), shown by its version (ver_189).
     const runNumber = /^R(\d+)$/i.exec(q);
     const runWhere: Prisma.TestRunWhereInput = {
       projectId: { in: runIds_ },
@@ -257,11 +258,11 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
       db.testRun.count({ where: runWhere }),
       db.testRun.findMany({ where: runWhere, orderBy: { createdAt: "desc" }, take: PER_GROUP, include: { project: { select: { key: true } }, entries: { select: { status: true } } } }),
     ]);
-    const runCands = runTotal < ENOUGH_EXACT && cleanQuery(q).length > 1 ? await db.testRun.findMany({ where: { projectId: { in: runIds_ } }, orderBy: { createdAt: "desc" }, take: 2000, select: { id: true, number: true, name: true, release: true, build: true, projectId: true, state: true, project: { select: { key: true } } } }) : [];
+    const runCands = runTotal < ENOUGH_EXACT && cleanQuery(q).length > 1 ? await db.testRun.findMany({ where: { projectId: { in: runIds_ } }, orderBy: { createdAt: "desc" }, take: 2000, select: { id: true, number: true, name: true, release: true, build: true, createdAt: true, projectId: true, state: true, project: { select: { key: true } } } }) : [];
     const runIds = new Set(runs.map((r) => r.id));
     const runClose = closeOnes(q, runCands, (r) => `${r.name} ${r.release} ${r.build}`, (r) => runIds.has(r.id), runTotal).map((r) => ({
       href: `/p/${r.project.key}/runs/${r.number}`,
-      key: `R${r.number}`,
+      key: runTag(r),
       label: r.name,
       sub: [placeOf(r.projectId), r.release && `Release ${r.release}`, r.state === "ACTIVE" ? "Active" : "Closed"].filter(Boolean).join(" · "),
     }));
@@ -275,7 +276,7 @@ export async function searchEverything(input: z.input<typeof searchSchema>) {
           const done = r.entries.filter((e) => !["UNTESTED", "RETEST", "IN_PROGRESS"].includes(e.status)).length;
           return {
             href: `/p/${r.project.key}/runs/${r.number}`,
-            key: `R${r.number}`,
+            key: runTag(r),
             label: r.name,
             best: !!runNumber && r.number === Number(runNumber[1]),
             sub: [placeOf(r.projectId), r.release && `Release ${r.release}`, r.automated ? "🤖 Automated" : `${r.entries.length ? Math.round((done / r.entries.length) * 100) : 0}% done`, r.state === "ACTIVE" ? "Active" : "Closed"].filter(Boolean).join(" · "),

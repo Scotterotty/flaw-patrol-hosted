@@ -39,7 +39,7 @@ export async function loadHomeTrends(hubId: string, projectIds: string[]): Promi
       where: { projectId: { in: projectIds }, automated: false, bugBash: { is: null } },
       orderBy: { createdAt: "desc" },
       take: MAX_HAND_RUNS,
-      select: { id: true, number: true, name: true, release: true, createdAt: true, state: true, project: { select: { platform: true, key: true } } },
+      select: { id: true, number: true, name: true, release: true, build: true, createdAt: true, state: true, project: { select: { platform: true, key: true } } },
     }),
   ]);
   const handCounts = handRuns.length ? await db.runEntry.groupBy({ by: ["runId", "status"], where: { runId: { in: handRuns.map((r) => r.id) } }, _count: true }) : [];
@@ -48,6 +48,7 @@ export async function loadHomeTrends(hubId: string, projectIds: string[]): Promi
     href: `/p/${r.project.key}/runs/${r.number}`,
     number: r.number,
     name: r.name,
+    build: r.build,
     release: r.release,
     at: r.createdAt,
     platform: r.project.platform,

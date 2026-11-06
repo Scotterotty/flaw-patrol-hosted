@@ -59,7 +59,7 @@ test("Active and Closed tabs on Test runs, Active and Archived tabs on Test case
   await runTabs.getByRole("link", { name: "Closed 1" }).click();
   await expect(runTabs.getByRole("link", { name: "Closed 1" })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("heading", { name: "Test runs" })).toBeVisible();
-  await expect(page.getByRole("link", { name: /R\d+ One/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^One/ })).toBeVisible();
   // The run buttons stay put on the Closed tab.
   await expect(page.getByRole("button", { name: "Bring in results" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Create a run" })).toBeVisible();

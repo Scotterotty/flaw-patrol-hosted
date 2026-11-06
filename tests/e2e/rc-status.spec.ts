@@ -11,7 +11,7 @@ async function startRun(page: Page, name: string, release: string, build: string
   await page.getByRole("button", { name: "Create a run" }).click();
   await page.getByLabel("Run name").fill(name);
   await page.getByLabel("Release", { exact: true }).fill(release);
-  await page.getByLabel("Build").fill(build);
+  await page.getByLabel("Version", { exact: true }).fill(build);
   await page.getByLabel("CSP version").fill("7.0.0");
   await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
@@ -109,7 +109,7 @@ test("Release status gathers each client's run of a release, ready for Confluenc
   const picker = page.getByRole("group", { name: "Runs in the report" });
   await picker.getByLabel(/Unity regression/).uncheck();
   await expect(unityCol).toHaveCount(0);
-  await picker.getByLabel("Add a run").selectOption({ label: `Unreal old · RC ${KEY} · R3 · ${RC}-old` });
+  await picker.getByLabel("Add a run").selectOption({ label: `Unreal old · RC ${KEY} · v6.3.0 · ${RC}-old` });
   await expect(page.getByRole("region", { name: "Unreal" })).toBeVisible();
   // Old /rc links still work.
   await page.goto("/rc");

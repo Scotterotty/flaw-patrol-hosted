@@ -1,6 +1,7 @@
 // The context a bug report starts from: the run entry, its steps and the run's details (ver_119
 // moved it here from server/jira.ts so bug templates use the same one). Server only.
 
+import { runTitle } from "./run-label";
 import { headers } from "next/headers";
 import { missionLine, parseCharter } from "@/lib/charter";
 import { db } from "@/lib/db";
@@ -65,7 +66,7 @@ export async function bugContext(projectId: string, entryId: string, stepIndex: 
   const ctx: BugContext = {
     caseKey: caseKey(entry.testCase.project.key, entry.testCase.number),
     caseTitle: entry.title,
-    runLabel: `run R${entry.run.number} "${entry.run.name}"`,
+    runLabel: `run "${runTitle(entry.run)}"`,
     build: entry.run.build,
     release: entry.run.release,
     cspVersion: entry.run.cspVersion,

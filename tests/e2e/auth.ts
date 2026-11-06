@@ -57,7 +57,7 @@ export async function signIn(page: Page, email: string, name = "", password = PA
 
 /** After saving a run's last case the runner offers to close the run (ver_70); otherwise it goes back to the run page. Either way, end up on the run page. */
 export async function backToRun(page: Page) {
-  const prompt = page.getByText(/That was the last case in R\d+/);
+  const prompt = page.getByText("That was the last case in this run.");
   await expect(async () => {
     expect(/\/runs\/\d+$/.test(new URL(page.url()).pathname) || (await prompt.isVisible())).toBe(true);
   }).toPass();

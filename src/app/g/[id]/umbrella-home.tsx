@@ -86,7 +86,7 @@ export async function UmbrellaHome({ u, user, welcome = false }: { u: Umbrella; 
           where: { projectId: { in: [u.hub.id, ...liveCycles.map((p) => p.id)] }, state: "ACTIVE", ...NOT_BASH_RUN },
           orderBy: { createdAt: "desc" },
           take: 50,
-          select: { id: true, number: true, name: true, kind: true, release: true, createdAt: true, project: { select: { key: true, name: true, platform: true } }, entries: { select: { status: true, assigneeId: true, kind: true } } },
+          select: { id: true, number: true, name: true, kind: true, release: true, build: true, createdAt: true, project: { select: { key: true, name: true, platform: true } }, entries: { select: { status: true, assigneeId: true, kind: true } } },
         })
       : Promise.resolve([]),
     mySpelling(),
@@ -101,6 +101,7 @@ export async function UmbrellaHome({ u, user, welcome = false }: { u: Umbrella; 
         id: r.id,
         number: r.number,
         name: r.name,
+        build: r.build,
         release: r.release,
         createdAt: r.createdAt,
         counts,

@@ -47,7 +47,7 @@ export type AutoRow = {
   flaky: number;
   /** New or Updated since its last run. */
   news?: "new" | "updated";
-  before: { status: string; run: number } | null;
+  before: { status: string; run: number; label: string } | null;
   bugs: LinkedDefect[];
   /** Screenshots, videos and replays. */
   files: AutoFileRow[];
@@ -122,7 +122,7 @@ export function AutomatedResults({
                   {attemptsIn(r.files).length > 1 && <span className="text-[11px] text-slate-500">· {attemptsIn(r.files).length} attempts</span>}
                 </p>
                 <p className="mt-0.5 truncate font-mono text-[11px] text-slate-500" title={r.automationId}>
-                  {[r.automationId, r.durationMs != null && secs(r.durationMs), r.before && `${r.before.status === r.status ? "also " : ""}${r.before.status.toLowerCase().replace("_", " ")} in R${r.before.run}`].filter(Boolean).join(" · ")}
+                  {[r.automationId, r.durationMs != null && secs(r.durationMs), r.before && `${r.before.status === r.status ? "also " : ""}${r.before.status.toLowerCase().replace("_", " ")} in ${r.before.label}`].filter(Boolean).join(" · ")}
                 </p>
               </div>
               {r.bugs.map((b) =>
@@ -179,7 +179,7 @@ export function AutomatedResults({
           actual={[
             bugFor.message,
             bugFor.stack && `Stack trace:\n${bugFor.stack}`,
-            `Automation ID: ${bugFor.automationId} (run R${runNumber})`,
+            `Automation ID: ${bugFor.automationId}`,
             ...shownFiles(bugFor).filter((f) => f.kind === "trace").map((f) => `Step-by-step replay: ${typeof window === "undefined" ? "" : window.location.origin}${replayHref(projectKey, f.id)}`),
           ]
             .filter(Boolean)

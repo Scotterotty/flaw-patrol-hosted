@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { versionText } from "@/lib/run-label";
 import { MoreMenu } from "@/components/more-menu";
 import { StatusBar } from "@/components/status";
 import { ArchiveSuiteButton, RenameSuiteButton } from "@/components/suite-actions";
@@ -92,7 +93,7 @@ export default async function SuitesPage({ params, searchParams }: { params: Pro
                     <>
                       <StatusBar counts={counts} />
                       <p className="mt-1">
-                        Last run R{last.number} {relativeTime(last.createdAt, spelling)} · {pct(totals(counts).passRate)} passed
+                        Last run{versionText(last.build) && ` ${versionText(last.build)}`} {relativeTime(last.createdAt, spelling)} · {pct(totals(counts).passRate)} passed
                       </p>
                     </>
                   ) : (

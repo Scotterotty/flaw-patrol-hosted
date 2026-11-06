@@ -1,4 +1,5 @@
 import { queueQaseSend } from "./qase-sync";
+import { versionText } from "./run-label";
 import { splitBracketTitle } from "./tags";
 import { knownTagNamesFor } from "./tag-data";
 import { logActivity } from "@/lib/activity";
@@ -141,7 +142,7 @@ export async function saveAutomationRun(
     if (!tests.length) throw new UserError("That file has no test results in it.");
     const hash = hashOf(list);
     const dup = await duplicateOf(cycleId, hash);
-    if (dup && !meta.allowDuplicate) throw new UserError(`This file is already in Flaw Patrol as Run ${dup.number}.`);
+    if (dup && !meta.allowDuplicate) throw new UserError(`This file is already in Flaw Patrol: ${dup.by} uploaded it.`);
     const { cycle, cases, home, keys } = await libraryOf(cycleId);
     // Pulled from GitHub: the repo must be this umbrella's, and the run's number and link come from GitHub itself.
     let github: { repoId: string; runId: string; number: number; url: string; workflow: string } | null = null;
@@ -238,7 +239,7 @@ export async function saveAutomationRun(
           data: {
             projectId: cycleId,
             number: runSeq,
-            name: meta.name || (github ? githubRunName(github.workflow, github.number) : ["Automation", cycle.name, build && `build ${build}`].filter(Boolean).join(" · ")),
+            name: meta.name || (github ? githubRunName(github.workflow, github.number) : ["Automation", cycle.name].join(" · ")),
             build,
             environment: meta.environment,
             release: meta.release ?? cycle.rcName,
@@ -310,7 +311,7 @@ export async function saveAutomationRun(
     await logActivity({
       actor: actor.id && !actor.name.startsWith("CI (") ? { id: actor.id, name: actor.name, email: actor.name } : { label: actor.name },
       kind: "run",
-      action: github ? `Pulled GitHub run ${github.number} as run R${number}` : `Uploaded automation results as run R${number}`,
+      action: `${github ? `Pulled GitHub run ${github.number}` : "Uploaded automation results"}${build ? ` for ${versionText(build)}` : ""}`,
       project: { id: cycle.id, name: cycle.name, groupId: cycle.groupId },
     });
     revalidatePath(`/p/${project.key}`, "layout");

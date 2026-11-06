@@ -1,4 +1,6 @@
+import { runTag, runTitle } from "@/lib/run-label";
 import { rowsOfResult } from "@/lib/test-data-history";
+import { RunName } from "@/components/run-name";
 import { PaneResizer } from "@/components/pane-resizer";
 import { parseTestData } from "@/lib/test-data";
 import { titleWithTags } from "@/lib/tags";
@@ -128,7 +130,7 @@ export default async function ExecutePage({
       orderBy: { createdAt: "desc" },
       take: 50,
       include: {
-        run: { select: { number: true, name: true, release: true, build: true, cspVersion: true, fields: true, environment: true } },
+        run: { select: { number: true, name: true, release: true, build: true, createdAt: true, cspVersion: true, fields: true, environment: true } },
         entry: { select: { steps: true, title: true } },
         defects: { include: { defect: true } },
         attachments: { select: { id: true, fileName: true } },
@@ -163,7 +165,8 @@ export default async function ExecutePage({
       entryId: r.entryId,
       runNumber: r.run.number,
       runName: r.automated ? `🤖 ${r.run.name}` : r.run.name,
-      meta: [r.run.release && `Release ${r.run.release}`, r.run.build && `build ${r.run.build}`, ...fieldBits(r.run), r.run.environment, `case v${r.caseVersion}`].filter(Boolean).join(" · "),
+      runTag: runTag(r.run, spelling),
+      meta: [r.run.release && `Release ${r.run.release}`, ...fieldBits(r.run), r.run.environment, `case v${r.caseVersion}`].filter(Boolean).join(" · "),
       status: r.status,
       comment: r.comment,
       testerName: r.testerName,
@@ -206,14 +209,14 @@ export default async function ExecutePage({
   return (
     <div className="mx-auto flex max-w-[110rem] flex-col gap-5 lg:flex-row bigtext:flex-col">
       <LiveRefresh url={`/api/live/runs/${run.id}`} rows renderedAt={renderedAt} />
-      <CrumbName href={`/p/${project.key}/runs/${run.number}`} label={run.name} />
+      <CrumbName href={`/p/${project.key}/runs/${run.number}`} label={runTitle(run, spelling)} />
       <aside className="lg:w-80 lg:shrink-0 xl:w-96 2xl:w-[28rem] bigtext:w-auto">
         <div className="flex flex-col gap-3 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] bigtext:static bigtext:max-h-none">
           <RunListFold done={selection ? selection.filter((e) => !isOpen(e.status)).length : done} total={selection ? selection.length : run.entries.length}>
           <div className="shrink-0 rounded-lg border border-slate-200 bg-surface shadow-sm">
             <div className="border-b border-slate-200 p-3">
               <Link href={`/p/${project.key}/runs/${run.number}`} className="text-sm font-semibold text-slate-900 hover:underline">
-                R{run.number} {run.name}
+                <RunName run={run} spelling={spelling} />
               </Link>
               <p className="text-xs text-slate-500">
                 {selection

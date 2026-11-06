@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { versionText } from "@/lib/run-label";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { SHEETS_ENABLED } from "@/lib/features";
@@ -13,7 +14,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ key: st
   if (!SHEETS_ENABLED) notFound();
   const { key, number } = await params;
   const { project } = await projectAccess(key);
-  const run = await db.testRun.findUnique({ where: { projectId_number: { projectId: project.id, number: Number(number) || 0 } }, select: { id: true, number: true } });
+  const run = await db.testRun.findUnique({ where: { projectId_number: { projectId: project.id, number: Number(number) || 0 } }, select: { id: true, number: true, build: true } });
   if (!run) notFound();
   const { name, header, rows, merges, caseEnds, caseStarts, testers } = await buildRunSheet(run.id);
   const { backgrounds, fontColors } = sheetColors(rows);
@@ -87,7 +88,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ key: st
     if (testerList) sheet.getCell(r, 9).dataValidation = pick(testerList);
   }
 
-  const file = `${project.key}-R${run.number}-${name}`.replace(/[^\w.-]+/g, "_").slice(0, 120);
+  const file = [project.key, name, versionText(run.build)].filter(Boolean).join("-").replace(/[^\w.-]+/g, "_").slice(0, 120);
   return new Response(await book.xlsx.writeBuffer(), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

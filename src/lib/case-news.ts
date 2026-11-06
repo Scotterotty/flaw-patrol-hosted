@@ -10,7 +10,7 @@ export type CaseNews =
   | {
       kind: "updated";
       /** The last earlier run that had the case. */
-      since: { run: number; at: string; version: number };
+      since: { run: number; label: string; at: string; version: number };
       by: string;
       at: string;
       /** "Step 3 reworded, step 5 added". */

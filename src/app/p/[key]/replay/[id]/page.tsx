@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { runTitle } from "@/lib/run-label";
 import { notFound } from "next/navigation";
 import { ReplayFrame } from "@/components/replay-frame";
 import { db } from "@/lib/db";
@@ -17,7 +18,7 @@ export default async function ReplayPage({ params }: { params: Promise<{ key: st
   const { project } = await projectAccess(key);
   const file = await db.attachment.findFirst({
     where: { id, projectId: project.id, kind: "trace" },
-    select: { id: true, fileName: true, size: true, result: { select: { run: { select: { number: true, name: true } }, entry: { select: { title: true, testCase: { select: { number: true, project: { select: { key: true } } } } } } } } },
+    select: { id: true, fileName: true, size: true, result: { select: { run: { select: { number: true, name: true, build: true, createdAt: true } }, entry: { select: { title: true, testCase: { select: { number: true, project: { select: { key: true } } } } } } } } },
   });
   if (!file?.result) notFound();
   const { run, entry } = file.result;
@@ -26,7 +27,7 @@ export default async function ReplayPage({ params }: { params: Promise<{ key: st
     <div className="flex h-[calc(100dvh-7rem)] flex-col">
       <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
         <h1 className="font-semibold text-slate-900">
-          Replay · <span className="font-mono text-xs text-slate-500">{caseKey(entry.testCase.project.key, entry.testCase.number)}</span> {entry.title} · R{run.number}
+          Replay · <span className="font-mono text-xs text-slate-500">{caseKey(entry.testCase.project.key, entry.testCase.number)}</span> {entry.title} · {runTitle(run)}
         </h1>
         <Link href={runHref} className="text-accent-700 hover:underline">
           Back to the run

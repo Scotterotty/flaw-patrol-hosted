@@ -3,6 +3,7 @@ import "server-only";
 import type { Prisma, Priority, ResultStatus } from "@prisma/client";
 import { db } from "./db";
 import { caseKey } from "./format";
+import { runTitle } from "./run-label";
 import { countStatuses, totals, type StatusCounts } from "./status";
 import { headingRows, withoutHeadings } from "./step-checks";
 import { suiteForCases } from "./suite-match";
@@ -204,8 +205,8 @@ export type StepHistory = {
   blocked: number;
   failRate: number;
   /** Oldest first, for a history strip. */
-  history: { status: ResultStatus; run: number; projectKey: string; release: string; at: Date }[];
-  lastFailed: { run: number; projectKey: string; release: string; at: Date } | null;
+  history: { status: ResultStatus; run: number; label: string; projectKey: string; release: string; at: Date }[];
+  lastFailed: { run: number; label: string; projectKey: string; release: string; at: Date } | null;
   /** Consecutive failures up to the latest run. */
   streak: number;
   bugs: string[];
@@ -226,7 +227,7 @@ export async function stepHistory(scope: ReportScope, f: ReportFilters): Promise
       entryId: true,
       createdAt: true,
       stepResults: true,
-      run: { select: { number: true, release: true, project: { select: { key: true } } } },
+      run: { select: { number: true, name: true, build: true, createdAt: true, release: true, project: { select: { key: true } } } },
       entry: { select: { title: true, steps: true, testCase: { select: { number: true, project: { select: { key: true } } } } } },
       defects: { select: { stepIndex: true, defect: { select: { number: true, externalKey: true } } } },
     },
@@ -271,7 +272,7 @@ export async function stepHistory(scope: ReportScope, f: ReportFilters): Promise
       cur.runs++;
       if (s.status === "FAILED") cur.failed++;
       if (s.status === "BLOCKED") cur.blocked++;
-      const at = { run: r.run.number, projectKey: r.run.project.key, release: r.run.release, at: r.createdAt };
+      const at = { run: r.run.number, label: runTitle(r.run), projectKey: r.run.project.key, release: r.run.release, at: r.createdAt };
       cur.history.push({ status: s.status, ...at });
       if (FAILING.has(s.status)) {
         cur.failures++;
@@ -298,7 +299,7 @@ export type DefectRow = {
   status: string;
   open: boolean;
   severity: string;
-  foundIn: { caseKey: string; step: number | null; run: number; release: string }[];
+  foundIn: { caseKey: string; step: number | null; run: number; label: string; release: string }[];
   createdAt: Date;
 };
 
@@ -310,7 +311,7 @@ export async function defectReport(scope: ReportScope, f: ReportFilters): Promis
     include: {
       links: {
         where: { result: { run: runWhere(scope, f), entry: entryWhere(f) } },
-        include: { result: { select: { run: { select: { number: true, release: true } }, entry: { select: { testCase: { select: { number: true, project: { select: { key: true } } } } } } } } },
+        include: { result: { select: { run: { select: { number: true, name: true, build: true, createdAt: true, release: true } }, entry: { select: { testCase: { select: { number: true, project: { select: { key: true } } } } } } } } },
       },
     },
   });
@@ -325,6 +326,7 @@ export async function defectReport(scope: ReportScope, f: ReportFilters): Promis
       caseKey: caseKey(l.result.entry.testCase.project.key, l.result.entry.testCase.number),
       step: l.stepIndex === null ? null : l.stepIndex + 1,
       run: l.result.run.number,
+      label: runTitle(l.result.run),
       release: l.result.run.release,
     })),
     createdAt: d.createdAt,

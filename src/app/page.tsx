@@ -1,4 +1,5 @@
 import { HowToLink } from "@/components/how-to-link";
+import { runTag } from "@/lib/run-label";
 import { type GroupChoice } from "@/components/group-dialogs";
 import { ProjectsBrowser } from "@/components/projects-browser";
 import { LIVE_BASH, NOT_BASH_CASE, NOT_BASH_RUN } from "@/lib/bash-cases";
@@ -138,6 +139,7 @@ export default async function HomePage() {
       href: `/p/${r.project.key}/runs/${r.number}/execute?mine=1`,
       run: r.name,
       number: r.number,
+      tag: runTag(r),
       cycle: r.project.name,
       left: r.entries.filter((e) => waiting(e.status)).length,
       started: r.entries.some((e) => e.status !== "UNTESTED"),

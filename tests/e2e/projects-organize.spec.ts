@@ -27,7 +27,7 @@ async function startRun(page: Page, key: string, name: string, release: string) 
   await page.getByRole("button", { name: "Create a run" }).click();
   await page.getByLabel("Run name").fill(name);
   await page.getByLabel("Release", { exact: true }).fill(release);
-  await page.getByLabel("Build").fill("1.0.0");
+  await page.getByLabel("Version", { exact: true }).fill("1.0.0");
   await page.getByRole("button", { name: "Create run", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/\d+$/);
 }

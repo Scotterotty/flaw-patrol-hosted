@@ -50,7 +50,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
     where: { projectId: { in: projects.map((p) => p.id) }, ...(showAll ? {} : OPEN_BUG), ...(sp.jira === "local" ? { externalKey: null } : {}) },
     orderBy: { createdAt: "asc" },
     take: 2000,
-    include: { links: { select: { result: { select: { caseId: true, run: { select: { release: true } } } } } }, checks: { orderBy: { createdAt: "desc" }, take: 1, select: { outcome: true, byName: true, createdAt: true, run: { select: { number: true } } } } },
+    include: { links: { select: { result: { select: { caseId: true, run: { select: { release: true } } } } } }, checks: { orderBy: { createdAt: "desc" }, take: 1, select: { outcome: true, byName: true, createdAt: true, run: { select: { number: true, name: true, build: true, createdAt: true } } } } },
   });
   const cases = await db.testCase.findMany({
     where: { id: { in: [...new Set(defects.flatMap((d) => d.links.map((l) => l.result.caseId)))] } },

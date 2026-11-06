@@ -6,13 +6,13 @@ import { Input } from "./ui";
 import { CloseMatchesLabel } from "./close-matches";
 import { forgivingFilter } from "@/lib/fuzzy";
 
-export type PastQuestRow = { number: number; name: string; release: string; from: string; to: string; steps: number; position: number; found: number };
+export type PastQuestRow = { number: number; name: string; /** Version or start day (ver_189). */ tag: string; release: string; from: string; to: string; steps: number; position: number; found: number };
 
 /** Older finished quests as a compact list, collapsed until opened, with a search box. */
 export function PastQuests({ projectKey, rows }: { projectKey: string; rows: PastQuestRow[] }) {
   const [query, setQuery] = useState("");
   // Forgiving search: exact matches, then close ones under their own label.
-  const found = forgivingFilter(rows, query, (r) => `r${r.number} ${r.name} ${r.release} ${r.from} ${r.to}`);
+  const found = forgivingFilter(rows, query, (r) => `r${r.number} ${r.name} ${r.tag} ${r.release} ${r.from} ${r.to}`);
   const shown = [...found.exact, ...found.close];
   const closeStart = found.close.length ? found.exact.length : -1;
   return (
@@ -45,9 +45,9 @@ export function PastQuests({ projectKey, rows }: { projectKey: string; rows: Pas
                   </>
                 )}
                 <Link href={`/p/${projectKey}/quests/${r.number}`} className="flex items-baseline gap-3 rounded px-1 py-2 hover:bg-slate-50">
-                  <span className="w-12 shrink-0 font-mono text-xs text-slate-500">R{r.number}</span>
                   <span className="min-w-0 flex-1 truncate text-slate-800">
                     {r.name}
+                    {r.tag && <> <span className="font-mono text-xs text-slate-500">{r.tag}</span></>}
                     {r.release && <span className="text-slate-500"> · {r.release}</span>}
                   </span>
                   <span className="hidden shrink-0 text-xs text-slate-500 sm:inline">

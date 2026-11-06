@@ -1,5 +1,6 @@
 "use server";
 
+import { runTitle } from "@/lib/run-label";
 import { logActivity } from "@/lib/activity";
 import { Prisma, type ResultStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -138,7 +139,7 @@ export async function createRun(projectId: string, from: z.input<typeof source>,
       },
       { timeout: 60_000 },
     );
-    await logActivity({ actor: user, kind: "run", action: `Started run R${run.number} "${run.name}"`, project, detail: run.release ? `Release ${run.release}` : "" });
+    await logActivity({ actor: user, kind: "run", action: `Started run "${runTitle(run)}"`, project, detail: run.release ? `Release ${run.release}` : "" });
     revalidatePath(`/p/${project.key}`, "layout");
     await alertRunStarted(project, run.id, user.name ?? user.email).catch(() => {});
     return { number: run.number };
@@ -165,14 +166,14 @@ export async function updateRun(projectId: string, runId: string, input: RunInpu
 export async function setRunState(projectId: string, runId: string, state: "ACTIVE" | "COMPLETED") {
   return attempt(async () => {
     const { project, user } = await requireProjectAction(projectId, "run:manage");
-    const before = await db.testRun.findFirst({ where: { id: runId, projectId }, select: { state: true, name: true, number: true, createdAt: true, _count: { select: { entries: { where: { status: { in: OPEN } } } } } } });
+    const before = await db.testRun.findFirst({ where: { id: runId, projectId }, select: { state: true, name: true, number: true, build: true, createdAt: true, _count: { select: { entries: { where: { status: { in: OPEN } } } } } } });
     await db.testRun.updateMany({
       where: { id: runId, projectId },
       data: { state, completedAt: state === "COMPLETED" ? new Date() : null },
     });
     if (before && before.state !== state) {
       const days = Math.max(1, Math.round((Date.now() - before.createdAt.getTime()) / 86_400_000));
-      await logActivity({ actor: user, kind: "run", action: `${state === "COMPLETED" ? "Closed" : "Reopened"} run R${before.number} "${before.name}"`, project, detail: state === "COMPLETED" ? `Was open ${days} day${days === 1 ? "" : "s"}` : "" });
+      await logActivity({ actor: user, kind: "run", action: `${state === "COMPLETED" ? "Closed" : "Reopened"} run "${runTitle(before)}"`, project, detail: state === "COMPLETED" ? `Was open ${days} day${days === 1 ? "" : "s"}` : "" });
     }
     // Closed before every case had a result: that's when the run counts as finished.
     if (state === "COMPLETED" && before?.state === "ACTIVE" && before._count.entries > 0) await runFinished(project, runId, true).catch(() => {});
@@ -197,9 +198,9 @@ export async function closeRunCheck(projectId: string, runId: string) {
 export async function deleteRun(projectId: string, runId: string) {
   return attempt(async () => {
     const { project, user } = await requireProjectAction(projectId, "run:delete");
-    const run = await db.testRun.findFirst({ where: { id: runId, projectId }, select: { name: true, number: true } });
+    const run = await db.testRun.findFirst({ where: { id: runId, projectId }, select: { name: true, number: true, build: true, createdAt: true } });
     await db.testRun.deleteMany({ where: { id: runId, projectId } });
-    if (run) await logActivity({ actor: user, kind: "delete", action: `Deleted run R${run.number} "${run.name}"`, project });
+    if (run) await logActivity({ actor: user, kind: "delete", action: `Deleted run "${runTitle(run)}"`, project });
     revalidatePath(`/p/${project.key}`, "layout");
     return {};
   });
@@ -273,7 +274,7 @@ export async function markRunCasesRunBefore(projectId: string, runId: string, en
 export async function removeRunEntries(projectId: string, runId: string, entryIds: string[]) {
   return attempt(async () => {
     const { project, user } = await requireProjectAction(projectId, "run:manage");
-    const run = await db.testRun.findFirst({ where: { id: runId, projectId }, select: { number: true, name: true, automated: true, bugBash: { select: { id: true } } } });
+    const run = await db.testRun.findFirst({ where: { id: runId, projectId }, select: { number: true, name: true, build: true, createdAt: true, automated: true, bugBash: { select: { id: true } } } });
     if (!run || run.automated || run.bugBash) throw new UserError("Run not found.");
     const rows = await db.runEntry.findMany({
       where: { id: { in: entryIds.slice(0, 5000) }, runId, status: "UNTESTED", draftAt: null, results: { none: {} } },
@@ -281,7 +282,7 @@ export async function removeRunEntries(projectId: string, runId: string, entryId
     });
     if (!rows.length) throw new UserError("Only cases nobody has tested yet can be taken out.");
     await db.runEntry.deleteMany({ where: { id: { in: rows.map((r) => r.id) }, runId } });
-    await logActivity({ actor: user, kind: "run", action: `Took ${rows.length} ${rows.length === 1 ? "case" : "cases"} out of run R${run.number} "${run.name}"`, project, detail: "" });
+    await logActivity({ actor: user, kind: "run", action: `Took ${rows.length} ${rows.length === 1 ? "case" : "cases"} out of run "${runTitle(run)}"`, project, detail: "" });
     revalidatePath(`/p/${project.key}`, "layout");
     return { removed: rows.map(({ caseId, position, assigneeId }) => ({ caseId, position, assigneeId })) };
   });

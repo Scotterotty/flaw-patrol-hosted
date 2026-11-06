@@ -32,6 +32,7 @@ test.beforeAll(async () => {
         projectId: cycle.id,
         number: 1,
         name: "R1 Web check",
+        build: "2.4.1",
         createdById: admin.id,
         createdBy: "Demo Admin",
         entries: {
@@ -79,8 +80,8 @@ test("Create a run → From a spreadsheet updates a run in progress", async ({ p
 
   const where = box.getByRole("radiogroup", { name: "Where the sheet goes" });
   await expect(where.getByRole("radio", { name: "Update a run in progress" })).toBeChecked();
-  await expect(where.getByLabel("Run in progress to update")).toContainText("R1 R1 Web check · 2 of 4 tested");
-  await expect(box.getByTestId("run-todo")).toContainText("Updates R1 R1 Web check");
+  await expect(where.getByLabel("Run in progress to update")).toContainText("R1 Web check v2.4.1 · 2 of 4 tested");
+  await expect(box.getByTestId("run-todo")).toContainText("Updates R1 Web check v2.4.1");
   // Updating needs no name or release.
   await expect(box.getByLabel("Run name (optional)")).toHaveCount(0);
   await box.getByRole("button", { name: "Next: check the sheet" }).click();
@@ -88,7 +89,7 @@ test("Create a run → From a spreadsheet updates a run in progress", async ({ p
   await expect(page).toHaveURL(new RegExp(`/p/${CYCLE}/runs/import\\?sheet=handoff&run=1$`));
   await expect(page.getByText("Columns in Web check.csv")).toBeVisible();
   const into = page.getByRole("region", { name: "Updating the run" });
-  await expect(into).toContainText("Updating R1 R1 Web check");
+  await expect(into).toContainText("Updating R1 Web check v2.4.1");
   await expect(into.getByRole("checkbox", { name: /Use the sheet's results for the 1 that differs/ })).toBeChecked();
   await into.getByRole("button", { name: "Update 2 results" }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${CYCLE}/runs/1\\?updated=2$`));

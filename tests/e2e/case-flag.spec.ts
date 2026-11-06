@@ -50,7 +50,7 @@ test("a case can be flagged from a run, found in Test cases, and cleared", async
   const note = page.getByRole("note");
   await expect(note).toContainText("Flagged: Steps unclear");
   await expect(note).toContainText("Which account should log in?");
-  await expect(note.getByRole("link", { name: `run R${runNumber}` })).toBeVisible();
+  await expect(note.getByRole("link", { name: "testing a run" })).toBeVisible();
   await page.getByRole("button", { name: "Steps unclear" }).click();
   await dialog.getByRole("button", { name: "Clear flag" }).click();
   await expect(note).toHaveCount(0);
