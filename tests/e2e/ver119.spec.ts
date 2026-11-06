@@ -109,9 +109,10 @@ test("make a bug template, report a bug with it, and add a row with I saw it aga
   await filled.getByLabel("Add a file for Crash log").setInputFiles({ name: "crash.txt", mimeType: "text/plain", buffer: Buffer.from("NullReference at Pay") });
   await expect(filled).toContainText("crash.txt");
   await expect(dialog.getByTestId("template-missing")).toHaveCount(0);
-  // The table: automatic cells filled in, Repros typed.
+  // The table: automatic cells filled in and still editable (ver_188), Repros typed.
   const table = filled.getByRole("table", { name: "Repro history" });
-  await expect(table).toContainText("Demo Admin");
+  await expect(table.getByLabel("User name & ID")).toHaveValue("Demo Admin");
+  await table.getByLabel("User name & ID").fill("Demo Admin (QA)");
   await table.getByLabel("Repros").fill("3/3");
   await filled.getByLabel("Summary").fill("App closes on Pay");
   await expect(filled.getByTestId("templated-title")).toHaveText("Checkout - App closes on Pay");
@@ -140,15 +141,18 @@ test("make a bug template, report a bug with it, and add a row with I saw it aga
   const rows = answers.getByTestId("bug-rows");
   await expect(rows.locator("tbody tr")).toHaveCount(1);
   await expect(rows).toContainText("3/3");
+  await expect(rows).toContainText("Demo Admin (QA)");
   await expect(rows).toContainText("crash.txt");
   await answers.getByRole("button", { name: "I saw it again" }).click();
   const fresh = rows.getByTestId("new-row");
   await expect(fresh.getByLabel("User name & ID")).toHaveValue("Demo Admin");
+  await fresh.getByLabel("User name & ID").fill("Demo Admin, second look");
   await fresh.getByLabel("Repros").fill("1/3");
   await answers.getByRole("button", { name: "Save row" }).click();
   await expect(answers).toContainText("Row added.");
   await expect(rows.locator("tbody tr")).toHaveCount(2);
   await expect(rows).toContainText("1/3");
+  await expect(rows).toContainText("Demo Admin, second look");
 
   // Bugs already reported keep their layout when the template is deleted.
   await page.goto(`/p/${KEY}/settings`);

@@ -742,6 +742,7 @@ export const HOW_TO: HowToTask[] = [
       { text: "If you're asked **Is this bug about …?**, press **Yes** to fill in its usual answers (tag, Team, Client/SKUs), or **No, start blank** for a bug about another product.", see: "The answers filled in, or left blank." },
       { text: "Type a short **Summary** that says what's wrong.", see: "Your summary.", target: "bug-summary", type: true },
       { text: "Fill in the template's boxes (with **Plain**: **Steps to reproduce**, **What happened** and **What you expected**), then pick a **Severity**.", see: "Every box filled in. Anything still needed is listed by the save button." },
+      { text: "If the template has a table like **Reproduction history**, some cells start filled in (time, your name, browser). Click any cell to change it.", see: "The table with your changes." },
       { text: "Add **Found in** and **+ Attach files** if you have them. Tick **Also file it in Jira** to send it there too.", see: "Your files listed." },
       { text: "Press **Save bug** (or **Save and file in Jira**).", see: "Saved, with the bug's key. It's on the **Bugs** page.", target: "write-bug-save", saves: true },
     ],

@@ -117,7 +117,7 @@ function RowsTable({ projectId, defectId, answer, canAdd, inJira }: { projectId:
             {adding && (
               <tr data-testid="new-row">
                 {cols.map((c, i) => (
-                  <td key={i} className={cx("border-t border-r border-slate-100 px-1.5 py-1", c.fill !== "write" && "bg-slate-50 text-slate-500")}>
+                  <td key={i} className={cx("border-t border-r border-slate-100 px-1.5 py-1", c.fill === "files" && "bg-slate-50 text-slate-500")}>
                     {c.fill === "write" ? (
                       <input
                         aria-label={c.name}
@@ -140,7 +140,8 @@ function RowsTable({ projectId, defectId, answer, canAdd, inJira }: { projectId:
                     ) : (
                       <input
                         aria-label={c.name}
-                        className="w-full min-w-16 rounded border border-transparent bg-transparent px-1 py-0.5 hover:border-slate-300"
+                        placeholder="Type it in"
+                        className="w-full min-w-16 rounded border border-slate-300 bg-surface px-1.5 py-0.5"
                         value={adding[i]}
                         onChange={(e) => setAdding((a) => a!.map((x, j) => (j === i ? e.target.value : x)))}
                       />
@@ -157,8 +158,8 @@ function RowsTable({ projectId, defectId, answer, canAdd, inJira }: { projectId:
           {adding ? (
             <>
               <span className="text-xs text-slate-500">
-                <Sp>Gray cells filled in for you</Sp>
-                {runName ? `, from your run "${runName}"` : ""}. Times include the time zone.
+                <Sp>Some cells start filled in for you</Sp>
+                {runName ? `, from your run "${runName}"` : ""}. You can change any of them. Times include the time zone.
               </span>
               <span className="flex-1" />
               <Button size="sm" onClick={() => setAdding(null)}>

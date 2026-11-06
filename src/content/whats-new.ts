@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 188,
+    date: "2026-11-06",
+    items: [
+      {
+        kind: "better",
+        title: "Change any cell in a bug's table",
+        text: "In tables like Reproduction history, the time, your name, browser and other cells still fill in for you, and now you can change any of them. Works for new bugs and I saw it again.",
+      },
+    ],
+  },
+  {
     version: 187,
     date: "2026-11-06",
     items: [

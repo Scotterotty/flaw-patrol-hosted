@@ -211,18 +211,18 @@ export function TemplatedForm({
                     {a.rows.map((r, ri) => (
                       <tr key={ri}>
                         {a.columns!.map((c, i) => (
-                          <td key={i} className={cx("border-t border-r border-slate-100 px-1.5 py-1 align-top", c.fill !== "write" && "bg-slate-50 text-slate-500")}>
-                            {c.fill === "write" ? (
+                          <td key={i} className={cx("border-t border-r border-slate-100 px-1.5 py-1 align-top", c.fill === "files" && "bg-slate-50 text-slate-500")}>
+                            {c.fill === "files" ? (
+                              <span className="whitespace-nowrap">The bug&apos;s files</span>
+                            ) : (
+                              // Every cell can be changed; automatic ones start filled in (Scott, Nov 6).
                               <input
                                 aria-label={c.name}
+                                placeholder={c.fill === "write" ? undefined : "Type it in"}
                                 className="w-full min-w-20 rounded border border-slate-300 bg-surface px-1.5 py-0.5"
                                 value={r[i] ?? ""}
                                 onChange={(e) => setAnswer(a.id, (x) => ({ ...x, rows: x.rows!.map((row, k) => (k === ri ? row.map((cell, j) => (j === i ? e.target.value : cell)) : row)) }))}
                               />
-                            ) : c.fill === "files" ? (
-                              <span className="whitespace-nowrap">The bug&apos;s files</span>
-                            ) : (
-                              <span className="whitespace-pre-wrap">{r[i] || "-"}</span>
                             )}
                           </td>
                         ))}
@@ -231,7 +231,7 @@ export function TemplatedForm({
                   </tbody>
                 </table>
               </div>
-              <p className="mt-1 text-[11px] text-slate-500"><Sp>Gray cells fill in automatically. You fill in the white ones. Times include the time zone.</Sp></p>
+              <p className="mt-1 text-[11px] text-slate-500"><Sp>Some cells start filled in for you. You can change any of them. Times include the time zone.</Sp></p>
             </div>
           );
         if (a.source === "file") {
