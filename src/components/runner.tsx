@@ -672,7 +672,7 @@ export function Runner({
   };
   const captureButtons = (i: number | null) => (
     <>
-      <Button size="sm" disabled={!capture.ok || uploading || runClosed} title={capture.ok ? `Pick a tab, window or screen and attach a still image of it to ${stepLabel(i)}` : capture.why} onClick={() => void screenshot(i)} data-howto="runner-screenshot">
+      <Button size="sm" disabled={!capture.ok || uploading || runClosed} title={capture.ok ? `Pick a tab, window or screen, then attach all of it or drag a box around just one part, to ${stepLabel(i)}` : capture.why} onClick={() => void screenshot(i)} data-howto="runner-screenshot">
         📷 Take screenshot
       </Button>
       <Button

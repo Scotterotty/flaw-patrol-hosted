@@ -152,8 +152,17 @@ test("the bug box's + Add menu brings in other steps' files, takes a screenshot 
   await expect(dialog).toBeVisible();
 
   // Take screenshot right in the bug box: it lands on the bug and on step 2.
+  // ver_194: the area picker opens over the bug box, and Esc closes only the picker.
   await dialog.getByRole("button", { name: "+ Add ▾" }).click();
   await dialog.getByRole("menuitem", { name: "📷 Take screenshot" }).click();
+  await expect(page.getByRole("dialog", { name: "Pick the area to attach" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Pick the area to attach" })).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByTestId("bug-file").filter({ hasText: "screenshot.png" })).toHaveCount(0);
+  await dialog.getByRole("button", { name: "+ Add ▾" }).click();
+  await dialog.getByRole("menuitem", { name: "📷 Take screenshot" }).click();
+  await page.getByRole("dialog", { name: "Pick the area to attach" }).getByRole("button", { name: "Attach whole screen" }).click();
   const shot = dialog.getByTestId("bug-file").filter({ hasText: `${KEY}-1 step 2 screenshot.png` });
   await expect(shot).toContainText("Step 2");
   // Upload a file from the same menu.

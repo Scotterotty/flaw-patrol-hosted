@@ -30,6 +30,7 @@ test("a step gets a screenshot and a screen recording", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Sign in", level: 1 })).toBeVisible();
 
   await page.getByRole("button", { name: "📷 Take screenshot" }).click();
+  await page.getByRole("dialog", { name: "Pick the area to attach" }).getByRole("button", { name: "Attach whole screen" }).click();
   await expect(page.getByRole("link", { name: `${KEY}-1 case screenshot.png` })).toBeVisible();
 
   await page.getByRole("button", { name: /Record screen for case/ }).click();
@@ -193,4 +194,69 @@ test("the recording bar stays in sight in the bug box and on a phone", async ({ 
   const save = (await page.getByRole("button", { name: /^Save and (next|finish)$/ }).boundingBox())!;
   expect(save.y + save.height).toBeLessThanOrEqual((await bar.boundingBox())!.y);
   await bar.getByRole("button", { name: "Discard" }).click();
+});
+
+// Screenshot just one area (ver_194): after Take screenshot, the picture opens big and the
+// tester drags a box around the part they want. Esc cancels the picker only.
+test("drag a box to attach just one area of the screenshot", async ({ page }) => {
+  const key = `${KEY.slice(0, 5)}A`;
+  await signIn(page, "admin@example.com", "Demo Admin");
+  await standaloneProject(page, `Capture ${key}`, key);
+  await page.goto(`/p/${key}/cases/new`);
+  await page.getByLabel("Title").fill("Sign in");
+  await page.getByLabel("Step 1 action").fill("Tap Continue");
+  await page.getByRole("button", { name: "Create case" }).first().click();
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+  await page.goto(`/p/${key}/suites/new`);
+  await page.getByLabel("Name", { exact: true }).fill("All");
+  await page.getByRole("button", { name: /^Tick all/ }).click();
+  await page.getByRole("button", { name: "Create suite" }).click();
+  await page.getByRole("button", { name: "Create a run" }).click();
+  await page.getByRole("button", { name: "Create and test now" }).click();
+  await expect(page.getByRole("heading", { name: "Sign in", level: 1 })).toBeVisible();
+
+  // Esc cancels: nothing is attached.
+  const picker = page.getByRole("dialog", { name: "Pick the area to attach" });
+  await page.getByRole("button", { name: "📷 Take screenshot" }).click();
+  await expect(picker).toContainText("Drag a box around the part you want");
+  await expect(picker.getByRole("button", { name: "Attach whole screen" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(picker).toHaveCount(0);
+  await expect(page.getByRole("link", { name: `${key}-1 case screenshot.png` })).toHaveCount(0);
+
+  // A stray click isn't a box; a real drag is, and Redo clears it.
+  await page.getByRole("button", { name: "📷 Take screenshot" }).click();
+  const shot = picker.locator("canvas");
+  await expect(shot).toBeVisible();
+  const r = (await shot.boundingBox())!;
+  await page.mouse.click(r.x + 20, r.y + 20);
+  await expect(picker.getByRole("button", { name: "Attach this area" })).toBeHidden();
+  const drag = async (x1: number, y1: number, x2: number, y2: number) => {
+    await page.mouse.move(r.x + x1, r.y + y1);
+    await page.mouse.down();
+    await page.mouse.move(r.x + x2, r.y + y2, { steps: 5 });
+    await page.mouse.up();
+  };
+  await drag(10, 10, 60, 60);
+  await expect(picker.getByTestId("area-box")).toBeVisible();
+  await picker.getByRole("button", { name: "Redo" }).click();
+  await expect(picker.getByTestId("area-box")).toBeHidden();
+  await drag(r.width * 0.2, r.height * 0.2, r.width * 0.6, r.height * 0.5);
+  // Attach this area is focused, so Enter attaches it.
+  await expect(picker.getByRole("button", { name: "Attach this area" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(picker).toHaveCount(0);
+  const link = page.getByRole("link", { name: `${key}-1 case screenshot.png` });
+  await expect(link).toBeVisible();
+
+  // The file is the box's part, at full sharpness: about 40% x 30% of the real picture.
+  const full = await page.evaluate(() => ({ w: window.innerWidth * devicePixelRatio, h: window.innerHeight * devicePixelRatio }));
+  const res = await page.request.get((await link.getAttribute("href"))!);
+  const png = await res.body();
+  const w = png.readUInt32BE(16);
+  const h = png.readUInt32BE(20);
+  expect(w).toBeGreaterThan(full.w * 0.3);
+  expect(w).toBeLessThan(full.w * 0.5);
+  expect(h).toBeGreaterThan(full.h * 0.2);
+  expect(h).toBeLessThan(full.h * 0.4);
 });

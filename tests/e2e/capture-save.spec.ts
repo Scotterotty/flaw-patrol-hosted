@@ -30,6 +30,7 @@ test("screenshots stay on a case after Save, saving again, and Save and next", a
   await page.getByRole("button", { name: "Create and test now" }).click();
   await expect(page.getByRole("heading", { name: "One", level: 1 })).toBeVisible();
   await page.getByRole("button", { name: "📷 Take screenshot" }).click();
+  await page.getByRole("dialog", { name: "Pick the area to attach" }).getByRole("button", { name: "Attach whole screen" }).click();
   await expect(page.getByRole("link", { name: /screenshot.png/ })).toBeVisible();
   const shot = (name: string) => page.getByRole("link", { name });
   // Plain Save: the screenshot stays on the case and is saved with its result.
@@ -51,6 +52,7 @@ test("screenshots stay on a case after Save, saving again, and Save and next", a
   await page.getByRole("button", { name: "Save and next", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Two", level: 1 })).toBeVisible();
   await page.getByRole("button", { name: "📷 Take screenshot" }).click();
+  await page.getByRole("dialog", { name: "Pick the area to attach" }).getByRole("button", { name: "Attach whole screen" }).click();
   await expect(shot(`${KEY}-2 case screenshot.png`)).toBeVisible();
   await page.getByRole("button", { name: "Passed", exact: true }).first().click();
   await page.getByRole("button", { name: "Save and finish", exact: true }).click();

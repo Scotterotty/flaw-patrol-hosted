@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { pickArea } from "./area-picker";
 import { Button, cx } from "./ui";
 
 /** Recordings stop by themselves at 5 minutes; the server takes videos up to 75 MB. */
@@ -24,7 +25,7 @@ export function useCaptureSupport(): { ok: boolean; why: string } {
 
 const cancelled = (e: unknown) => e instanceof DOMException && (e.name === "NotAllowedError" || e.name === "AbortError");
 
-/** One still image of the tab, window or screen the tester picks. Null when they cancel. */
+/** One still image of the tab, window or screen the tester picks, or just the area they drag a box around. Null when they cancel. */
 export async function takeScreenshot(fileName: string): Promise<File | null> {
   let stream: MediaStream;
   try {
@@ -44,7 +45,12 @@ export async function takeScreenshot(fileName: string): Promise<File | null> {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext("2d")!.drawImage(video, 0, 0);
-    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/png"));
+    // Stop sharing before the area picker opens, so the browser's sharing bar goes away.
+    stream.getTracks().forEach((t) => t.stop());
+    // Drag a box around just the part you want, or attach the whole picture.
+    const picked = await pickArea(canvas);
+    if (!picked) return null;
+    const blob = await new Promise<Blob | null>((r) => picked.toBlob(r, "image/png"));
     if (!blob) throw new Error("Couldn't take the screenshot.");
     return new File([blob], fileName, { type: "image/png" });
   } finally {

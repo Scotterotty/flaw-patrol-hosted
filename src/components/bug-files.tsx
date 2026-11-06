@@ -179,7 +179,7 @@ export function AddMenu({
                 role="menuitem"
                 className={item}
                 disabled={!capture.ok || capture.busy}
-                title={capture.ok ? "Pick a tab, window or screen and add a still image of it" : capture.why}
+                title={capture.ok ? "Pick a tab, window or screen, then add all of it or drag a box around just one part" : capture.why}
                 onClick={() => {
                   setOpen(false);
                   capture.screenshot();
