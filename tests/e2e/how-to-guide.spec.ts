@@ -276,5 +276,5 @@ test("Show me on the tasks for every other feature", async ({ page }) => {
   await walk(page, "qase", false, { to: 4 });
   await walk(page, "workspace");
   // ver_189: runs are named by their version; Version sits up front in Create a run.
-  await walk(page, "run-version", false, { to: 3 });
+  await walk(page, "run-version", false, { to: 5 });
 });

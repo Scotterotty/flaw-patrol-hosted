@@ -640,6 +640,8 @@ export const HOW_TO: HowToTask[] = [
     steps: [
       { text: "In the left menu, under **Testing**, press **Test runs**.", see: "Every run, with its version in gray after its name, like **Smoke test v2.4.2**.", target: "menu-runs" },
       { text: "Press **Create a run**.", see: "The **Create a run** box.", target: "run-create" },
+      { text: "In an umbrella, pick **What kind of run?**, like **Smoke test**.", see: "The kind you picked, with **Change** next to it.", target: "run-kind" },
+      { text: "Under **What to run**, pick **Whole Case library**, **A suite**, or **Pick cases**.", see: "Your choice lit up.", target: "run-what" },
       { text: "Type the build you're testing in **Version**, like 2.4.2. Testing a hotfix? Start a new run with the hotfix's version.", see: "Every list, report and bug line shows the run by that version. A run without one shows the day it started.", target: "run-version", type: true },
       { text: "For a run that's already going, click its name on **Test runs**.", see: "The run's page. With no version yet, **Add version** sits next to its name.", target: "run-row" },
       { text: "Open **More** at the top right and press **Edit details**. (**Add version** opens the same box.)", see: "The **Edit run details** box with **Version**.", target: "run-more" },

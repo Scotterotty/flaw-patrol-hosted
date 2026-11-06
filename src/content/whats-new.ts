@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 189,
+    date: "2026-11-06",
+    items: [
+      {
+        kind: "better",
+        title: "Runs show their version, not R1",
+        text: "Lists, progress bars, reports and bug lines name each run by the version you're testing, like Smoke test v2.4.2. A hotfix build gets its own version, so its run stands apart. Version now sits right under Release in Create a run.",
+        link: "/g/{umbrella}/runs",
+      },
+    ],
+  },
+  {
     version: 188,
     date: "2026-11-06",
     items: [

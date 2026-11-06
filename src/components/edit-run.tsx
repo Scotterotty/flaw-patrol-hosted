@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { updateRun } from "@/server/runs";
 import { Modal } from "./modal";
 import { readRunFields, RunFieldInputs, valuesOf } from "./run-field-inputs";
@@ -17,6 +17,12 @@ export function EditRunButton({ projectId, runId, details, releases, fields, add
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
+  // Add version opens the box on Version, ready to type (ver_189).
+  useEffect(() => {
+    if (!open || !addVersion) return;
+    const t = setTimeout(() => document.getElementById("edit-run-build")?.focus(), 50);
+    return () => clearTimeout(t);
+  }, [open, addVersion]);
   return (
     <>
       {addVersion ? (
@@ -65,7 +71,7 @@ export function EditRunButton({ projectId, runId, details, releases, fields, add
               <Input id="edit-run-env" name="environment" defaultValue={details.environment} placeholder="Where you're testing" />
             </Field>
             <Field label="Version" htmlFor="edit-run-build">
-              <Input id="edit-run-build" name="build" defaultValue={details.build} placeholder="e.g. 2.4.2 (812)" autoFocus={addVersion} />
+              <Input id="edit-run-build" name="build" defaultValue={details.build} placeholder="e.g. 2.4.2 (812)" />
             </Field>
             <RunFieldInputs fields={fields} prefix="edit-run" values={valuesOf(details)} editing />
           </div>

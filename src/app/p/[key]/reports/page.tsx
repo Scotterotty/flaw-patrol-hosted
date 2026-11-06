@@ -69,7 +69,7 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
     // Priority, Folder and Tag on every tab but Regression and Session findings.
     view === "regression" || view === "findings" ? null : caseFilterOptions(project.id),
     // One run's report: picked by its name and version (ver_189), not typed as a number.
-    db.testRun.findMany({ where: { projectId: project.id }, orderBy: { createdAt: "desc" }, take: 100, select: { number: true, name: true, build: true, createdAt: true } }),
+    db.testRun.findMany({ where: { projectId: project.id, ...(f.kind === "automated" ? { automated: true } : f.kind === "manual" ? { automated: false, bugBash: { is: null } } : f.kind === "bash" ? { bugBash: { isNot: null } } : {}) }, orderBy: { createdAt: "desc" }, take: 100, select: { number: true, name: true, build: true, createdAt: true } }),
   ]);
   const findingOpts = view === "findings" ? await findingOptions(project.id) : null;
   const qs = (extra: Record<string, string | undefined>) => {
