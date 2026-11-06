@@ -697,6 +697,21 @@ export const HOW_TO: HowToTask[] = [
       { text: "Press **Save bug**, or **File bug in Jira** when Jira is connected.", see: "The bug linked on the step. Next time anyone runs this case, it shows under Known bugs.", target: "bug-submit", saves: true },
       { text: "Press **Save and next** to save the case.", see: "The next case.", target: "runner-save", saves: true },
     ],
+    next: "link-bug",
+  },
+  {
+    id: "link-bug",
+    group: "Bugs",
+    title: "Link a bug that's already filed",
+    sub: "When a failed step is a bug someone already found",
+    words: "link existing bug duplicate already filed jira key same bug search",
+    start: "Start in the runner, on a failed step (see Report a bug from a failed step).",
+    steps: [
+      { text: "Press **Report bug** under the failed step.", see: "The **Report a bug** box.", target: "runner-report-bug" },
+      { text: "Press **Link existing bug** at the top.", see: "A search box, with bugs already found in this run listed first under it, tagged **In this run**.", target: "bug-tab-link" },
+      { text: "Type a few words, or paste a Jira key or link like QA-123.", see: "Only the matching bugs from this run and from Jira.", target: "link-bug-search", type: true },
+      { text: "Press **Link** on the right bug.", see: "The bug's key on the step. Nothing new is filed." },
+    ],
     next: "write-bug",
   },
   {

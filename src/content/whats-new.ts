@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 184,
+    date: "2026-11-05",
+    items: [
+      {
+        kind: "better",
+        title: "Link existing bug puts the search first",
+        text: "The search box is at the top, ready to type in. One list sits under it: bugs found in this run come first with an In this run tag, then Jira's. Your search narrows both.",
+      },
+    ],
+  },
+  {
     version: 183,
     date: "2026-11-05",
     items: [

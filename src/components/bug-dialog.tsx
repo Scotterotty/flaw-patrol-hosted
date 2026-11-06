@@ -418,6 +418,7 @@ export function BugDialog({
                 key={t}
                 type="button"
                 onClick={() => setTab(t)}
+                data-howto={t === "link" ? "bug-tab-link" : undefined}
                 className={cx("flex-1 rounded px-3 py-1.5", tab === t ? "bg-surface font-medium text-slate-900 shadow-sm" : "text-slate-600")}
               >
                 {t === "new" ? (fromDefect ? "New Jira bug" : "New bug") : "Link existing bug"}
@@ -651,45 +652,62 @@ export function BugDialog({
             </>
           ) : (
             <div className="mt-3 space-y-3">
-              {recent.length > 0 && (
-                <div>
-                  <p className="mb-1 text-xs font-medium text-slate-600">Already found in this run</p>
-                  <ul className="divide-y divide-slate-100 rounded-md border border-slate-200">
-                    {recent.map((d) => (
-                      <li key={d.id} className="flex items-center gap-2 px-3 py-2 text-sm">
-                        <span className="font-mono text-xs text-slate-500">{d.externalKey ?? `D-${d.number}`}</span>
-                        <span className="min-w-0 flex-1 truncate">{d.title}</span>
-                        <Button size="sm" onClick={() => done(d)}>
-                          Link
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {jiraConnected ? (
-                <>
-                  <Input autoFocus autoComplete="off" placeholder="Search Jira, or paste an issue key or link (QA-123)" value={q} onChange={(e) => setQ(e.target.value)} />
-                  <ul className="max-h-72 divide-y divide-slate-100 overflow-y-auto rounded-md border border-slate-200">
-                    {(results ?? []).map((i) => (
-                      <li key={i.key} className="flex items-center gap-2 px-3 py-2 text-sm">
-                        <a href={i.url} target="_blank" rel="noreferrer" className="font-mono text-xs text-accent-700 hover:underline">
-                          {i.key}
-                        </a>
-                        <span className="min-w-0 flex-1 truncate">{i.summary}</span>
-                        <span className="text-xs text-slate-500">{i.status}</span>
-                        <Button size="sm" disabled={pending} onClick={() => link(i.key)}>
-                          Link
-                        </Button>
-                      </li>
-                    ))}
-                    {results && results.length === 0 && <li className="px-3 py-4 text-center text-sm text-slate-500">No matching bugs.</li>}
-                    {searching && !results && <li className="px-3 py-4 text-center text-sm text-slate-500">Searching…</li>}
-                  </ul>
-                </>
-              ) : (
-                recent.length === 0 && <p className="text-sm text-slate-500">No bugs found in this run yet. Connect Jira in Settings to link Jira bugs.</p>
-              )}
+              {(() => {
+                // One search box first, then one list: this run's bugs on top (tagged), then Jira's.
+                const needle = q.trim().toLowerCase();
+                const runBugs = recent.filter((d) => {
+                  if (!needle) return true;
+                  const key = (d.externalKey ?? `D-${d.number}`).toLowerCase();
+                  return key.includes(needle) || needle.includes(key) || d.title.toLowerCase().includes(needle);
+                });
+                const runKeys = new Set(recent.map((d) => d.externalKey).filter(Boolean));
+                const jira = (results ?? []).filter((i) => !runKeys.has(i.key));
+                const empty = runBugs.length === 0 && (!jiraConnected || (results !== null && jira.length === 0));
+                return (
+                  <>
+                    <Input
+                      autoFocus
+                      autoComplete="off"
+                      data-howto="link-bug-search"
+                      className="h-11 text-base"
+                      placeholder={jiraConnected ? "Search Jira, or paste an issue key or link (QA-123)" : "Search bugs found in this run"}
+                      value={q}
+                      onChange={(e) => setQ(e.target.value)}
+                    />
+                    {(recent.length > 0 || jiraConnected) && (
+                      <ul data-testid="link-bug-list" className="max-h-96 divide-y divide-slate-100 overflow-y-auto rounded-md border border-slate-200">
+                        {runBugs.map((d) => (
+                          <li key={d.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                            <span className="font-mono text-xs text-slate-500">{d.externalKey ?? `D-${d.number}`}</span>
+                            <span className="min-w-0 flex-1 truncate">{d.title}</span>
+                            <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">In this run</span>
+                            <Button size="sm" onClick={() => done(d)}>
+                              Link
+                            </Button>
+                          </li>
+                        ))}
+                        {jira.map((i) => (
+                          <li key={i.key} className="flex items-center gap-2 px-3 py-2 text-sm">
+                            <a href={i.url} target="_blank" rel="noreferrer" className="font-mono text-xs text-accent-700 hover:underline">
+                              {i.key}
+                            </a>
+                            <span className="min-w-0 flex-1 truncate">{i.summary}</span>
+                            <span className="text-xs text-slate-500">{i.status}</span>
+                            <Button size="sm" disabled={pending} onClick={() => link(i.key)}>
+                              Link
+                            </Button>
+                          </li>
+                        ))}
+                        {empty && <li className="px-3 py-4 text-center text-sm text-slate-500">No matching bugs.</li>}
+                        {jiraConnected && searching && !results && <li className="px-3 py-4 text-center text-sm text-slate-500">Searching…</li>}
+                      </ul>
+                    )}
+                    {!jiraConnected && recent.length === 0 && (
+                      <p className="text-sm text-slate-500">No bugs found in this run yet. Connect Jira in Settings to link Jira bugs.</p>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
         </>
