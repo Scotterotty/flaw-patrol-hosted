@@ -331,6 +331,12 @@ export function RunImporter({
               <p className="mt-1 text-sm text-slate-700" data-testid="into-summary">
                 <strong>{p.into.fill}</strong> {p.into.fill === 1 ? "case gets" : "cases get"} a result
                 {p.into.fillInProgress > 0 && ` (${p.into.fillInProgress} in progress)`}
+                {p.into.assign > 0 && (
+                  <>
+                    {" "}
+                    · <strong>{p.into.assign}</strong> {p.into.assign === 1 ? "gets" : "get"} a tester
+                  </>
+                )}
                 {p.into.disagree.length > 0 && (
                   <>
                     {" "}
@@ -347,7 +353,7 @@ export function RunImporter({
                 {p.into.blank > 0 && (
                   <>
                     {" "}
-                    · <strong>{p.into.blank}</strong> blank in the sheet, left as they are
+                    · <strong>{p.into.blank}</strong> {p.into.blank === 1 ? "has" : "have"} no result in the sheet
                   </>
                 )}
                 {p.into.notInRun.length > 0 && (
@@ -357,6 +363,11 @@ export function RunImporter({
                   </>
                 )}
               </p>
+              {p.into.keptTester > 0 && (
+                <p className="mt-1 text-xs text-slate-500" data-testid="into-kept-tester">
+                  {p.into.keptTester === 1 ? "1 case already has" : `${p.into.keptTester} cases already have`} a different tester here and {p.into.keptTester === 1 ? "keeps them" : "keep them"}.
+                </p>
+              )}
               {p.into.notInRun.length > 0 && (
                 <p className="mt-1 text-xs text-slate-500">
                   Not in this run: <span className="font-mono">{p.into.notInRun.slice(0, 12).map((n) => n.key || n.title).join(", ")}{p.into.notInRun.length > 12 && "…"}</span>
@@ -427,16 +438,16 @@ export function RunImporter({
                   <Button
                     variant="primary"
                     data-howto="import-add"
-                    disabled={pending || checking || p.into.fill + used(p) === 0}
+                    disabled={pending || checking || p.into.fill + used(p) + p.into.assign === 0}
                     onClick={() =>
                       start(async () => {
                         const res = await importIntoRun(projectId, { rows, map, links, fileName }, { runId, testedOn, useSheet: p.into!.disagree.filter((d) => !keep.has(d.caseId)).map((d) => d.caseId) });
                         if (!res.ok) return setError(res.error);
-                        router.push(`/p/${projectKey}/runs/${res.number}?updated=${res.filled + res.replaced}`);
+                        router.push(`/p/${projectKey}/runs/${res.number}?updated=${res.filled + res.replaced}${res.assigned ? `&assigned=${res.assigned}` : ""}`);
                       })
                     }
                   >
-                    {pending ? "Updating…" : addLabel(p.into.fill + used(p))}
+                    {pending ? "Updating…" : addLabel(p.into.fill + used(p), p.into.assign)}
                   </Button>
                 </div>
               </div>
@@ -518,6 +529,8 @@ function runLabel(runs: ActiveRun[], id: string) {
   return r ? r.title : "the run";
 }
 
-function addLabel(n: number) {
-  return n ? `Update ${n} ${n === 1 ? "result" : "results"}` : "Nothing to update";
+function addLabel(n: number, assign = 0) {
+  if (n) return `Update ${n} ${n === 1 ? "result" : "results"}`;
+  // Only testers to hand out: say so, instead of "Nothing to update" (Scott, Nov 6).
+  return assign ? `Assign ${assign} ${assign === 1 ? "case" : "cases"}` : "Nothing to update";
 }

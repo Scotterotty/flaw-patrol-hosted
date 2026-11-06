@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { intoRunAction } from "./run-import";
+import { intoRunAction, takesSheetTester } from "./run-import";
 
 // ver_166: a sheet added to a run in progress only fills untested cases.
 describe("intoRunAction", () => {
@@ -27,5 +27,21 @@ describe("readStatus", () => {
   it("reads an untouched Select dropdown as no result, not an unknown word", async () => {
     const { readStatus } = await import("./run-import");
     expect(readStatus("Select")).toEqual({ status: "UNTESTED", known: true });
+  });
+});
+
+// Scott, Nov 6: testers from the sheet are handed out even when the case has no result yet.
+describe("takesSheetTester", () => {
+  it("assigns blank and already-matching cases nobody has here", () => {
+    expect(takesSheetTester("blank", "m1", null)).toBe(true);
+    expect(takesSheetTester("skip", "m1", null)).toBe(true);
+    expect(takesSheetTester("disagree", "m1", null)).toBe(true);
+  });
+  it("keeps the person a case is already assigned to", () => {
+    expect(takesSheetTester("blank", "m1", "m2")).toBe(false);
+  });
+  it("leaves unlinked names and filled cases alone", () => {
+    expect(takesSheetTester("blank", null, null)).toBe(false);
+    expect(takesSheetTester("fill", "m1", null)).toBe(false);
   });
 });

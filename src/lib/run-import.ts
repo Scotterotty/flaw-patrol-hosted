@@ -147,6 +147,15 @@ const FINAL_STATUSES = new Set(["PASSED", "FAILED", "BLOCKED", "RETEST", "SKIPPE
  * have a final result and they differ (changes only if ticked), "blank" when the sheet has
  * no result (never clears anything), and "skip" for everything already marked here.
  */
+/**
+ * Adding a sheet to a run in progress: does the case take the sheet's tester? Only when nobody
+ * has it here and the sheet's name is linked to a member. Filled cases get theirs with the
+ * result, and a blank result still hands the case out (Scott, Nov 6).
+ */
+export function takesSheetTester(action: ReturnType<typeof intoRunAction>, memberId: string | null | undefined, assigneeId: string | null): boolean {
+  return action !== "fill" && !!memberId && !assigneeId;
+}
+
 export function intoRunAction(here: string, startedHere: boolean, sheet: ImportStatus | "IN_PROGRESS"): "fill" | "disagree" | "blank" | "skip" {
   if (sheet === "UNTESTED") return "blank";
   if (here === "UNTESTED" && !startedHere) return "fill";

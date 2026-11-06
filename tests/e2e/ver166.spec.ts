@@ -86,7 +86,7 @@ test("a sheet goes into a run in progress from the umbrella, filling only untest
 
   // ver_177: results that differ use the sheet's by default (one tick), listed folded up with who saved them.
   const into = page.getByRole("region", { name: "Updating the run" });
-  await expect(into.getByTestId("into-summary")).toContainText("1 case gets a result · 1 differs from the sheet · 1 already matches, skipped · 1 blank in the sheet, left as they are · 1 not in this run, skipped");
+  await expect(into.getByTestId("into-summary")).toContainText("1 case gets a result · 1 differs from the sheet · 1 already matches, skipped · 1 has no result in the sheet · 1 not in this run, skipped");
   const disagree = into.getByRole("group", { name: "Differs from the sheet" });
   await expect(disagree.getByRole("checkbox", { name: /Use the sheet's results for the 1 that differs/ })).toBeChecked();
   await disagree.getByText("Show the 1 that differ").click();

@@ -53,14 +53,14 @@ import { KnownBugsHeadsUp, KnownBugsPanel, type RunKnown } from "@/components/kn
 
 export const metadata = { title: "Test run" };
 
-export default async function RunPage({ params, searchParams }: { params: Promise<{ key: string; number: string }>; searchParams: Promise<{ handed?: string; compare?: string; updated?: string }> }) {
+export default async function RunPage({ params, searchParams }: { params: Promise<{ key: string; number: string }>; searchParams: Promise<{ handed?: string; compare?: string; updated?: string; assigned?: string }> }) {
   // FP_TIMING=1 prints how long each part took. The independent lookups run side by
   // side instead of one after another, so the page shows sooner after Start.
   const timing = startTiming("Run page");
   // Live rows read after this replace the list's rows straight away.
   const renderedAt = Date.now();
   const { key, number } = await params;
-  const { handed, compare, updated } = await searchParams;
+  const { handed, compare, updated, assigned } = await searchParams;
   const [spelling, { project, user, who }] = await Promise.all([mySpelling(), timing.step("sign-in and project", projectAccess(key))]);
   const n = Number(number);
   if (!Number.isInteger(n)) notFound();
@@ -163,6 +163,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   // Bring in results from a sheet: open runs you test by hand, for whoever can bring in results.
   const fromSheet = run.state === "ACTIVE" && run.kind !== "bash" && can(who, "run:import");
   const updatedCount = Math.max(0, Math.floor(Number(updated) || 0));
+  const assignedCount = Math.max(0, Math.floor(Number(assigned) || 0));
   const handedTo = handed ? members.find((m) => m.id === handed) : undefined;
   const handedCases = handedTo ? run.entries.filter((e) => e.assigneeId === handedTo.id).length : 0;
 
@@ -278,9 +279,11 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         </div>
       </div>
 
-      {updatedCount > 0 && (
+      {(updatedCount > 0 || assignedCount > 0) && (
         <div role="status" className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900" data-testid="sheet-updated">
-          ✓ Updated {updatedCount} {updatedCount === 1 ? "result" : "results"} from the sheet. Old results are in each case&apos;s history.
+          ✓{" "}
+          {updatedCount > 0 && <>Updated {updatedCount} {updatedCount === 1 ? "result" : "results"} from the sheet. Old results are in each case&apos;s history. </>}
+          {assignedCount > 0 && <>Assigned {assignedCount} {assignedCount === 1 ? "case" : "cases"} to the sheet&apos;s testers.</>}
         </div>
       )}
       {handedTo && handedCases > 0 && <HandOffNote runLabel={runTitle(run, spelling)} cases={handedCases} name={handedTo.name} />}

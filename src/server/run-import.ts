@@ -9,7 +9,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { caseKey } from "@/lib/format";
 import { draftSchema } from "@/lib/run-draft";
-import { caseOutcome, guessColumns, intoRunAction, matchTester, readSheet, RUN_FIELDS, type ColumnMap, type ImportStatus, type SheetCase } from "@/lib/run-import";
+import { caseOutcome, guessColumns, intoRunAction, matchTester, takesSheetTester, readSheet, RUN_FIELDS, type ColumnMap, type ImportStatus, type SheetCase } from "@/lib/run-import";
 import { requireProjectAction } from "@/lib/session";
 import { attempt, UserError } from "./result";
 import { buildEntries } from "./snapshot";
@@ -133,6 +133,8 @@ export async function previewRunImport(projectId: string, input: SheetInput, run
       into: into && {
         fill: into.fill.length,
         fillInProgress: into.fill.filter((f) => f.outcome === "IN_PROGRESS").length,
+        assign: into.assign.length,
+        keptTester: into.keptTester,
         skipped: into.skipped,
         disagree: into.disagree.map((d) => ({ caseId: d.row.caseId, key: d.key, title: d.row.title, here: d.here, sheet: d.sheet, by: d.by, at: d.at })),
         automated: into.automated,
@@ -261,6 +263,11 @@ async function intoPlan(projectId: string, runId: string, p: Plan) {
   let blank = 0;
   // Automated cases are left to the automation: a sheet never changes them (ver_177).
   let automated = 0;
+  // Cases nobody has here that the sheet gives to a linked tester, with or without a result.
+  // A case filled from the sheet gets its tester with the result, so it isn't listed again.
+  const assign: { entryId: string; memberId: string }[] = [];
+  // Cases the sheet gives to someone else than the person who has them here: they keep theirs.
+  let keptTester = 0;
   for (const r of p.rows) {
     const key = r.key;
     const entry = entryOf.get(r.caseId);
@@ -275,6 +282,8 @@ async function intoPlan(projectId: string, runId: string, p: Plan) {
     const steps = Array.isArray(entry.steps) ? entry.steps.length : 0;
     const outcome = caseOutcome(r.sheet, steps);
     const action = intoRunAction(entry.status, entry.draft !== null, outcome);
+    if (r.member && takesSheetTester(action, r.member.id, entry.assigneeId)) assign.push({ entryId: entry.id, memberId: r.member.id });
+    else if (r.member && entry.assigneeId && entry.assigneeId !== r.member.id) keptTester++;
     if (action === "blank") blank++;
     else if (action === "fill") fill.push({ row: r, entry, steps, outcome });
     else if (action === "disagree") {
@@ -283,7 +292,7 @@ async function intoPlan(projectId: string, runId: string, p: Plan) {
     }
     else skipped++;
   }
-  return { run, fill, disagree, notInRun, skipped, blank, automated };
+  return { run, fill, disagree, notInRun, skipped, blank, automated, assign, keptTester };
 }
 
 const intoSchema = z.object({
@@ -303,7 +312,7 @@ export async function importIntoRun(projectId: string, input: SheetInput, into: 
     const ip = await intoPlan(project.id, meta.runId, p);
     const use = new Set(meta.useSheet);
     const overrides = ip.disagree.filter((d) => use.has(d.row.caseId));
-    if (!ip.fill.length && !overrides.length) throw new UserError("Nothing to add: every case in the sheet is already marked in this run, or has no result in the sheet.");
+    if (!ip.fill.length && !overrides.length && !ip.assign.length) throw new UserError("Nothing to add: every case in the sheet is already marked in this run, or has no result or tester in the sheet.");
     const at = new Date(Math.min(new Date(`${meta.testedOn}T12:00:00Z`).getTime(), Date.now()));
     const jira = await jiraConfigFor(projectId);
     const note = `Imported from ${sheet.fileName || "a spreadsheet"}`;
@@ -348,12 +357,20 @@ export async function importIntoRun(projectId: string, input: SheetInput, into: 
           await linkDefects(tx, { projectId, resultId: result.id, keys: r.sheet.defects, jira, user });
           replaced++;
         }
+        // The sheet's testers for cases nobody has here yet, even with no result (Scott, Nov 6).
+        // Someone may have taken a case since the preview: only cases still unassigned change.
+        let assigned = 0;
+        for (const a of ip.assign) {
+          const done = await tx.runEntry.updateMany({ where: { id: a.entryId, assigneeId: null }, data: { assigneeId: a.memberId } });
+          assigned += done.count;
+        }
         await rememberLinks(tx, projectId, sheet.links, p.members);
-        return { filled, replaced };
+        return { filled, replaced, assigned };
       },
       { timeout: 180_000 },
     );
-    await logActivity({ actor: user, kind: "run", action: `Added ${counts.filled + counts.replaced} results from a spreadsheet to run "${runTitle(ip.run)}"`, project });
+    const assignedNote = counts.assigned ? `, assigned ${counts.assigned} ${counts.assigned === 1 ? "case" : "cases"}` : "";
+    await logActivity({ actor: user, kind: "run", action: `Added ${counts.filled + counts.replaced} results from a spreadsheet to run "${runTitle(ip.run)}"${assignedNote}`, project });
     queueQaseSend(projectId);
     revalidatePath(`/p/${project.key}`, "layout");
     return { number: ip.run.number, ...counts };
