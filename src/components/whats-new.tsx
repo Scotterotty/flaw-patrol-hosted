@@ -43,6 +43,7 @@ export function WhatsNewLine({ i, showMe, onGo }: { i: WhatsNewItem; showMe?: bo
  */
 export function WhatsNewWindow({ entries }: { entries: WhatsNewEntry[] }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const pressedOutside = useRef(false);
   const path = usePathname();
   const spelling = useSpelling();
   const [done, setDone] = useState(false);
@@ -68,7 +69,14 @@ export function WhatsNewWindow({ entries }: { entries: WhatsNewEntry[] }) {
       ref={ref}
       aria-labelledby="whats-new-title"
       onClose={seen}
-      onClick={(e) => e.target === ref.current && close()}
+      // Closes on a click outside only when the press started outside too, so a drag that
+      // selects text and ends past the edge doesn't close it.
+      onPointerDown={(e) => (pressedOutside.current = e.target === ref.current)}
+      onClick={(e) => {
+        const outside = e.target === ref.current && pressedOutside.current;
+        pressedOutside.current = false;
+        if (outside) close();
+      }}
       className="m-auto max-h-[min(36rem,calc(100%-2rem))] w-[min(34rem,calc(100%-2rem))] flex-col rounded-xl bg-surface p-0 shadow-xl backdrop:bg-black/50 open:flex"
       data-testid="whats-new-window"
     >

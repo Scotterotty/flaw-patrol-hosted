@@ -1855,3 +1855,12 @@ main:focus {
     padding: 0;
   }
 }
+
+/* Runner: while you drag to select inside one step's text, only that text can be selected. */
+.fp-sel-lock body :not(input, textarea, [contenteditable="true"]) {
+  user-select: none;
+}
+.fp-sel-lock body [data-sel-on],
+.fp-sel-lock body [data-sel-on] :not(.select-none) {
+  user-select: text;
+}

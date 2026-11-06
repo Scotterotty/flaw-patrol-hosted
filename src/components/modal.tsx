@@ -41,6 +41,14 @@ export function Modal({
       return !b;
     });
   };
+  // A click outside closes the box only when the press started outside too: dragging to select
+  // text in a field and letting go past the box's edge used to close it and lose what you typed.
+  // Once you've typed in the box, a click outside doesn't close it at all; ✕ and Esc still do.
+  const pressedOutside = useRef(false);
+  const typed = useRef(false);
+  useEffect(() => {
+    if (open) typed.current = false;
+  }, [open]);
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
@@ -55,7 +63,13 @@ export function Modal({
       aria-label={title}
       onClose={onClose}
       onCancel={(e) => locked && e.preventDefault()}
-      onClick={(e) => !locked && e.target === ref.current && onClose()}
+      onPointerDown={(e) => (pressedOutside.current = e.target === ref.current)}
+      onInput={() => (typed.current = true)}
+      onClick={(e) => {
+        const outside = e.target === ref.current && pressedOutside.current;
+        pressedOutside.current = false;
+        if (!locked && outside && !typed.current) onClose();
+      }}
       className={`m-auto w-full rounded-lg bg-surface p-0 shadow-xl backdrop:bg-black/50 ${wide && big ? "max-h-[94vh] max-w-[min(94vw,110rem)] [&_textarea]:min-h-[min(45vh,28rem)]" : wide ? "max-w-2xl" : "max-w-md"}`}
     >
       {open && (

@@ -81,6 +81,7 @@ function SearchDialog({ scope: start, onClose }: { scope: { id: string; name: st
   const router = useRouter();
   const ids = useId();
   const dialog = useRef<HTMLDialogElement>(null);
+  const pressedOutside = useRef(false);
   const input = useRef<HTMLInputElement>(null);
   const [q, setQ] = useState("");
   const [scope, setScope] = useState(start);
@@ -230,7 +231,14 @@ function SearchDialog({ scope: start, onClose }: { scope: { id: string; name: st
       ref={dialog}
       aria-label="Search"
       onClose={onClose}
-      onClick={(e) => e.target === dialog.current && onClose()}
+      // Closes on a click outside only when the press started outside too, so a drag that
+      // selects text and ends past the edge doesn't close it.
+      onPointerDown={(e) => (pressedOutside.current = e.target === dialog.current)}
+      onClick={(e) => {
+        const outside = e.target === dialog.current && pressedOutside.current;
+        pressedOutside.current = false;
+        if (outside) onClose();
+      }}
       className="mx-auto mt-[8vh] mb-auto w-[calc(100%-2rem)] max-w-2xl rounded-lg bg-surface p-0 shadow-xl backdrop:bg-black/50"
     >
       <div className="border-b border-slate-200 p-3">

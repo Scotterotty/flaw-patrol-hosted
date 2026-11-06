@@ -180,21 +180,36 @@ export function Runner({
       if (after) sel.setBaseAndExtent(sel.anchorNode, sel.anchorOffset, cell, cell.childNodes.length);
       else sel.setBaseAndExtent(sel.anchorNode, sel.anchorOffset, cell, 0);
     };
+    // While the drag lasts, nothing else on the page can be selected. Holding the mouse near the
+    // bottom scrolls the steps, and the clamp alone lost track then and spilled into Case result.
+    const lock = (on: HTMLElement | null) => {
+      document.querySelectorAll("[data-sel-on]").forEach((el) => el.removeAttribute("data-sel-on"));
+      document.documentElement.classList.toggle("fp-sel-lock", !!on);
+      on?.setAttribute("data-sel-on", "");
+    };
     const down = (e: PointerEvent) => {
       cell = (e.target as HTMLElement).closest?.<HTMLElement>("[data-sel]") ?? null;
       if (!cell) setSelCell(null);
+      lock(e.button === 0 ? cell : null);
     };
     const up = () => {
       clamp();
       cell = null;
+      lock(null);
     };
     document.addEventListener("pointerdown", down);
     document.addEventListener("selectionchange", clamp);
     document.addEventListener("pointerup", up);
+    // A drag that ends outside the window, or is taken over by the browser, still unlocks the page.
+    document.addEventListener("pointercancel", up);
+    window.addEventListener("blur", up);
     return () => {
       document.removeEventListener("pointerdown", down);
       document.removeEventListener("selectionchange", clamp);
       document.removeEventListener("pointerup", up);
+      document.removeEventListener("pointercancel", up);
+      window.removeEventListener("blur", up);
+      lock(null);
     };
   }, []);
   const reopened = useRef(saved !== null).current;
@@ -1298,7 +1313,7 @@ export function Runner({
 
       <div className="mt-3 shrink-0 rounded-lg border border-slate-200 bg-surface p-3 shadow-sm">
         <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 select-none">
           <span className="text-sm font-medium text-slate-700">Case result</span>
           {n > 0 && !override && !changingResult && (
             <>
