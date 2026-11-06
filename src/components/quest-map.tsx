@@ -83,8 +83,8 @@ export function QuestMapView({
         return (
           <g key={e.step}>
             <title>{`${e.kind === "item" ? `${e.winner.name} found the ${e.name}` : foeLine(e.winner.name, e.name, e.winner.status, e.winner.gear)} (${RARITY_LABEL[e.rarity]})`}</title>
-            <circle cx={n.x} cy={n.y} r={19} fill="var(--color-surface)" stroke={RARITY_STYLE[e.rarity].stroke} strokeWidth={e.rarity === "common" ? 2.5 : 4} />
-            <text x={n.x} y={n.y + 7} textAnchor="middle" fontSize={20}>
+            <circle cx={n.x} cy={n.y} r={ITEM_R} fill="var(--color-surface)" stroke={RARITY_STYLE[e.rarity].stroke} strokeWidth={e.rarity === "common" ? 2 : 3} />
+            <text x={n.x} y={n.y} textAnchor="middle" dominantBaseline="central" fontSize={ITEM_FONT}>
               {e.emoji}
             </text>
           </g>
@@ -97,8 +97,8 @@ export function QuestMapView({
         return (
           <g key={`t${t.step}`}>
             <title>{`${troubleLine(t)} ${t.helper ? rescueLine(t, undefined, undefined, map.to) : "Waiting for a teammate to help."} (${RARITY_LABEL[r.rarity]})`}</title>
-            <circle cx={n.x} cy={n.y} r={19} fill="var(--color-surface)" stroke={RARITY_STYLE[r.rarity].stroke} strokeWidth={r.rarity === "common" ? 2.5 : 4} strokeDasharray="5 3" />
-            <text x={n.x} y={n.y + 7} textAnchor="middle" fontSize={20}>
+            <circle cx={n.x} cy={n.y} r={ITEM_R} fill="var(--color-surface)" stroke={RARITY_STYLE[r.rarity].stroke} strokeWidth={r.rarity === "common" ? 2 : 3} strokeDasharray="3 2" />
+            <text x={n.x} y={n.y} textAnchor="middle" dominantBaseline="central" fontSize={ITEM_FONT}>
               {r.emoji}
             </text>
           </g>
@@ -225,6 +225,9 @@ function Party({ map, position, party, me, hurt, compact }: { map: QuestMap; pos
 }
 
 const RING = 21;
+/** Finds and trouble on the road: about 60% of a pawn, so people stand out (ver_183). */
+const ITEM_R = 11.5;
+const ITEM_FONT = 12;
 
 /** One pawn: emoji in a circle of its color, gear badges on an even ring, and a name tag. */
 export function PawnMark({

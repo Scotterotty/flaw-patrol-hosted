@@ -156,7 +156,7 @@ export default async function QuestPage({ params }: { params: Promise<{ key: str
         )}
       </Card>
       <p className="mt-3 text-xs text-slate-500">
-        Encounters, items and trouble stay hidden until the pawn lands on them, and go to whoever saved that case. Whoever saves the next case after someone lands in trouble rescues them and gets a thank-you find. Longer runs find rarer things:
+        Encounters, items and trouble stay hidden until the pawn lands on them, and go to whoever saved that case here (results brought in from a spreadsheet move the pawn but find nothing). Whoever saves the next case after someone lands in trouble rescues them and gets a thank-you find. Longer runs find rarer things:
         on this {q.steps}-step road each find has {chance(rarityOdds(q.steps).exotic)} chance of being Exotic
         {q.steps < LUCKIEST_RUN ? ` (best odds from ${LUCKIEST_RUN} cases up).` : ", the best odds there are."} <Link href={`/p/${project.key}/quests`} className="text-accent-700 hover:underline">All quests and the team&apos;s satchels</Link>
       </p>

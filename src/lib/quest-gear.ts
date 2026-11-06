@@ -4,7 +4,7 @@
 // Teamwork events: trouble on a step holds whoever lands there until the next
 // teammate to save a case in the run rescues them.
 
-import { FOES, ITEMS, sentence, type Completion, type GearSnapshot, type QuestMap, type QuestTrouble, type Rarity } from "./quest";
+import { earner, FOES, ITEMS, sentence, type Completion, type GearSnapshot, type QuestMap, type QuestTrouble, type Rarity } from "./quest";
 
 export const SLOTS = [
   { id: "head", label: "Head" },
@@ -136,13 +136,13 @@ export type TeamworkEvent = {
 export function teamwork(map: QuestMap, done: Completion[], steps: number): TeamworkEvent[] {
   const out: TeamworkEvent[] = [];
   for (const t of map.troubles) {
-    const victim = done[t.step - 1];
+    const victim = earner(done[t.step - 1]);
     if (!victim) continue;
     const same = (c: Completion) => (victim.userId ? c.userId === victim.userId : c.name === victim.name);
     const later = done.slice(t.step);
-    let helper = later.find((c) => !same(c)) ?? null;
+    let helper = later.find((c) => !c.imported && !same(c)) ?? null;
     let self = false;
-    if (!helper && done.length >= steps && later.length && same(done[done.length - 1])) {
+    if (!helper && done.length >= steps && later.length && earner(done[done.length - 1]) && same(done[done.length - 1])) {
       helper = done[done.length - 1];
       self = true;
     }
@@ -248,7 +248,7 @@ export function questRecord(userId: string, runs: { map: QuestMap; done: Complet
   const ok = (c: Completion | null | undefined) => !!c && c.userId === userId && (!since || c.at >= since);
   for (const r of runs) {
     for (const e of r.map.events) {
-      const c = r.done[e.step - 1];
+      const c = earner(r.done[e.step - 1]);
       if (!ok(c)) continue;
       if (e.kind === "item") {
         rec.items.set(e.id, (rec.items.get(e.id) ?? 0) + 1);

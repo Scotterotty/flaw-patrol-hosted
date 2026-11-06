@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "./db";
 import { caseKey } from "./format";
-import { foeLine, foundRewards, generateQuest, RARITY_LABEL, sentence, type Completion, type QuestMap } from "./quest";
+import { foeLine, foundRewards, generateQuest, questName, RARITY_LABEL, sentence, walkOrder, type Completion, type QuestMap } from "./quest";
 import { autoSlotFor, parseGear, partyOf, photoUrl, questRecord, rescueFinds, rescueLine, SLOT_LABEL, teamwork, troubleLine, type Look, type QuestRecord, type Slot } from "./quest-gear";
 
 const DONE = { notIn: ["UNTESTED", "IN_PROGRESS"] as ("UNTESTED" | "IN_PROGRESS")[] };
@@ -12,10 +12,10 @@ async function completions(runIds: string[]) {
   if (!runIds.length) return byRun;
   // Each case's first result in one query with its case key. Loading every result with
   // its case through Prisma took about 2 seconds for someone who had tested in a hundred runs.
-  const rows = await db.$queryRaw<{ runId: string; entryId: string; createdAt: Date; testerId: string | null; testerName: string; status: Completion["status"]; questGear: unknown; number: number; key: string }[]>`
-    select r."runId", r."entryId", r."createdAt", r."testerId", r."testerName", r.status::text as status, r."questGear", c.number, p.key
+  const rows = await db.$queryRaw<{ runId: string; entryId: string; createdAt: Date; testerId: string | null; testerName: string; status: Completion["status"]; questGear: unknown; imported: boolean; number: number; key: string }[]>`
+    select r."runId", r."entryId", r."createdAt", r."testerId", r."testerName", r.status::text as status, r."questGear", r.imported, c.number, p.key
     from (
-      select distinct on ("entryId") "runId", "entryId", "createdAt", "testerId", "testerName", status, "questGear"
+      select distinct on ("entryId") "runId", "entryId", "createdAt", "testerId", "testerName", status, "questGear", imported
       from "TestResult"
       where "runId" = any(${runIds}) and status::text not in ('UNTESTED', 'IN_PROGRESS')
       order by "entryId", "createdAt" asc, id asc
@@ -30,7 +30,8 @@ async function completions(runIds: string[]) {
       entryId: r.entryId,
       at: r.createdAt,
       userId: r.testerId,
-      name: r.testerName || "Someone",
+      name: questName(r.testerName || "Someone"),
+      imported: r.imported,
       status: r.status,
       gear: r.questGear ? parseGear(r.questGear) : null,
       caseNumber: r.number,
@@ -39,6 +40,8 @@ async function completions(runIds: string[]) {
     });
     byRun.set(r.runId, list);
   }
+  // Imported results walk after the ones saved here, so they never take a find (ver_183).
+  for (const [id, list] of byRun) byRun.set(id, walkOrder(list));
   return byRun;
 }
 
@@ -76,7 +79,7 @@ export async function looksFor(userIds: string[]): Promise<Map<string, Look>> {
   const users = userIds.length
     ? await db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true, email: true, questPawn: true, questColor: true, questGear: true, avatarAt: true } })
     : [];
-  return new Map(users.map((u) => [u.id, { userId: u.id, name: u.name ?? u.email, pawn: u.questPawn, color: u.questColor, gear: parseGear(u.questGear), photo: photoUrl(u.id, u.avatarAt) }]));
+  return new Map(users.map((u) => [u.id, { userId: u.id, name: questName(u.name || u.email), pawn: u.questPawn, color: u.questColor, gear: parseGear(u.questGear), photo: photoUrl(u.id, u.avatarAt) }]));
 }
 
 /** The party for a run's map: who has saved a case, leader first, with their looks. */

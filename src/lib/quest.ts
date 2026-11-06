@@ -378,7 +378,28 @@ export function generateQuest(seed: string, steps: number, catalog = QUEST_CATAL
 /** Worn quest gear by slot (see src/lib/quest-gear.ts), as snapshotted on a result. */
 export type GearSnapshot = Partial<Record<"head" | "hand" | "offhand" | "charm" | "companion", string>>;
 
-export type Completion = { entryId: string; at: Date; userId: string | null; name: string; status: string; gear?: GearSnapshot | null };
+/** `imported`: the result came in from a spreadsheet. It moves the pawn but never earns finds or trouble (ver_183). */
+export type Completion = { entryId: string; at: Date; userId: string | null; name: string; status: string; gear?: GearSnapshot | null; imported?: boolean };
+
+/** Who earns what's on a step: the result that landed there, unless it was imported from a sheet. */
+export const earner = <C extends Completion>(c: C | null | undefined): C | undefined => (c && !c.imported ? c : undefined);
+
+/** A person's name for the quest map. Someone with no name shows "ryan.meredith@x.com" as "Ryan Meredith". */
+export function questName(name: string) {
+  const m = /^([^@\s]+)@[^@\s]+$/.exec(name.trim());
+  if (!m) return name;
+  const words = m[1].split(/[._+-]+/).filter(Boolean);
+  return words.length ? words.map((w) => w[0].toUpperCase() + w.slice(1)).join(" ") : name;
+}
+
+/**
+ * The order the pawn walks: results saved in Flaw Patrol first, by when they were saved,
+ * then results brought in from a sheet. So an import never moves a find someone already has.
+ */
+export function walkOrder<C extends Completion>(done: C[]) {
+  const t = (c: C) => c.at.getTime();
+  return [...done.filter((c) => !c.imported).sort((a, b) => t(a) - t(b)), ...done.filter((c) => c.imported).sort((a, b) => t(a) - t(b))];
+}
 
 export type QuestReward = QuestEvent & { winner: { userId: string | null; name: string; status: string; at: Date; gear?: GearSnapshot | null } | null };
 
@@ -388,7 +409,7 @@ export type QuestReward = QuestEvent & { winner: { userId: string | null; name: 
  */
 export function questRewards(map: QuestMap, done: Completion[]): QuestReward[] {
   return map.events.map((e) => {
-    const c = done[e.step - 1];
+    const c = earner(done[e.step - 1]);
     return { ...e, winner: c ? { userId: c.userId, name: c.name, status: c.status, at: c.at, gear: c.gear ?? null } : null };
   });
 }
