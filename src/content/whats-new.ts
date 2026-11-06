@@ -22,6 +22,27 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 193,
+    date: "2026-11-06",
+    items: [
+      {
+        kind: "fix",
+        title: "Selecting text no longer closes boxes",
+        text: "Drag to select text in a box and let go outside it: the box stays open. Once you've typed in a box, a click outside won't close it either. Use the X, Cancel or Esc.",
+      },
+      {
+        kind: "fix",
+        title: "Copying a step copies just that step",
+        text: "In a run, dragging to select a step's text stays inside that step, even if you hold the mouse near the bottom. Case result is never picked up.",
+      },
+      {
+        kind: "fix",
+        title: "Log files attach to bugs",
+        text: ".log files, rotated logs and crash dumps (.dmp) attach to bugs, up to 24 MB.",
+      },
+    ],
+  },
+  {
     version: 192,
     date: "2026-11-06",
     items: [
