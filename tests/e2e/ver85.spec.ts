@@ -19,6 +19,7 @@ test("start a run in the test cycle you're in, hand it off, close it with the ne
   const make = page.getByRole("dialog");
   await make.getByLabel("Product name").fill(NAME);
   await make.getByLabel("Key").fill(HUB);
+  await make.getByTestId("u-more").click();
   await make.getByLabel("Release", { exact: true }).fill("RC4");
   await make.getByLabel("Platform 1").fill("Web");
   await make.getByRole("button", { name: "＋ Add a platform" }).click();

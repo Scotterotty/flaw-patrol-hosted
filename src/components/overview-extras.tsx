@@ -137,9 +137,27 @@ export function InviteTeam({
 }
 
 /** One click to turn on quest maps (and with them the mini game). */
-export function QuestMapOnButton({ label = "Turn on quest maps", size }: { label?: string; size?: "sm" }) {
+export function QuestMapOnButton({ label = "Turn on quest maps", size, plain = false }: { label?: string; size?: "sm"; plain?: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  // On the Overview it's a plain link (ver_187): the fun extra shouldn't outshine Create a run.
+  if (plain)
+    return (
+      <button
+        type="button"
+        className="font-medium text-accent-700 hover:underline disabled:opacity-60"
+        disabled={pending}
+        data-testid="quest-map-on"
+        onClick={() =>
+          start(async () => {
+            await setQuestMap(true);
+            router.refresh();
+          })
+        }
+      >
+        {pending ? "Turning on…" : label}
+      </button>
+    );
   return (
     <Button
       size={size}

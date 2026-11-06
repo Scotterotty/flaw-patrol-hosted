@@ -69,8 +69,9 @@ const tz = (zone?: string) => (zone ? { timeZone: zone } : {});
 export const longDate = (d: Date, s: Spelling, zone?: string) => d.toLocaleDateString(locale(s), { year: "numeric", month: "short", day: "numeric", ...tz(zone) });
 /** Oct 24 or 24 Oct. */
 export const shortDate = (d: Date, s: Spelling, zone?: string) => d.toLocaleDateString(locale(s), { month: "short", day: "numeric", ...tz(zone) });
-/** 10/24/2026, 3:05 PM or 24/10/2026, 15:05. */
-export const dateTime = (d: Date, s: Spelling, zone?: string) => d.toLocaleString(locale(s), { dateStyle: "short", timeStyle: "short", ...tz(zone) });
+/** Oct 24, 3:05 PM or 24 Oct, 15:05; the year only when it isn't this year (ver_187: one date style, not 10/24/26). */
+export const dateTime = (d: Date, s: Spelling, zone?: string) =>
+  d.toLocaleString(locale(s), { month: "short", day: "numeric", ...(d.getFullYear() !== new Date().getFullYear() && { year: "numeric" }), hour: "numeric", minute: "2-digit", ...tz(zone) });
 /** 3:05 PM or 15:05. */
 export const clockTime = (d: Date, s: Spelling, zone?: string) => d.toLocaleTimeString(locale(s), { hour: "numeric", minute: "2-digit", ...tz(zone) });
 /** Sun, Nov 1 or Sun 1 Nov. */

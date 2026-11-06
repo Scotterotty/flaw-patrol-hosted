@@ -41,13 +41,13 @@ export default async function GroupPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; project?: string; archived?: string; q?: string; state?: string; edit?: string }>;
+  searchParams: Promise<{ tab?: string; project?: string; archived?: string; q?: string; state?: string; edit?: string; welcome?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
   const user = await requireUser();
   const umbrella = await loadUmbrella(id, user);
-  if (umbrella) return <UmbrellaHome u={umbrella} user={user} />;
+  if (umbrella) return <UmbrellaHome u={umbrella} user={user} welcome={sp.welcome === "1"} />;
   const group = await db.projectGroup.findUnique({ where: { id } });
   if (!group) notFound();
   const manager = await canManageGroups(user);

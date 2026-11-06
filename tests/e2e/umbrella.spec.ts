@@ -31,6 +31,7 @@ test("umbrella: shared library, platforms, Start next release, bugs and shortcut
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Product name").fill(NAME);
   await dialog.getByLabel("Key").fill(HUB);
+  await dialog.getByTestId("u-more").click();
   await dialog.getByRole("checkbox", { name: new RegExp(`^Old ${TAG}`) }).check();
   await expect(dialog.getByRole("checkbox", { name: /Move their cases/ })).toBeChecked();
   await dialog.getByRole("button", { name: `Make ${NAME} with 1 moved in` }).click();

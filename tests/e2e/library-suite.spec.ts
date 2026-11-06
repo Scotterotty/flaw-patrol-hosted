@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { openFilters } from "./filters";
 import { signIn } from "./auth";
 import { standaloneProject, pickKind } from "./projects";
 
@@ -28,6 +29,7 @@ test("a test cycle's suites, Create a run and reports use the umbrella's Case li
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Product name").fill(NAME);
   await dialog.getByLabel("Key").fill(HUB);
+  await dialog.getByTestId("u-more").click();
   await dialog.getByRole("checkbox", { name: new RegExp(`^RC ${TAG}`) }).check();
   await dialog.getByRole("button", { name: `Make ${NAME} with 1 moved in` }).click();
   await expect(page).toHaveURL(/\/g\//);
@@ -65,5 +67,6 @@ test("a test cycle's suites, Create a run and reports use the umbrella's Case li
   await expect(page).toHaveURL(new RegExp(`/p/${RC}/runs/\\d+`));
   await page.goto(`/p/${RC}/reports`);
   await expect(page.getByRole("link", { name: "Shared smoke", exact: true })).toBeVisible();
+  await openFilters(page);
   await expect(page.getByRole("combobox").filter({ hasText: "All suites" }).locator("option", { hasText: "Shared smoke" })).toHaveCount(1);
 });

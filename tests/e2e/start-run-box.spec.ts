@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { openFilters } from "./filters";
 import { signIn } from "./auth";
 import { pickKind } from "./projects";
 
@@ -24,6 +25,7 @@ test("one Create a run box: whole library, a suite or picked cases, in one or mo
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Product name").fill(NAME);
   await dialog.getByLabel("Key").fill(HUB);
+  await dialog.getByTestId("u-more").click();
   await dialog.getByLabel("Release", { exact: true }).fill("RC4");
   await dialog.getByLabel("Platform 1").fill("Web");
   await dialog.getByRole("button", { name: "＋ Add a platform" }).click();
@@ -105,6 +107,7 @@ test("one Create a run box: whole library, a suite or picked cases, in one or mo
   await expect(page.getByRole("heading", { name: "By test cycle" })).toBeVisible();
   await expect(page.getByRole("link", { name: `${NAME} Web RC4` })).toBeVisible();
   await expect(page.getByRole("link", { name: `${NAME} Unity RC4` })).toBeVisible();
+  await openFilters(page);
   await page.getByLabel("Platform").selectOption("unity");
   await expect(page.getByRole("link", { name: `${NAME} Web RC4` })).toHaveCount(0);
   await page.getByRole("link", { name: "Release status" }).click();

@@ -146,6 +146,22 @@ export async function copyInviteLink(projectId: string, userId: string) {
   });
 }
 
+/**
+ * Where someone lands after accepting an invite (ver_187): the umbrella they were just added to,
+ * with a one-time welcome, instead of the Umbrellas list. The newest team they're on wins.
+ */
+async function inviteLanding(userId: string) {
+  const m = await db.projectMember.findFirst({
+    where: { userId, project: { archivedAt: null } },
+    orderBy: { createdAt: "desc" },
+    select: { project: { select: { key: true, hubOf: { select: { id: true } }, group: { select: { id: true, hubProjectId: true } } } } },
+  });
+  if (!m) return "/";
+  const p = m.project;
+  const umbrella = p.hubOf?.id ?? (p.group?.hubProjectId ? p.group.id : null);
+  return umbrella ? `/g/${umbrella}?welcome=1` : `/p/${p.key}`;
+}
+
 /** The invite page: who the link is for, or null when it was used or expired. */
 export async function findInviteLink(token: string) {
   const link = await db.passwordLink.findUnique({ where: { tokenHash: hashLinkToken(token) }, include: { user: { select: { id: true, email: true, name: true, passwordSetAt: true } } } });
@@ -160,7 +176,7 @@ export async function findInviteLink(token: string) {
     }),
   ]);
   const title = inviteTitle(by?.name || by?.email, places.map((m) => m.project.group?.name ?? m.project.hubOf?.name ?? m.project.name));
-  return { email: link.user.email, hasPassword: !!link.user.passwordSetAt, hasName: !!link.user.name?.trim(), title };
+  return { email: link.user.email, hasPassword: !!link.user.passwordSetAt, hasName: !!link.user.name?.trim(), title, landing: await inviteLanding(link.user.id) };
 }
 
 /**
@@ -177,7 +193,7 @@ export async function acceptInvite(token: string, input: { name: string; next: s
   if (!res.ok) return res;
   // Never overwrites a name someone already has.
   if (!hasName) await db.user.update({ where: { id: link.userId }, data: { name } });
-  return passwordSignIn({ email: res.email, password: input.next, mode: "password", redirectTo: "/" });
+  return passwordSignIn({ email: res.email, password: input.next, mode: "password", redirectTo: await inviteLanding(link.userId) });
 }
 
 export async function findPasswordLink(token: string) {

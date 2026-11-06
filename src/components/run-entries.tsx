@@ -258,7 +258,7 @@ export function RunEntries({
               className="text-xs font-medium text-accent-700 underline"
               onClick={() => markRunBefore(rows.filter((r) => r.news?.kind === "new").map((r) => r.id), true)}
             >
-              Not new? Mark {newCount === 1 ? "it" : "them"} as run before
+              Run {newCount === 1 ? "this one" : "these"} before? Say so
             </button>
           )}
           {/* With every case new, All and New would show the same list. */}

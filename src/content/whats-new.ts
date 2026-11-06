@@ -22,6 +22,39 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 187,
+    date: "2026-11-06",
+    items: [
+      {
+        kind: "better",
+        title: "Invites open your umbrella",
+        text: "When you accept an invite, you go straight to the umbrella you were added to, with a line saying who added you. New Members get a short Start here: test a case, report a bug. It hides after your first saved result.",
+      },
+      {
+        kind: "better",
+        title: "Reports: the answer first",
+        text: "Reports show the summary line at the top. The filters are behind one Filter button, which shows how many are set and stays open next time if you leave it open.",
+        link: "/g/{umbrella}/reports",
+      },
+      {
+        kind: "better",
+        title: "Save and next, all the way through",
+        text: "When you test a run, the main button is Save and next, then Save and finish on the last case.",
+      },
+      {
+        kind: "better",
+        title: "A shorter New umbrella box",
+        text: "Just a name and key. Tools, description and first test cycles are under More options. Only Admins and Leads can make umbrellas.",
+        who: "lead",
+      },
+      {
+        kind: "better",
+        title: "Plainer words and dates",
+        text: "Run names use dates like Nov 5. You'll also see \"of cases tested\", \"Tested by\" and \"Run these before? Say so\". Write a bug skips the Template row when there's only one template.",
+      },
+    ],
+  },
+  {
     version: 186,
     date: "2026-11-05",
     items: [

@@ -144,8 +144,8 @@ test("a tester starts from Your work, and the runner keeps every step result", a
   await page.keyboard.press("u");
   await expect(failed).toHaveAttribute("aria-pressed", "false");
 
-  // Save progress and next with no step marked asks first.
-  await page.getByRole("button", { name: "Save progress and next" }).click();
+  // Save and next with no step marked asks first.
+  await page.getByRole("button", { name: "Save and next" }).click();
   const ask = page.getByRole("alert").filter({ hasText: "has no result yet" });
   await expect(ask).toContainText("All 2 steps are still Untested.");
   await ask.getByRole("button", { name: "Stay here" }).click();
@@ -153,12 +153,12 @@ test("a tester starts from Your work, and the runner keeps every step result", a
   await expect(
     page.getByRole("heading", { name: "Sign in with email" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Save progress and next" }).click();
+  await page.getByRole("button", { name: "Save and next" }).click();
   await ask.getByRole("button", { name: "Pass all and next" }).click();
   await expect(page.getByRole("heading", { name: "Sign out" })).toBeVisible();
 
   // The second case is left for later and stays Untested.
-  await page.getByRole("button", { name: "Save progress and exit" }).click();
+  await page.getByRole("button", { name: "Save and finish" }).click();
   await ask.getByRole("button", { name: "Leave it for later" }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${CYCLE}/runs/1$`));
   await expect(

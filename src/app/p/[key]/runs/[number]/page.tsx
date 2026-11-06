@@ -294,7 +294,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         <Card className="p-4 md:col-span-2">
           <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
             <Stat label="Progress" value={`${Math.round(t.progress * 100)}%`} sub={`${t.tested} of ${t.total} cases`} />
-            <Stat label="Pass rate" value={pct(t.passRate)} sub="of cases with a verdict" />
+            <Stat label="Pass rate" value={pct(t.passRate)} sub="of cases tested" />
             <Stat
               label="Steps"
               value={`${steps.PASSED ?? 0} passed`}

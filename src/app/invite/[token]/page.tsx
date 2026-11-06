@@ -30,7 +30,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
                   key={p.id}
                   action={async () => {
                     "use server";
-                    await signIn(p.id, { redirectTo: "/" });
+                    await signIn(p.id, { redirectTo: invite.landing });
                   }}
                 >
                   <Button type="submit" className="w-full">

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openFilters } from "./filters";
 import { signIn, backToRun } from "./auth";
 import { standaloneProject } from "./projects";
 
@@ -49,6 +50,7 @@ test("trends chart results over time, and report filters can be saved for the te
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/trends-light.png`, fullPage: true });
 
   // Trend-only filters narrow the results.
+  await openFilters(page);
   await page.getByLabel("Priority").selectOption("CRITICAL");
   await expect(page.getByRole("img", { name: /Results per period: 1 passed, 1 failed/ })).toBeVisible();
 

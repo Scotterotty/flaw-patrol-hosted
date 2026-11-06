@@ -115,6 +115,8 @@ export function NewUmbrellaButton({ choices, label = "New umbrella", variant = "
   const [rows, setRows] = useState<NewRow[]>([{ id: 1, platform: "", name: null }]);
   const [ticked, setTicked] = useState<Set<string>>(new Set());
   const [bring, setBring] = useState(true);
+  // Day one (ver_187): name and key are all it needs. Tools, test cycles and moving cycles in fold away.
+  const [more, setMore] = useState(false);
   // What will you use?: Everything unless picked otherwise. Test cycles only come up with Test runs.
   const [tools, setTools] = useState<ToolId[]>([...TOOL_IDS]);
   const cyclesToo = tools.includes("runs");
@@ -136,24 +138,27 @@ export function NewUmbrellaButton({ choices, label = "New umbrella", variant = "
           {label}
         </button>
       ) : (
-        <Button variant={variant} onClick={() => setOpen(true)} title="One home for a product's test cases, Jira and team, with a test cycle for each round of testing">
+        <Button variant={variant} onClick={() => setOpen(true)} data-howto="new-umbrella" title="One home for a product's test cases, Jira and team, with a test cycle for each round of testing">
           <UmbrellaIcon className="mr-1 inline size-4 align-[-3px]" />
           {label}
         </Button>
       )}
       <Modal open={open} onClose={() => setOpen(false)} title="New umbrella" wide>
-        <p className="text-sm text-slate-500">
-          An umbrella holds one product&apos;s testing, Jira settings and team in one place. You pick the tools it uses, like test cases and runs, or just bug bashes and a risk board.
-        </p>
+        <p className="text-sm text-slate-500">An umbrella holds one product&apos;s test cases, runs, bugs and team. Give it a name; you can add test cycles and change tools any time.</p>
         <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
         <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_9rem]">
           <Field label="Product name" htmlFor="u-name">
-            <Input id="u-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus placeholder="The product you test" />
+            <Input id="u-name" data-howto="umbrella-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus placeholder="The product you test" />
           </Field>
           <Field label="Key" htmlFor="u-key" hint={shownKey ? `Cases get IDs like ${shownKey}-12` : "Short code that starts every case ID"}>
             <Input id="u-key" value={shownKey} onChange={(e) => setKey(e.target.value.toUpperCase())} maxLength={10} />
           </Field>
         </div>
+        <button type="button" onClick={() => setMore((m) => !m)} aria-expanded={more} data-testid="u-more" data-howto="umbrella-more" className="mt-3 text-sm font-medium text-accent-700 hover:underline">
+          {more ? "▾" : "▸"} More options: tools, description, first test cycles
+        </button>
+        {more && (
+        <>
         <ToolPicker on={tools} onChange={setTools} />
         <div className="mt-3">
           <Field label="Description (optional)" htmlFor="u-desc">
@@ -245,9 +250,12 @@ export function NewUmbrellaButton({ choices, label = "New umbrella", variant = "
             )}
           </fieldset>
         )}
+        </>
+        )}
         <div className="mt-4 flex justify-end gap-2">
           <Button onClick={() => setOpen(false)}>Cancel</Button>
           <Button
+            data-howto="umbrella-make"
             variant="primary"
             disabled={pending}
             onClick={() =>

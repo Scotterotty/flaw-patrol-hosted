@@ -21,6 +21,7 @@ test("an umbrella with only Bug bashes and risk, then Test cases turned on and o
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Product name").fill(NAME);
   await dialog.getByLabel("Key").fill(HUB);
+  await dialog.getByTestId("u-more").click();
   const picker = dialog.getByTestId("tool-picker");
   await expect(picker.getByRole("radio", { name: /^Everything/ })).toHaveAttribute("aria-checked", "true");
   await expect(dialog.getByText("Make its first test cycles")).toBeVisible();

@@ -738,7 +738,7 @@ export const HOW_TO: HowToTask[] = [
     steps: [
       { text: "In the left menu, press **+** next to **Bugs**. (**+ Write a bug** on the Overview does the same.)", see: "The **Write a bug** box.", target: "menu-bugs-plus" },
       { text: "If you're asked, pick the test cycle it **Goes to**.", see: "The test cycle picked." },
-      { text: "Pick a template. The first one is your team's bug layout from **Settings → Bug templates**; **Plain** is three boxes to write in.", see: "The template's boxes.", target: "write-bug-template" },
+      { text: "If your team has more than one bug template, pick one at the top. The first is your team's bug layout from **Settings → Bug templates**; **Plain** is boxes to write in. With only one template there's nothing to pick.", see: "The template's boxes." },
       { text: "If you're asked **Is this bug about …?**, press **Yes** to fill in its usual answers (tag, Team, Client/SKUs), or **No, start blank** for a bug about another product.", see: "The answers filled in, or left blank." },
       { text: "Type a short **Summary** that says what's wrong.", see: "Your summary.", target: "bug-summary", type: true },
       { text: "Fill in the template's boxes (with **Plain**: **Steps to reproduce**, **What happened** and **What you expected**), then pick a **Severity**.", see: "Every box filled in. Anything still needed is listed by the save button." },
@@ -884,7 +884,7 @@ export const HOW_TO: HowToTask[] = [
     words: "reports report summary pass rate export pdf excel confluence status progress",
     steps: [
       { text: "In the left menu, under **Results**, press **Reports**.", see: "**Reports** with a one-line summary: runs, pass rate, open bugs and where most failures are.", target: "menu-reports" },
-      { text: "Pick a release, or change the **From** and **To** dates.", see: "Everything on the page follows your choice." },
+      { text: "To narrow it, press **Filter** under the summary and pick a release, or change the **From** and **To** dates.", see: "Everything on the page follows your choice. **Filter (2)** says how many filters are set.", target: "reports-filter-open" },
       { text: "Press **Copy summary** and paste it into chat or email.", see: "The summary line, ready to paste.", target: "reports-copy" },
       { text: "Press a tab like **Trends**, **Failing steps** or **Bugs found** for more detail. **Release status** shows where one release stands.", see: "That report." },
       { text: "Open **Export** and pick PDF, Excel or **Copy for Confluence or email**.", see: "A file, or a neat table that keeps its look when pasted.", target: "reports-export" },
@@ -963,7 +963,7 @@ export const HOW_TO: HowToTask[] = [
     words: "saved view filters favorite bookmark link share report",
     steps: [
       { text: "In the left menu, under **Results**, press **Reports**.", see: "**Reports**, with **Saved views** and the filters.", target: "menu-reports" },
-      { text: "Set the filters and tab you want.", see: "The report the way you like it.", target: "reports-filters" },
+      { text: "Press **Filter**, then set the filters and tab you want.", see: "The filters open under the summary line, and the report follows them.", target: "reports-filter-open" },
       { text: "Press **Save this view…**.", see: "A box to name the view.", target: "view-save-open" },
       { text: "Type a name. Tick **Share with everyone in this test cycle** if others need it too.", see: "Your name in the box.", target: "view-name", type: true },
       { text: "Press **Save view**.", see: "Your view under **Saved views**. One click opens it again.", target: "view-save", saves: true },
@@ -1061,6 +1061,21 @@ export const HOW_TO: HowToTask[] = [
       { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
       { text: "Find **Tools** and press **Change**.", see: "Every tool, with what it includes.", target: "settings-tools" },
       { text: "Tick the tools your team uses and untick the rest.", see: "The left menu changes to match. Nothing is deleted when a tool is off.", target: "tools-list" },
+    ],
+    next: "add-cycle",
+  },
+  {
+    id: "make-umbrella",
+    group: "Settings",
+    title: "Make an umbrella",
+    sub: "One home for a new product's cases, runs, bugs and team",
+    words: "new umbrella product create make start key",
+    steps: [
+      { text: "Press **Flaw Patrol** at the top left.", see: "The Umbrellas page. Only Admins and Leads have **New umbrella**.", target: "top-home" },
+      { text: "Press **New umbrella**.", see: "The **New umbrella** box.", target: "new-umbrella" },
+      { text: "Type the product's name. The **Key** fills in from it; change it if you like.", see: "Case IDs like KEY-12 under the key.", target: "umbrella-name", type: true },
+      { text: "Optional: press **More options** to pick its tools, add a description, or make its first test cycles now.", see: "**What will you use?** and **Make its first test cycles**.", target: "umbrella-more" },
+      { text: "Press **Make** and the name.", see: "The new umbrella's **Overview**, with a **Start here** list for the rest.", target: "umbrella-make", saves: true },
     ],
     next: "add-cycle",
   },

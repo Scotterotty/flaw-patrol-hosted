@@ -30,7 +30,7 @@ export async function TopBar({ user, project }: { user: { id: string; name: stri
   return (
     <header className="fp-bar sticky top-0 z-40 border-b border-slate-200 bg-surface/95 backdrop-blur">
       <div className="flex h-12 items-center gap-3 px-4">
-        <Link href="/" className="flex items-center gap-2 font-semibold text-slate-900">
+        <Link href="/" className="flex items-center gap-2 font-semibold text-slate-900" data-howto="top-home">
           <Logo />
           <span className="font-heading hidden text-lg sm:inline">Flaw Patrol</span>
         </Link>

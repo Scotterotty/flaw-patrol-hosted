@@ -185,7 +185,8 @@ function ViewerAsk({ scope, line }: { scope: RunBoxScope; line: string }) {
   );
 }
 
-const today = () => new Date().toISOString().slice(0, 10);
+// "Smoke test Nov 5" (ver_187): the same date style as the rest of the app, in your own time zone, not UTC.
+const today = () => new Date().toLocaleDateString(typeof document !== "undefined" && document.documentElement.lang === "en-GB" ? "en-GB" : "en-US", { month: "short", day: "numeric" });
 const fieldId = (f: { id: string }) => (f.id === "csp" ? "rb-csp" : `rb-f-${f.id}`);
 const value = (id: string) => (document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | null)?.value ?? "";
 

@@ -10,12 +10,14 @@ import { umbrellaOf } from "@/lib/umbrella";
 import { severityScaleFor } from "@/lib/severity-server";
 import { mySpelling } from "@/lib/session";
 import { AutoFilterForm } from "@/components/auto-filter-form";
+import { FilterFold } from "@/components/filter-fold";
 import Link from "next/link";
 import { cx, EmptyState, Input, PageHeader, Select } from "@/components/ui";
 import { db } from "@/lib/db";
 import { projectAccess } from "@/lib/session";
 import { countStatuses, STATUSES, type StatusCounts } from "@/lib/status";
 import { caseHealth, defectReport, parseFilters, stepHistory, releaseOptions, runReport, suiteReport, caseFilterOptions, trends } from "@/lib/reports";
+import { datesChanged } from "@/lib/report-dates";
 import { SavedViews } from "@/components/saved-views";
 import { can } from "@/lib/permissions";
 import { cleanReportQuery } from "@/lib/report-query";
@@ -125,75 +127,77 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
         <AttachWrapUps scope={{ projectKey: project.key }} prefKey={wrapKey} pick={wrapPick} count={wrapUps.length} release={f.release ?? undefined} />
       </div>
 
-      <AutoFilterForm className="mb-4 flex flex-wrap items-end gap-2" data-howto="reports-filters">
-        <input type="hidden" name="view" value={view} />
-        <label className="text-xs text-slate-600">
-          From
-          <Input type="date" name="from" defaultValue={f.allTime ? "" : day(f.from)} className="mt-0.5 w-40" />
-        </label>
-        <label className="text-xs text-slate-600">
-          To
-          <Input type="date" name="to" defaultValue={day(f.to)} className="mt-0.5 w-40" />
-        </label>
-        {/* No suites yet: no filter with only All suites. */}
-        {suites.length > 0 && (
-          <Select name="suite" defaultValue={f.suiteId ?? ""} className="w-auto" aria-label="Suite">
-            <option value="">All suites</option>
-            {suites.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
+      {/* The one-line answer first (ver_187), then the filters behind one Filter button. */}
+      {view !== "regression" && runs.length > 0 && <ReportSummaryBar summary={await summaryFor(project.id, f, runs, caseFilterWords(scope, f))} />}
+      <FilterFold count={[sp.suite, sp.release, sp.run, datesChanged(sp), sp.priority, sp.folder, sp.tag, sp.persona, sp.charter, sp.kinds, sp.open, sp.runs, sp.kind].filter(Boolean).length}>
+        <AutoFilterForm className="flex flex-wrap items-end gap-2" data-howto="reports-filters">
+          <input type="hidden" name="view" value={view} />
+          <label className="text-xs text-slate-600">
+            From
+            <Input type="date" name="from" defaultValue={f.allTime ? "" : day(f.from)} className="mt-0.5 w-40" />
+          </label>
+          <label className="text-xs text-slate-600">
+            To
+            <Input type="date" name="to" defaultValue={day(f.to)} className="mt-0.5 w-40" />
+          </label>
+          {/* No suites yet: no filter with only All suites. */}
+          {suites.length > 0 && (
+            <Select name="suite" defaultValue={f.suiteId ?? ""} className="w-auto" aria-label="Suite">
+              <option value="">All suites</option>
+              {suites.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+          )}
+          <Select name="release" defaultValue={f.release ?? ""} className="w-auto" aria-label="Release">
+            <option value="">Any release</option>
+            {releases.map((r) => (
+              <option key={r} value={r}>
+                {r}
               </option>
             ))}
           </Select>
-        )}
-        <Select name="release" defaultValue={f.release ?? ""} className="w-auto" aria-label="Release">
-          <option value="">Any release</option>
-          {releases.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </Select>
-        <Input name="run" defaultValue={sp.run ?? ""} placeholder="Run # (optional)" className="w-36" aria-label="Run number" />
-        <CaseFilters f={f} options={options} tagsOnly={findingOpts?.tags} hideAll={view === "regression"} />
-        {findingOpts && (
-          <>
-            <Select name="persona" defaultValue={sp.persona ?? ""} className="w-auto" aria-label="Persona">
-              <option value="">Any persona</option>
-              {findingOpts.personas.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.emoji} {p.name}
-                </option>
-              ))}
-            </Select>
-            <Select name="charter" defaultValue={sp.charter ?? ""} className="w-auto max-w-64" aria-label="Charter">
-              <option value="">Any charter</option>
-              {findingOpts.charters.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.title}
-                </option>
-              ))}
-            </Select>
-            <input type="hidden" name="kinds" value={sp.kinds ?? ""} />
-            <input type="hidden" name="open" value={sp.open ?? ""} />
-          </>
-        )}
-        {!f.allTime && (
-          <Link href={`?${qs({ range: "all", from: undefined, to: undefined, run: undefined })}`} className="pb-2 text-sm text-accent-700 hover:underline">
-            All time
-          </Link>
-        )}
-        <RunKindFilter current={f.kind} href={(k) => `?${qs({ runs: k })}`} />
-        {kindGroup && <KindSelect kinds={parseRunKinds(kindGroup.group.runKinds)} value={sp.kind} />}
-        {(sp.suite || sp.release || sp.run || sp.from || sp.to || sp.range || sp.priority || sp.folder || sp.tag || sp.persona || sp.charter || sp.kinds || sp.open || sp.runs || sp.kind) && (
-          <Link href={`?view=${view}`} className="pb-2 text-sm text-slate-500 hover:underline">
-            Reset
-          </Link>
-        )}
-      </AutoFilterForm>
+          <Input name="run" defaultValue={sp.run ?? ""} placeholder="Run # (optional)" className="w-36" aria-label="Run number" />
+          <CaseFilters f={f} options={options} tagsOnly={findingOpts?.tags} hideAll={view === "regression"} />
+          {findingOpts && (
+            <>
+              <Select name="persona" defaultValue={sp.persona ?? ""} className="w-auto" aria-label="Persona">
+                <option value="">Any persona</option>
+                {findingOpts.personas.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.emoji} {p.name}
+                  </option>
+                ))}
+              </Select>
+              <Select name="charter" defaultValue={sp.charter ?? ""} className="w-auto max-w-64" aria-label="Charter">
+                <option value="">Any charter</option>
+                {findingOpts.charters.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title}
+                  </option>
+                ))}
+              </Select>
+              <input type="hidden" name="kinds" value={sp.kinds ?? ""} />
+              <input type="hidden" name="open" value={sp.open ?? ""} />
+            </>
+          )}
+          {!f.allTime && (
+            <Link href={`?${qs({ range: "all", from: undefined, to: undefined, run: undefined })}`} className="pb-2 text-sm text-accent-700 hover:underline">
+              All time
+            </Link>
+          )}
+          <RunKindFilter current={f.kind} href={(k) => `?${qs({ runs: k })}`} />
+          {kindGroup && <KindSelect kinds={parseRunKinds(kindGroup.group.runKinds)} value={sp.kind} />}
+          {(sp.suite || sp.release || sp.run || sp.from || sp.to || sp.range || sp.priority || sp.folder || sp.tag || sp.persona || sp.charter || sp.kinds || sp.open || sp.runs || sp.kind) && (
+            <Link href={`?view=${view}`} className="pb-2 text-sm text-slate-500 hover:underline">
+              Reset
+            </Link>
+          )}
+        </AutoFilterForm>
+      </FilterFold>
 
-      {/* The one-line answer (persona audit #10), following the dates and filters. */}
-      {view !== "regression" && runs.length > 0 && <ReportSummaryBar summary={await summaryFor(project.id, f, runs, caseFilterWords(scope, f))} />}
 
       <ScrollTabs label="Report views" className={`mb-5 flex gap-1 ${TAB_ROW_LINE}`}>
         {VIEWS.map((v) => (

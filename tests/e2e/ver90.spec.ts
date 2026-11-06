@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { openFilters } from "./filters";
 import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
 
@@ -52,6 +53,7 @@ test("Reports split manual and automated runs, and picked suite cases count for 
   await expect(suiteRow.getByRole("cell").nth(1)).toHaveText("3");
 
   // The Runs filter narrows every view and stays in the link.
+  await openFilters(page);
   await page.getByRole("group", { name: "Runs" }).getByRole("link", { name: "🤖 Automated" }).click();
   await expect(page).toHaveURL(/runs=automated/);
   await expect(page.getByText("Hand pass")).toHaveCount(0);

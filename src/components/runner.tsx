@@ -1310,11 +1310,11 @@ export function Runner({
                 <StatusChip status={caseStatus} solid />
               )}
               <span className="text-xs text-slate-500">
-                {data ? `from rows: ${rowsLine(rowStatuses)}${rowStatuses.some((x) => x === "FAILED") ? `, ${rowStatuses.filter((x) => x === "FAILED").length} failed` : ""}` : `from steps: ${
+                {data ? `from rows: ${rowsLine(rowStatuses)}${rowStatuses.some((x) => x === "FAILED") ? `, ${rowStatuses.filter((x) => x === "FAILED").length} failed` : ""}` : `${Object.keys(stepCounts).some((k) => k !== "UNTESTED") ? "from steps: " : ""}${
                   Object.entries(stepCounts)
                     .filter(([k]) => k !== "UNTESTED")
                     .map(([k, v]) => `${v} ${STATUS_LABEL[k as ResultStatus].toLowerCase()}`)
-                    .join(", ") || "none marked yet"
+                    .join(", ") || "no steps marked yet"
                 }`}
               </span>
               {firstFailed >= 0 && (
@@ -1331,7 +1331,7 @@ export function Runner({
               )}
               {!runClosed && (
                 <button type="button" className="text-xs text-accent-700 hover:underline" onClick={() => setChangingResult(true)}>
-                  Set it yourself
+                  Pick the result yourself
                 </button>
               )}
             </>
@@ -1457,15 +1457,8 @@ export function Runner({
             {partial ? "Save progress" : "Save"}
           </Button>
           <Button variant="primary" disabled={saving || runClosed} onClick={() => submit(true)} data-howto="runner-save">
-            {saving
-              ? "Saving…"
-              : partial
-                ? nextEntryId
-                  ? "Save progress and next"
-                  : "Save progress and exit"
-                : nextEntryId
-                  ? "Save and next"
-                  : "Save and finish"}
+            {/* One name all through a run (ver_187): it used to switch between four. */}
+            {saving ? "Saving…" : nextEntryId ? "Save and next" : "Save and finish"}
           </Button>
         </div>
       </div>
@@ -1510,6 +1503,8 @@ export function Runner({
           const stepIndex = bugFor ?? null;
           setDefects((all) => (all.some((x) => x.defect.id === d.id && x.stepIndex === stepIndex) ? all : [...all, { defect: d, stepIndex }]));
           if (stepIndex !== null && statuses[stepIndex] === "UNTESTED") setStep(stepIndex, "FAILED");
+          // The new chip sat under the Case result bar (ver_187): bring it into view once it's drawn.
+          setTimeout(() => document.querySelector(`${stepIndex === null ? "" : `[data-step="${stepIndex}"] `}[data-defect-chip="${d.id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 150);
         }}
         projectId={projectId}
         entryId={entry.id}
@@ -1542,7 +1537,7 @@ export function Runner({
 
 export function DefectChip({ d, onRemove }: { d: LinkedDefect; onRemove: () => void }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded bg-red-50 px-2 py-0.5 text-xs text-red-800 ring-1 ring-red-200 ring-inset">
+    <span data-defect-chip={d.id} className="inline-flex items-center gap-1 rounded bg-red-50 px-2 py-0.5 text-xs text-red-800 ring-1 ring-red-200 ring-inset">
       {d.externalUrl ? (
         <a href={d.externalUrl} target="_blank" rel="noreferrer" className="font-mono font-medium hover:underline">
           {d.externalKey}

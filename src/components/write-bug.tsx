@@ -221,13 +221,16 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
               </Select>
             </div>
           )}
-          <div className="rounded-lg bg-accent-50 px-3 py-2.5" data-howto="write-bug-template">
-            {loadedFor === projectId ? (
-              <TemplatePicker current={first.label} templates={choices} value={chosen} onChange={(id) => pick(id, choices)} />
-            ) : (
-              <p className="text-xs text-slate-500">Loading templates…</p>
-            )}
-          </div>
+          {/* Only one template (ver_187): nothing to pick, so no Template row to read. */}
+          {!(loadedFor === projectId && choices.length === 0) && (
+            <div className="rounded-lg bg-accent-50 px-3 py-2.5" data-howto="write-bug-template">
+              {loadedFor === projectId ? (
+                <TemplatePicker current={first.label} templates={choices} value={chosen} onChange={(id) => pick(id, choices)} />
+              ) : (
+                <p className="text-xs text-slate-500">Loading templates…</p>
+              )}
+            </div>
+          )}
           {draft && draft.templateId === (chosen || (first.layout ? CURRENT_ID : PLAIN_ID)) ? (
             <>
               {asked && (

@@ -96,6 +96,8 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
   const active = open.filter((r) => !finished.includes(r));
   const myWork = active.filter((r) => r.mineLeft > 0);
   const canExecute = can(who, "run:execute");
+  // The quest-map offer waits for this test cycle's first result (ver_187): day one is for testing.
+  const anyResult = !!(await db.testResult.findFirst({ where: { run: { projectId: project.id } }, select: { id: true } }));
   const monthCounts = trend.buckets.reduce(
     (acc, b) => {
       for (const [s, n] of Object.entries(b.counts)) acc[s as keyof typeof acc] += n;
@@ -214,12 +216,12 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
             {active.length === 0 ? (
               <div className="px-4 py-6 text-sm text-slate-500">
                 <p>{can(who, "run:create") ? "No runs in progress. Press Create a run and it shows here." : "No runs in progress. When someone starts a run, it shows here."}</p>
-                {!(user.gameEnabled && user.questMap) && (
+                {!(user.gameEnabled && user.questMap) && anyResult && (
                   <p className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
                     <span>
                       <span className="font-medium text-slate-700">Fun extras:</span> turn every test run into a quest map, with XP, levels and titles.
                     </span>
-                    <QuestMapOnButton size="sm" />
+                    <QuestMapOnButton plain label="Turn on quest maps" />
                   </p>
                 )}
               </div>

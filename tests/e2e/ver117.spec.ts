@@ -14,6 +14,7 @@ async function newUmbrella(page: Page, name: string, key: string) {
   const make = page.getByRole("dialog");
   await make.getByLabel("Product name").fill(name);
   await make.getByLabel("Key").fill(key);
+  await make.getByTestId("u-more").click();
   await make.getByLabel("Release", { exact: true }).fill("5.0");
   await make.getByLabel("Platform 1").fill("Web");
   await make.getByRole("button", { name: "＋ Add a platform" }).click();

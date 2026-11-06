@@ -23,7 +23,7 @@ import type { ShortcutIcon as IconName } from "@/lib/umbrella";
 import type { ToolId } from "@/lib/tools";
 
 /** An umbrella's home: shortcuts to the pages used most, the Case library, runs, bugs and settings, and its test cycles. */
-export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: string; isAdmin: boolean } }) {
+export async function UmbrellaHome({ u, user, welcome = false }: { u: Umbrella; user: { id: string; isAdmin: boolean }; welcome?: boolean }) {
   const g = `/g/${u.group.id}`;
   const hub = `/p/${u.hub.key}`;
   // An archived umbrella takes no new projects or RCs until it's restored.
@@ -60,6 +60,19 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
     runsOn ? 0 : db.bugBash.count({ where: { projectId: u.hub.id } }),
     runsOn ? 0 : db.riskRating.count({ where: { projectId: u.hub.id } }),
   ]);
+  // Members' own "Start here" (ver_187): hides once they've saved a result anywhere in this umbrella.
+  const isAdminHere = can(u.who, "members:manage");
+  const myFirstResult = isAdminHere ? null : await db.testResult.findFirst({ where: { testerId: user.id, run: { projectId: { in: [u.hub.id, ...u.projects.map((p) => p.id)] } } }, select: { id: true } });
+  // Straight from an invite (ver_187): who added you, once, at the top.
+  const hello = welcome
+    ? await (async () => {
+        const me = await db.user.findUnique({ where: { id: user.id }, select: { name: true, email: true } });
+        const link = await db.passwordLink.findFirst({ where: { userId: user.id, kind: "invite", usedAt: { not: null } }, orderBy: { usedAt: "desc" }, select: { createdById: true } });
+        const by = link?.createdById ? await db.user.findUnique({ where: { id: link.createdById }, select: { name: true, email: true } }) : null;
+        const first = (me?.name || me?.email || "").trim().split(/\s+/)[0];
+        return { first, by: by ? by.name || by.email : null };
+      })()
+    : null;
   const firstOpen = firstRun ? await db.testRun.count({ where: { projectId: firstRun.project.id, state: "ACTIVE", bugBash: { is: null } } }) : 0;
   // One Create a run button: it asks the kind of run and can make the test cycle too.
   const canRun = can(u.who, "run:create") && !archived && runsOn && (u.current.length > 0 || canAddCycle);
@@ -208,7 +221,45 @@ export async function UmbrellaHome({ u, user }: { u: Umbrella; user: { id: strin
         </Card>
       )}
 
-      {!ready && canManage && (
+      {hello && (
+        <p className="mb-4 rounded-lg border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-slate-800" data-testid="umbrella-hello">
+          <span className="font-semibold">Welcome{hello.first ? `, ${hello.first}` : ""}.</span> {hello.by ? `${hello.by} added you to ${u.group.name}.` : `You're in ${u.group.name}.`} Your runs, cases and bugs are all in here.
+        </p>
+      )}
+
+      {/* Members get three steps of their own (ver_187): the setup list is admin work. */}
+      {!isAdminHere && runsOn && canExecute && !archived && !myFirstResult && (
+        <Card className="mb-6 p-4" data-testid="member-start-here">
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-semibold text-slate-900">Start here</h2>
+            <span className="text-xs text-slate-500">hides after your first saved result</span>
+          </div>
+          <ol className="space-y-1.5">
+            {[
+              { label: "Open a run and test a case", task: "test-case", go: waiting[0] ? { href: `/p/${waiting[0].projectKey}/runs/${waiting[0].number}/execute`, label: "Start testing" } : { href: `${g}/runs`, label: "Test runs" } },
+              { label: "Report a bug from a failed step", task: "report-bug" },
+              ...(can(u.who, "case:edit") && on("cases") ? [{ label: "Write a test case", task: "write-case" }] : []),
+            ].map((s, i) => (
+              <li key={s.task} className="flex items-center gap-2.5 text-sm">
+                <span aria-hidden className="grid size-5 flex-none place-items-center rounded-full border border-slate-300 text-[11px] font-semibold text-slate-500">
+                  {i + 1}
+                </span>
+                <span className="flex-1 text-slate-800">{s.label}</span>
+                {"go" in s && s.go && (
+                  <LinkButton size="sm" href={s.go.href} data-testid="member-start-testing">
+                    {s.go.label}
+                  </LinkButton>
+                )}
+                <HowToLink task={s.task} testId={`member-show-${s.task}`} className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                  Show me
+                </HowToLink>
+              </li>
+            ))}
+          </ol>
+        </Card>
+      )}
+
+      {!ready && canManage && isAdminHere && (
         <Card className="mb-6 p-4">
           <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="font-semibold text-slate-900">Start here</h2>

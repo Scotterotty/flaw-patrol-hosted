@@ -26,6 +26,7 @@ test("imports go to the umbrella's Case library, in one folder or the file's fol
   const box = page.getByRole("dialog");
   await box.getByLabel("Product name").fill(NAME);
   await box.getByLabel("Key").fill(HUB);
+  await box.getByTestId("u-more").click();
   await box.getByLabel("Release", { exact: true }).fill("RC22");
   await box.getByLabel("Platform 1").fill("Web");
   await box.getByRole("button", { name: `Make ${NAME} with 1 new test cycle` }).click();

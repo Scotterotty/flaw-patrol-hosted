@@ -347,8 +347,8 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
               </option>
             ))}
           </Select>
-          <Select name="runs" defaultValue={runsBy} className="w-auto" aria-label="Who runs it">
-            <option value="">Who runs it: Anyone</option>
+          <Select name="runs" defaultValue={runsBy} className="w-auto" aria-label="Tested by">
+            <option value="">Tested by: anyone</option>
             <option value="hand">By hand only</option>
             <option value="auto">Automation</option>
             <option value="both">Both</option>

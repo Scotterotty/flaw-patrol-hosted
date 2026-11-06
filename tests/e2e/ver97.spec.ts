@@ -98,7 +98,7 @@ test("each check in a shared step gets its own result, and the step's result rol
   await expect(page.getByText(/Use the steps' result/)).toHaveCount(0);
 });
 
-test("New umbrella is there for everyone except Viewers", async ({ browser }) => {
+test("New umbrella is there for Leads, not Viewers (ver_187: Admins and Leads only)", async ({ browser }) => {
   for (const [email, name, sees] of [
     ["lead@example.com", "Dana Lead", true],
     [VIEWER, "Vic Viewer", false],

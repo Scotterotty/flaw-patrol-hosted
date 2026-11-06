@@ -56,7 +56,7 @@ test("step results show up live, merge, and a part-done case saves as In progres
 
   // Not finished: Save progress, no case result needed.
   await expect(a.getByRole("button", { name: "Save progress", exact: true })).toBeVisible();
-  await a.getByRole("button", { name: /Save progress and (next|exit)/ }).click();
+  await a.getByRole("button", { name: /^Save and (next|finish)$/ }).click();
   await a.goto(`/p/${KEY}/runs/1`);
   const row = a.getByRole("row").filter({ hasText: "Checkout" });
   await expect(row).toContainText("In progress");

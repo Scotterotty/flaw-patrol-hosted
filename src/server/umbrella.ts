@@ -88,7 +88,7 @@ export async function createUmbrella(input: {
 }) {
   return attempt(async () => {
     const user = await requireUser();
-    if (!(await canMakeUmbrellas(user))) throw new UserError("Viewers can't make umbrellas. Ask an admin to make one, or to change your role.");
+    if (!(await canMakeUmbrellas(user))) throw new UserError("Only Admins and Leads can make umbrellas. Ask an admin to make one, or to change your role.");
     const name = nameSchema.parse(input.name);
     const key = keySchema.parse(input.key);
     const description = z.string().trim().max(500).parse(input.description ?? "");

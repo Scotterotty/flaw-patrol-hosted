@@ -95,6 +95,7 @@ test("the umbrella's Bug template row leads to the import", async ({ page }) => 
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Product name").fill(NAME);
   await dialog.getByLabel("Key").fill(HUB);
+  await dialog.getByTestId("u-more").click();
   await dialog.getByLabel("Release", { exact: true }).fill("R1");
   await dialog.getByLabel("Platform 1").fill("Web");
   await dialog.getByRole("button", { name: `Make ${NAME} with 1 new test cycle` }).click();

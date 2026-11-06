@@ -84,6 +84,7 @@ test("tick umbrellas to hide them for yourself, show them again, and archive", a
     const dialog = page.getByRole("dialog");
     await dialog.getByLabel("Product name").fill(name);
     await dialog.getByLabel("Key").fill(`H${i}${TAG}`);
+    await dialog.getByTestId("u-more").click();
     await dialog.getByLabel("Release", { exact: true }).fill("RC1");
     await dialog.getByLabel("Platform 1").fill("Web");
     await dialog.getByRole("button", { name: /Make / }).click();

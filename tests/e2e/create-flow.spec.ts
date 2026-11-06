@@ -21,6 +21,7 @@ test("projects are made inside umbrellas: New umbrella makes its first projects,
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Product name").fill(NAME);
   await dialog.getByLabel("Key").fill(HUB);
+  await dialog.getByTestId("u-more").click();
   await dialog.getByLabel("Release", { exact: true }).fill("RC1");
   await dialog.getByLabel("Platform 1").fill("Web");
   await expect(dialog.getByLabel("Test cycle name 1")).toHaveValue(`${NAME} Web RC1`);
@@ -80,6 +81,7 @@ test("a brand-new umbrella offers New project and Move in right on its hub", asy
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Product name").fill(`Empty ${TAG}`);
   await dialog.getByLabel("Key").fill(`E${TAG}`);
+  await dialog.getByTestId("u-more").click();
   await dialog.getByRole("button", { name: `Make Empty ${TAG}`, exact: true }).click();
   await expect(page).toHaveURL(/\/g\//);
   await expect(page.getByText(`No test cycles in Empty ${TAG} yet`)).toBeVisible();

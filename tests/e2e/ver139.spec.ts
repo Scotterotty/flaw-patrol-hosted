@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { openFilters } from "./filters";
 import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
 
@@ -65,6 +66,7 @@ test("Reports have no People tab or Tester filter, and Priority stays picked acr
   // Bugs found gets Priority, Folder and Tag too.
   await tabs.getByRole("link", { name: "Bugs found", exact: true }).click();
   await expect(page).toHaveURL(/view=defects/);
+  await openFilters(page);
   await page.getByLabel("Priority").selectOption("LOW");
   await expect(page).toHaveURL(/priority=LOW/);
   await expect(page.getByText(`Card declined ${TAG}`)).toHaveCount(0);

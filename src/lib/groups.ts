@@ -10,13 +10,14 @@ export async function canManageGroups(user: Viewer) {
 }
 
 /**
- * Who may make a new umbrella: everyone except Viewers. Someone who is only
- * ever a Viewer can't; someone on no team yet can, and becomes the new umbrella's Admin.
+ * Who may make a new umbrella: Admins and Leads (Scott, ver_187: a new Member's biggest
+ * button shouldn't make something they don't need). Someone on no team yet can, and
+ * becomes the new umbrella's Admin.
  */
 export async function canMakeUmbrellas(user: Viewer) {
   if (user.isAdmin) return true;
   const roles = await db.projectMember.findMany({ where: { userId: user.id }, select: { role: true }, distinct: ["role"] });
-  return !roles.length || roles.some((r) => r.role !== "VIEWER");
+  return !roles.length || roles.some((r) => r.role === "ADMIN" || r.role === "LEAD");
 }
 
 /** The ones among these projects the viewer may move in or out of a group: those where they are more than a Viewer. */

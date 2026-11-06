@@ -43,7 +43,7 @@ test("brand new imports get the New banner and can be marked as run before", asy
   const banner = page.getByTestId("news-heads-up");
   await expect(banner).toContainText("All 2 cases are new. Nobody has run them yet, so read each one carefully.");
   await expect(banner.getByRole("group", { name: "Show cases" })).toHaveCount(0);
-  await banner.getByRole("button", { name: "Not new? Mark them as run before" }).click();
+  await banner.getByRole("button", { name: "Run these before? Say so" }).click();
   await expect(banner).toContainText("Done. These 2 cases are marked as run before");
   await page.reload();
   await expect(page.getByTestId("news-heads-up")).toHaveCount(0);

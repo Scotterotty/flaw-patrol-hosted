@@ -110,7 +110,7 @@ test("Reports split hand testing from automation; automated cases look like the 
   await page.goto(`/p/${HUB}/cases`);
   await expect(page.getByTestId("who-runs-count")).toHaveText("3 cases · ✋ 2 by hand · 🤖 1 by automation · 0 both");
   await expect(page.getByTestId("auto-line")).toContainText("🤖 Automated · Failed");
-  await page.getByLabel("Who runs it").selectOption("auto");
+  await page.getByLabel("Tested by").selectOption("auto");
   await expect(page.getByRole("link", { name: "Adds an item to the cart" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Sign in" })).toHaveCount(0);
 });

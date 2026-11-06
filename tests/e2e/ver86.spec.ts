@@ -98,6 +98,7 @@ test("platforms are added and changed in Add test cycle and Start next release, 
   const make = page.getByRole("dialog");
   await make.getByLabel("Product name").fill(NAME);
   await make.getByLabel("Key").fill(HUB);
+  await make.getByTestId("u-more").click();
   await make.getByLabel("Release", { exact: true }).fill("RC4");
   await make.getByLabel("Platform 1").fill("Web");
   await make.getByRole("button", { name: "＋ Add a platform" }).click();
