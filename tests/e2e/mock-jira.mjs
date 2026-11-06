@@ -199,6 +199,8 @@ http
       const fields = meta[1] === "OB" ? OB_FIELDS : BASIC_FIELDS;
       return send(res, 200, { fields, total: fields.length, startAt: 0, maxResults: 200 });
     }
+    // Like a Jira Cloud site: it says it takes 1 GB, while the team's really refuses files over 24 MB (ver_185).
+    if (p === "/rest/api/3/attachment/meta") return send(res, 200, { enabled: true, uploadLimit: 1024 ** 3 });
     const content = /^\/rest\/api\/3\/attachment\/content\/(\d+)$/.exec(p);
     if (content) {
       res.writeHead(303, { Location: `https://api.media.atlassian.com/file/00000000-0000-4000-8000-${content[1].padStart(12, "0")}/binary?token=x` });
@@ -271,6 +273,7 @@ http
     }
     const att = /^\/rest\/api\/3\/issue\/([^/]+)\/attachments$/.exec(p);
     if (att && issues.has(att[1])) {
+      if (body.length > 24 * 1024 * 1024) return send(res, 413, { errorMessages: ["The file is too large."] });
       const names = [...body.toString("latin1").matchAll(/filename="([^"]*)"/g)].map((m) => m[1]);
       const i = issues.get(att[1]);
       i.attachments += names.length;

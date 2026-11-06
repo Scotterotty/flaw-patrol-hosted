@@ -5,6 +5,7 @@
 // and Ctrl+K (all of them land on the Bugs page with ?write=1). Same templates as a bug
 // from a run: headings a run would fill in become boxes to type in.
 
+import { JIRA_FILE_LIMIT, mbText, tooBigForJira } from "@/lib/jira-files";
 import type { Severity } from "@prisma/client";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -73,7 +74,7 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
   const [foundIn, setFoundIn] = useState("");
   const [jiraKey, setJiraKey] = useState<string | null>(null);
   const [alsoJira, setAlsoJira] = useState(true);
-  const [files, setFiles] = useState<{ id: string; fileName: string }[]>([]);
+  const [files, setFiles] = useState<{ id: string; fileName: string; size?: number }[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState<{ key: string; lines: string[] } | null>(null);
@@ -142,7 +143,7 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
       const form = new FormData();
       form.set("file", file);
       const res = await uploadAttachment(projectId, form);
-      if (res.ok) setFiles((f) => [...f, { id: res.attachment.id, fileName: res.attachment.fileName }]);
+      if (res.ok) setFiles((f) => [...f, { id: res.attachment.id, fileName: res.attachment.fileName, size: res.attachment.size }]);
       else setError(res.error);
     }
     setUploading(false);
@@ -284,6 +285,15 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
                       </li>
                     ))}
                   </ul>
+                )}
+                {jiraKey && alsoJira && files.some((f) => tooBigForJira(f.size)) && (
+                  <p className="text-xs font-semibold text-amber-800" data-testid="too-big-for-jira">
+                    {files
+                      .filter((f) => tooBigForJira(f.size))
+                      .map((f) => f.fileName)
+                      .join(", ")}
+                    : too big for Jira ({mbText(JIRA_FILE_LIMIT)} max). It stays on the bug here, and Jira gets the rest.
+                  </p>
                 )}
               </div>
               {jiraKey && (

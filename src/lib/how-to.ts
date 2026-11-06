@@ -712,6 +712,21 @@ export const HOW_TO: HowToTask[] = [
       { text: "Type a few words, or paste a Jira key or link like QA-123.", see: "Only the matching bugs from this run and from Jira.", target: "link-bug-search", type: true },
       { text: "Press **Link** on the right bug.", see: "The bug's key on the step. Nothing new is filed." },
     ],
+    next: "big-files-jira",
+  },
+  {
+    id: "big-files-jira",
+    group: "Bugs",
+    title: "Send a bug to Jira with a big video",
+    sub: "Files over Jira's size limit stay in Flaw Patrol",
+    words: "big large video recording file too big size limit 24 mb jira attachment upload failed",
+    start: "Start in the runner, on the case you're testing (see Test a case in a run).",
+    steps: [
+      { text: "Press **Report bug in Jira** under the step.", see: "The **Report a bug** box.", target: "runner-report-bug" },
+      { text: "Look at the files under **Attach to the Jira issue**.", see: "A file over Jira's limit has an orange line: **Too big for Jira (24 MB max)**, and its box is unticked.", target: "bug-files" },
+      { text: "Record a shorter clip with **+ Add ▾ → Record screen**, or leave the big file unticked.", see: "The new, smaller clip ticked." },
+      { text: "Press **File bug in Jira**.", see: "The bug in Jira with every file that fits. The big file stays on the bug here.", target: "bug-submit", saves: true },
+    ],
     next: "write-bug",
   },
   {

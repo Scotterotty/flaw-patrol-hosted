@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { isDxdiag, isMedia } from "@/lib/bug-template";
+import { tooBigForJira, tooBigLine } from "@/lib/jira-files";
 import { Button, cx, InfoTip } from "./ui";
 
 /** A file the bug box can put on the Jira issue, with where it came from ("Step 3", "Whole case"). */
-export type BugFile = { id: string; fileName: string; contentType: string; label?: string };
+export type BugFile = { id: string; fileName: string; contentType: string; label?: string; /** Bytes, when known: files over Jira's limit are flagged. */ size?: number };
 
 /** Take screenshot / Record screen from inside the bug box. */
 export type BugCapture = { ok: boolean; why: string; busy: boolean; screenshot: () => void; record: () => void; /** "Sentry error…", when Sentry is connected. */ sentry?: () => void };
@@ -22,12 +23,13 @@ function Thumb({ f }: { f: BugFile }) {
 }
 
 /** One file on the bug: a tick, a small preview, its name and the step it came from. */
-export function FileTick({ f, on, onChange, note }: { f: BugFile; on: boolean; onChange: (on: boolean) => void; note?: string }) {
+export function FileTick({ f, on, onChange, note, jiraLimit = null }: { f: BugFile; on: boolean; onChange: (on: boolean) => void; note?: string; /** Jira's per-file limit, when filing to Jira. */ jiraLimit?: number | null }) {
+  const big = jiraLimit !== null && tooBigForJira(f.size, jiraLimit);
   return (
     <label
       className={cx(
-        "inline-flex max-w-full items-center gap-2 rounded-md border px-2 py-1 text-sm",
-        on ? "border-accent-300 bg-accent-50/60" : "border-slate-200 bg-surface",
+        "inline-flex max-w-full flex-wrap items-center gap-2 rounded-md border px-2 py-1 text-sm",
+        big ? "border-dashed border-amber-500 bg-amber-50" : on ? "border-accent-300 bg-accent-50/60" : "border-slate-200 bg-surface",
       )}
       data-testid="bug-file"
     >
@@ -37,6 +39,11 @@ export function FileTick({ f, on, onChange, note }: { f: BugFile; on: boolean; o
         <span className="block max-w-56 truncate font-medium text-slate-800">{f.fileName}</span>
         {(f.label || note) && <small className="block text-xs text-slate-500">{[f.label, note].filter(Boolean).join(" · ")}</small>}
       </span>
+      {big && (
+        <small className="basis-full text-xs font-semibold text-amber-800" data-testid="too-big-for-jira">
+          {tooBigLine(jiraLimit!)}
+        </small>
+      )}
     </label>
   );
 }
@@ -235,6 +242,7 @@ export function BugFiles({
   onUpload,
   capture,
   uploading,
+  jiraLimit = null,
 }: {
   files: BugFile[];
   include: Set<string>;
@@ -244,11 +252,12 @@ export function BugFiles({
   onUpload: (files: File[]) => void;
   capture?: BugCapture;
   uploading: boolean;
+  jiraLimit?: number | null;
 }) {
   return (
-    <fieldset>
+    <fieldset data-howto="bug-files">
       <legend className="mb-1 text-xs font-medium text-slate-600">Attach to the Jira issue</legend>
-      <FileTicks files={files} include={include} setInclude={setInclude}>
+      <FileTicks files={files} include={include} setInclude={setInclude} jiraLimit={jiraLimit}>
         <AddMenu label="+ Add" candidates={candidates} onPick={onPick} onUpload={onUpload} capture={capture} uploading={uploading} what="Screenshots, recordings and files" />
       </FileTicks>
     </fieldset>
@@ -261,6 +270,7 @@ export function FileTicks({
   setInclude,
   history,
   children,
+  jiraLimit = null,
 }: {
   files: BugFile[];
   include: Set<string>;
@@ -268,6 +278,7 @@ export function FileTicks({
   /** The team template lists files in its Reproduction History table, except DxDiag. */
   history?: boolean;
   children: React.ReactNode;
+  jiraLimit?: number | null;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -276,6 +287,7 @@ export function FileTicks({
           key={f.id}
           f={f}
           on={include.has(f.id)}
+          jiraLimit={jiraLimit}
           note={history && isDxdiag(f.fileName) ? "not added to the history table" : undefined}
           onChange={(on) =>
             setInclude((s) => {

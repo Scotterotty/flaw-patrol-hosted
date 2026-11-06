@@ -806,7 +806,7 @@ export async function wrapUpBash(bashId: string, anyway = false) {
     if (bash.wrappedAt) throw new UserError("It's already wrapped up.");
     if (phaseOf(bash) === "live" || phaseOf(bash) === "scheduled") await db.bugBash.update({ where: { id: bashId }, data: { endedAt: new Date() } });
     const areas = parseAreas(bash.areas);
-    const all = await db.bashItem.findMany({ where: { bashId }, orderBy: { createdAt: "asc" }, include: { attachments: { select: { id: true, fileName: true, contentType: true } } } });
+    const all = await db.bashItem.findMany({ where: { bashId }, orderBy: { createdAt: "asc" }, include: { attachments: { select: { id: true, fileName: true, contentType: true, size: true } } } });
     // Additions ride along in the line they add to, so sessions stay one line per find.
     const addsTo = new Map<string, string[]>();
     for (const a of all) if (a.kind === "add" && a.replyToId) addsTo.set(a.replyToId, [...(addsTo.get(a.replyToId) ?? []), `${a.byName}: ${a.text}`]);

@@ -8,6 +8,7 @@ import { foundInLine, parseFoundIn, type FoundInField, type JiraVersion } from "
 import { jiraConfigFor } from "./umbrella";
 import { parseTemplateSettings, pickPriority } from "./bug-template";
 import { requirementProjects } from "./stories-config";
+import { JIRA_FILE_LIMIT, jiraFileLimit, leftOutNote, tooBigForJira } from "./jira-files";
 
 // Minimal Jira Cloud REST v3 client using an API token (basic auth).
 
@@ -185,7 +186,8 @@ export class JiraClient {
       res = await fetch(`${normalizeSite(this.creds.siteUrl)}${path}`, {
         ...init,
         headers: { Authorization: `Basic ${auth}`, Accept: "application/json", ...(init.headers ?? {}) },
-        signal: AbortSignal.timeout(20_000),
+        // Uploads pass their own, longer timeout: a 20 MB recording takes a while on a slow line.
+        signal: init.signal ?? AbortSignal.timeout(20_000),
         cache: "no-store",
       });
     } catch {
@@ -695,8 +697,46 @@ export class JiraClient {
       method: "POST",
       headers: { "X-Atlassian-Token": "no-check" },
       body: form,
+      signal: AbortSignal.timeout(120_000),
     });
     return (added ?? []).map((a) => ({ id: String(a.id), filename: a.filename }));
+  }
+
+  private limit: number | null = null;
+
+  /** The most Jira takes per file: its own setting when smaller, otherwise 24 MB (ver_185). */
+  async uploadLimit() {
+    if (this.limit === null) {
+      const meta = await this.call<{ uploadLimit?: number } | undefined>("/rest/api/3/attachment/meta").catch(() => undefined);
+      this.limit = jiraFileLimit(meta?.uploadLimit);
+    }
+    return this.limit;
+  }
+
+  /**
+   * Upload files one at a time, skipping any over Jira's limit, so one big
+   * recording never stops the screenshots and logs. Jira's ids come back in the
+   * files' order (null for a file that stayed in Flaw Patrol).
+   */
+  async attachEach(key: string, files: { fileName: string; contentType: string; data: Uint8Array }[]) {
+    const limit = files.length ? await this.uploadLimit() : JIRA_FILE_LIMIT;
+    const added: ({ id: string; filename: string } | null)[] = [];
+    const tooBig: { fileName: string; size: number }[] = [];
+    const failed: { fileName: string; why: string }[] = [];
+    for (const f of files) {
+      if (tooBigForJira(f.data.length, limit)) {
+        tooBig.push({ fileName: f.fileName, size: f.data.length });
+        added.push(null);
+        continue;
+      }
+      try {
+        added.push((await this.attach(key, [f]))[0] ?? null);
+      } catch (e) {
+        failed.push({ fileName: f.fileName, why: e instanceof Error ? e.message : "upload failed" });
+        added.push(null);
+      }
+    }
+    return { added, note: leftOutNote(key, tooBig, failed, limit) };
   }
 }
 

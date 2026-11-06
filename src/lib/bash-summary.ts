@@ -16,7 +16,7 @@ export async function loadBashFull(bashId: string) {
       project: { select: { id: true, key: true, name: true, groupId: true } },
       run: { select: { id: true, number: true, projectId: true, build: true, environment: true, project: { select: { key: true, name: true, platform: true } } } },
       people: { orderBy: { joinedAt: "asc" } },
-      items: { orderBy: { createdAt: "desc" }, include: { attachments: { select: { id: true, fileName: true, contentType: true } } } },
+      items: { orderBy: { createdAt: "desc" }, include: { attachments: { select: { id: true, fileName: true, contentType: true, size: true } } } },
     },
   });
   if (!bash) return null;

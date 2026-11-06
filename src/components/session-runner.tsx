@@ -218,7 +218,7 @@ export function SessionRunner({
         const form = new FormData();
         form.set("file", file);
         const res = await uploadAttachment(projectId, form);
-        if (res.ok) setPendingFiles((a) => [...a, { id: res.attachment.id, fileName: res.attachment.fileName, contentType: res.attachment.contentType }]);
+        if (res.ok) setPendingFiles((a) => [...a, { id: res.attachment.id, fileName: res.attachment.fileName, contentType: res.attachment.contentType, size: res.attachment.size }]);
         else setError(res.error);
       }
       setUploading(false);

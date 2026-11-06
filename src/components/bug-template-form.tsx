@@ -119,6 +119,7 @@ export function BugTemplateForm({
   candidates = [],
   onPick = () => {},
   capture,
+  jiraLimit = null,
 }: {
   bug: TemplateBug;
   setBug: (fn: (b: TemplateBug) => TemplateBug) => void;
@@ -138,6 +139,8 @@ export function BugTemplateForm({
   candidates?: File_[];
   onPick?: (files: File_[]) => void;
   capture?: BugCapture;
+  /** Jira's per-file limit: bigger files are flagged (ver_185). */
+  jiraLimit?: number | null;
 }) {
   const set = <K extends keyof TemplateBug>(k: K, v: TemplateBug[K]) => setBug((b) => ({ ...b, [k]: v }));
   const setH = (k: keyof History, v: string) =>
@@ -154,7 +157,7 @@ export function BugTemplateForm({
   const fileGroup = (title: string, group: File_[], button: string, accept: string, from: File_[], capture?: BugCapture, what?: string) => (
     <fieldset>
       <legend className="mb-1 text-xs font-semibold text-slate-600">{title}</legend>
-      <FileTicks files={group} include={include} setInclude={setInclude} history>
+      <FileTicks files={group} include={include} setInclude={setInclude} history jiraLimit={jiraLimit}>
         <AddMenu label={button} candidates={from} onPick={onPick} onUpload={onAdd} accept={accept} capture={capture} uploading={uploading} what={what} />
       </FileTicks>
     </fieldset>

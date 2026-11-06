@@ -42,7 +42,7 @@ import type { CaseNews } from "@/lib/case-news";
 /** Regression flag: the earlier release this case passed in, and which of its steps passed there. */
 export type RunnerRegression = { label: string; when: string; passed: boolean[]; resultId: string; off: boolean; jiraLabel: string };
 
-type Attachment = { id: string; fileName: string; contentType: string; stepIndex: number | null };
+type Attachment = { id: string; fileName: string; contentType: string; size?: number; stepIndex: number | null };
 type PendingDefect = { defect: LinkedDefect; stepIndex: number | null };
 
 export type RunnerEntry = {

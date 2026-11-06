@@ -22,7 +22,7 @@ export async function bashFinds(bashId: string) {
       items: {
         where: { kind: { in: [...ITEM_KINDS, "add"] }, mergedIntoId: null },
         orderBy: { createdAt: "desc" },
-        select: { id: true, areaId: true, kind: true, replyToId: true, text: true, details: true, severity: true, byId: true, byName: true, plusOnes: true, defectId: true, templateName: true, layout: true, answers: true, platform: true, createdAt: true, attachments: { select: { id: true, fileName: true, contentType: true } } },
+        select: { id: true, areaId: true, kind: true, replyToId: true, text: true, details: true, severity: true, byId: true, byName: true, plusOnes: true, defectId: true, templateName: true, layout: true, answers: true, platform: true, createdAt: true, attachments: { select: { id: true, fileName: true, contentType: true, size: true } } },
       },
     },
   });

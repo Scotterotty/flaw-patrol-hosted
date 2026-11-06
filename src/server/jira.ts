@@ -1,5 +1,6 @@
 "use server";
 
+import { JIRA_FILE_LIMIT } from "@/lib/jira-files";
 import { parseSentryRefs, sentryAdf } from "@/lib/sentry";
 import { sentryFrames } from "./sentry";
 import { logActivity } from "@/lib/activity";
@@ -549,13 +550,13 @@ async function fileTemplateBug(client: JiraClient, b: TemplateBug, severity: Sev
   let linkError: string | null = null;
   if (sorted.length) {
     try {
-      const added = await client.attach(key, sorted);
-      const refs: FileRef[] = sorted.map((f, i) => {
-        const a = added[i];
-        return { fileName: f.fileName, contentType: f.contentType, url: a ? client.attachmentUrl(a.id, a.filename) : undefined };
-      });
+      const { added, note } = await client.attachEach(key, sorted);
+      attachError = note;
+      // A file that stayed in Flaw Patrol (too big for Jira) isn't listed on the Jira bug.
+      const kept = sorted.flatMap((f, i) => (added[i] ? [{ f, a: added[i] }] : []));
+      const refs: FileRef[] = kept.map(({ f, a }) => ({ fileName: f.fileName, contentType: f.contentType, url: client.attachmentUrl(a.id, a.filename) }));
       const withMedia = await Promise.all(
-        refs.map(async (r, i) => (added[i] && /^(image|video)\//.test(r.contentType) ? { ...r, mediaId: (await client.mediaId(added[i].id)) ?? undefined } : r)),
+        refs.map(async (r, i) => (/^(image|video)\//.test(r.contentType) ? { ...r, mediaId: (await client.mediaId(kept[i].a.id)) ?? undefined } : r)),
       );
       // Inline first; if Jira won't take the media, links in the same places.
       await client
@@ -637,11 +638,7 @@ export async function fileJiraBug(projectId: string, entryId: string, input: z.i
         reporterId: account?.accountId,
         fields,
       }));
-      try {
-        await client.attach(key, files.map((f) => ({ fileName: f.fileName, contentType: f.contentType, data: f.data })));
-      } catch (e) {
-        attachError = e instanceof Error ? e.message : "Attachments failed to upload.";
-      }
+      attachError = (await client.attachEach(key, files.map((f) => ({ fileName: f.fileName, contentType: f.contentType, data: f.data })))).note;
     } else if (template) {
       summary = templateTitle(template);
       ({ key, reporterSet, attachError, linkError } = await fileTemplateBug(client, template, data.severity, account, tester, files, traceOf(ctx)));
@@ -654,11 +651,7 @@ export async function fileJiraBug(projectId: string, entryId: string, input: z.i
         severity: data.severity,
         reporterId: account?.accountId,
       }));
-      try {
-        await client.attach(key, files.map((f) => ({ fileName: f.fileName, contentType: f.contentType, data: f.data })));
-      } catch (e) {
-        attachError = e instanceof Error ? e.message : "Attachments failed to upload.";
-      }
+      attachError = (await client.attachEach(key, files.map((f) => ({ fileName: f.fileName, contentType: f.contentType, data: f.data })))).note;
     }
     const reporterNote =
       account && !reporterSet
@@ -783,7 +776,7 @@ export async function previewJiraBug(projectId: string, entryId: string, stepInd
     const imported = imp && client ? importedDraft(imp, entry, ctx, await client.fieldMeta().catch(() => null)) : null;
     // Nothing failed and nothing written: an empty summary with a hint, never just the case's title.
     const blank = ctx.failedIndex === null && !actual.trim();
-    return { summary: blank ? "" : defaultSummary(ctx), body: bugText(reporter?.found === false ? { ...ctx, reportedBy: user.name ?? user.email } : ctx), reporter, template, imported, scale: client?.scale ?? PLAIN_SCALE, priority: client ? await client.priorityName().catch(() => null) : null };
+    return { summary: blank ? "" : defaultSummary(ctx), body: bugText(reporter?.found === false ? { ...ctx, reportedBy: user.name ?? user.email } : ctx), reporter, template, imported, scale: client?.scale ?? PLAIN_SCALE, priority: client ? await client.priorityName().catch(() => null) : null, fileLimit: client ? await client.uploadLimit() : JIRA_FILE_LIMIT };
   });
 }
 
@@ -1189,11 +1182,7 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
     });
     let attachError: string | null = null;
     let linkError: string | null = null;
-    try {
-      await client.attach(key, allFiles.map((f) => ({ fileName: f.fileName, contentType: f.contentType, data: f.data })));
-    } catch (e) {
-      attachError = e instanceof Error ? e.message : "Attachments failed to upload.";
-    }
+    attachError = (await client.attachEach(key, allFiles.map((f) => ({ fileName: f.fileName, contentType: f.contentType, data: f.data })))).note;
     const reporterNote =
       account && !reporterSet ? `Jira wouldn't let Flaw Patrol set you as the reporter of ${key}, so your name is in its description instead. Ask a Flaw Patrol admin to check Settings → Jira.` : null;
     const issue = await client.getIssue(key).catch(() => ({ key, summary, status: "", category: "new", url: `${client.creds.siteUrl}/browse/${key}`, severity: null, priority: "", type: "", parent: null, foundIn: null as string | null }));
@@ -1260,7 +1249,8 @@ export async function addBugRow(projectId: string, input: z.input<typeof rowSche
       const client = await jiraFor(projectId);
       if (client) {
         try {
-          if (files.length) await client.attach(defect.externalKey, files.map((f) => ({ fileName: f.fileName, contentType: f.contentType, data: f.data })));
+          const sent = files.length ? await client.attachEach(defect.externalKey, files.map((f) => ({ fileName: f.fileName, contentType: f.contentType, data: f.data }))) : null;
+          if (sent?.note) jiraError = sent.note.replace(`${defect.externalKey} was created. `, "The row is saved. ");
           // Only the table changes: the rest of the description stays as Jira has it, edits made there included.
           const now = await client.getDescription(defect.externalKey);
           await client.setDescription(defect.externalKey, addRowToAdf(now, answers[at], row), { asIs: true });

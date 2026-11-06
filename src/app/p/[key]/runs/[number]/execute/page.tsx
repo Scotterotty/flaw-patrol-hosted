@@ -113,7 +113,7 @@ export default async function ExecutePage({
     timing.step("last result", db.testResult.findFirst({
       where: { entryId: pick.id },
       orderBy: { createdAt: "desc" },
-      include: { defects: { include: { defect: true } }, attachments: { orderBy: { createdAt: "asc" }, select: { id: true, fileName: true, contentType: true, stepIndex: true } } },
+      include: { defects: { include: { defect: true } }, attachments: { orderBy: { createdAt: "asc" }, select: { id: true, fileName: true, contentType: true, size: true, stepIndex: true } } },
     })),
     timing.step("bugs filed", db.defectLink.findMany({ where: { result: { runId: run.id } }, include: { defect: true }, orderBy: { defect: { createdAt: "desc" } } })),
     timing.step("flaky cases", flakyCases({ caseIds: [...new Set(list.map((e) => e.caseId))] })),

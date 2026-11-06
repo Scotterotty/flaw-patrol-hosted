@@ -18,6 +18,7 @@ import { deviceCell, nowCell, startAnswers, type Answer } from "@/lib/bug-layout
 import { missingLine, TemplatedForm, TemplatePicker, type TemplateChoice, type TemplatedDraft } from "./templated-bug-form";
 import { uploadAttachment } from "@/server/results";
 import { BugFiles, type BugCapture, type BugFile } from "./bug-files";
+import { JIRA_FILE_LIMIT, tooBigForJira } from "@/lib/jira-files";
 import { BugTemplateForm, type TemplateOptions } from "./bug-template-form";
 import { PriorityLine } from "./jira-priority";
 import { RecordingBar, takeScreenshot, useCaptureSupport, useScreenRecorder } from "./screen-capture";
@@ -118,6 +119,10 @@ export function BugDialog({
   // An imported template's Severity starts on "Choose…": the tester picks it.
   const [sevPicked, setSevPicked] = useState(true);
   const [include, setInclude] = useState<Set<string>>(new Set());
+  // Jira's per-file limit: files over it start unticked and say why (ver_185).
+  const [fileLimit, setFileLimit] = useState(JIRA_FILE_LIMIT);
+  const jiraLimit = jiraConnected ? fileLimit : null;
+  const fits = (f: Attached, limit = jiraLimit) => limit === null || !tooBigForJira(f.size, limit);
   // The team template, when the project uses it.
   const [template, setTemplate] = useState<TemplateBug | null>(null);
   const [options, setOptions] = useState<TemplateOptions>({ clients: [], team: [], olyEnv: [] });
@@ -150,7 +155,7 @@ export function BugDialog({
   const shots = files.filter((f) => include.has(f.id) && /^(image|video)\//.test(f.contentType)).length;
   const pick = (picked: Attached[]) => {
     setAdded((x) => [...x, ...picked]);
-    setInclude((s) => new Set([...s, ...picked.map((p) => p.id)]));
+    setInclude((s) => new Set([...s, ...picked.filter((p) => fits(p)).map((p) => p.id)]));
   };
   // Take screenshot / Record screen right in the box: the new file goes on the step too.
   const support = useCaptureSupport();
@@ -188,7 +193,7 @@ export function BugDialog({
     setError(null);
     setFiled(null);
     setTab("new");
-    setInclude(new Set(attachments.map((a) => a.id)));
+    setInclude(new Set(attachments.filter((a) => fits(a, jiraConnected ? JIRA_FILE_LIMIT : null)).map((a) => a.id)));
     setReporter(null);
     setTemplate(null);
     setImported(null);
@@ -227,6 +232,10 @@ export function BugDialog({
         setSummary(fromDefect?.title ?? prefill?.title ?? res.summary);
         setScale(res.scale);
         setJiraPriority(res.priority);
+        if (res.fileLimit !== JIRA_FILE_LIMIT) {
+          setFileLimit(res.fileLimit);
+          setInclude((s) => new Set([...s].filter((id) => !tooBigForJira(attachments.find((a) => a.id === id)?.size, res.fileLimit))));
+        }
         setSeverity(fromDefect?.severity ?? prefill?.severity ?? defaultSeverityOf(res.scale));
         setBody(res.body);
         setReporter(res.reporter);
@@ -379,9 +388,9 @@ export function BugDialog({
         setError(res.error);
         continue;
       }
-      const a = { id: res.attachment.id, fileName: res.attachment.fileName, contentType: res.attachment.contentType, label: here };
+      const a = { id: res.attachment.id, fileName: res.attachment.fileName, contentType: res.attachment.contentType, size: res.attachment.size, label: here };
       setAdded((x) => [...x, a]);
-      setInclude((s) => new Set(s).add(a.id));
+      if (fits(a)) setInclude((s) => new Set(s).add(a.id));
       onUploaded?.(a);
     }
     setUploading(false);
@@ -484,7 +493,7 @@ export function BugDialog({
                     <TemplatedForm projectId={projectId} draft={draft} setDraft={(fn) => setDraft((d) => (d ? fn(d) : d))} severity={severity} setSeverity={setSeverity} scale={scale} setError={setError} />
                     <PriorityLine priority={jiraConnected ? jiraPriority : null} />
                     {foundBox}
-                    <BugFiles files={files} include={include} setInclude={setInclude} candidates={candidates} onPick={pick} onUpload={upload} capture={capture} uploading={uploading} />
+                    <BugFiles files={files} include={include} setInclude={setInclude} candidates={candidates} onPick={pick} onUpload={upload} capture={capture} uploading={uploading} jiraLimit={jiraLimit} />
                   </>
                 ) : (
                   <p className="text-sm text-slate-500" role="status">
@@ -510,6 +519,7 @@ export function BugDialog({
                     candidates={candidates}
                     onPick={pick}
                     capture={capture}
+                    jiraLimit={jiraLimit}
                   />
                   {foundBox}
                 </>
@@ -537,6 +547,7 @@ export function BugDialog({
                     onUpload={upload}
                     capture={capture}
                     uploading={uploading}
+                    jiraLimit={jiraLimit}
                   />
                 </>
               ) : (
@@ -578,6 +589,7 @@ export function BugDialog({
                         onUpload={upload}
                         capture={capture}
                         uploading={uploading}
+                        jiraLimit={jiraLimit}
                       />
                     </>
                   ) : (

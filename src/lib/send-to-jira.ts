@@ -17,7 +17,7 @@ export async function sendToJiraData(defects: { id: string; projectId: string; n
   });
   const files = await db.attachment.findMany({
     where: { resultId: { in: links.map((l) => l.result.id) } },
-    select: { id: true, fileName: true, contentType: true, resultId: true, stepIndex: true },
+    select: { id: true, fileName: true, contentType: true, size: true, resultId: true, stepIndex: true },
     orderBy: { createdAt: "asc" },
   });
   for (const d of defects) {
@@ -40,7 +40,7 @@ export async function sendToJiraData(defects: { id: string; projectId: string; n
       actual: actual || link.result.comment,
       attachments: files
         .filter((f) => f.resultId === link.result.id && (link.stepIndex === null || f.stepIndex === link.stepIndex || f.stepIndex === null))
-        .map((f) => ({ id: f.id, fileName: f.fileName, contentType: f.contentType, label: f.stepIndex === null ? "Whole case" : `Step ${numberOf(f.stepIndex)}` })),
+        .map((f) => ({ id: f.id, fileName: f.fileName, contentType: f.contentType, size: f.size, label: f.stepIndex === null ? "Whole case" : `Step ${numberOf(f.stepIndex)}` })),
     });
   }
   return out;
