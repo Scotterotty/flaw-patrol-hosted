@@ -22,6 +22,24 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 183,
+    date: "2026-11-05",
+    items: [
+      {
+        kind: "fix",
+        title: "Results from a spreadsheet don't take quest finds or trouble",
+        text: "Results brought in from a sheet still move the quest pawn, but only results saved in Flaw Patrol find items, meet foes or land in trouble. An import never moves a find someone already has.",
+        game: true,
+      },
+      {
+        kind: "better",
+        title: "Quest maps are less crowded",
+        text: "Finds and trouble on the road are smaller than people's pawns, and people show by name instead of email.",
+        game: true,
+      },
+    ],
+  },
+  {
     version: 182,
     date: "2026-11-05",
     items: [
