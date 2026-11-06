@@ -250,6 +250,22 @@ export const HOW_TO: HowToTask[] = [
     next: "make-suite",
   },
   {
+    id: "export-cases",
+    group: "Write tests",
+    title: "Export cases for Excel, Qase, qTest or TestRail",
+    sub: "Download cases to share them or move them to another tool",
+    words: "export download excel google sheets spreadsheet xlsx csv qase qtest testrail share move another tool backup",
+    steps: [
+      { text: "In the left menu, under **Library**, press **Case library**.", see: "Your cases, with folders on the left.", target: "menu-cases" },
+      { text: "To export only some cases, open their folder or tick their boxes. To export a test suite, open it and press **More**, then **Export cases…**", see: "The cases you want on screen, or ticked." },
+      { text: "Press **Export cases** at the top right.", see: "The **Export cases** box.", target: "cases-export" },
+      { text: "Under **Which cases**, pick what to export, like **This folder** or **The 3 you ticked**.", see: "Your pick outlined.", target: "export-which", type: true },
+      { text: "Under **Open it in**, pick **Excel or Google Sheets**, or the test tool the cases are going to: **Qase**, **qTest** or **TestRail**.", see: "Your pick outlined, with where to import it in that tool.", target: "export-format", type: true },
+      { text: "Press **Download**.", see: "✓ Downloaded, with how many cases. The file is in your Downloads folder.", target: "export-download", saves: true },
+    ],
+    next: "import-cases",
+  },
+  {
     id: "edit-case",
     group: "Write tests",
     title: "Change a case and see its history",

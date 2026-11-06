@@ -33,6 +33,7 @@ export type Action =
   | "umbrella:archive" // archive the umbrella with its projects, or restore it
   | "bash:join" // join a bug bash, log bugs in it and attach screenshots: Viewers too
   | "case:flag" // flag a case that needs attention, with a note: Viewers too
+  | "case:export" // download cases for Excel, Qase, qTest or TestRail (ver_190): Viewers too, unless turned off
   | "glossary:edit" // add, answer and edit Glossary terms; anyone, Viewers too, can read and ask
   | "bugtemplate:edit" // make and edit bug templates
   | "bugtemplate:delete"; // delete bug templates: admins by default
@@ -46,9 +47,10 @@ const RANK: Record<Role, number> = { VIEWER: 0, TESTER: 1, LEAD: 2, ADMIN: 3 };
  * minimum role under Everyone (the default), `tight` under Tighter. `locked` rows stay
  * admin-only.
  */
-export const ROLE_ROWS: { id: string; group: string; label: string; actions: Action[]; std: Role; tight: Role; locked?: true; archive?: true }[] = [
+export const ROLE_ROWS: { id: string; group: string; label: string; actions: Action[]; std: Role; tight: Role; locked?: true; archive?: true; /** The one kind of row Viewers can be ticked on: it only reads. */ viewers?: true }[] = [
   { id: "cases", group: "Cases and library", label: "Create and edit test cases", actions: ["case:edit"], std: "TESTER", tight: "TESTER" },
   { id: "import", group: "Cases and library", label: "Import cases", actions: ["import"], std: "TESTER", tight: "LEAD" },
+  { id: "export", group: "Cases and library", label: "Export cases", actions: ["case:export"], std: "VIEWER", tight: "TESTER", viewers: true },
   { id: "folders", group: "Cases and library", label: "Create, rename and move folders", actions: ["folder:manage"], std: "TESTER", tight: "LEAD" },
   { id: "suites", group: "Cases and library", label: "Create and edit test suites", actions: ["suite:manage"], std: "TESTER", tight: "LEAD" },
   { id: "shared", group: "Cases and library", label: "Create and edit shared steps and personas", actions: ["shared:manage"], std: "TESTER", tight: "LEAD" },
@@ -103,7 +105,7 @@ export function parseRoleRules(v: unknown): RoleRules | null {
   const allow: Record<string, Role[]> = {};
   if (r.allow && typeof r.allow === "object")
     for (const [k, roles] of Object.entries(r.allow as Record<string, unknown>))
-      if (Array.isArray(roles)) allow[k] = roles.filter((x): x is Role => x === "TESTER" || x === "LEAD");
+      if (Array.isArray(roles)) allow[k] = roles.filter((x): x is Role => x === "TESTER" || x === "LEAD" || (x === "VIEWER" && !!ROLE_ROWS.find((r) => r.id === k)?.viewers));
   return { preset: "custom", allow };
 }
 
@@ -113,7 +115,7 @@ export type Who = { role: Role | null; rules?: RoleRules | null };
 /** Whether a role on one row is ticked under these rules. Admins always are. */
 export function rowAllows(row: (typeof ROLE_ROWS)[number], role: Role, rules?: RoleRules | null): boolean {
   if (role === "ADMIN") return true;
-  if (row.locked || role === "VIEWER") return false;
+  if (row.locked || (role === "VIEWER" && !row.viewers)) return false;
   if (!rules || rules.preset === "everyone") return RANK[role] >= RANK[row.std];
   if (rules.preset === "tighter") return RANK[role] >= RANK[row.tight];
   const ticked = rules.allow?.[row.id];
@@ -134,6 +136,7 @@ export function can(who: Role | Who | null | undefined, action: Action): boolean
 const SHORT_WORDS: Record<string, string> = {
   cases: "write cases",
   import: "import",
+  export: "export cases",
   folders: "organize folders",
   suites: "manage suites and shared steps",
   shared: "manage suites and shared steps",
@@ -174,11 +177,12 @@ export function roleSummary(rules?: RoleRules | null): string {
     ROLE_ROWS.filter((r) => rowAllows(r, role, rules) && !(below && rowAllows(r, below, rules)))
       .map((r) => SHORT_WORDS[r.id] ?? r.label.toLowerCase())
       .filter((w) => !seen.has(w) && seen.add(w));
-  const t = words("TESTER");
+  const v = words("VIEWER");
+  const t = words("TESTER", "VIEWER");
   const l = words("LEAD", "TESTER");
   const a = words("ADMIN", "LEAD");
   return [
-    "Viewers see everything, flag cases, join bug bashes and ask in the Glossary.",
+    `Viewers see everything, ${listOf(["flag cases", "join bug bashes", "ask in the Glossary", ...v])}.`,
     t.length ? `Members ${listOf(t)}.` : "Members only see.",
     l.length ? `Leads also ${listOf(l)}.` : "Leads can do the same as Members.",
     a.length ? `Admins also ${listOf(a)}.` : "",

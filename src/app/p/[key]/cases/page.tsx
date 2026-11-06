@@ -30,6 +30,7 @@ import { hubGroupId, jiraConfigFor, loadUmbrella, platformColor } from "@/lib/um
 import { isOnPlatform, platformCaseOr } from "@/lib/platform-match";
 import { MoveCasesButton } from "@/components/umbrella-ui";
 import { UmbrellaIcon } from "@/components/umbrella-nav";
+import { ExportCasesButton, type ExportScope } from "@/components/export-cases";
 import type { ResultStatus } from "@prisma/client";
 
 export async function generateMetadata({ params }: { params: Promise<{ key: string }> }) {
@@ -200,6 +201,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
   }
 
   const [members, suites, flaggedCount, personas, tagColors, bracketRows, areaInput, jiraOn, runFields, ownLeft] = await later;
+
   // Shared library: which platforms run each case, and its last result on each.
   const onPlatforms = new Map<string, { name: string; color: string; status: ResultStatus | null }[]>();
   // Each case automation runs: its latest automated result. Fetched with the platforms' results.
@@ -241,7 +243,22 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
   // Area tags: offered once the [brackets] are done, since they follow the platform tag
   // (or, with no platforms set up, the case's one [bracket] tag, ver_105).
   const areaWords = areaInput && !bracketCount ? findAreaWords(areaInput[0], areaInput[1]) : [];
-  const keep = (extra: Record<string, string | undefined>) => {
+  // Export cases (ver_190): what's on screen, and the whole library. Filters send the matching ids.
+  const canExport = can(who, "case:export");
+  const libraryCount = Object.values(countByFolder).reduce((a, b) => a + b, 0);
+  const exportScopes: ExportScope[] = [];
+  if (canExport) {
+    const archivedTab = sp.archived === "1";
+    if (filtered && total > 0) {
+      const ids = await db.testCase.findMany({ where, select: { id: true }, orderBy: { number: "asc" }, take: 20000 });
+      exportScopes.push({ label: `Matching your filters (${total})`, scope: "ids", ids: ids.map((r) => r.id) });
+    } else if ((folder || sp.folder === "unfiled") && total > 0) {
+      exportScopes.push({ label: `${sp.folder === "unfiled" ? "Unfiled" : archivedTab ? "Archived in this folder" : "This folder"} (${total})`, scope: "folder", folder: sp.folder, archived: archivedTab });
+    } else if (archivedTab && total > 0) {
+      exportScopes.push({ label: `All archived (${total})`, scope: "all", archived: true });
+    }
+    if (libraryCount > 0) exportScopes.push({ label: `${u ? "Whole library" : "All test cases"} (${libraryCount})`, scope: "all" });
+  }  const keep = (extra: Record<string, string | undefined>) => {
     const u = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...sp, ...extra })) if (v) u.set(k, v);
     return `?${u.toString()}`;
@@ -281,6 +298,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
               {can(who, "import") && (
                 <LinkButton href={`/p/${project.key}/import${folder ? `?folder=${folder.id}` : ""}`} data-howto="cases-import">Import cases</LinkButton>
               )}
+              {exportScopes.length > 0 && <ExportCasesButton projectKey={project.key} scopes={exportScopes} />}
               {can(who, "case:edit") && (
                 <LinkButton variant="primary" href={newCase("")} data-howto="cases-new">
                   New case
@@ -493,6 +511,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
             tagColors={tagColors}
             tagHits={q ? [...tagHits, ...tagHitsOf(q, tagRows.map((t) => t.tag))] : []}
             closeStart={cases.length > closeStart ? closeStart : undefined}
+            canExport={canExport}
             bulk={{ personas: personas.filter((p) => !p.archived), tags: sortTags(tagRows.map((t) => t.tag)) }}
           />
         )}

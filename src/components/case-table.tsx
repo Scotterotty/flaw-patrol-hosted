@@ -5,7 +5,8 @@ import type { CaseFlagInfo } from "@/lib/case-flag";
 import type { CaseType, Priority, ResultStatus } from "@prisma/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Fragment, useState, useTransition } from "react";
+import { Fragment, useEffect, useState, useTransition } from "react";
+import { announceTicked } from "./export-cases";
 import { CloseMatchesLabel } from "./close-matches";
 import { CASES_MIME, dragChip, type DraggedCases } from "@/lib/case-drag";
 import { caseKey, count, relativeTime } from "@/lib/format";
@@ -65,6 +66,7 @@ export function CaseTable({
   tagColors,
   tagHits,
   closeStart,
+  canExport,
 }: {
   projectId: string;
   projectKey: string;
@@ -86,14 +88,21 @@ export function CaseTable({
   tagHits?: string[];
   /** Rows from here on are close matches for the search, under their own label. */
   closeStart?: number;
+  /** Ticked cases can be exported (Viewers too), so the boxes show for anyone who can export. */
+  canExport?: boolean;
 }) {
   const spelling = useSpelling();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
-  const selectable = canEdit || canArchive || !!runOpts?.canCreate;
+  const selectable = canEdit || canArchive || !!runOpts?.canCreate || !!canExport;
   const ids = [...selected];
+  // Export cases offers "The N you ticked" while any are ticked.
+  useEffect(() => {
+    announceTicked([...selected]);
+  }, [selected]);
+  useEffect(() => () => announceTicked([]), []);
   const canDrag = canEdit && !archivedView;
 
   const run = (fn: () => Promise<{ ok: true; count: number } | { ok: false; error: string }>, done: (n: number) => string) =>

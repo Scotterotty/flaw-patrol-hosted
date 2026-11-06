@@ -77,6 +77,7 @@ const ACCOUNT_PAGES: { label: string; anchor: string; words: string }[] = [
 const UMBRELLA_PAGES: { label: string; path: (g: string, hub: string) => string; words: string; tool?: ToolId; adminOnly?: true }[] = [
   { label: "Overview", path: (g) => `/g/${g}`, words: "overview home" },
   { label: "Case library", path: (_, h) => `/p/${h}/cases`, words: "case library cases tests", tool: "cases" },
+  { label: "Export cases", path: (_, h) => `/p/${h}/cases?export=1`, words: "export download cases qase qtest testrail excel spreadsheet csv xlsx google sheets move to another tool", tool: "cases" },
   { label: "Test suites", path: (_, h) => `/p/${h}/suites`, words: "test suites suite plans", tool: "cases" },
   { label: "Shared steps", path: (_, h) => `/p/${h}/shared-steps`, words: "shared steps reusable", tool: "cases" },
   { label: "Personas", path: (_, h) => `/p/${h}/charters?tab=personas`, words: "personas test persona charters exploratory", tool: "charters" },

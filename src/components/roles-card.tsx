@@ -9,7 +9,7 @@ import { useSpell } from "./spelling";
 import { FoldCard } from "./fold-card";
 import { Button, cx, ErrorText, InfoTip } from "./ui";
 
-const ROLES: Role[] = ["TESTER", "LEAD", "ADMIN"];
+const ROLES: Role[] = ["VIEWER", "TESTER", "LEAD", "ADMIN"];
 const SHORT: Record<Role, string> = { TESTER: "Member", LEAD: "Lead", ADMIN: "Admin", VIEWER: "Viewer" };
 const PRESET_TIP: Record<RolePreset, string> = {
   everyone: "Everyone can use every feature. Only admins archive, delete, change members and roles, or set up Jira, Slack, Sentry, GitHub and CI uploads.",
@@ -71,7 +71,7 @@ export function RolesCard({ target, rules, appliesTo }: { target: { groupId: str
   const save = () =>
     start(async () => {
       setError(null);
-      const res = await saveRoleRules(target, { preset, allow: preset === "custom" ? (table as Record<string, ("TESTER" | "LEAD")[]>) : undefined });
+      const res = await saveRoleRules(target, { preset, allow: preset === "custom" ? (table as Record<string, ("VIEWER" | "TESTER" | "LEAD")[]>) : undefined });
       if (!res.ok) return setError(res.error);
       setDirty(false);
       setSaved(true);
@@ -139,7 +139,7 @@ export function RolesCard({ target, rules, appliesTo }: { target: { groupId: str
               return [
                 head && (
                   <tr key={`g-${row.group}`}>
-                    <td colSpan={4} className="pt-3 pb-1 text-xs font-semibold text-slate-600">
+                    <td colSpan={5} className="pt-3 pb-1 text-xs font-semibold text-slate-600">
                       {row.group}
                     </td>
                   </tr>
@@ -154,6 +154,8 @@ export function RolesCard({ target, rules, appliesTo }: { target: { groupId: str
                     )}
                   </td>
                   {ROLES.map((role) => {
+                    // Viewers only get a box on rows that just read, like Export cases.
+                    if (role === "VIEWER" && !row.viewers) return <td key={role} />;
                     const fixed = role === "ADMIN" || !!row.locked;
                     const on = role === "ADMIN" || (!row.locked && table[row.id]?.includes(role));
                     const std = role === "ADMIN" || rowAllows(row, role, null);
@@ -172,7 +174,7 @@ export function RolesCard({ target, rules, appliesTo }: { target: { groupId: str
       </div>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <p className="mb-3 text-xs text-slate-500">
-        <span className="font-medium text-slate-700">Viewers</span> aren&apos;t in the table: they see everything, flag cases, join bug bashes (logging bugs there) and ask questions in the Glossary, but don&apos;t edit, run or archive.
+        <span className="font-medium text-slate-700">Viewers</span> see everything, flag cases, join bug bashes (logging bugs there) and ask questions in the Glossary, but don&apos;t edit, run or archive. They only have a box on <span className="font-medium text-slate-700">Export cases</span>.
       </p>
       <div className="flex items-center justify-end gap-2">
         <span className="text-xs text-slate-500" aria-live="polite">

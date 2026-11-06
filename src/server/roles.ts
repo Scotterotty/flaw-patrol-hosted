@@ -14,7 +14,7 @@ import { attempt, UserError } from "./result";
 
 const rulesSchema = z.object({
   preset: z.enum(["everyone", "tighter", "custom"]),
-  allow: z.record(z.string(), z.array(z.enum(["TESTER", "LEAD"]))).optional(),
+  allow: z.record(z.string(), z.array(z.enum(["VIEWER", "TESTER", "LEAD"]))).optional(),
 });
 
 export async function saveRoleRules(target: { groupId: string } | { projectId: string }, input: z.input<typeof rulesSchema>) {

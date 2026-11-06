@@ -59,10 +59,28 @@ describe("presets", () => {
   });
 });
 
+describe("Export cases", () => {
+  it("is open to Viewers by default, and to Members and up under Tighter", () => {
+    expect(can("VIEWER", "case:export")).toBe(true);
+    expect(can({ role: "VIEWER", rules: { preset: "tighter" } }, "case:export")).toBe(false);
+    expect(can({ role: "TESTER", rules: { preset: "tighter" } }, "case:export")).toBe(true);
+  });
+  it("can be turned off for Viewers only under Custom", () => {
+    const rules = parseRoleRules({ preset: "custom", allow: { export: ["TESTER", "LEAD"] } });
+    expect(can({ role: "VIEWER", rules }, "case:export")).toBe(false);
+    expect(can({ role: "TESTER", rules }, "case:export")).toBe(true);
+  });
+  it("never lets Viewers be ticked on other rows", () => {
+    const rules = parseRoleRules({ preset: "custom", allow: { cases: ["VIEWER", "TESTER"] } });
+    expect(rules?.allow?.cases).toEqual(["TESTER"]);
+    expect(can({ role: "VIEWER", rules }, "case:edit")).toBe(false);
+  });
+});
+
 describe("roleSummary", () => {
   it("is written from the grid", () => {
     const s = roleSummary();
-    expect(s).toMatch(/^Viewers see everything, flag cases, join bug bashes and ask in the Glossary. Members write cases, import/);
+    expect(s).toMatch(/^Viewers see everything, flag cases, join bug bashes, ask in the Glossary and export cases. Members write cases, import/);
     expect(s).toContain("Leads can do the same as Members.");
     expect(s).toContain("manage members and roles");
   });

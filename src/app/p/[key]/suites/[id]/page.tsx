@@ -11,6 +11,7 @@ import { NewRunButton } from "@/components/new-run";
 import { StartRunBox } from "@/components/start-run-box";
 import { HistoryStrip, StatusBar, StatusChip } from "@/components/status";
 import { MoreMenu } from "@/components/more-menu";
+import { ExportCasesButton } from "@/components/export-cases";
 import { ArchiveSuiteButton, RenameSuiteButton } from "@/components/suite-actions";
 import { Badge, Card, EmptyState, LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
@@ -125,15 +126,17 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {manage && (
-            <>
-              <MoreMenu>
-                <RenameSuiteButton {...rename} look="menu" />
-                {can(who, "library:archive") && <ArchiveSuiteButton projectId={project.id} suiteId={suite.id} archived={suite.archived} />}
-              </MoreMenu>
-              <LinkButton href={`/p/${project.key}/suites/${suite.id}/edit`}>Edit cases</LinkButton>
-            </>
+          {(manage || (can(who, "case:export") && activeCases.length > 0)) && (
+            <MoreMenu>
+              {manage && <RenameSuiteButton {...rename} look="menu" />}
+              {/* Export cases (ver_190): this suite's cases, for Excel, Qase, qTest or TestRail. */}
+              {can(who, "case:export") && activeCases.length > 0 && (
+                <ExportCasesButton projectKey={suite.project.key} look="menu" scopes={[{ label: `This suite (${activeCases.length})`, scope: "suite", suiteId: suite.id }]} />
+              )}
+              {manage && can(who, "library:archive") && <ArchiveSuiteButton projectId={project.id} suiteId={suite.id} archived={suite.archived} />}
+            </MoreMenu>
           )}
+          {manage && <LinkButton href={`/p/${project.key}/suites/${suite.id}/edit`}>Edit cases</LinkButton>}
           {can(who, "run:create") && !suite.archived && hubOf && (
             <StartRunBox scope={{ groupId: hubOf }} preset={{ what: "suite", suiteId: suite.id }} label="Create a run…" disabled={activeCases.length === 0} initialOpen={startNow} />
           )}
