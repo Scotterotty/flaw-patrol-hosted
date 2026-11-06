@@ -1,6 +1,7 @@
 import { reportRange } from "@/lib/zone-server";
 import { AddPartsHere } from "@/components/add-part-bar";
 import { ScrollTabs } from "@/components/scroll-tabs";
+import { TAB_ROW_LINE } from "@/components/tab-row";
 import { AttachWrapUps, WrapUpsSection } from "@/components/wrap-ups";
 import { attachedWrapUps, releaseStart, reportsWrapKey, wrapPickOf } from "@/lib/wrap-ups";
 import { KindSelect } from "@/components/kind-select";
@@ -194,14 +195,14 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
       {/* The one-line answer (persona audit #10), following the dates and filters. */}
       {view !== "regression" && runs.length > 0 && <ReportSummaryBar summary={await summaryFor(project.id, f, runs, caseFilterWords(scope, f))} />}
 
-      <ScrollTabs label="Report views" className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200">
+      <ScrollTabs label="Report views" className={`mb-5 flex gap-1 ${TAB_ROW_LINE}`}>
         {VIEWS.map((v) => (
           <Link
             key={v.id}
             data-howto={"howto" in v ? v.howto : undefined}
             // Your filters stay when you switch tabs.
             href={`?${qs({ view: v.id })}`}
-            className={cx("-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap", view === v.id ? "border-accent-600 font-medium text-accent-700" : "border-transparent text-slate-600 hover:text-slate-900")}
+            className={cx("border-b-2 px-3 py-2 text-sm whitespace-nowrap", view === v.id ? "border-accent-600 font-medium text-accent-700" : "border-transparent text-slate-600 hover:text-slate-900")}
           >
             {v.label}
           </Link>

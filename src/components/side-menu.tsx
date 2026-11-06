@@ -389,7 +389,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
       <nav
         ref={bar}
         aria-label={label}
-        className="fp-bar fixed inset-x-0 bottom-0 z-20 flex items-center gap-1 overflow-x-auto border-t border-slate-200 bg-surface px-2 py-1.5 md:hidden"
+        className="fp-bar fixed inset-x-0 bottom-0 z-20 flex items-center gap-1 overflow-x-auto overflow-y-hidden border-t border-slate-200 bg-surface px-2 py-1.5 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden"
       >
         {[...shown.map((g) => ({ label: g.label, items: flat(g.units) })), ...(footer ? [{ label: "Footer", items: [footer] }] : [])].map((grp, n) => (
           <Fragment key={grp.label || "top"}>

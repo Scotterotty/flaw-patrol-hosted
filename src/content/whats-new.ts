@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 186,
+    date: "2026-11-05",
+    items: [
+      {
+        kind: "fix",
+        title: "No more stray scrollbar on tab rows",
+        text: "Tab rows like Reports, Test runs and Test cases no longer show an up/down scrollbar at the right end. On a narrow window, click the › at the end of the row to see more tabs.",
+      },
+    ],
+  },
+  {
     version: 185,
     date: "2026-11-05",
     items: [

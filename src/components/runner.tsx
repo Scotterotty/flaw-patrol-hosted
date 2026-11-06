@@ -26,6 +26,7 @@ import { CaseFlagButton } from "./case-flag";
 import { StepText } from "./step-text";
 import { StatusChip, StatusIcon } from "./status";
 import { Button, buttonClass, cx, ErrorText, Textarea } from "./ui";
+import { ScrollTabs } from "./scroll-tabs";
 import { RecordingBar, RecordingPreview, takeScreenshot, useCaptureSupport, useScreenRecorder, type Finished } from "./screen-capture";
 import { CloseRunButton } from "./run-actions";
 import { bugTitle } from "@/lib/jira-format";
@@ -979,7 +980,7 @@ export function Runner({
             <p className="text-sm text-slate-600">
               This case runs once for each row of test data. Values from the row show in <span className="rounded bg-blue-50 px-0.5 font-medium text-blue-800 ring-1 ring-blue-100 ring-inset">blue</span>.
             </p>
-            <div role="tablist" aria-label="Test data rows" className="flex gap-2 overflow-x-auto pb-1">
+            <ScrollTabs tablist label="Test data rows" className="flex gap-2 p-1">
               {data.rows.map((_, r) => (
                 <button
                   key={r}
@@ -998,7 +999,7 @@ export function Runner({
                   <span className="max-w-48 truncate text-slate-500">{rowLabel(data, r)}</span>
                 </button>
               ))}
-            </div>
+            </ScrollTabs>
           </div>
         )}
         <ol className="space-y-2">
