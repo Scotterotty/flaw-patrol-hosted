@@ -62,7 +62,10 @@ export function BugDialog({
   sentryOn = false,
   sentryErrors = [],
   focus = null,
+  caseRecording,
 }: {
+  /** A recording started on the case before this box opened: its bar shows at the top of the box too, so it can be stopped here. */
+  caseRecording?: ReturnType<typeof useScreenRecorder>;
   /** A whole-case bug's first failed step (persona audit #4): the bug starts from what failed there. */
   focus?: number | null;
   /** Sentry is connected: + Add offers "Sentry error…". */
@@ -167,7 +170,7 @@ export function BugDialog({
   const capture: BugCapture = {
     ok: support.ok,
     why: support.why,
-    busy: shooting || uploading || recorder.rec !== null,
+    busy: shooting || uploading || recorder.rec !== null || !!caseRecording?.rec,
     screenshot: async () => {
       setShooting(true);
       try {
@@ -421,6 +424,9 @@ export function BugDialog({
         </div>
       ) : (
         <>
+          {/* At the top and sticky (ver_192): at the bottom it was off screen under a long template. */}
+          <RecordingBar r={recorder} inline />
+          {caseRecording && <RecordingBar r={caseRecording} inline />}
           <div className="mb-4 flex gap-1 rounded-md bg-slate-100 p-1 text-sm">
             {(fromDefect ? (["new"] as const) : (["new", "link"] as const)).map((t) => (
               <button
@@ -632,7 +638,6 @@ export function BugDialog({
                   </span>
                 </label>
               )}
-              <RecordingBar r={recorder} inline />
               <div className="flex flex-wrap items-center justify-end gap-2">
                 {chosen && draft && missingLine(draft, shots) && (
                   <span className="text-xs text-amber-800" data-testid="template-missing">
@@ -648,6 +653,7 @@ export function BugDialog({
                     pending ||
                     uploading ||
                     recorder.rec !== null ||
+                    !!caseRecording?.rec ||
                     (chosen
                       ? !draft || draft.templateId !== chosen || !!missingLine(draft, shots)
                       : template

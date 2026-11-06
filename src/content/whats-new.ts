@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 192,
+    date: "2026-11-06",
+    items: [
+      {
+        kind: "fix",
+        title: "Recording controls stay in sight",
+        text: "While you record your screen, Stop and attach is always where you can reach it. In the bug box the recording bar sticks to the top, a recording started on the case shows there too, and on a phone the bar sits above the menu instead of covering Save.",
+      },
+    ],
+  },
+  {
     version: 191,
     date: "2026-11-06",
     items: [

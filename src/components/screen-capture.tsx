@@ -219,16 +219,20 @@ export function useScreenRecorder(onFinished: (f: Finished) => void, onError: (m
   return { rec, paused, micOn, elapsed, start, stop, togglePause, toggleMic };
 }
 
-/** The pinned bar while recording, or a box in place inside a dialog (`inline`). */
+/**
+ * The bar while recording. On a page it floats at the bottom of the screen, above the phone
+ * menu bar, with room left under the page so it never covers a button. Inside a popup box
+ * (`inline`) it sticks to the top of the box, so it stays in sight however long the box is.
+ */
 export function RecordingBar({ r, inline }: { r: ReturnType<typeof useScreenRecorder>; inline?: boolean }) {
   if (!r.rec) return null;
-  return (
+  const bar = (
     <div
       role="region"
       aria-label="Screen recording"
       className={cx(
-        "flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-surface px-3 py-2 text-sm",
-        inline ? "w-full" : "fixed inset-x-0 bottom-4 z-40 mx-auto w-fit max-w-[calc(100%-2rem)] shadow-lg",
+        "flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-surface px-3 py-2 text-sm shadow-lg",
+        inline ? "sticky top-0 z-10 mb-4 w-full" : "fixed inset-x-0 bottom-16 z-40 mx-auto w-fit max-w-[calc(100%-2rem)] md:bottom-4",
       )}
     >
       <span className={cx("size-2.5 rounded-full", r.paused ? "bg-slate-400" : "animate-pulse bg-red-600")} aria-hidden />
@@ -249,6 +253,14 @@ export function RecordingBar({ r, inline }: { r: ReturnType<typeof useScreenReco
         Discard
       </Button>
     </div>
+  );
+  if (inline) return bar;
+  return (
+    <>
+      {/* Room under the page, so the last buttons can scroll up clear of the bar. */}
+      <div aria-hidden className="h-20" data-testid="recording-room" />
+      {bar}
+    </>
   );
 }
 
@@ -276,7 +288,7 @@ export function RecordingPreview({
     <div
       role="region"
       aria-label="Recording attached"
-      className="fixed inset-x-0 bottom-4 z-40 mx-auto w-[min(26rem,calc(100%-2rem))] rounded-xl border border-slate-200 bg-surface p-3 text-sm shadow-lg"
+      className="fixed inset-x-0 bottom-16 z-40 mx-auto w-[min(26rem,calc(100%-2rem))] md:bottom-4 rounded-xl border border-slate-200 bg-surface p-3 text-sm shadow-lg"
     >
       <video src={`/api/attachments/${id}`} controls className="aspect-video w-full rounded-md bg-black" />
       <div className="mt-2 flex flex-wrap items-center gap-2">

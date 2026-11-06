@@ -1521,6 +1521,7 @@ export function Runner({
         onUploaded={(a) => setAttachments((all) => [...all, { ...a, stepIndex: bugFor ?? null }])}
         jiraConnected={jiraConnected}
         recent={recent}
+        caseRecording={recorder}
         sentryOn={sentryOn}
         sentryErrors={bugFor === undefined ? [] : sentryPicked(bugFor)}
         stories={entry.stories}

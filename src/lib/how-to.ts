@@ -641,7 +641,7 @@ export const HOW_TO: HowToTask[] = [
     steps: [
       { text: "Open a case in a run.", see: "The runner." },
       { text: "Press **📷 Take screenshot** and pick the window or screen to share.", see: "The picture attached to the case.", target: "runner-screenshot" },
-      { text: "Press **Record screen**, do what you need, then stop sharing in your browser.", see: "The video attached, ready to add to a bug.", target: "runner-record" },
+      { text: "Press **Record screen**, do what you need, then press **Stop and attach** on the recording bar. The bar stays in sight, even in the bug box.", see: "The video attached, ready to add to a bug.", target: "runner-record" },
       { text: "Or press **Attach file to case** to add a file from your computer.", see: "The file listed on the case.", target: "runner-attach" },
     ],
     next: "report-bug",
