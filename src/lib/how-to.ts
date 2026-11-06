@@ -586,7 +586,7 @@ export const HOW_TO: HowToTask[] = [
     group: "Run tests",
     title: "Bring in results from a spreadsheet",
     sub: "Results tracked in Excel or Google Sheets: a new run, or update one in progress",
-    words: "update run from sheet spreadsheet excel google csv xlsx in progress overwrite replace results create a run import tracked by hand bring in manual",
+    words: "update run from sheet spreadsheet excel google csv xlsx in progress overwrite replace results create a run import tracked by hand bring in manual assign tester assigned executed by",
     steps: [
       { text: "In the left menu, under **Testing**, press **Test runs**.", see: "Every run, with **Create a run** at the top right.", target: "menu-runs" },
       { text: "Press **Create a run**.", see: "The **Create a run** box.", target: "run-create" },
@@ -594,7 +594,7 @@ export const HOW_TO: HowToTask[] = [
       { text: "Under **What to run**, pick **From a spreadsheet**.", see: "A box to drop your sheet in.", target: "run-sheet" },
       { text: "Drop your .csv or .xlsx in the box, or click it to choose a file.", see: "The file's name and how many rows it has.", target: "run-sheet-file", type: true },
       { text: "Under **Where it goes**, pick **Update a run in progress** and the run, or **A new run**.", see: "Your choice lit up.", target: "run-sheet-where" },
-      { text: "Press **Next: check the sheet**.", see: "The **Import a run** page with your sheet loaded. Press **Update … results** (or **Create run with … cases**) there. Already in a run? Use **More** → **Bring in results from a sheet** on its page.", target: "run-sheet-next", saves: true },
+      { text: "Press **Next: check the sheet**.", see: "The **Import a run** page with your sheet loaded. Press **Update … results** (or **Create run with … cases**) there. Cases nobody has yet go to the sheet's testers; when the sheet only names testers, the button says **Assign … cases**. Already in a run? Use **More** → **Bring in results from a sheet** on its page.", target: "run-sheet-next", saves: true },
       { text: "Already on a run's page? Open **More** → **Bring in results from a sheet** (under **Spreadsheet**) instead. **Test runs** → **Bring in results** → **Results from a spreadsheet** goes to the same place.", see: "The same **Import a run** page, set to update that run." },
     ],
     next: "github-pull",

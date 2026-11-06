@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 191,
+    date: "2026-11-06",
+    items: [
+      {
+        kind: "fix",
+        title: "Sheets hand out testers to a run in progress",
+        text: "Bringing a sheet into a run in progress now gives cases to the testers named in the sheet, even when they have no result yet. Cases someone already has here stay with them.",
+      },
+    ],
+  },
+  {
     version: 190,
     date: "2026-11-06",
     items: [
