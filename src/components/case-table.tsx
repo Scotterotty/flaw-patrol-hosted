@@ -1,6 +1,7 @@
 "use client";
 
-import { useSpelling } from "@/components/spelling";
+import { useSpelling, useZone } from "@/components/spelling";
+import { dayIn } from "@/lib/zone";
 import type { CaseFlagInfo } from "@/lib/case-flag";
 import type { CaseType, Priority, ResultStatus } from "@prisma/client";
 import Link from "next/link";
@@ -92,6 +93,7 @@ export function CaseTable({
   canExport?: boolean;
 }) {
   const spelling = useSpelling();
+  const zone = useZone();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -201,7 +203,7 @@ export function CaseTable({
                 projectId={projectId}
                 projectKey={projectKey}
                 source={{ kind: "cases", caseIds: ids }}
-                defaultName={`Ad hoc run ${new Date().toISOString().slice(0, 10)}`}
+                defaultName={`Ad hoc run ${dayIn(new Date(), zone)}`}
                 members={runOpts.members}
                 label={`Run ${selected.size} selected`}
                 variant="secondary"

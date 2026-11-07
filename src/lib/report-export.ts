@@ -20,6 +20,7 @@ import { coverageCsvRows, storyCoverage, storyReleases, type CoverageColumn } fr
 import { listReleases, rcStatus } from "@/server/rc-status";
 import { db } from "./db";
 import { regressionReport, regressionScope } from "./regression-data";
+import { fullDate, madeAt, UTC_CLOCK, type Clock } from "./spelling";
 
 // One Export menu on every Reports page: each tab as CSV, copy or image, and the
 // whole report as an Excel workbook (one sheet per tab) or a PDF made here on the server.
@@ -266,11 +267,11 @@ export async function rcTable(ctx: ExportCtx, f: ReportFilters) {
 }
 
 /** Whole report as a workbook: one sheet per tab, plus one listing the filters. */
-export async function reportWorkbook(ctx: ExportCtx, f: ReportFilters, tabs: ExportTab[]) {
+export async function reportWorkbook(ctx: ExportCtx, f: ReportFilters, tabs: ExportTab[], clock: Clock = UTC_CLOCK) {
   const wb = new ExcelJS.Workbook();
   wb.creator = "Flaw Patrol";
   const info = wb.addWorksheet("Filters");
-  info.addRows([[`${ctx.title} report`], [`Made ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`], [], ["Filters"], ...ctx.filters.map((x) => [x])]);
+  info.addRows([[`${ctx.title} report`], [`Made ${madeAt(new Date(), clock.spelling, clock.zone)}`], [], ["Filters"], ...ctx.filters.map((x) => [x])]);
   info.getRow(1).font = { bold: true, size: 14 };
   info.getColumn(1).width = 60;
   const used = new Set<string>(["Filters"]);
@@ -462,14 +463,15 @@ export class PdfWriter {
 }
 
 /** The whole report as a PDF: page 1 has the filters, date and Release status; then each tab picked. */
-export async function reportPdf(ctx: ExportCtx, f: ReportFilters, tabs: ExportTab[], opts: { preparedBy: string | null; logo: boolean }) {
+export async function reportPdf(ctx: ExportCtx, f: ReportFilters, tabs: ExportTab[], opts: { preparedBy: string | null; logo: boolean; clock?: Clock }) {
+  const clock = opts.clock ?? UTC_CLOCK;
   const doc = await PDFDocument.create();
   doc.setTitle(`${ctx.title} report`);
   doc.setCreator("Flaw Patrol");
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const made = new Date();
-  const pdf = new PdfWriter(doc, font, bold, safe(`${ctx.title} report · made ${made.toISOString().slice(0, 16).replace("T", " ")} UTC with Flaw Patrol`));
+  const pdf = new PdfWriter(doc, font, bold, safe(`${ctx.title} report · made ${madeAt(made, clock.spelling, clock.zone)} with Flaw Patrol`));
   pdf.newPage();
 
   // Page 1: who, what and when.
@@ -487,7 +489,7 @@ export async function reportPdf(ctx: ExportCtx, f: ReportFilters, tabs: ExportTa
   pdf.y -= 22;
   pdf.page.drawText(pdf.fit(safe(`${ctx.title} report`), 22, pdf.w - left - pdf.m, bold), { x: left, y: pdf.y, size: 22, font: bold, color: INK });
   pdf.y -= 16;
-  pdf.page.drawText(safe([made.toDateString(), opts.preparedBy && `Prepared by ${opts.preparedBy}`].filter(Boolean).join(" · ")), { x: left, y: pdf.y, size: 10, font, color: MUTED });
+  pdf.page.drawText(safe([fullDate(made, clock.spelling, clock.zone), opts.preparedBy && `Prepared by ${opts.preparedBy}`].filter(Boolean).join(" · ")), { x: left, y: pdf.y, size: 10, font, color: MUTED });
   pdf.y -= 22;
   for (const line of ctx.filters) pdf.text(line, 10, { color: MUTED, gap: 2 });
   pdf.y -= 6;

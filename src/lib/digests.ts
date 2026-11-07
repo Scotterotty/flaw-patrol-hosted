@@ -1,6 +1,7 @@
 import "server-only";
 import type { ResultStatus } from "@prisma/client";
 import { after } from "next/server";
+import { timeRange } from "./bash";
 import { bashReport } from "./bash-summary";
 import { db } from "./db";
 import { DIGEST_DEFAULTS, memberGets, parseDigestSettings, parsePrefs, sends, type DigestKind, type DigestSettings } from "./digest-settings";
@@ -11,6 +12,7 @@ import { mailSettings, mailReady, sendMail } from "./mail";
 import { atLeast } from "./slack-alerts";
 import { severityScaleFor } from "./severity-server";
 import { OPEN } from "./status";
+import { dayName, zoneName } from "./spelling";
 
 // Email digests: who gets a summary when a run finishes, a bug bash ends or a
 // release's testing is done, the numbers that go in it, and sending it. Sending never holds
@@ -32,10 +34,19 @@ async function previousStatus(caseId: string, cycle: CycleRef, before: Date) {
   return r?.status ?? null;
 }
 
-const shortTime = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-const shortDay = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-function span(from: Date, to: Date) {
-  return shortDay(from) === shortDay(to) ? `${shortDay(from)}, ${shortTime(from)} to ${shortTime(to)}` : `${shortDay(from)}, ${shortTime(from)} to ${shortDay(to)}, ${shortTime(to)}`;
+// Digest times on the reader's own clock (ver_197): the server runs in UTC, so a 5:35 PM
+// Pacific run used to read "Nov 7, 1:35 AM". People without a saved zone get UTC, labeled.
+const shortTime = (d: Date, zone: string) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: zone });
+const shortDay = (d: Date, zone: string) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: zone });
+export function span(from: Date, to: Date, zone = "UTC") {
+  const [fd, td] = [shortDay(from, zone), shortDay(to, zone)];
+  const text = fd === td ? `${fd}, ${shortTime(from, zone)} to ${shortTime(to, zone)}` : `${fd}, ${shortTime(from, zone)} to ${td}, ${shortTime(to, zone)}`;
+  return `${text} ${zoneName(to, zone)}`.trim();
+}
+
+/** A digest as one reader sees it: its times on their clock when we know it. */
+export function inZone<T extends { when: string; whenIn?: (zone: string) => string }>(d: T, zone: string | null): T {
+  return zone && d.whenIn ? { ...d, when: d.whenIn(zone) } : d;
 }
 
 /** Everything a run digest says, for Slack's "Counts and what failed" and the email. */
@@ -100,6 +111,7 @@ export async function runDigest(cycle: CycleRef, runId: string, base: string): P
     build: run.build,
     took: tookText(end.getTime() - run.createdAt.getTime()),
     when: span(run.createdAt, end),
+    whenIn: (zone: string) => span(run.createdAt, end, zone),
     closedNotRun: total - done,
     total,
     done,
@@ -126,11 +138,15 @@ export async function bashDigest(bashId: string, base: string): Promise<BashDige
   const finders = new Map<string, number>();
   for (const b of r.bugs) finders.set(b.byName, (finders.get(b.byName) ?? 0) + 1);
   const top = [...finders.entries()].sort((a, b) => b[1] - a[1])[0];
+  const start = r.bash.startsAt;
+  const end = r.bash.endedAt && r.bash.endedAt < r.bash.endsAt ? r.bash.endedAt : r.bash.endsAt;
+  const whenIn = (zone: string) => `${dayName(start, "us", zone)} ${timeRange(start, end, { zone })} ${zoneName(start, zone)}`;
   return {
     name: r.bash.name,
     people: r.people,
     length: minutes === 60 ? "1 hour" : minutes % 60 === 0 ? `${minutes / 60} hours` : `${minutes} min`,
-    when: r.when,
+    when: whenIn("UTC"),
+    whenIn,
     bugs: r.bugs.length,
     high: r.high,
     notes: r.notes,
@@ -158,7 +174,8 @@ export async function digestFor(projectId: string): Promise<{ settings: DigestSe
   return { settings: parseDigestSettings(p.emailDigestMode === "choose" ? p.emailDigest : umbrella.emailDigest), teamIds };
 }
 
-export type Recipient = { email: string; name: string; userId: string | null; why: string };
+/** `zone`: their saved time zone, or null (outside addresses, or not signed in since ver_197). */
+export type Recipient = { email: string; name: string; userId: string | null; why: string; zone?: string | null };
 
 /**
  * Everyone this digest goes to, once each: the people the settings name (and their own
@@ -180,7 +197,7 @@ export async function recipientsFor(projectId: string, kind: DigestKind, who: { 
   const extra = [...s.addresses, ...groups.flatMap((g) => g.addresses)];
   const users = await db.user.findMany({
     where: { OR: [{ id: { in: [...why.keys(), ...teamIds] } }, ...(extra.length ? [{ email: { in: extra, mode: "insensitive" as const } }] : [])] },
-    select: { id: true, email: true, name: true, digestPrefs: true },
+    select: { id: true, email: true, name: true, digestPrefs: true, timeZone: true },
   });
   const out = new Map<string, Recipient>();
   for (const u of users) {
@@ -189,7 +206,7 @@ export async function recipientsFor(projectId: string, kind: DigestKind, who: { 
     // Members who chose All get every one in the umbrellas they're on.
     const reason = listedBy ?? (teamIds.has(u.id) ? `You get this because you chose all ${kind === "bash" ? "bug bashes" : "runs"}.` : null);
     if (!reason || !memberGets(prefs, kind, !!listedBy)) continue;
-    out.set(u.email.toLowerCase(), { email: u.email, name: u.name || u.email, userId: u.id, why: reason });
+    out.set(u.email.toLowerCase(), { email: u.email, name: u.name || u.email, userId: u.id, why: reason, zone: u.timeZone });
   }
   const ws = await db.workspace.findUnique({ where: { id: 1 }, select: { digestStopped: true } });
   const stopped = new Set(ws?.digestStopped ?? []);
@@ -213,13 +230,13 @@ export function footerFor(r: Recipient, kind: DigestKind, base: string): Footer 
 }
 
 /** Send one digest to everyone it's for. Each failure is logged; the rest still go. */
-async function sendAll(recipients: Recipient[], kind: DigestKind, base: string, render: (f: Footer) => RenderedMail) {
+async function sendAll(recipients: Recipient[], kind: DigestKind, base: string, render: (f: Footer, zone: string | null) => RenderedMail) {
   const ws = await mailSettings();
   if (!mailReady(ws) || !recipients.length) return 0;
   let sent = 0;
   for (const r of recipients) {
     try {
-      const m = render(footerFor(r, kind, base));
+      const m = render(footerFor(r, kind, base), r.zone ?? null);
       await sendMail({ to: r.email, subject: m.subject, lines: [], rich: { text: m.text, html: m.html } }, ws);
       sent++;
     } catch (e) {
@@ -247,7 +264,7 @@ export async function emailRunDigest(cycle: CycleRef, runId: string, base: strin
   const recipients = await recipientsFor(cycle.id, "run", { testerIds: testers.map((t) => t.testerId!), starterIds: [run.createdById] });
   if (!recipients.length) return 0;
   const d = await (digest ? digest() : runDigest(cycle, runId, base));
-  return d ? sendAll(recipients, "run", base, (f) => runEmail(d, f)) : 0;
+  return d ? sendAll(recipients, "run", base, (f, z) => runEmail(inZone(d, z), f)) : 0;
 }
 
 /** Bug bash ended: the digest email, to the test cycle the bash ran in. */
@@ -258,7 +275,7 @@ export async function emailBashDigest(bashId: string, base: string) {
   const recipients = await recipientsFor(bash.run.projectId, "bash", { testerIds: joined, starterIds: [bash.createdById] });
   if (!recipients.length) return 0;
   const d = await bashDigest(bashId, base);
-  return d ? sendAll(recipients, "bash", base, (f) => bashEmail(d, f)) : 0;
+  return d ? sendAll(recipients, "bash", base, (f, z) => bashEmail(inZone(d, z), f)) : 0;
 }
 
 /** Release testing done: the digest email to people who tested in any of the release's runs. */
@@ -272,7 +289,7 @@ export async function emailRcDigest(cycle: CycleRef, release: string, runIds: st
 }
 
 /** Send me a sample: the newest finished run (or bug bash) in this umbrella or test cycle, to me only. */
-export async function sendSampleDigest(projectIds: string[], me: { id: string; email: string; name: string | null }, base: string) {
+export async function sendSampleDigest(projectIds: string[], me: { id: string; email: string; name: string | null; timeZone?: string | null }, base: string) {
   const ws = await mailSettings();
   if (!mailReady(ws)) throw new Error("Email isn't set up for this workspace yet. A workspace admin sets it up in Workspace settings → Email.");
   const run = await db.testRun.findFirst({
@@ -280,11 +297,11 @@ export async function sendSampleDigest(projectIds: string[], me: { id: string; e
     orderBy: { createdAt: "desc" },
     select: { id: true, project: { select: { id: true, key: true, name: true, platform: true, groupId: true } } },
   });
-  const r: Recipient = { email: me.email, name: me.name || me.email, userId: me.id, why: "This is a sample you asked for. Real digests say why each person gets them." };
+  const r: Recipient = { email: me.email, name: me.name || me.email, userId: me.id, zone: me.timeZone ?? null, why: "This is a sample you asked for. Real digests say why each person gets them." };
   if (run) {
     const d = await runDigest(run.project, run.id, base);
     if (d) {
-      const m = runEmail(d, footerFor(r, "run", base));
+      const m = runEmail(inZone(d, r.zone ?? null), footerFor(r, "run", base));
       await sendMail({ to: me.email, subject: `Sample: ${m.subject}`, lines: [], rich: { text: m.text, html: m.html } }, ws);
       return `Sent a sample of ${d.runName} to ${me.email}.`;
     }
@@ -292,7 +309,7 @@ export async function sendSampleDigest(projectIds: string[], me: { id: string; e
   const bash = await db.bugBash.findFirst({ where: { run: { projectId: { in: projectIds } }, wrappedAt: { not: null } }, orderBy: { wrappedAt: "desc" }, select: { id: true } });
   const b = bash ? await bashDigest(bash.id, base) : null;
   if (!b) throw new Error("A sample needs one run with results, or a wrapped-up bug bash, here first.");
-  const m = bashEmail(b, footerFor(r, "bash", base));
+  const m = bashEmail(inZone(b, r.zone ?? null), footerFor(r, "bash", base));
   await sendMail({ to: me.email, subject: `Sample: ${m.subject}`, lines: [], rich: { text: m.text, html: m.html } }, ws);
   return `Sent a sample of the ${b.name} bug bash to ${me.email}.`;
 }

@@ -10,6 +10,7 @@ import { headingOf, layoutRows, ownLabel, partOf, tabLabel, type ReportItem, typ
 import { manualLine, splitProgress } from "./progress-split";
 import { countStatuses, pct, STATUS_LABEL, STATUSES, totals, type StatusCounts } from "./status";
 import { wrapLine } from "./wrap-up-text";
+import { fullDate, madeAt, UTC_CLOCK, type Clock } from "./spelling";
 
 // Custom reports as a PDF and an Excel workbook. Each part becomes a few blocks
 // (numbers, bars, a chart, a table), measured before drawing so the PDF never cuts one in half.
@@ -459,14 +460,15 @@ class ReportWriter extends PdfWriter {
  * order. A part that fits on a page is never split; a note stays with the part after it; parts
  * shown side by side stay together; long tables break only between rows.
  */
-export async function customReportPdf(name: string, filters: string[], built: BuiltPart[], opts: { preparedBy: string | null; logo: boolean }) {
+export async function customReportPdf(name: string, filters: string[], built: BuiltPart[], opts: { preparedBy: string | null; logo: boolean; clock?: Clock }) {
+  const clock = opts.clock ?? UTC_CLOCK;
   const doc = await PDFDocument.create();
   doc.setTitle(name);
   doc.setCreator("Flaw Patrol");
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const made = new Date();
-  const pdf = new ReportWriter(doc, font, bold, safe(`${name} · made ${made.toISOString().slice(0, 16).replace("T", " ")} UTC with Flaw Patrol`));
+  const pdf = new ReportWriter(doc, font, bold, safe(`${name} · made ${madeAt(made, clock.spelling, clock.zone)} with Flaw Patrol`));
   pdf.newPage();
 
   let left = pdf.m;
@@ -482,7 +484,7 @@ export async function customReportPdf(name: string, filters: string[], built: Bu
   pdf.page.drawText(pdf.fit(safe(name), 22, pdf.w - left - pdf.m, bold), { x: left, y: pdf.y, size: 22, font: bold, color: INK });
   pdf.y -= 16;
   const parts = built.filter((b) => b.kind === "part").length;
-  pdf.page.drawText(safe([made.toDateString(), opts.preparedBy && `Prepared by ${opts.preparedBy}`, `${parts} ${parts === 1 ? "part" : "parts"}`].filter(Boolean).join(" · ")), { x: left, y: pdf.y, size: 10, font, color: MUTED });
+  pdf.page.drawText(safe([fullDate(made, clock.spelling, clock.zone), opts.preparedBy && `Prepared by ${opts.preparedBy}`, `${parts} ${parts === 1 ? "part" : "parts"}`].filter(Boolean).join(" · ")), { x: left, y: pdf.y, size: 10, font, color: MUTED });
   pdf.y -= 22;
   for (const line of filters) pdf.text(line, 10, { color: MUTED, gap: 2 });
   pdf.y -= 6;
@@ -529,11 +531,11 @@ export async function customReportPdf(name: string, filters: string[], built: Bu
 // ——— Excel ———
 
 /** The report as a workbook: a first sheet with the filters, the parts in order and the notes, then one sheet per part. */
-export async function customReportWorkbook(name: string, filters: string[], built: BuiltPart[]) {
+export async function customReportWorkbook(name: string, filters: string[], built: BuiltPart[], clock: Clock = UTC_CLOCK) {
   const wb = new ExcelJS.Workbook();
   wb.creator = "Flaw Patrol";
   const info = wb.addWorksheet("Report");
-  info.addRows([[name], [`Made ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`], [], ["Filters"], ...filters.map((x) => [x]), [], ["In this report"]]);
+  info.addRows([[name], [`Made ${madeAt(new Date(), clock.spelling, clock.zone)}`], [], ["Filters"], ...filters.map((x) => [x]), [], ["In this report"]]);
   info.getRow(1).font = { bold: true, size: 14 };
   info.getColumn(1).width = 90;
   const used = new Set<string>(["Report"]);

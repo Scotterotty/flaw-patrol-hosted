@@ -4,6 +4,7 @@ import { PDFDocument, StandardFonts } from "pdf-lib";
 import { seenOn } from "./bash";
 import type { BashReport } from "./bash-summary";
 import { MUTED, PdfWriter, safe, type Cell } from "./report-export";
+import { madeAt, UTC_CLOCK, type Clock } from "./spelling";
 
 // A bug bash report as CSV, Excel, PDF or a table to paste into Confluence,
 // for the Export menu every Reports page has.
@@ -65,11 +66,11 @@ export async function bashWorkbook(r: BashReport) {
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
-export async function bashPdf(r: BashReport, title: string) {
+export async function bashPdf(r: BashReport, title: string, clock: Clock = UTC_CLOCK) {
   const doc = await PDFDocument.create();
   doc.setTitle(title);
   doc.setCreator("Flaw Patrol");
-  const pdf = new PdfWriter(doc, await doc.embedFont(StandardFonts.Helvetica), await doc.embedFont(StandardFonts.HelveticaBold), safe(`${title} · made ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC with Flaw Patrol`));
+  const pdf = new PdfWriter(doc, await doc.embedFont(StandardFonts.Helvetica), await doc.embedFont(StandardFonts.HelveticaBold), safe(`${title} · made ${madeAt(new Date(), clock.spelling, clock.zone)} with Flaw Patrol`));
   pdf.newPage();
   pdf.heading(title);
   pdf.text(`${r.when} · started by ${r.bash.createdBy} · ${r.people} people · ${r.areas.length} areas`, 10, { color: MUTED });

@@ -24,6 +24,8 @@ import { projectMembers } from "@/lib/suite-data";
 import { sortCases } from "@/lib/case-sort";
 import { readCaseSort } from "@/lib/case-sort-server";
 import { CaseSortToggle } from "@/components/case-sort-toggle";
+import { dayIn } from "@/lib/zone";
+import { viewerZone } from "@/lib/zone-server";
 
 export const metadata = { title: "Test suite" };
 
@@ -146,7 +148,7 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
               projectId={project.id}
               projectKey={project.key}
               source={{ kind: "suite", suiteId: suite.id }}
-              defaultName={`${suite.name} ${new Date().toISOString().slice(0, 10)}`}
+              defaultName={`${suite.name} ${dayIn(new Date(), await viewerZone())}`}
               members={members}
               suggest={latest ? { from: runTitle(latest, spelling), environment: latest.environment, release: latest.release } : undefined}
               disabled={activeCases.length === 0}

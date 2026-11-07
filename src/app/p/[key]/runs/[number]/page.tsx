@@ -50,6 +50,7 @@ import { knownBugsForRun } from "@/lib/known-bugs";
 import { caseNewsForRun } from "@/lib/case-news-data";
 import { shortDate } from "@/lib/spelling";
 import { KnownBugsHeadsUp, KnownBugsPanel, type RunKnown } from "@/components/known-bugs-panel";
+import { viewerZone } from "@/lib/zone-server";
 
 export const metadata = { title: "Test run" };
 
@@ -62,6 +63,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   const { key, number } = await params;
   const { handed, compare, updated, assigned } = await searchParams;
   const [spelling, { project, user, who }] = await Promise.all([mySpelling(), timing.step("sign-in and project", projectAccess(key))]);
+  const zone = await viewerZone();
   const n = Number(number);
   if (!Number.isInteger(n)) notFound();
   const run = await timing.step("run and its cases", db.testRun.findUnique({
@@ -419,7 +421,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
             };
           })(),
           flaky: flaky.get(e.caseId),
-          regression: reg.flagged.has(e.id) ? regressionTip(reg.against.get(e.id)!, spelling) : undefined,
+          regression: reg.flagged.has(e.id) ? regressionTip(reg.against.get(e.id)!, spelling, zone) : undefined,
           // Status, step pips and who last changed it, worked out the same way the live check does.
           ...liveRowOf(e, user.id),
         }))}

@@ -104,6 +104,7 @@ import { GlossaryProvider } from "@/components/glossary";
 import { BusyCorner } from "@/components/busy-corner";
 import { ZoneCookie } from "@/components/zone-cookie";
 import { viewerZone } from "@/lib/zone-server";
+import { db } from "@/lib/db";
 import { HowToGuide } from "@/components/how-to-guide";
 
 export const metadata: Metadata = { title: { default: "Flaw Patrol", template: "%s · Flaw Patrol" } };
@@ -115,6 +116,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const spelling = await mySpelling();
   // Your time zone, saved by your browser, so server-drawn times are on your clock.
   const zone = await viewerZone();
+  // Remember it on the account too, so digest emails show their own clock (ver_197).
+  if (user && zone !== "UTC" && user.timeZone !== zone) void db.user.update({ where: { id: user.id }, data: { timeZone: zone } }).catch(() => {});
   // What's new after sign-in: versions this person hasn't closed yet.
   const whatsNew = user && (user.whatsNewSeen ?? 0) < BUILD ? unseenFor(user.whatsNewSeen, await viewerOf(user)) : [];
   // Mini game crowns: tell players once when they take or lose one.

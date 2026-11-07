@@ -76,6 +76,17 @@ export const dateTime = (d: Date, s: Spelling, zone?: string) =>
 export const clockTime = (d: Date, s: Spelling, zone?: string) => d.toLocaleTimeString(locale(s), { hour: "numeric", minute: "2-digit", ...tz(zone) });
 /** Sun, Nov 1 or Sun 1 Nov. */
 export const dayName = (d: Date, s: Spelling, zone?: string) => d.toLocaleDateString(locale(s), { weekday: "short", month: "short", day: "numeric", ...tz(zone) });
+/** Whose clock and Language setting a server-made file uses; files start as UTC and US English. */
+export type Clock = { spelling: Spelling; zone: string };
+export const UTC_CLOCK: Clock = { spelling: "us", zone: "UTC" };
+/** Friday, Nov 6, 2026 or Friday, 6 Nov 2026: the day a report was made, on the reader's clock. */
+export const fullDate = (d: Date, s: Spelling, zone?: string) => d.toLocaleDateString(locale(s), { weekday: "long", year: "numeric", month: "short", day: "numeric", ...tz(zone) });
+/** PST, PDT, GMT or GMT+1: the short name of a zone at that moment. */
+export const zoneName = (d: Date, zone?: string) =>
+  new Intl.DateTimeFormat("en-US", { timeZoneName: "short", ...tz(zone) }).formatToParts(d).find((p) => p.type === "timeZoneName")?.value ?? "";
+/** Nov 6, 2026, 5:42 PM PST or 6 Nov 2026, 17:42 GMT: when a file was made, always with the year and zone. */
+export const madeAt = (d: Date, s: Spelling, zone?: string) =>
+  `${d.toLocaleString(locale(s), { year: "numeric", month: "short", day: "numeric", hour: s === "uk" ? "2-digit" : "numeric", minute: "2-digit", ...tz(zone) })} ${zoneName(d, zone)}`.trim();
 /** Sep 27 – Oct 27, 2026 or 27 Sep – 27 Oct 2026, for report date ranges (UTC days, like the date boxes). */
 export const dateRange = (from: Date, to: Date, s: Spelling) =>
   new Intl.DateTimeFormat(locale(s), { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" }).formatRange(from, to);

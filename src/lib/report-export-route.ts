@@ -4,13 +4,17 @@ import { toCsv } from "./csv";
 import { wrapUpsRows } from "./wrap-up-text";
 import { EXPORT_TABS, reportPdf, reportTable, reportWorkbook, type ExportCtx, type ExportTab } from "./report-export";
 import type { ReportFilters } from "./reports";
+import { dayIn } from "./zone";
+import { viewerClock } from "./zone-server";
 
 const isTab = (v: string | undefined): v is ExportTab => EXPORT_TABS.some((t) => t.id === v);
 
 /** The shared part of both Reports export routes: pick the format and send the file. */
 export async function exportResponse(ctx: ExportCtx, f: ReportFilters, sp: Record<string, string>, opts: { fileBase: string; preparedBy: string }) {
   const format = sp.format ?? "csv";
-  const day = new Date().toISOString().slice(0, 10);
+  // The day on the viewer's clock, so a 5 PM Pacific export isn't named tomorrow.
+  const clock = await viewerClock();
+  const day = dayIn(new Date(), clock.zone);
   const base = opts.fileBase.replace(/[^\w.-]+/g, "_");
   if (format === "csv" || format === "json") {
     const view: ExportTab = isTab(sp.view) ? sp.view : "status";
@@ -26,13 +30,13 @@ export async function exportResponse(ctx: ExportCtx, f: ReportFilters, sp: Recor
   const picked = (sp.tabs ?? "").split(",").filter(isTab);
   const tabs = picked.length ? picked : EXPORT_TABS.map((t) => t.id).filter((t) => t !== "findings" || !!ctx.projectKey);
   if (format === "xlsx") {
-    const buf = await reportWorkbook(ctx, f, tabs);
+    const buf = await reportWorkbook(ctx, f, tabs, clock);
     return new NextResponse(new Uint8Array(buf), {
       headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `attachment; filename="${base}-report-${day}.xlsx"` },
     });
   }
   if (format === "pdf") {
-    const bytes = await reportPdf(ctx, f, tabs, { preparedBy: sp.by === "1" ? opts.preparedBy : null, logo: sp.logo === "1" });
+    const bytes = await reportPdf(ctx, f, tabs, { preparedBy: sp.by === "1" ? opts.preparedBy : null, logo: sp.logo === "1", clock });
     return new NextResponse(new Uint8Array(bytes), {
       headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${base}-report-${day}.pdf"` },
     });

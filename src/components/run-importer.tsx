@@ -8,11 +8,11 @@ import { importIntoRun, importRun, previewRunImport } from "@/server/run-import"
 import { readSpreadsheet } from "@/server/spreadsheet";
 import { SHEET_HANDOFF, type SheetHandoff } from "@/lib/csv-import";
 import { relativeTime } from "@/lib/format";
-import { Sp } from "./spelling";
+import { Sp, useZone } from "./spelling";
+import { dayIn } from "@/lib/zone";
 import { Button, Card, cx, ErrorText, Field, Input, Select } from "./ui";
 
 type Preview = Extract<Awaited<ReturnType<typeof previewRunImport>>, { ok: true }>;
-const today = () => new Date().toISOString().slice(0, 10);
 
 type ActiveRun = { id: string; number: number; name: string; title: string; total: number; tested: number };
 const WORD: Record<string, string> = { PASSED: "Passed", FAILED: "Failed", BLOCKED: "Blocked", RETEST: "Retest", SKIPPED: "Skipped" };
@@ -38,6 +38,9 @@ export function RunImporter({
   handoff?: boolean;
 }) {
   const router = useRouter();
+  // Today on your clock, so an evening upload isn't dated tomorrow.
+  const zone = useZone();
+  const today = () => dayIn(new Date(), zone);
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState<string[][] | null>(null);
   const [map, setMap] = useState<ColumnMap | null>(null);

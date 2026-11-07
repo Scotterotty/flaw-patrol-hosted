@@ -10,7 +10,9 @@ export type RunDigest = {
   runName: string;
   build: string;
   took: string | null;
+  /** When it ran, in UTC; `whenIn` gives it on a reader's own clock. */
   when: string;
+  whenIn?: (zone: string) => string;
   closedNotRun: number;
   total: number;
   done: number;
@@ -34,6 +36,7 @@ export type BashDigest = {
   people: number;
   length: string;
   when: string;
+  whenIn?: (zone: string) => string;
   bugs: number;
   high: number;
   notes: number;

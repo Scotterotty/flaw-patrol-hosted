@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { dayIn } from "@/lib/zone";
 import { Modal } from "./modal";
+import { useZone } from "./spelling";
 import { MoreMenu } from "./more-menu";
 import { buttonClass, Button, cx } from "./ui";
 
@@ -87,6 +89,7 @@ export function ExportMenu({
   copy?: () => Promise<void>;
   pickImage?: () => void;
 }) {
+  const zone = useZone();
   const [note, setNote] = useState<string | null>(null);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [picked, setPicked] = useState(() => new Set(tabs.filter((t) => t.on).map((t) => t.id)));
@@ -120,7 +123,7 @@ export function ExportMenu({
     if (!el) return;
     setBusy(true);
     try {
-      await saveImage(el, `${fileBase}-${view}-${new Date().toISOString().slice(0, 10)}.png`);
+      await saveImage(el, `${fileBase}-${view}-${dayIn(new Date(), zone)}.png`);
     } catch {
       say("Couldn't make the picture in this browser.");
     } finally {

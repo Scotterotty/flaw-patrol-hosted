@@ -4,6 +4,8 @@ import { activityWhere } from "@/lib/activity-query";
 import { toCsv } from "@/lib/csv";
 import { db } from "@/lib/db";
 import { currentUser } from "@/lib/session";
+import { dayIn } from "@/lib/zone";
+import { viewerZone } from "@/lib/zone-server";
 
 /** Workspace settings → Activity log → Export CSV: every entry the filters match. */
 export async function GET(req: NextRequest) {
@@ -16,6 +18,6 @@ export async function GET(req: NextRequest) {
     ...entries.map((e) => [e.at.toISOString().replace("T", " ").slice(0, 19), e.actorLabel, ACTIVITY_KINDS[e.kind as keyof typeof ACTIVITY_KINDS] ?? e.kind, e.action, e.where, e.detail, e.ip ?? ""]),
   ]);
   return new NextResponse(csv, {
-    headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="flaw-patrol-activity-${new Date().toISOString().slice(0, 10)}.csv"` },
+    headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="flaw-patrol-activity-${dayIn(new Date(), await viewerZone())}.csv"` },
   });
 }

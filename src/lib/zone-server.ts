@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { dateRange, type Spelling } from "./spelling";
+import { mySpelling } from "./session";
+import { dateRange, type Clock, type Spelling } from "./spelling";
 import { cleanZone, rangeDays, ZONE_COOKIE } from "./zone";
 
 /** The signed-in viewer's time zone, from the cookie their browser set; UTC until it has. */
@@ -10,6 +11,11 @@ export async function viewerZone() {
   } catch {
     return "UTC";
   }
+}
+
+/** The viewer's clock and Language setting, for files made on the server (report PDFs, Excel, file names). */
+export async function viewerClock(): Promise<Clock> {
+  return { zone: await viewerZone(), spelling: await mySpelling() };
 }
 
 /** A report's date range on the viewer's clock, in their Language setting. */

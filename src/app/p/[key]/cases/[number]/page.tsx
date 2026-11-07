@@ -38,6 +38,8 @@ import { storyInfo } from "@/lib/stories";
 import { projectAccess, mySpelling } from "@/lib/session";
 import { expandSteps, parseCaseSteps, sharedStepIdsIn } from "@/lib/steps";
 import { loadCase } from "./load";
+import { dayIn } from "@/lib/zone";
+import { viewerZone } from "@/lib/zone-server";
 
 export async function generateMetadata({ params }: { params: Promise<{ key: string; number: string }> }): Promise<Metadata> {
   const { key, number } = await params;
@@ -47,6 +49,8 @@ export async function generateMetadata({ params }: { params: Promise<{ key: stri
 export default async function CasePage({ params }: { params: Promise<{ key: string; number: string }> }) {
   const { key, number } = await params;
   const [spelling, { project, user, who }] = await Promise.all([mySpelling(), projectAccess(key)]);
+  // New run names carry today on your clock, not the server's.
+  const today = dayIn(new Date(), await viewerZone());
   // What the page needs besides the case itself, asked for together.
   const others = Promise.all([
     // A Case library case runs in one of the umbrella's test cycles, picked in the Create a run box.
@@ -136,7 +140,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
             <StartRunBox
               scope={{ groupId: hubOf }}
               preset={{ what: "cases", caseIds: [c.id] }}
-              defaultName={isCharter ? `${c.title} ${new Date().toISOString().slice(0, 10)}` : `${caseKey(project.key, c.number)} ${new Date().toISOString().slice(0, 10)}`}
+              defaultName={isCharter ? `${c.title} ${today}` : `${caseKey(project.key, c.number)} ${today}`}
               label={isCharter ? "▶ Start session…" : "Run this case…"}
               variant={isCharter ? "primary" : "secondary"}
               session={isCharter}
@@ -148,7 +152,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
               projectId={project.id}
               projectKey={project.key}
               source={{ kind: "cases", caseIds: [c.id] }}
-              defaultName={isCharter ? `${c.title} ${new Date().toISOString().slice(0, 10)}` : `${caseKey(project.key, c.number)} ${new Date().toISOString().slice(0, 10)}`}
+              defaultName={isCharter ? `${c.title} ${today}` : `${caseKey(project.key, c.number)} ${today}`}
               members={members}
               label={isCharter ? "▶ Start session now" : "Run this case"}
               variant={isCharter ? "primary" : "secondary"}

@@ -95,8 +95,8 @@ export function againstLabel(p: Pick<PastResult, "platform" | "release" | "runNa
 }
 
 /** "Passed in Web RC 21 (Oct 24, Dana). Failed here." for the badge's hover. */
-export function regressionTip(p: PastResult, spelling: "us" | "uk" = "us") {
-  const day = p.at.toLocaleDateString(spelling === "uk" ? "en-GB" : "en-US", { month: "short", day: "numeric" });
+export function regressionTip(p: PastResult, spelling: "us" | "uk" = "us", zone?: string) {
+  const day = p.at.toLocaleDateString(spelling === "uk" ? "en-GB" : "en-US", { month: "short", day: "numeric", ...(zone && { timeZone: zone }) });
   return `Passed in ${againstLabel(p)} (${day}${p.tester ? `, ${p.tester}` : ""}). Failed here.`;
 }
 

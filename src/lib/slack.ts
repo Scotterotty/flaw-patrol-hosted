@@ -128,7 +128,8 @@ function where(p: { name: string; platform: string }) {
 }
 
 const FAILS: ResultStatus[] = ["FAILED"];
-const short = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+// Slack shows its date tag on each reader's own clock; the text after | is for old clients (ver_197).
+const short = (d: Date) => `<!date^${Math.floor(d.getTime() / 1000)}^{date_short}|${d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}>`;
 
 type CycleRef = { id: string; key: string; name: string; platform: string; groupId: string | null };
 
