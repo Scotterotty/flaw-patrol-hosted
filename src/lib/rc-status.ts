@@ -135,36 +135,96 @@ export const asOfText = (d: Date, spelling: Spelling = "us") => `As of ${shortDa
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+/** Colors from Confluence's own text palette, so a paste keeps them (ver_198). */
+const CF_BAR: Partial<Record<ResultStatus, string>> = { PASSED: "#57D9A3", FAILED: "#BF2600", BLOCKED: "#172B4D", SKIPPED: "#97A0AF" };
+const CF_EMPTY = "#97A0AF";
+export const CF_BAR_WIDTH = 20;
+
 /**
- * The block as plain HTML tables, which Confluence keeps when pasted: bold,
- * links, cell colors and text colors. Everything still reads without color.
+ * The card's bar as runs of block characters: passed, failed, blocked and
+ * skipped filled, cases not run light. Every result that happened gets at
+ * least one block, so a single failure still shows.
+ */
+export function barBlocks(c: Pick<RcColumn, "total" | "counts">, width = CF_BAR_WIDTH) {
+  const parts = BAR.map((s) => ({ status: s as ResultStatus | null, count: c.counts[s] ?? 0 })).filter((p) => p.count > 0);
+  const used = parts.reduce((n, p) => n + p.count, 0);
+  if (c.total > used) parts.push({ status: null, count: c.total - used });
+  const all = Math.max(c.total, used);
+  if (!all) return [{ status: null, blocks: width }];
+  const out = parts.map((p) => ({ status: p.status, blocks: Math.max(1, Math.floor((p.count / all) * width)), rest: (p.count / all) * width }));
+  let sum = out.reduce((n, p) => n + p.blocks, 0);
+  for (const p of [...out].sort((a, b) => b.rest - Math.floor(b.rest) - (a.rest - Math.floor(a.rest)))) {
+    if (sum >= width) break;
+    p.blocks++;
+    sum++;
+  }
+  while (sum > width) {
+    const big = out.reduce((a, b) => (b.blocks > a.blocks ? b : a));
+    big.blocks--;
+    sum--;
+  }
+  return out.filter((p) => p.blocks > 0).map(({ status, blocks }) => ({ status, blocks }));
+}
+
+/** A bug's title on one line: the platform tag the column already shows is dropped, then it's cut to fit. */
+export function shortTitle(title: string, platform: string, max = 40) {
+  const tag = platform.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  let t = title.trim();
+  if (tag) t = t.replace(new RegExp(`^[\\[(]\\s*${tag}\\s*[\\])]\\s*(?:[-–:]\\s*)?`, "i"), "");
+  t = t.replace(/^[-–:]\s*/, "");
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+}
+
+/** Confluence's status badge color for each state. */
+const badgeColor = (label: string) => (label === "DONE" ? "green" : label === "IN PROGRESS" ? "blue" : "neutral");
+
+/**
+ * The block as plain HTML tables, which Confluence keeps when pasted: one
+ * row per part so the platforms line up side by side, a status badge, a bar
+ * of colored blocks, and Jira links (ver_198). Everything still reads
+ * without color: the % and "cases run" line say it in words.
  */
 export function confluenceHtml(release: string, columns: RcColumn[], bugs: RcBug[], now = new Date(), spelling: Spelling = "us", scale: SeverityScale = AE_SCALE) {
-  const cell = (c: RcColumn) => {
-    const st = stateOf(c);
-    return `<td style="text-align:center;vertical-align:top">
-<p style="text-align:center"><strong>${esc(c.label)}</strong></p>
-<p style="text-align:center">${esc(buildLine(release, c))}</p>
-<p style="text-align:center"><span style="background-color:${st.chip.fill};color:${st.chip.text}"><strong>&nbsp;${st.label}&nbsp;</strong></span></p>
-<h2 style="text-align:center">${percent(c)}%</h2>
-<p style="text-align:center">${c.done} of ${c.total} cases run · +${ranToday(c, now)} today</p>
-${c.runs.length > 1 ? `<p style="text-align:center"><em>${esc(c.runs.map((r) => r.name).join(", "))}</em></p>` : ""}
-${c.bugList.map((b) => `<p>${b.url ? `<a href="${esc(b.url)}">${esc(b.key)}</a>` : esc(b.key)} ${esc(b.title)}</p>`).join("\n")}
-${auto ? `<p style="text-align:center">${esc(automationLine(c))}</p>` : ""}
-${c.regressions ? `<p style="text-align:center"><span style="color:#BE185D"><strong>${esc(regressionLine(c))}</strong></span></p>` : ""}
-</td>`;
-  };
   const auto = hasAutomation(columns);
+  const row = (f: (c: RcColumn) => string) => `<tr>${columns.map((c) => `<td style="vertical-align:top">${f(c)}</td>`).join("")}</tr>`;
+  const badge = (c: RcColumn) => {
+    const st = stateOf(c);
+    return `<span style="background-color:${st.chip.fill};color:${st.chip.text}" data-node-type="status" data-color="${badgeColor(st.label)}" data-style=""><strong>${esc(st.label)}</strong></span>`;
+  };
+  const bar = (c: RcColumn) =>
+    barBlocks(c)
+      .map((p) => `<span style="color:${p.status ? CF_BAR[p.status] : CF_EMPTY}">${(p.status ? "█" : "░").repeat(p.blocks)}</span>`)
+      .join("");
+  const link = (b: { key: string; url: string | null; title?: string }) => (b.url ? `<a href="${esc(b.url)}">${esc(b.key)}</a>` : esc(b.key));
+  const head = `<tr>${columns.map((c) => `<th>${esc(c.label)}</th>`).join("")}</tr>`;
+  const builds = row(
+    (c) =>
+      `<p><span style="color:#626F86">${esc(buildLine(release, c))}</span></p>${
+        c.runs.length > 1 ? `<p><span style="color:#626F86"><em>${esc(c.runs.map((r) => r.name).join(", "))}</em></span></p>` : ""
+      }`,
+  );
+  const stats = row(
+    (c) =>
+      `<p>${badge(c)}</p><h1>${percent(c)}%</h1><p>${c.done} of ${c.total} cases run · +${ranToday(c, now)} today</p><p>${bar(c)}</p>${
+        auto ? `<p>${esc(automationLine(c))}</p>` : ""
+      }${c.regressions ? `<p><span style="color:#BF2600"><strong>${esc(regressionLine(c))}</strong></span></p>` : ""}`,
+  );
+  const bugCells = row((c) =>
+    c.bugList.length ? c.bugList.map((b) => `<p>${link(b)} ${esc(shortTitle(b.title, c.label))}</p>`).join("") : `<p><em>No bugs filed</em></p>`,
+  );
   const bugRows = bugs
     .map(
-      (b) => `<tr><td>${esc(b.clients.join(", "))}</td><td>${b.url ? `<a href="${esc(b.url)}">${esc(b.key)}</a>` : esc(b.key)} ${esc(b.title)}</td><td>${
+      (b) => `<tr><td>${esc(b.clients.join(", "))}</td><td>${link(b)} ${esc(b.title)}</td><td>${
         severe(b, scale) ? `<span style="color:#B10202"><strong>${esc(scale.labels[b.severity])}</strong></span>` : esc(scale.labels[b.severity])
       }</td><td>${esc(b.priority || "—")}</td><td>${esc(b.status)}</td><td>${b.cases.length} ${b.cases.length === 1 ? "case" : "cases"}</td></tr>`,
     )
     .join("\n");
   return `<h2 style="text-align:center">${esc(release.toUpperCase())} TESTING STATUS</h2>
 <p style="text-align:center"><em>${esc(asOfText(now, spelling))}</em></p>
-<table><tbody><tr>${columns.map(cell).join("\n")}</tr></tbody></table>
+<table><tbody>${head}
+${builds}
+${stats}
+${bugCells}</tbody></table>
 ${
   bugs.length
     ? `<p><strong>Critical and blocking bugs</strong></p>

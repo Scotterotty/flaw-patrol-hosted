@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bugKeys, buildLine, confluenceHtml, DONE, plainText, stateOf, type RcColumn } from "./rc-status";
+import { barBlocks, bugKeys, buildLine, CF_BAR_WIDTH, confluenceHtml, DONE, plainText, shortTitle, stateOf, type RcColumn } from "./rc-status";
 
 const col = (o: Partial<RcColumn> = {}): RcColumn => ({
   id: "r", href: "", label: "Unity", runName: "", runIds: ["r"], runs: [], build: "", extra: "", completed: false, total: 39, done: 0, counts: {}, testedAt: [], severities: {}, bugList: [], ...o,
@@ -40,5 +40,31 @@ describe("Release status card (ver_182)", () => {
     const html = confluenceHtml("RC 23", [c], []);
     expect(html).toContain('<a href="https://jira.example.com/browse/OB-6048">OB-6048</a> URL Video crash');
     expect(html).not.toContain("1 failed");
+  });
+});
+
+describe("Copy for Confluence look (ver_198)", () => {
+  it("drops the platform tag and cuts bug titles to one line", () => {
+    expect(shortTitle("[UNREAL] - Annotations - Unreal crashes", "Unreal")).toBe("Annotations - Unreal crashes");
+    expect(shortTitle("(WEB)(Scripts) Assets affected", "Web")).toBe("(Scripts) Assets affected");
+    expect(shortTitle("[Unity] Space usage shows /-1KB; does not allow assets to be uploaded", "Unity")).toBe("Space usage shows /-1KB; does not allow…");
+    expect(shortTitle("Hotspot components rotate", "Unreal")).toBe("Hotspot components rotate");
+  });
+  it("fills the bar to scale and always shows a failure", () => {
+    const sum = (b: { blocks: number }[]) => b.reduce((n, p) => n + p.blocks, 0);
+    const unity = barBlocks({ total: 38, counts: { PASSED: 18, FAILED: 1 } });
+    expect(sum(unity)).toBe(CF_BAR_WIDTH);
+    expect(unity.find((p) => p.status === "FAILED")?.blocks).toBe(1);
+    expect(barBlocks({ total: 0, counts: {} })).toEqual([{ status: null, blocks: CF_BAR_WIDTH }]);
+    expect(sum(barBlocks({ total: 61, counts: { PASSED: 57, FAILED: 3, BLOCKED: 1 } }))).toBe(CF_BAR_WIDTH);
+  });
+  it("pastes a status badge, centered title and one row per part", () => {
+    const html = confluenceHtml("RC 23", [col({ label: "Web", total: 2, done: 2, counts: { PASSED: 2 } }), col({ label: "Unity", total: 4, done: 1, counts: { PASSED: 1 } })], []);
+    expect(html).toContain('<h2 style="text-align:center">RC 23 TESTING STATUS</h2>');
+    expect(html).toContain('data-node-type="status" data-color="green"');
+    expect(html).toContain('data-node-type="status" data-color="blue"');
+    expect(html).toContain("<tr><th>Web</th><th>Unity</th></tr>");
+    expect(html).toContain("<h1>100%</h1>");
+    expect(html).toContain("No bugs filed");
   });
 });
