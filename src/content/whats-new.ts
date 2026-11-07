@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 195,
+    date: "2026-11-06",
+    items: [
+      {
+        kind: "better",
+        title: "Execution history shows each run once",
+        text: "Saving a case again in the same run now replaces that run's result instead of adding another row. While a run is open its row says In progress and doesn't count yet. Once the run is closed, its result counts toward pass rate, last passed and Flaky. Bugs from any save stay on the row.",
+      },
+    ],
+  },
+  {
     version: 194,
     date: "2026-11-06",
     items: [
