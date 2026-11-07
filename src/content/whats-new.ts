@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 196,
+    date: "2026-11-06",
+    items: [
+      {
+        kind: "new",
+        title: "Record an area (best for crashes)",
+        text: "A new button next to Record screen, and in the bug box's + Add menu. Share your screen once, drag a box around the app you're testing, and only the box is recorded. If the app crashes, its crash window opens in the box and stays in the video. Your last box is remembered. Works in Chrome and Edge.",
+      },
+    ],
+  },
+  {
     version: 195,
     date: "2026-11-06",
     items: [
