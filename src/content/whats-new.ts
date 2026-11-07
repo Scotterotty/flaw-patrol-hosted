@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 197,
+    date: "2026-11-06",
+    items: [
+      {
+        kind: "fix",
+        title: "Report dates show your own day",
+        text: "PDF and Excel reports used to show tomorrow's date in the evening, because they were dated in UTC. Reports, bug bash PDFs, file names and new run names now use your own time zone, like \"Friday, Nov 6, 2026\" and \"5:42 PM PST\". Run and bug bash emails show each reader's own time too.",
+      },
+    ],
+  },
+  {
     version: 196,
     date: "2026-11-06",
     items: [
