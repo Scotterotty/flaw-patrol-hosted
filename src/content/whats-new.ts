@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 194,
+    date: "2026-11-06",
+    items: [
+      {
+        kind: "new",
+        title: "Screenshot just one area",
+        text: "After 📷 Take screenshot, your picture opens big. Drag a box around the part you want and press Attach this area. Want all of it? Press Attach whole screen or Enter. Works in runs, the Report a bug box and bug bashes.",
+      },
+    ],
+  },
+  {
     version: 193,
     date: "2026-11-06",
     items: [

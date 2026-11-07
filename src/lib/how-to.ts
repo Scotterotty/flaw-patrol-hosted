@@ -653,7 +653,7 @@ export const HOW_TO: HowToTask[] = [
     sub: "Drag a box so the picture shows only what matters",
     words: "screenshot area part crop region select box drag cut trim snip zoom",
     steps: [
-      { text: "Open a case in a run, or open **Write a bug**.", see: "The runner, or the bug box." },
+      { text: "Open a case in a run, or press **Report bug** on a step.", see: "The runner, or the bug box." },
       { text: "Press **📷 Take screenshot** and pick the window or screen to share.", see: "Your screenshot, big, with **Drag a box around the part you want** at the top.", target: "runner-screenshot" },
       { text: "Drag a box around the part you want. Drag inside it to move it, or a corner to resize it.", see: "Everything outside the box is dimmed." },
       { text: "Press **Attach this area** (or Enter). **Redo** starts the box over, and Esc cancels.", see: "Just that part attached." },
