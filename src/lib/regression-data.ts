@@ -3,6 +3,7 @@ import type { Prisma, ResultStatus } from "@prisma/client";
 import { db } from "./db";
 import { flakyCases } from "./flaky";
 import { againstLabel, comparisonFor, historyMarks, isRegression, lastRcOf, parseRegressionSettings, VERDICTS, type PastResult, type RegressionSettings } from "./regression";
+import { latestPerRun } from "./run-history";
 
 type Cycle = { id: string; groupId: string | null; platform: string };
 
@@ -42,7 +43,8 @@ export async function pastResults(cases: string[], cycle: Cycle, before: Date, n
     },
   });
   const out = new Map<string, PastResult[]>();
-  for (const r of rows) {
+  // Each run's latest save only, like Execution history (ver_195).
+  for (const r of latestPerRun(rows)) {
     const list = out.get(r.caseId) ?? [];
     list.push({
       id: r.id,
@@ -174,7 +176,7 @@ export async function regressedCases(project: { id: string; groupId: string | nu
     },
   });
   const byCase = new Map<string, (PastResult & { off: boolean })[]>();
-  for (const r of rows) {
+  for (const r of latestPerRun(rows)) {
     const list = byCase.get(r.caseId) ?? [];
     list.push({
       id: r.id,

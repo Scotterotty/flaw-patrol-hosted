@@ -7,7 +7,7 @@ import Link from "next/link";
 import { badgeOf } from "@/lib/game";
 import { db } from "@/lib/db";
 import { count, minutesSpent, relativeTime } from "@/lib/format";
-import { isFlaky } from "@/lib/run-history";
+import { bugsAcrossSaves, countsInHistory, filesAcrossSaves, isFlaky, NOT_COUNTED_YET, onePerRun } from "@/lib/run-history";
 import { countStatuses, pct, STATUS_LABEL, totals } from "@/lib/status";
 import { parseSessionLog } from "@/lib/charter";
 import { withoutHeadings } from "@/lib/step-checks";
@@ -15,7 +15,7 @@ import { rowsLine } from "@/lib/test-data";
 import { rowsOfResult, rowsTip } from "@/lib/test-data-history";
 import { PersonLabel } from "./avatar";
 import { SessionLogDetails } from "./charter-view";
-import { HistoryStrip, StatusChip } from "./status";
+import { HistoryStrip, InProgressTag, StatusChip } from "./status";
 import { Card } from "./ui";
 import { RegressionBadge } from "./badges";
 import { historyMarks, VERDICTS } from "@/lib/regression";
@@ -28,23 +28,30 @@ const runHref = (r: { automated: boolean; entryId: string | null; run: { number:
 /** Every execution of a case across runs, newest first. */
 export async function CaseHistory({ caseId, charter, canRun = true }: { caseId: string; projectKey: string; charter?: boolean; canRun?: boolean }) {
   const spelling = await mySpelling();
-  const results = await db.testResult.findMany({
+  const saved = await db.testResult.findMany({
     where: { caseId },
     orderBy: { createdAt: "desc" },
-    take: 100,
+    // A case can be saved more than once per run; enough saves for about 100 runs.
+    take: 400,
     include: {
-      run: { select: { number: true, name: true, release: true, build: true, createdAt: true, cspVersion: true, fields: true, environment: true, project: { select: { key: true, platform: true } } } },
+      run: { select: { number: true, name: true, release: true, build: true, createdAt: true, cspVersion: true, fields: true, environment: true, state: true, project: { select: { key: true, platform: true } } } },
       entry: { select: { regressionOff: true, steps: true } },
       defects: { include: { defect: true } },
       attachments: { select: { id: true, fileName: true } },
     },
   });
+  // One row per run with its latest save; bugs and files from every save stay on it (ver_195).
+  const results = onePerRun(saved)
+    .slice(0, 100)
+    .map(({ latest, saves }) => ({ ...latest, defects: bugsAcrossSaves(saves), attachments: filesAcrossSaves(saves), open: !countsInHistory(latest.run) }));
+  // Only closed runs count; an open run's result can still change.
+  const counted = results.filter((r) => !r.open);
   const testerIds = [...new Set(results.map((r) => r.testerId).filter((x): x is string => !!x))];
   const testers = new Map((await db.user.findMany({ where: { id: { in: testerIds } }, select: { id: true, avatarAt: true, gameEnabled: true, gameTitle: true, gameFrame: true } })).map((u) => [u.id, u]));
-  const counts = countStatuses(results.map((r) => r.status));
+  const counts = countStatuses(counted.map((r) => r.status));
   const t = totals(counts);
-  const lastPass = results.find((r) => r.status === "PASSED");
-  const flaky = isFlaky(results.map((r) => r.status));
+  const lastPass = counted.find((r) => r.status === "PASSED");
+  const flaky = isFlaky(counted.map((r) => r.status));
   // Regression flag: kept on the result where it broke, with "Fixed again" on the pass after.
   const home = await db.testCase.findUnique({ where: { id: caseId }, select: { project: { select: { id: true, groupId: true } } } });
   const reg = home ? await regressionSettingsFor(home.project) : null;
@@ -83,13 +90,19 @@ export async function CaseHistory({ caseId, charter, canRun = true }: { caseId: 
             <HistoryStrip
               statuses={[...results].reverse().map((r) => {
                 const rows = rowsOfResult(r.entry?.steps, r.stepResults);
-                return { status: r.status, rows, title: `${r.automated ? "🤖 " : ""}${runTitle(r.run, spelling)}: ${STATUS_LABEL[r.status].toLowerCase()}${rows ? `. ${rowsTip(rows)}` : ""}`, href: runHref(r) };
+                return { status: r.status, rows, open: r.open, title: `${r.automated ? "🤖 " : ""}${runTitle(r.run, spelling)}: ${STATUS_LABEL[r.status].toLowerCase()}${r.open ? " (in progress, counts once the run closes)" : ""}${rows ? `. ${rowsTip(rows)}` : ""}`, href: runHref(r) };
               })}
               max={30}
             />
             <span>
-              {count(results.length, "run")} · {pct(t.passRate)} passed
-              {lastPass ? ` · last passed ${relativeTime(lastPass.createdAt, spelling)}` : " · never passed"}
+              {counted.length === 0 ? (
+                NOT_COUNTED_YET
+              ) : (
+                <>
+                  {count(counted.length, "run")} · {pct(t.passRate)} passed
+                  {lastPass ? ` · last passed ${relativeTime(lastPass.createdAt, spelling)}` : " · never passed"}
+                </>
+              )}
             </span>
             {flaky && <span className="rounded bg-amber-50 px-1.5 py-0.5 font-medium text-amber-800 ring-1 ring-amber-200">Flaky</span>}
           </div>
@@ -140,6 +153,11 @@ export async function CaseHistory({ caseId, charter, canRun = true }: { caseId: 
                       )}
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap">
+                      {r.open && (
+                        <span className="mr-1 align-middle">
+                          <InProgressTag />
+                        </span>
+                      )}
                       <StatusChip status={r.status} />
                       {marks.get(r.id) === "regression" && (
                         <span className="ml-1 align-middle">

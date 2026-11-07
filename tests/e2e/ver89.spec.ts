@@ -106,7 +106,7 @@ test("run fields, the RC platform picker, pips that open runs and ✕ on popups"
     await db2.$disconnect();
   }
   await page.goto(`/p/${HUB}/cases/${caseNumber}`);
-  const pip = page.getByRole("link", { name: /Smoke.*: passed\. Open the run/ });
+  const pip = page.getByRole("link", { name: /Smoke.*: passed.*Open the run/ });
   await expect(pip).toBeVisible();
   await pip.click();
   await expect(page).toHaveURL(new RegExp(`/p/${webKey}/runs/1/execute\\?entry=`));

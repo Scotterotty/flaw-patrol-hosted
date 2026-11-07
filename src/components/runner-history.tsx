@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { SHOW_HISTORY_EVENT, STILL_OCCURS_EVENT, type HistoryRun } from "@/lib/run-history";
+import { NOT_COUNTED_YET, SHOW_HISTORY_EVENT, STILL_OCCURS_EVENT, type HistoryRun } from "@/lib/run-history";
 import { STATUS_LABEL, STATUS_STYLE } from "@/lib/status";
-import { StatusChip } from "./status";
+import { InProgressTag, StatusChip } from "./status";
 import { rowsTip } from "@/lib/test-data-history";
 import { Button, cx } from "./ui";
 
@@ -45,7 +45,8 @@ export function RunnerHistory({
   /** Updated cases: "Runs before Oct 25 used the older steps." */
   olderNote?: string;
   runs: HistoryRun[];
-  summary: { passRate: string; lastPassed: string | null; flaky: boolean };
+  /** `counted`: closed runs only; open runs show but don't count yet. */
+  summary: { counted: number; passRate: string; lastPassed: string | null; flaky: boolean };
   projectKey: string;
   canApply: boolean;
 }) {
@@ -100,8 +101,8 @@ export function RunnerHistory({
                   key={r.id}
                   type="button"
                   aria-pressed={open && r.id === selectedId}
-                  aria-label={`${[r.runName, r.runTag].filter(Boolean).join(" ")} ${STATUS_LABEL[r.status].toLowerCase()}, ${r.ago}`}
-                  title={`${[r.runName, r.runTag].filter(Boolean).join(" ")}: ${STATUS_LABEL[r.status]}, ${r.ago}${r.rows ? `. ${rowsTip(r.rows)}` : ""}`}
+                  aria-label={`${[r.runName, r.runTag].filter(Boolean).join(" ")} ${STATUS_LABEL[r.status].toLowerCase()}${r.open ? ", in progress" : ""}, ${r.ago}`}
+                  title={`${[r.runName, r.runTag].filter(Boolean).join(" ")}: ${STATUS_LABEL[r.status]}${r.open ? " (in progress, counts once the run closes)" : ""}, ${r.ago}${r.rows ? `. ${rowsTip(r.rows)}` : ""}`}
                   onClick={() => {
                     toggle(true);
                     setSelectedId(r.id === selectedId && open ? null : r.id);
@@ -109,6 +110,7 @@ export function RunnerHistory({
                   className={cx(
                     "st-pip h-4 w-2.5 rounded-[3px] transition hover:scale-y-125",
                     split(r) ? "flex flex-col overflow-hidden" : STATUS_STYLE[r.status].bar,
+                    r.open && "st-pip-open",
                     open && r.id === selectedId && "ring-2 ring-accent-500 ring-offset-1 ring-offset-surface",
                   )}
                 >
@@ -118,7 +120,9 @@ export function RunnerHistory({
               ))}
             </div>
             <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500">
-              {runs.length} {runs.length === 1 ? "run" : "runs"} · {summary.passRate} passed · {summary.lastPassed ? `last passed ${summary.lastPassed}` : "never passed"}
+              {summary.counted === 0
+                ? NOT_COUNTED_YET
+                : `${summary.counted} ${summary.counted === 1 ? "run" : "runs"} · ${summary.passRate} passed · ${summary.lastPassed ? `last passed ${summary.lastPassed}` : "never passed"}`}
               {summary.flaky && <span className="rounded bg-amber-50 px-1.5 py-0.5 font-medium text-amber-800 ring-1 ring-amber-200">Flaky</span>}
             </p>
             {olderNote && <p className="mt-1 text-xs text-amber-800">{olderNote}</p>}
@@ -143,6 +147,7 @@ export function RunnerHistory({
                   {r.meta && <span className="block truncate text-slate-500">{r.meta}</span>}
                 </button>
                 <div className="flex shrink-0 flex-col items-end gap-1">
+                  {r.open && <InProgressTag />}
                   <StatusChip status={r.status} />
                   {r.defects.length > 0 && (
                     <span className="text-red-700" title={[...new Set(r.defects.map((d) => `${bugKey(d.defect)}: ${d.defect.title}`))].join("\n")}>
@@ -185,7 +190,10 @@ function Detail({
             {run.meta && ` · ${run.meta}`}
           </p>
         </div>
-        <StatusChip status={run.status} />
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {run.open && <InProgressTag />}
+          <StatusChip status={run.status} />
+        </div>
       </div>
 
       {bugs.length > 0 && (

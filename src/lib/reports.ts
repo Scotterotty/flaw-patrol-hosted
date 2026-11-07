@@ -4,6 +4,7 @@ import type { Prisma, Priority, ResultStatus } from "@prisma/client";
 import { db } from "./db";
 import { caseKey } from "./format";
 import { runTitle } from "./run-label";
+import { latestPerRun } from "./run-history";
 import { countStatuses, totals, type StatusCounts } from "./status";
 import { headingRows, withoutHeadings } from "./step-checks";
 import { suiteForCases } from "./suite-match";
@@ -340,11 +341,12 @@ export async function caseHealth(scope: ReportScope, f: ReportFilters): Promise<
   const results = await db.testResult.findMany({
     where: { run: runWhere(scope, f), entry: entryWhere(f) },
     orderBy: { createdAt: "asc" },
-    select: { caseId: true, status: true, createdAt: true, entry: { select: { title: true, testCase: { select: { number: true, tags: true, project: { select: { key: true } } } } } } },
+    select: { caseId: true, entryId: true, status: true, createdAt: true, entry: { select: { title: true, testCase: { select: { number: true, tags: true, project: { select: { key: true } } } } } } },
     take: 50000,
   });
+  // A case saved more than once in a run counts once, with its latest save (ver_195).
   const by = new Map<string, typeof results>();
-  for (const r of results) by.set(r.caseId, [...(by.get(r.caseId) ?? []), r]);
+  for (const r of latestPerRun(results).reverse()) by.set(r.caseId, [...(by.get(r.caseId) ?? []), r]);
   return [...by.values()].map((rs) => {
     const statuses = rs.map((r) => r.status);
     const verdicts = statuses.filter((s) => s === "PASSED" || s === "FAILED");

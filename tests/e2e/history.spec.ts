@@ -51,7 +51,9 @@ test("the runner shows the case's history, and a known bug can be re-reported in
 
   // Run 2: the history panel shows run 1; clicking its pip shows the details.
   await startRun();
-  await expect(history).toContainText("1 run");
+  // Run 1 is still open: listed as In progress, not counted until it closes (ver_195).
+  await expect(history).toContainText("Counts once the run closes");
+  await expect(history).toContainText("In progress");
   // Open by default; collapsing leaves the summary line, and the choice is remembered.
   await expect(history).toContainText("D-1");
   await history.getByRole("button", { name: "Collapse" }).click();

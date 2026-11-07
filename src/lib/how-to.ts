@@ -559,7 +559,7 @@ export const HOW_TO: HowToTask[] = [
       { text: "In the left menu, under **Testing**, press **Test runs**.", see: "The active runs.", target: "menu-runs" },
       { text: "Click the run's name.", see: "Once every case has a result, a green note and **Close run** at the top.", target: "run-row" },
       { text: "If **Close run** isn't at the top, open **More** at the top right.", see: "**Close run** in the list.", target: "run-more" },
-      { text: "Press **Close run**. It asks first if some cases haven't been tested.", see: "The run marked **Closed**. It moves to the **Closed** tab in **Test runs**.", target: "run-close", saves: true },
+      { text: "Press **Close run**. It asks first if some cases haven't been tested.", see: "The run marked **Closed**. It moves to the **Closed** tab in **Test runs**, and its results now count in each case's **Execution history**.", target: "run-close", saves: true },
       { text: "To change something later, open the run, open **More** and press **Reopen run**.", see: "The run active again.", target: "run-reopen" },
     ],
     next: "reports",

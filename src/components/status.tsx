@@ -97,14 +97,14 @@ export function StatusLegend({ counts }: { counts: StatusCounts }) {
 }
 
 /** Tiny history strip: one square per execution, oldest first. */
-export function HistoryStrip({ statuses, max = 20 }: { statuses: { status: ResultStatus; title?: string; href?: string; rows?: ResultStatus[] | null }[]; max?: number }) {
+export function HistoryStrip({ statuses, max = 20 }: { statuses: { status: ResultStatus; title?: string; href?: string; rows?: ResultStatus[] | null; open?: boolean }[]; max?: number }) {
   const shown = statuses.slice(-max);
   return (
     <span className="inline-flex gap-0.5 align-middle">
       {shown.map((s, i) => {
         // Test data: a run whose rows didn't all end the same shows a stripe per row.
         const split = s.rows && s.rows.length > 1 && new Set(s.rows).size > 1 ? s.rows : null;
-        const cls = cx("st-pip h-3 w-2 rounded-[2px]", split ? "flex flex-col overflow-hidden" : STATUS_STYLE[s.status].bar);
+        const cls = cx("st-pip h-3 w-2 rounded-[2px]", split ? "flex flex-col overflow-hidden" : STATUS_STYLE[s.status].bar, s.open && "st-pip-open");
         const title = s.title ?? STATUS_LABEL[s.status];
         const stripes = split?.map((r, j) => <span key={j} data-row-stripe className={cx("min-h-px flex-1", STATUS_STYLE[r].bar)} />);
         // A pip with a run behind it opens that run.
@@ -118,6 +118,15 @@ export function HistoryStrip({ statuses, max = 20 }: { statuses: { status: Resul
           </span>
         );
       })}
+    </span>
+  );
+}
+
+/** An open run's row: shown, but not counted until the run closes (ver_195). */
+export function InProgressTag() {
+  return (
+    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-900 ring-1 ring-amber-300" title="This run is still open. Its result counts once the run closes.">
+      In progress
     </span>
   );
 }

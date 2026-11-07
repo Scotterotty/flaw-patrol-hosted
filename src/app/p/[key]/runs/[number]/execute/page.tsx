@@ -39,7 +39,7 @@ import { db } from "@/lib/db";
 import { parseDraft } from "@/lib/run-draft";
 import { flagInfo, flagLabel } from "@/lib/case-flag";
 import { caseKey, relativeTime } from "@/lib/format";
-import { isFlaky, type HistoryRun } from "@/lib/run-history";
+import { bugsAcrossSaves, countsInHistory, filesAcrossSaves, isFlaky, onePerRun, type HistoryRun } from "@/lib/run-history";
 import { projectAccess, mySpelling } from "@/lib/session";
 import { projectMembers } from "@/lib/suite-data";
 import { stepsToRun, type ExpandedStep } from "@/lib/steps";
@@ -110,7 +110,7 @@ export default async function ExecutePage({
     : (after.find((e) => e.status === "UNTESTED" && (!e.assigneeId || e.assigneeId === user.id)) ?? after.find((e) => e.status === "UNTESTED") ?? null);
 
   const entryP = timing.step("this case", db.runEntry.findUniqueOrThrow({ where: { id: pick.id }, include: { testCase: { select: { id: true, number: true, tags: true, flag: true, flagNote: true, flaggedBy: true, flaggedAt: true, flagRunNumber: true, jiraStories: true, project: { select: { key: true } } } } } }));
-  const [entry, last, runLinks, flakyIds, news, storyMap, cmp, past, knownBugs] = await Promise.all([
+  const [entry, last, runLinks, flakyIds, news, storyMap, cmp, saved, knownBugs] = await Promise.all([
     entryP,
     timing.step("last result", db.testResult.findFirst({
       where: { entryId: pick.id },
@@ -128,9 +128,10 @@ export default async function ExecutePage({
     timing.step("history", db.testResult.findMany({
       where: { caseId: pick.caseId },
       orderBy: { createdAt: "desc" },
-      take: 50,
+      // A case can be saved more than once per run; enough saves for about 50 runs.
+      take: 200,
       include: {
-        run: { select: { number: true, name: true, release: true, build: true, createdAt: true, cspVersion: true, fields: true, environment: true } },
+        run: { select: { number: true, name: true, release: true, build: true, createdAt: true, cspVersion: true, fields: true, environment: true, state: true } },
         entry: { select: { steps: true, title: true } },
         defects: { include: { defect: true } },
         attachments: { select: { id: true, fileName: true } },
@@ -154,7 +155,9 @@ export default async function ExecutePage({
         jiraLabel: cmp.settings.label,
       }
     : null;
-  const history: HistoryRun[] = past.map((r) => {
+  // One row per run, its latest save (ver_195).
+  const perRun = onePerRun(saved).slice(0, 50);
+  const history: HistoryRun[] = perRun.map(({ latest: r, saves }) => {
     const snapshot = stepsToRun((Array.isArray(r.entry.steps) ? r.entry.steps : []) as unknown as ExpandedStep[], r.entry.title);
     const stepResults = (Array.isArray(r.stepResults) ? r.stepResults : []) as { status: ResultStatus; actual?: string }[];
     const headings = headingRows(r.entry.steps);
@@ -173,18 +176,22 @@ export default async function ExecutePage({
       caseVersion: r.caseVersion,
       rows: rowsOfResult(r.entry.steps, r.stepResults),
       steps: stepResults.map((sr, i) => ({ number: snapshot[i]?.row !== undefined ? `R${snapshot[i].row! + 1} · ${snapshot[i].number}` : (snapshot[i]?.number ?? String(i + 1)), action: snapshot[i]?.action ?? "", status: sr.status, actual: sr.actual ?? "", ...(headings.has(i) ? { heading: true } : {}) })),
-      defects: r.defects.map((l) => ({
+      defects: bugsAcrossSaves(saves).map((l) => ({
         stepIndex: l.stepIndex,
         defect: { id: l.defect.id, number: l.defect.number, title: l.defect.title, externalKey: l.defect.externalKey, externalUrl: l.defect.externalUrl, status: l.defect.externalStatus ?? l.defect.status },
       })),
-      attachments: r.attachments,
+      attachments: filesAcrossSaves(saves),
+      open: !countsInHistory(r.run),
     };
   });
-  const lastPass = past.find((r) => r.status === "PASSED");
+  // Only closed runs count; an open run's result can still change.
+  const counted = perRun.map((g) => g.latest).filter((r) => countsInHistory(r.run));
+  const lastPass = counted.find((r) => r.status === "PASSED");
   const historySummary = {
-    passRate: pct(totals(countStatuses(past.map((r) => r.status))).passRate),
+    counted: counted.length,
+    passRate: pct(totals(countStatuses(counted.map((r) => r.status))).passRate),
     lastPassed: lastPass ? relativeTime(lastPass.createdAt, spelling) : null,
-    flaky: isFlaky(past.map((r) => r.status)),
+    flaky: isFlaky(counted.map((r) => r.status)),
   };
   const people = new Map(members.map((m) => [m.id, m]));
   const runDefects = [...new Map(runLinks.map((l) => [l.defectId, l.defect])).values()].map((d) => ({

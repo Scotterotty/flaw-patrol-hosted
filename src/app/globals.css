@@ -1353,6 +1353,13 @@ main:focus {
   box-shadow: inset 0 0 0 2.5px var(--st-explored);
 }
 
+/* An open run's dot in Execution history (ver_195): faded with a dashed ring until the run closes. */
+.st-pip.st-pip-open {
+  opacity: 0.55;
+  outline: 1.5px dashed var(--color-slate-500);
+  outline-offset: 1px;
+}
+
 /* Loading spinners (ver_108, src/components/loading-spinner.tsx). Every spinner draws in the
    same 48 px circle; shapes that aren't round get a track ring behind them so all share one
    circumference. --fp-spin-scale shrinks or grows the whole circle. Animations stop for
