@@ -40,7 +40,7 @@ describe("How-to guide", () => {
   // task that starts from the left menu must be a menu link (or a button that's on every page).
   it("starts each task's Show me where it can be found", () => {
     const everywhere = /^(menu-|top-|arrange-menu$)/;
-    const startsElsewhere = new Set(["glossary", "known-bugs", "screen-capture", "screenshot-area", "join-bash", "wrap-up-bash", "report-bug", "link-bug", "big-files-jira", "attach-log"]);
+    const startsElsewhere = new Set(["glossary", "known-bugs", "screen-capture", "screenshot-area", "record-area", "join-bash", "wrap-up-bash", "report-bug", "link-bug", "big-files-jira", "attach-log"]);
     for (const t of HOW_TO) {
       const first = t.steps.find((s) => s.target)!.target!;
       if (!startsElsewhere.has(t.id)) expect(first, t.id).toMatch(everywhere);
@@ -78,6 +78,7 @@ describe("How-to guide", () => {
     expect(findHowTo("how do I write a bug")[0].id).toBe("write-bug");
     expect(findHowTo("how do I import cases from excel")[0].id).toBe("import-cases");
     expect(findHowTo("how to invite someone")[0].id).toBe("invite");
+    expect(findHowTo("how do I keep recording when unreal crashes")[0].id).toBe("record-area");
     expect(findHowTo("what's new")[0].id).toBe("whats-new");
     expect(findHowTo("See what’s new")[0].id).toBe("whats-new");
     expect(findHowTo("how do I")).toHaveLength(HOW_TO.length);

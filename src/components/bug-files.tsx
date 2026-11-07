@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { isDxdiag, isMedia } from "@/lib/bug-template";
 import { tooBigForJira, tooBigLine } from "@/lib/jira-files";
 import { Button, cx, InfoTip } from "./ui";
+import { RECORD_AREA_LABEL, RECORD_AREA_NO, RECORD_AREA_TIP } from "./screen-capture";
 
 /** A file the bug box can put on the Jira issue, with where it came from ("Step 3", "Whole case"). */
 export type BugFile = { id: string; fileName: string; contentType: string; label?: string; /** Bytes, when known: files over Jira's limit are flagged. */ size?: number };
 
 /** Take screenshot / Record screen from inside the bug box. */
-export type BugCapture = { ok: boolean; why: string; busy: boolean; screenshot: () => void; record: () => void; /** "Sentry error…", when Sentry is connected. */ sentry?: () => void };
+export type BugCapture = { ok: boolean; why: string; busy: boolean; screenshot: () => void; record: () => void; /** Record an area, where the browser can. */ area: boolean; recordArea: () => void; /** "Sentry error…", when Sentry is connected. */ sentry?: () => void };
 
 function Thumb({ f }: { f: BugFile }) {
   if (f.contentType.startsWith("image/"))
@@ -199,6 +200,19 @@ export function AddMenu({
                 }}
               >
                 🎥 Record screen
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className={item}
+                disabled={!capture.ok || !capture.area || capture.busy}
+                title={!capture.ok ? capture.why : capture.area ? RECORD_AREA_TIP : RECORD_AREA_NO}
+                onClick={() => {
+                  setOpen(false);
+                  capture.recordArea();
+                }}
+              >
+                🔲 {RECORD_AREA_LABEL}
               </button>
             </>
           )}

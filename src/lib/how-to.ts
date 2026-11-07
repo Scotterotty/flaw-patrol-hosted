@@ -658,6 +658,21 @@ export const HOW_TO: HowToTask[] = [
       { text: "Drag a box around the part you want. Drag inside it to move it, or a corner to resize it.", see: "Everything outside the box is dimmed." },
       { text: "Press **Attach this area** (or Enter). **Redo** starts the box over, and Esc cancels.", see: "Just that part attached." },
     ],
+    next: "record-area",
+  },
+  {
+    id: "record-area",
+    group: "Run tests",
+    title: "Record an area so crashes stay in the video",
+    sub: "Keep recording when the app you're testing crashes",
+    words: "record area part region box crash crashes crash reporter unreal unity game video screen keep recording stops closes window",
+    steps: [
+      { text: "Open a case in a run, or press **Report bug** on a step and open **+ Add**.", see: "The runner, or the bug box's Add menu." },
+      { text: "Press **🔲 Record an area (best for crashes)** and share your entire screen.", see: "A still of your screen with **Drag a box around the part to record** at the top.", target: "runner-record-area" },
+      { text: "Drag a box around the app you're testing, then press **Record this area**. Next time, your last box is already drawn.", see: "The recording bar. Only what's in the box is saved." },
+      { text: "Test as usual. If the app crashes, its crash window opens in the box and is recorded too. If it opens outside, drag it into the box.", see: "The crash window in the video." },
+      { text: "Press **Stop and attach** on the recording bar.", see: "One video with the crash in it. Works in Chrome and Edge." },
+    ],
     next: "report-bug",
   },
 

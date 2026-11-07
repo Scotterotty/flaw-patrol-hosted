@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { pickArea } from "./area-picker";
+import { pickArea, pickBox, type Box } from "./area-picker";
 import { Button, cx } from "./ui";
 
 /** Recordings stop by themselves at 5 minutes; the server takes videos up to 75 MB. */
@@ -12,19 +12,99 @@ export const MAX_VIDEO_BYTES = 75 * 1024 * 1024;
  * Screen capture is the browser's own screen sharing box. It needs a computer
  * browser and a secure address (https, or localhost on the tester's own machine).
  */
-export function useCaptureSupport(): { ok: boolean; why: string } {
-  const [state, setState] = useState({ ok: false, why: "" });
+export function useCaptureSupport(): { ok: boolean; why: string; /** Record an area works here. */ area: boolean } {
+  const [state, setState] = useState({ ok: false, why: "", area: false });
   useEffect(() => {
     const api = typeof navigator !== "undefined" && !!navigator.mediaDevices?.getDisplayMedia;
-    if (!window.isSecureContext) setState({ ok: false, why: "Screen capture needs Flaw Patrol opened at an https:// or localhost address." });
-    else if (!api) setState({ ok: false, why: "This browser can't capture the screen. Use Chrome, Edge, Firefox or Safari on a computer." });
-    else setState({ ok: true, why: "" });
+    if (!window.isSecureContext) setState({ ok: false, why: "Screen capture needs Flaw Patrol opened at an https:// or localhost address.", area: false });
+    else if (!api) setState({ ok: false, why: "This browser can't capture the screen. Use Chrome, Edge, Firefox or Safari on a computer.", area: false });
+    else setState({ ok: true, why: "", area: canRecordArea() });
   }, []);
   return state;
 }
 
 const cancelled = (e: unknown) => e instanceof DOMException && (e.name === "NotAllowedError" || e.name === "AbortError");
 
+/**
+ * Record an area needs the browser to hand Flaw Patrol each video frame, so it can keep
+ * just the box. Chrome and Edge can; Firefox and Safari can't yet.
+ */
+export function canRecordArea() {
+  return typeof window !== "undefined" && "MediaStreamTrackProcessor" in window && "MediaStreamTrackGenerator" in window;
+}
+export const RECORD_AREA_LABEL = "Record an area (best for crashes)";
+export const RECORD_AREA_TIP = "Records just the box you draw on your screen. If the app crashes, its crash window stays in the video.";
+export const RECORD_AREA_NO = "Record an area works in Chrome or Edge.";
+
+/** A still of the shared screen, at full size. */
+async function stillOf(stream: MediaStream): Promise<HTMLCanvasElement> {
+  const video = document.createElement("video");
+  video.muted = true;
+  video.srcObject = stream;
+  await video.play();
+  // Give the first real frame a moment to arrive.
+  await new Promise((r) => setTimeout(r, 250));
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext("2d")!.drawImage(video, 0, 0);
+  video.srcObject = null;
+  return canvas;
+}
+
+/** Last time's box, so the next Record an area starts with it drawn. Kept on this computer only. */
+const AREA_KEY = "fp-record-area";
+function lastBox(): Box | null {
+  try {
+    const b = JSON.parse(localStorage.getItem(AREA_KEY) ?? "null");
+    return b && [b.x, b.y, b.w, b.h].every((n) => typeof n === "number") ? b : null;
+  } catch {
+    return null;
+  }
+}
+function keepBox(b: Box) {
+  try {
+    localStorage.setItem(AREA_KEY, JSON.stringify(b));
+  } catch {
+    /* private window: the box just isn't remembered */
+  }
+}
+
+/**
+ * A video track of just the box. Each frame of the shared screen is cut down to the box.
+ * It's driven by the frames themselves, not by timers, so it keeps up while Flaw Patrol's
+ * tab is in the background. It ends when the screen sharing ends.
+ */
+function cropTrack(source: MediaStreamTrack, box: Box): MediaStreamTrack {
+  // Video encoders want even sizes.
+  const w = Math.max(2, Math.round(box.w / 2) * 2);
+  const h = Math.max(2, Math.round(box.h / 2) * 2);
+  const W = window as unknown as {
+    MediaStreamTrackProcessor: new (o: { track: MediaStreamTrack }) => { readable: ReadableStream<VideoFrame> };
+    MediaStreamTrackGenerator: new (o: { kind: "video" }) => MediaStreamTrack & { writable: WritableStream<VideoFrame> };
+  };
+  const out = new W.MediaStreamTrackGenerator({ kind: "video" });
+  const canvas = new OffscreenCanvas(w, h);
+  const g = canvas.getContext("2d")!;
+  const x = Math.round(box.x);
+  const y = Math.round(box.y);
+  void new W.MediaStreamTrackProcessor({ track: source }).readable
+    .pipeThrough(
+      new TransformStream<VideoFrame, VideoFrame>({
+        transform(frame, next) {
+          g.drawImage(frame, x, y, w, h, 0, 0, w, h);
+          const cut = new VideoFrame(canvas, { timestamp: frame.timestamp });
+          frame.close();
+          next.enqueue(cut);
+        },
+      }),
+    )
+    .pipeTo(out.writable)
+    .catch(() => {});
+  return out;
+}
+
+/** One still image of the tab, window or screen the tester picks. Null when they cancel. */
 /** One still image of the tab, window or screen the tester picks, or just the area they drag a box around. Null when they cancel. */
 export async function takeScreenshot(fileName: string): Promise<File | null> {
   let stream: MediaStream;
@@ -74,9 +154,11 @@ type Live = {
   withSound: boolean;
   chunks: Blob[];
   keep: boolean;
+  /** The cut-down track for Record an area, stopped with the rest. */
+  area: MediaStreamTrack | null;
 };
 
-export type Recording = { stepIndex: number | null; label: string; baseName: string };
+export type Recording = { stepIndex: number | null; label: string; baseName: string; /** Record an area: just a box of the screen. */ area?: boolean };
 export type Finished = Recording & { file: File; seconds: number };
 
 /**
@@ -100,6 +182,7 @@ export function useScreenRecorder(onFinished: (f: Finished) => void, onError: (m
     const l = live.current;
     if (!l) return;
     l.display.getTracks().forEach((t) => t.stop());
+    l.area?.stop();
     l.mic?.stream.getTracks().forEach((t) => t.stop());
     void l.audio.close();
     live.current = null;
@@ -118,17 +201,44 @@ export function useScreenRecorder(onFinished: (f: Finished) => void, onError: (m
     else cleanUp();
   }, [cleanUp]);
 
-  const start = useCallback(
+  // Busy picking a window or drawing the box: a second press does nothing.
+  const starting = useRef(false);
+  const [picking, setPicking] = useState(false);
+  const begin = useCallback(
     async (r: Recording) => {
-      if (live.current) return;
       const mimeType = pickMime();
       if (!mimeType) return onError("This browser can't record video. Use Chrome, Edge, Firefox or Safari on a computer.");
+      if (r.area && !canRecordArea()) return onError(RECORD_AREA_NO);
       let display: MediaStream;
       try {
-        display = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true });
+        // For an area, the browser offers the whole screen first.
+        display = await navigator.mediaDevices.getDisplayMedia({
+          video: r.area ? ({ frameRate: 30, displaySurface: "monitor" } as MediaTrackConstraints) : { frameRate: 30 },
+          audio: true,
+        });
       } catch (e) {
         if (!cancelled(e)) onError("Couldn't start the screen recording.");
         return;
+      }
+      // Record an area: drag a box on a still of the screen; only the box is recorded.
+      let area: MediaStreamTrack | null = null;
+      if (r.area) {
+        const quit = () => display.getTracks().forEach((t) => t.stop());
+        let box: Box | "whole" | null = null;
+        try {
+          const still = await stillOf(display);
+          box = await pickBox(
+            still,
+            { label: "Pick the area to record", hint: "Drag a box around the part to record. Only the box is saved.", take: "Record this area" },
+            lastBox(),
+          );
+        } catch {
+          quit();
+          return onError("Couldn't start the screen recording.");
+        }
+        if (!box || box === "whole" || display.getVideoTracks()[0]?.readyState !== "live") return quit();
+        keepBox(box);
+        area = cropTrack(display.getVideoTracks()[0], box);
       }
       // Sound goes through one mixer, so the microphone can be switched on and off mid-recording.
       const audio = new AudioContext();
@@ -144,12 +254,13 @@ export function useScreenRecorder(onFinished: (f: Finished) => void, onError: (m
       // either (an empty file). Wake it up, and record without sound if it won't run.
       await Promise.race([audio.resume().catch(() => {}), new Promise((r) => setTimeout(r, 1000))]);
       const withSound = audio.state === "running";
-      const recorder = new MediaRecorder(new MediaStream([...display.getVideoTracks(), ...(withSound ? dest.stream.getAudioTracks() : [])]), {
+      const video = area ? [area] : display.getVideoTracks();
+      const recorder = new MediaRecorder(new MediaStream([...video, ...(withSound ? dest.stream.getAudioTracks() : [])]), {
         mimeType,
         videoBitsPerSecond: 1_600_000,
         audioBitsPerSecond: 96_000,
       });
-      const l: Live = { recorder, display, audio, dest, mic: null, withSound, chunks: [], keep: true };
+      const l: Live = { recorder, display, audio, dest, mic: null, withSound, chunks: [], keep: true, area };
       live.current = l;
       recorder.ondataavailable = (e) => e.data.size && l.chunks.push(e.data);
       recorder.onstop = () => {
@@ -170,6 +281,20 @@ export function useScreenRecorder(onFinished: (f: Finished) => void, onError: (m
       setRec(r);
     },
     [cleanUp, onError, stop],
+  );
+  const start = useCallback(
+    async (r: Recording) => {
+      if (live.current || starting.current) return;
+      starting.current = true;
+      setPicking(true);
+      try {
+        await begin(r);
+      } finally {
+        starting.current = false;
+        setPicking(false);
+      }
+    },
+    [begin],
   );
 
   useEffect(() => {
@@ -222,7 +347,7 @@ export function useScreenRecorder(onFinished: (f: Finished) => void, onError: (m
     }
   };
 
-  return { rec, paused, micOn, elapsed, start, stop, togglePause, toggleMic };
+  return { rec, picking, paused, micOn, elapsed, start, stop, togglePause, toggleMic };
 }
 
 /**

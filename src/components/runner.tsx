@@ -27,7 +27,7 @@ import { StepText } from "./step-text";
 import { StatusChip, StatusIcon } from "./status";
 import { Button, buttonClass, cx, ErrorText, Textarea } from "./ui";
 import { ScrollTabs } from "./scroll-tabs";
-import { RecordingBar, RecordingPreview, takeScreenshot, useCaptureSupport, useScreenRecorder, type Finished } from "./screen-capture";
+import { RECORD_AREA_LABEL, RECORD_AREA_NO, RECORD_AREA_TIP, RecordingBar, RecordingPreview, takeScreenshot, useCaptureSupport, useScreenRecorder, type Finished } from "./screen-capture";
 import { CloseRunButton } from "./run-actions";
 import { bugTitle } from "@/lib/jira-format";
 import { RegressionNote } from "./regression";
@@ -665,10 +665,10 @@ export function Runner({
       setError("Couldn't take the screenshot.");
     }
   };
-  const record = (i: number | null) => {
+  const record = (i: number | null, area = false) => {
     setError(null);
     setPreview(null);
-    void recorder.start({ stepIndex: i, label: i === null ? "for the case" : `for ${stepLabel(i)}`, baseName: captureName(i) });
+    void recorder.start({ stepIndex: i, label: i === null ? "for the case" : `for ${stepLabel(i)}`, baseName: captureName(i), area });
   };
   const captureButtons = (i: number | null) => (
     <>
@@ -677,12 +677,21 @@ export function Runner({
       </Button>
       <Button
         size="sm"
-        disabled={!capture.ok || runClosed || recorder.rec !== null}
+        disabled={!capture.ok || runClosed || recorder.rec !== null || recorder.picking}
         title={capture.ok ? `Record a tab, window or screen for up to 5 minutes and attach the video to ${stepLabel(i)}` : capture.why}
         onClick={() => record(i)}
         data-howto="runner-record"
       >
         <span aria-hidden className="text-red-600">●</span> {i === null ? "Record screen for case" : "Record screen"}
+      </Button>
+      <Button
+        size="sm"
+        disabled={!capture.ok || !capture.area || runClosed || recorder.rec !== null || recorder.picking}
+        title={!capture.ok ? capture.why : capture.area ? RECORD_AREA_TIP : RECORD_AREA_NO}
+        onClick={() => record(i, true)}
+        data-howto="runner-record-area"
+      >
+        <span aria-hidden>🔲</span> {RECORD_AREA_LABEL}
       </Button>
     </>
   );

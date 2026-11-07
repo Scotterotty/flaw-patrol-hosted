@@ -170,7 +170,8 @@ export function BugDialog({
   const capture: BugCapture = {
     ok: support.ok,
     why: support.why,
-    busy: shooting || uploading || recorder.rec !== null || !!caseRecording?.rec,
+    busy: shooting || uploading || recorder.rec !== null || recorder.picking || !!caseRecording?.rec,
+    area: support.area,
     screenshot: async () => {
       setShooting(true);
       try {
@@ -183,6 +184,7 @@ export function BugDialog({
       }
     },
     record: () => void recorder.start({ stepIndex, label: `for this bug`, baseName: captureName }),
+    recordArea: () => void recorder.start({ stepIndex, label: `for this bug`, baseName: captureName, area: true }),
     ...(sentryOn && jiraConnected ? { sentry: () => setSentrySearch(true) } : {}),
   };
   // Closing the box mid-recording throws the recording away.

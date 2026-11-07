@@ -7,7 +7,24 @@
  * because takeScreenshot() is a plain async function used from several places.
  */
 
-type Box = { x: number; y: number; w: number; h: number };
+export type Box = { x: number; y: number; w: number; h: number };
+
+/** What the picker says, for a screenshot or for Record an area. */
+export type PickWords = {
+  label: string;
+  hint: string;
+  /** The button that takes the box. */
+  take: string;
+  /** The button that takes the whole picture; left out when only a box will do. */
+  whole?: string;
+};
+
+const SCREENSHOT_WORDS: PickWords = {
+  label: "Pick the area to attach",
+  hint: "Drag a box around the part you want",
+  take: "Attach this area",
+  whole: "Attach whole screen",
+};
 
 /** Drags smaller than this (in screen pixels) are a stray click, not a box. */
 const MIN_BOX = 8;
@@ -37,24 +54,36 @@ export function cropCanvas(source: HTMLCanvasElement, box: Box): HTMLCanvasEleme
  * Show the screenshot and let the tester pick. Resolves to the picked area, the
  * whole picture, or null when they cancel.
  */
-export function pickArea(shot: HTMLCanvasElement): Promise<HTMLCanvasElement | null> {
+export async function pickArea(shot: HTMLCanvasElement): Promise<HTMLCanvasElement | null> {
+  const picked = await pickBox(shot, SCREENSHOT_WORDS);
+  if (!picked) return null;
+  return picked === "whole" ? shot : cropCanvas(shot, picked);
+}
+
+/**
+ * Show the picture and let the tester drag a box. Resolves to the box in the
+ * picture's own pixels, "whole" for the whole picture, or null when they cancel.
+ * `start` is a box to show already drawn (in the picture's pixels), like last time's.
+ */
+export function pickBox(shot: HTMLCanvasElement, words: PickWords, start?: Box | null): Promise<Box | "whole" | null> {
   return new Promise((resolve) => {
     const dialog = el(
       "dialog",
       "m-0 h-full max-h-none w-full max-w-none bg-slate-900/90 p-0 text-white backdrop:bg-black/60",
     ) as HTMLDialogElement;
-    dialog.setAttribute("aria-label", "Pick the area to attach");
+    dialog.setAttribute("aria-label", words.label);
     dialog.setAttribute("data-testid", "area-picker");
     dialog.setAttribute("data-feedback-skip", "");
 
     const wrap = el("div", "flex h-full flex-col");
     const bar = el("div", "flex flex-wrap items-center justify-between gap-2 bg-surface px-4 py-2 text-slate-900 shadow");
-    const hint = el("p", "text-sm font-semibold", "Drag a box around the part you want");
+    const hint = el("p", "text-sm font-semibold", words.hint);
     const barBtns = el("div", "flex flex-wrap gap-2");
-    const whole = el("button", plain, "Attach whole screen");
+    const whole = el("button", plain, words.whole ?? "");
     const cancel = el("button", plain, "Cancel");
     for (const b of [whole, cancel]) b.type = "button";
-    barBtns.append(whole, cancel);
+    if (words.whole) barBtns.append(whole);
+    barBtns.append(cancel);
     bar.append(hint, barBtns);
 
     const area = el("div", "relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4");
@@ -77,7 +106,7 @@ export function pickArea(shot: HTMLCanvasElement): Promise<HTMLCanvasElement | n
     });
     box.append(...corners);
     const near = el("div", "absolute z-10 hidden gap-2");
-    const attach = el("button", primary, "Attach this area");
+    const attach = el("button", primary, words.take);
     const redo = el("button", plain, "Redo");
     for (const b of [attach, redo]) b.type = "button";
     near.append(attach, redo);
@@ -106,22 +135,26 @@ export function pickArea(shot: HTMLCanvasElement): Promise<HTMLCanvasElement | n
     };
 
     let done = false;
-    const finish = (result: HTMLCanvasElement | null) => {
+    const finish = (result: Box | "whole" | null) => {
       if (done) return;
       done = true;
       dialog.close();
       dialog.remove();
       resolve(result);
     };
+    // Where the keyboard goes when there's no box: the whole-picture button.
+    // With no whole-picture button, the picker itself, so Enter can't press Cancel by surprise.
+    dialog.tabIndex = -1;
+    const idle: HTMLElement = words.whole ? whole : dialog;
     const attachArea = () => {
-      if (!sel) return finish(shot);
+      if (!sel) return words.whole ? finish("whole") : undefined;
       const scale = shot.width / stage.clientWidth;
-      finish(cropCanvas(shot, { x: sel.x * scale, y: sel.y * scale, w: sel.w * scale, h: sel.h * scale }));
+      finish({ x: sel.x * scale, y: sel.y * scale, w: sel.w * scale, h: sel.h * scale });
     };
     const clear = () => {
       sel = null;
       show();
-      whole.focus();
+      idle.focus();
     };
 
     // Drag outside the box: new box. Drag inside: move it. Drag a corner: resize.
@@ -177,7 +210,7 @@ export function pickArea(shot: HTMLCanvasElement): Promise<HTMLCanvasElement | n
     // Dragging can't start a native image drag or text selection.
     stage.addEventListener("dragstart", (e) => e.preventDefault());
 
-    whole.addEventListener("click", () => finish(shot));
+    whole.addEventListener("click", () => finish("whole"));
     cancel.addEventListener("click", () => finish(null));
     attach.addEventListener("click", attachArea);
     redo.addEventListener("click", clear);
@@ -190,7 +223,7 @@ export function pickArea(shot: HTMLCanvasElement): Promise<HTMLCanvasElement | n
       if (e.key !== "Enter" || (e.target instanceof HTMLButtonElement && e.target !== whole && e.target !== attach)) return;
       e.preventDefault();
       if (sel) attachArea();
-      else finish(shot);
+      else if (words.whole) finish("whole");
     });
     // Window resized mid-pick: the picture changes size, so start the box over.
     // The picture is shown as big as fits, never bigger than it really is.
@@ -210,6 +243,13 @@ export function pickArea(shot: HTMLCanvasElement): Promise<HTMLCanvasElement | n
     document.body.append(dialog);
     dialog.showModal();
     fit();
-    whole.focus();
+    // A box from last time, drawn already when it still fits this picture.
+    if (start && start.x >= 0 && start.y >= 0 && start.x + start.w <= shot.width && start.y + start.h <= shot.height) {
+      const k = stage.clientWidth / shot.width;
+      sel = { x: start.x * k, y: start.y * k, w: start.w * k, h: start.h * k };
+      if (sel.w < MIN_BOX || sel.h < MIN_BOX) sel = null;
+      show();
+    }
+    (sel ? attach : idle).focus();
   });
 }
