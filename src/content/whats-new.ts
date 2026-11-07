@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 198,
+    date: "2026-11-06",
+    items: [
+      {
+        kind: "better",
+        title: "Release status looks right in Confluence",
+        text: "Copy for Confluence on Release status now pastes the platforms side by side, with a status badge, a colored bar like the board and one-line bug titles. Jira links still click, and the title and time are centered.",
+        link: "/g/{umbrella}/rc",
+      },
+    ],
+  },
+  {
     version: 197,
     date: "2026-11-06",
     items: [
