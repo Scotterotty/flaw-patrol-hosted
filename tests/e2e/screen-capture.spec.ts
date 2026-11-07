@@ -123,7 +123,8 @@ test(`a recording still has video when ${why}`, async ({ page }) => {
 // ver_192 (Scott lost the Stop button): the bar sticks to the top of the bug box, a case
 // recording shows in the bug box too, and on a phone it sits above the menu bar.
 test("the recording bar stays in sight in the bug box and on a phone", async ({ page }) => {
-  const key = `${KEY.slice(0, 5)}B`;
+  // Its own key: "SC…B" matched KEY whenever KEY happened to end in B.
+  const key = `SB${KEY.slice(2)}`;
   const inView = (l: ReturnType<typeof page.locator>) =>
     l.evaluate((el) => {
       const r = el.getBoundingClientRect();
