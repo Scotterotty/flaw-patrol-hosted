@@ -10,15 +10,19 @@ import { cx } from "./ui";
 type Crumb = { label: string; href?: string; more?: boolean; title?: string };
 
 /**
- * Where you are, next to the logo. On a laptop a long trail keeps the first crumb and the
- * last two, and the ones between fold into "…" (point at it to see them). On a phone it's one
+ * Where you are, next to the logo. On a laptop a long trail folds the crumbs before the test
+ * cycle into "…" (point at it to see them). On a phone it's one
  * back link, "‹ Test runs", instead of cut-off crumbs (ver_201).
  */
 export function Breadcrumbs({ project }: { project?: { key: string; name: string; group?: { id: string; name: string } | null; hub?: string } }) {
   const all: Crumb[] = crumbsFor(usePathname(), project, useCrumbNames());
   const back = all.slice(0, -1).findLast((c) => c.href);
-  const folded = all.length > 4 ? all.slice(1, -2) : [];
-  const crumbs: Crumb[] = folded.length ? [all[0], { label: "…", href: folded.findLast((c) => c.href)?.href, more: true, title: folded.map((c) => c.label).join(" › ") }, ...all.slice(-2)] : all;
+  // A long trail folds what comes before the test cycle into "…", so the cycle (it leads to its
+  // Overview) and everything after it always show.
+  const cycle = project ? all.findIndex((c, i) => i > 0 && c.label === project.name) : -1;
+  const keepFrom = all.length > 4 ? (cycle > 1 ? cycle : Math.max(1, all.length - 3)) : 0;
+  const folded = keepFrom > 0 ? all.slice(0, keepFrom) : [];
+  const crumbs: Crumb[] = folded.length ? [{ label: "…", href: folded.findLast((c) => c.href)?.href, more: true, title: folded.map((c) => c.label).join(" › ") }, ...all.slice(keepFrom)] : all;
   const last = crumbs.length - 1;
   return (
     <nav aria-label="Breadcrumb" className="min-w-0">
