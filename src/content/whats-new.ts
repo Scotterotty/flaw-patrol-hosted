@@ -22,6 +22,40 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 200,
+    date: "2026-11-07",
+    items: [
+      {
+        kind: "better",
+        title: "A calmer run list",
+        text: "Each case is one line now: who's testing it by first name (You for your own), the status with its step pips, and one button. Retest only shows on cases that didn't pass; Test again and Remove from run are under ⋯. Point at a status to see who changed it and when.",
+      },
+      {
+        kind: "better",
+        title: "One box above the cases, with See bugs",
+        text: "How much is done and passed, and 🐞 how many bugs are new and known, on one line. See bugs opens both lists. Cases with bugs have a small 🐞 next to their name. By tester shows how many each person has done.",
+      },
+      {
+        kind: "better",
+        title: "The runner's run list fits twice as many cases",
+        text: "Two lines per case. The dot's color is the status, and the pips stay.",
+      },
+      {
+        kind: "better",
+        title: "Settings in 4 groups",
+        text: "People, Testing, Connections and More, with Members first. Every Connect button looks the same, and a gray Not connected tag shows what isn't set up. Requirements is inside the Jira row now, and Name and test cycles is called Rename.",
+        who: "lead",
+        link: "/g/{umbrella}/settings",
+      },
+      {
+        kind: "better",
+        title: "Your account, sorted",
+        text: "You, How it looks, Emails I get and Just for fun. Accessibility sits right under Appearance and has a new Easy-to-read font choice. Loading spinners moved to Just for fun, and menu order and panel sizes have their own Layout card.",
+        link: "/account#accessibility",
+      },
+    ],
+  },
+  {
     version: 199,
     date: "2026-11-07",
     items: [
