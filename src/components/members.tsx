@@ -31,6 +31,8 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
   const [invited, setInvited] = useState<{ email: string; role: Role; hasPassword: boolean; failed: boolean; message: string | null } | null>(null);
   const [sendIt, setSendIt] = useState(true);
   const [sent, setSent] = useState<string | null>(null);
+  const [bulk, setBulk] = useState<{ role: Role; rows: BulkRow[] } | null>(null);
+  const emailCount = emailList(email).length;
 
   const act = (fn: () => Promise<{ ok: boolean; error?: string }>, after?: () => void) =>
     start(async () => {
@@ -208,23 +210,58 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
           className="mt-4 flex flex-wrap items-end gap-2 border-t border-slate-100 pt-4"
           onSubmit={(e) => {
             e.preventDefault();
+            const list = emailList(email);
+            if (!list.length) return setError("Enter an email");
             start(async () => {
-              const res = await addMember(projectId, { email, role, sendInvite: canEmail && sendIt });
-              setError(res.ok ? null : res.error);
               setSent(null);
               setInvited(null);
-              if (res.ok) {
-                setEmail("");
-                if (res.emailed) setSent(`Invite sent to ${res.email}. Not there? Use Copy invite link on their row.`);
-                else setInvited({ email: res.email, role: res.role, hasPassword: res.hasPassword, failed: !!res.emailError, message: res.message });
+              setBulk(null);
+              // One person: the message for them, as before.
+              if (list.length === 1) {
+                const res = await addMember(projectId, { email: list[0], role, sendInvite: canEmail && sendIt });
+                setError(res.ok ? null : res.error);
+                if (res.ok) {
+                  setEmail("");
+                  if (res.emailed) setSent(`Invite sent to ${res.email}. Not there? Use Copy invite link on their row.`);
+                  else setInvited({ email: res.email, role: res.role, hasPassword: res.hasPassword, failed: !!res.emailError, message: res.message });
+                }
+                router.refresh();
+                return;
               }
+              // The whole team at once (Monday audit): each gets their own link, all copied in one go.
+              const done: BulkRow[] = [];
+              for (const one of list) {
+                const res = await addMember(projectId, { email: one, role, sendInvite: canEmail && sendIt });
+                done.push(res.ok ? { email: res.email, ok: true, emailed: res.emailed, url: res.inviteUrl, message: res.message } : { email: one, ok: false, error: res.error });
+              }
+              const failed = done.filter((r) => !r.ok);
+              setError(failed.length ? `Couldn't add ${failed.map((r) => r.email).join(", ")}: ${failed[0].error}` : null);
+              // Keep only the emails that didn't go in, so they can be fixed and added again.
+              setEmail(failed.map((r) => r.email).join("\n"));
+              if (done.some((r) => r.ok)) setBulk({ role, rows: done.filter((r) => r.ok) });
               router.refresh();
             });
           }}
         >
           <div className="min-w-56 flex-1">
-            <Field label="Add someone by email" htmlFor="invite">
-              <Input id="invite" data-howto="invite-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="teammate@company.com" />
+            <Field label="Add people by email" htmlFor="invite" hint="One per line, or commas between them.">
+              <Textarea
+                id="invite"
+                data-howto="invite-email"
+                required
+                rows={emailCount > 1 ? Math.min(emailCount, 6) : 1}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  // Enter adds a line for the next email; Ctrl + Enter adds everyone.
+                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    e.currentTarget.form?.requestSubmit();
+                  }
+                }}
+                placeholder="teammate@company.com"
+                className="min-h-9 resize-y"
+              />
             </Field>
           </div>
           <Select aria-label="Role" data-howto="invite-role" className="w-auto max-w-full" value={role} onChange={(e) => setRole(e.target.value as Role)}>
@@ -235,7 +272,7 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
             ))}
           </Select>
           <Button type="submit" variant="primary" disabled={pending} data-howto="invite-add">
-            Add
+            {emailCount > 1 ? `Add ${emailCount} people` : "Add"}
           </Button>
           {/* The hint sits under the whole row so the role and Add line up with the email box. */}
           {/* The old "choose a password the first time" hint wasn't true; new people need their invite link. */}
@@ -258,7 +295,67 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
         </p>
       )}
       {invited && <InviteNote {...invited} name={members.find((m) => m.email === invited.email)?.name ?? null} onClose={() => setInvited(null)} />}
+      {bulk && <BulkInviteNote {...bulk} onClose={() => setBulk(null)} />}
     </Card>
+  );
+}
+
+/** Emails typed one per line, or with commas, spaces or semicolons between them. Each once. */
+export function emailList(text: string) {
+  return [...new Set(text.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean).map((x) => x.toLowerCase()))];
+}
+
+type BulkRow = { email: string; ok: boolean; emailed?: boolean; url?: string | null; message?: string | null; error?: string };
+
+/** One post for Slack or Teams with each new person's own link (Monday audit: 10 teammates were 10 pastes). */
+export function allInvites(rows: BulkRow[], signIn: string) {
+  const lines = rows.map((r) => (r.url ? `• ${r.email}: ${r.url}` : r.emailed ? `• ${r.email}: check your email for the invite` : `• ${r.email}: sign in as usual at ${signIn}`));
+  const links = rows.some((r) => r.url);
+  return `You're invited to Flaw Patrol.${links ? " Find your email and open your own link to choose your password and sign in. Each link works once, for 7 days." : ""}\n${lines.join("\n")}`;
+}
+
+/** After adding several people: who was added, each person's link, and Copy all invites. */
+function BulkInviteNote({ role, rows, onClose }: { role: Role; rows: BulkRow[]; onClose: () => void }) {
+  const [copied, setCopied] = useState<string | null>(null);
+  const signIn = typeof window === "undefined" ? "/signin" : `${window.location.origin}/signin`;
+  const copy = (key: string, text: string) =>
+    navigator.clipboard?.writeText(text).then(
+      () => setCopied(key),
+      () => setCopied(null),
+    );
+  return (
+    <div role="status" data-testid="bulk-invites" className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+      <div className="flex items-start justify-between gap-2">
+        <p>
+          <b>
+            {rows.length} people added as {ROLE_LABEL[role]}.
+          </b>
+        </p>
+        <button type="button" onClick={onClose} aria-label="Hide invites" className="rounded px-1.5 text-emerald-700 hover:bg-emerald-100">
+          ×
+        </button>
+      </div>
+      <ul className="my-2 divide-y divide-emerald-100 rounded-md border border-emerald-200 bg-surface text-slate-700">
+        {rows.map((r) => (
+          <li key={r.email} className="flex flex-wrap items-center justify-between gap-2 px-2.5 py-1.5">
+            <span className="min-w-0 truncate">{r.email}</span>
+            {r.message ? (
+              <button type="button" className="text-xs text-accent-700 hover:underline" onClick={() => copy(r.email, r.message!)}>
+                {copied === r.email ? "Copied" : "Copy link"}
+              </button>
+            ) : (
+              <span className="text-xs text-slate-500">{r.emailed ? "Invite emailed" : "Signs in as usual"}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="primary" onClick={() => copy("all", allInvites(rows, signIn))}>
+          Copy all invites
+        </Button>
+        {copied === "all" ? <span className="text-xs text-emerald-700">Copied</span> : <span className="text-xs text-emerald-800/80">One Slack or Teams post with each person&apos;s own link.</span>}
+      </div>
+    </div>
   );
 }
 

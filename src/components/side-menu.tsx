@@ -40,6 +40,8 @@ export type MenuItem = {
   action?: "how-to";
   /** A small NEW tag after the label, for a little while after something ships. */
   isNew?: boolean;
+  /** A small gray tag after the label, like "Needs Jira" while what the page shows can't work yet. */
+  tag?: string;
   /** The How-to guide finds the link by data-howto="menu-<howto or id>". */
   howto?: string;
 };
@@ -188,6 +190,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
       {i.dot && <span aria-hidden className="size-1.5 flex-none rounded-full" style={{ background: i.dot }} />}
       <span className="min-w-0 flex-1 truncate">{i.label}</span>
       {i.badge && <span className="rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{i.badge}</span>}
+      {i.tag && <span className="flex-none rounded-full bg-slate-100 px-1.5 text-[10px] font-medium text-slate-500 ring-1 ring-slate-200 ring-inset" data-testid="menu-tag">{i.tag}</span>}
       {i.note && <span className="size-2 flex-none rounded-full bg-accent-600" title="New answer to your question" aria-label="New answer to your question" data-testid="menu-note" />}
       {i.count !== undefined && <span className="text-xs font-normal text-slate-400 tabular-nums">{i.count}</span>}
     </Link>

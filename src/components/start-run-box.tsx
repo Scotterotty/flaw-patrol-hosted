@@ -213,7 +213,9 @@ function Form({
   // What kind of run, asked first in an umbrella. A charter session skips it.
   const askKind = !!opts.umbrella && !session && opts.kinds.length > 0;
   const [kinds, setKinds] = useState(opts.kinds);
-  const [kindId, setKindId] = useState<string | null>(askKind ? null : "");
+  // "" is a Regular run (no kind), picked for you (Monday audit: new people didn't know if
+  // their test was a smoke test). Smoke test, Release candidate and your own kinds still show.
+  const [kindId, setKindId] = useState<string | null>("");
   const kind = kinds.find((k) => k.id === kindId);
   // "+ New test cycle": made when you press Start, with this run in it.
   const [newCycle, setNewCycle] = useState<{ open: boolean; name: string; platform: string }>({ open: !!opts.newCycle?.empty && !!opts.newCycle.canCreate, name: "", platform: "" });
@@ -266,6 +268,18 @@ function Form({
   const chosen = opts.cycles.filter((c) => ticked.includes(c.id));
   // Each ticked test cycle's release, offered as a "Use 2.1" suggestion, never filled in.
   const rcs = [...new Set(chosen.map((c) => c.rcName.trim()).filter(Boolean))];
+  // Release fills itself in from the ticked test cycle (Monday audit: blank Release left
+  // Reports saying "–"). What you type yourself is never replaced.
+  const oneRc = rcs.length === 1 ? rcs[0] : "";
+  const [autoRelease, setAutoRelease] = useState<string | null>(null);
+  useEffect(() => {
+    if (release.trim() && release !== autoRelease) return;
+    if (release === oneRc) return;
+    setRelease(oneRc);
+    setAutoRelease(oneRc || null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [oneRc]);
+  const releaseFromCycle = !!autoRelease && release === autoRelease ? chosen.find((c) => c.rcName.trim() === autoRelease) : undefined;
   const autoName = isSheet ? (sheet ? sheet.fileName.replace(/\.(csv|tsv|txt|xlsx)$/i, "") : "") : kind ? `${kind.name} ${today()}` : what === "all" ? `Full library ${today()}` : what === "suite" ? `${suite?.name ?? "Suite"} ${today()}` : what === "cases" ? `Picked cases ${today()}` : "";
   const samePick = !!preset && what === preset.what && (preset.what !== "suite" || suiteId === preset.suiteId);
   const grayName = samePick && presetName ? presetName : autoName;
@@ -316,7 +330,7 @@ function Form({
   const missingFields = opts.runFields.filter((f) => f.required && !value(fieldId(f)).trim());
   const handed = !!members.length && !!assignee && assignee !== opts.meId;
   const todo: [boolean, string][] = [
-    ...(askKind ? [[kindId !== null, kind ? `Kind: ${kind.name}` : "Pick what kind of run"] as [boolean, string]] : []),
+    ...(askKind ? [[kindId !== null, kind ? `Kind: ${kind.name}` : kindId === "" ? "Kind: Regular run" : "Pick what kind of run"] as [boolean, string]] : []),
     [!!what && count > 0, what === "suite" && !suite ? "Pick a suite" : what === "cases" && !count ? "Tick some cases" : what ? `${count === 1 ? "1 case" : `${count} cases`}` : "Pick what to run"],
     [
       runCount > 0,
@@ -775,6 +789,8 @@ function Form({
                   Undo
                 </button>
               </span>
+            ) : releaseFromCycle ? (
+              <span data-testid="release-from-cycle">From {releaseFromCycle.name}. Change it if this run tests something else.</span>
             ) : release.trim() ? (
               <span data-testid="release-counts">Counts toward {release.trim()} on Release status. Leave it blank to keep this run out.</span>
             ) : undefined
@@ -933,6 +949,8 @@ function OpeningRun({ what, cases, runs, session }: { what: string; cases: numbe
 }
 
 type Kind = RunBoxOptions["kinds"][number];
+/** A run with no kind: the first tile, picked for you. */
+const REGULAR: Kind = { id: "", name: "Regular run", suiteId: null, builtIn: true };
 
 /**
  * "What kind of run?": Smoke test, Release candidate, the umbrella's own kinds,
@@ -973,10 +991,12 @@ function KindStep({
       ? `One test cycle per platform${lastCycle ? `, carries over from ${lastCycle}` : ""}`
       : k.id === "bash"
         ? "Everyone tests freely and files bugs live"
-        : usual(k) || (k.builtIn ? "A quick check that the basics work" : "Your own kind of run");
-  const shown = kinds.filter((k) => k.id !== "rc" || canRc);
+        : k.id === ""
+          ? "Test the cases you pick"
+          : usual(k) || (k.builtIn ? "A quick check that the basics work" : "Your own kind of run");
+  const shown = [REGULAR, ...kinds.filter((k) => k.id !== "rc" || canRc)];
   const chosen = kinds.find((k) => k.id === picked);
-  if (chosen)
+  if (chosen && picked !== "")
     return (
       <p className="flex flex-wrap items-center gap-2 text-sm text-slate-700" data-testid="kind-picked">
         <span className="text-xs font-semibold text-slate-600">Kind of run</span>
@@ -1004,9 +1024,13 @@ function KindStep({
             key={k.id}
             type="button"
             onClick={() => onPick(k.id)}
+            aria-pressed={k.id === picked}
             // Release candidate and Bug bash start getting their boxes ready before the click.
             {...(k.id === "rc" || k.id === "bash" ? prefetchOn(() => startPrefetch(k.id as "rc" | "bash")) : {})}
-            className="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-accent-500 hover:bg-slate-50">
+            className={cx(
+              "rounded-md border px-3 py-2 text-left",
+              k.id === picked ? "border-accent-500 bg-accent-50 ring-1 ring-accent-500" : "border-slate-200 hover:border-accent-500 hover:bg-slate-50",
+            )}>
             <span className="block text-sm font-medium text-slate-900">
               {k.id === "bash" && <span aria-hidden>🐞 </span>}
               {k.name}

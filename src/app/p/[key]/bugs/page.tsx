@@ -105,7 +105,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
         <Select name="from" defaultValue={sp.from ?? ""} className="w-auto" aria-label="Where it came from">
           <option value="">From anywhere</option>
           <option value="tests">From tests</option>
-          <option value="own">Written on its own</option>
+          <option value="own">Not from a run</option>
         </Select>
         <Select name="status" defaultValue={sp.status ?? ""} className="w-auto" aria-label="Status">
           <option value="">Any status</option>
@@ -163,7 +163,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
                       <span className="text-slate-900">{d.title}</span>
                       {isWritten(d.layout) && (
                         <span className="ml-1.5 rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-medium text-accent-700" data-testid="written-chip">
-                          Written on its own
+                          Not from a run
                         </span>
                       )}
                       {canSend && !d.externalKey && <span className="mt-0.5 block text-xs text-slate-500">{isWritten(d.layout) ? "Saved here, not in Jira yet" : "Saved before Jira was connected"}</span>}

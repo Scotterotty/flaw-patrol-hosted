@@ -52,7 +52,7 @@ test("only Admins see Members; everyone else is told which Admin to ask", async 
   // A test cycle's own Settings page: same line, no list, no Add box.
   await page.goto(`/p/${ids.lone}/settings`);
   await expect(page.getByTestId("ask-admin")).toHaveText("Need someone added or a role changed? Ask an Admin: Demo Admin.");
-  await expect(page.getByLabel("Add someone by email")).toHaveCount(0);
+  await expect(page.getByLabel("Add people by email")).toHaveCount(0);
   await expect(page.getByText("admin@example.com")).toHaveCount(0);
 });
 
@@ -65,6 +65,6 @@ test("Admins still manage Members as before", async ({ page }) => {
   await expect(page.getByTestId("ask-admin")).toHaveCount(0);
   await expect(page.getByTestId("cycle-settings").getByText(/Its own · 2 people/)).toBeVisible();
   await page.goto(`/p/${ids.lone}/settings`);
-  await expect(page.getByLabel("Add someone by email")).toBeVisible();
+  await expect(page.getByLabel("Add people by email")).toBeVisible();
   await expect(page.getByTestId("ask-admin")).toHaveCount(0);
 });

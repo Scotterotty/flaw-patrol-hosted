@@ -21,7 +21,7 @@ test("Add gives a message with the invite link, and the link lets them in", asyn
   await expect(page.locator("#members")).not.toContainText(/password the first time/);
   await expect(page.getByText("You'll get a link to send them. It lets them in once and works for 7 days.")).toBeVisible();
 
-  await page.getByLabel("Add someone by email").fill(newbie);
+  await page.getByLabel("Add people by email").fill(newbie);
   await page.getByRole("button", { name: "Add", exact: true }).click();
   const note = page.getByRole("status").filter({ hasText: "was added as Member" });
   await expect(note).toContainText("Send them this so they can get in:");
@@ -55,7 +55,7 @@ test("Add gives a message with the invite link, and the link lets them in", asyn
 
   // Someone who already has a password still gets the short sign-in-as-usual message.
   await page.reload();
-  await page.getByLabel("Add someone by email").fill("lead@example.com");
+  await page.getByLabel("Add people by email").fill("lead@example.com");
   await page.getByRole("button", { name: "Add", exact: true }).click();
   const usual = page.getByRole("status").filter({ hasText: "was added as Member" });
   await expect(usual.getByTestId("invite-message")).toHaveText(

@@ -178,7 +178,7 @@ test("Invite emails go through the company's mail server", async ({ page, browse
   // Add someone: they get an invite email with a one-time link.
   await page.goto(`/p/${KEY}/settings`);
   await expect(page.getByLabel("Email them an invite")).toBeChecked();
-  await page.getByLabel("Add someone by email").fill(invitee);
+  await page.getByLabel("Add people by email").fill(invitee);
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByText(`Invite sent to ${invitee}`)).toBeVisible();
   await expect(page.getByRole("listitem").filter({ hasText: invitee })).toContainText("invited · email sent");

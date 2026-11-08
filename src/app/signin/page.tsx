@@ -21,7 +21,8 @@ const ERRORS: Record<string, string> = {
 
 export default async function SignInPage({ searchParams }: { searchParams: Promise<{ callbackUrl?: string; error?: string; email?: string; admin?: string }> }) {
   const { callbackUrl, error, email, admin } = await searchParams;
-  const redirectTo = callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : "/";
+  // No page asked for: /start opens your umbrella when you're in only one (Monday audit).
+  const redirectTo = callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//") && callbackUrl !== "/" ? callbackUrl : "/start";
   if ((await auth())?.user) redirect(redirectTo);
   const oauth = await signInButtons();
   // With email and password off, only the company buttons show, plus Admin sign-in for emergencies.

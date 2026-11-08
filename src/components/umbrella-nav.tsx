@@ -39,6 +39,8 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
   // Tools: a tool the umbrella doesn't use leaves the menu, with + Add tools at the bottom for Admins.
   const on = (t: ToolId) => u.tools.includes(t);
   const runsOn = on("runs");
+  // Requirements and Risk board read Jira: tagged until it's connected (Monday audit), so a first look isn't a dead end.
+  const needsJira = u.jira === false ? "Needs Jira" : undefined;
   const all: MenuGroup[] = [
     { label: "", items: [{ href: g, label: "Overview", exact: true, howto: "overview" }] },
     {
@@ -46,7 +48,7 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
       items: [
         { href: `${hub}/cases`, id: "cases", tool: "cases", label: "Case library", count: u.counts.cases, tip: `Whole test cases every ${u.name} test cycle runs` },
         { href: `${hub}/charters`, id: "charters", tool: "charters", label: "Charters", count: u.counts.charters, tip: "Missions to explore without steps, and the test personas you explore as" },
-        { href: `${hub}/stories`, id: "stories", tool: "stories", label: "Requirements", tip: "Jira stories, Epics and other requirements, and which cases test them" },
+        { href: `${hub}/stories`, id: "stories", tool: "stories", label: "Requirements", tag: needsJira, tip: "Jira stories, Epics and other requirements, and which cases test them" },
         { href: `${hub}/suites`, id: "suites", tool: "cases", label: "Test suites", count: u.counts.suites },
         { href: `${hub}/shared-steps`, id: "shared", tool: "cases", label: "Shared steps", count: u.counts.shared, tip: "Extra steps you add to new or existing cases" },
         { href: `${hub}/glossary`, id: "glossary", tool: "glossary", label: "Glossary", count: glossary?.count || undefined, note: glossary?.unseen, tip: "The team's words and what they mean" },
@@ -66,7 +68,7 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
             ]
           : []),
         { href: `${hub}/bashes`, id: "bashes", tool: "bashes", label: "Bug bashes", badge: u.live ? "Live" : undefined, tip: "Everyone explores for a set time and logs bugs" },
-        { href: `${hub}/risk`, id: "risk", tool: "risk", label: "Risk board", tip: "Which requirements in a release are most likely to break, and how much it would hurt" },
+        { href: `${hub}/risk`, id: "risk", tool: "risk", label: "Risk board", tag: needsJira, tip: "Which requirements in a release are most likely to break, and how much it would hurt" },
       ],
     },
     {

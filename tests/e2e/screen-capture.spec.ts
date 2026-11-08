@@ -29,11 +29,12 @@ test("a step gets a screenshot and a screen recording", async ({ page }) => {
   await page.getByRole("button", { name: "Create and test now" }).click();
   await expect(page.getByRole("heading", { name: "Sign in", level: 1 })).toBeVisible();
 
-  await page.getByRole("button", { name: "📷 Take screenshot" }).click();
+  await page.getByRole("button", { name: "📷 Screenshot" }).click();
   await page.getByRole("dialog", { name: "Pick the area to attach" }).getByRole("button", { name: "Attach whole screen" }).click();
   await expect(page.getByRole("link", { name: `${KEY}-1 case screenshot.png` })).toBeVisible();
 
-  await page.getByRole("button", { name: /Record screen for case/ }).click();
+  await page.getByRole("button", { name: "More for case" }).click();
+  await page.getByRole("menuitem", { name: /Record screen for case/ }).click();
   const bar = page.getByRole("region", { name: "Screen recording" });
   await expect(bar).toContainText("Recording for the case");
   await expect(bar).toContainText("/ 5:00");
@@ -97,7 +98,8 @@ test(`a recording still has video when ${why}`, async ({ page }) => {
 
   const refused: string[] = [];
   page.on("response", (r) => r.url().includes("/api/attachments/") && r.status() >= 400 && refused.push(`${r.status()} ${r.url()}`));
-  await page.getByRole("button", { name: /Record screen for case/ }).click();
+  await page.getByRole("button", { name: "More for case" }).click();
+  await page.getByRole("menuitem", { name: /Record screen for case/ }).click();
   const bar = page.getByRole("region", { name: "Screen recording" });
   await expect(bar).toContainText("Recording for the case");
   await page.waitForTimeout(2500);
@@ -169,7 +171,8 @@ test("the recording bar stays in sight in the bug box and on a phone", async ({ 
   await dialog.getByRole("button", { name: "Close" }).click();
 
   // 2. Recording on the case, then Report a bug: the case's bar is in the box and stops from there.
-  await page.getByRole("button", { name: /Record screen for case/ }).click();
+  await page.getByRole("button", { name: "More for case" }).click();
+  await page.getByRole("menuitem", { name: /Record screen for case/ }).click();
   await expect(page.getByRole("region", { name: "Screen recording" })).toContainText("Recording for the case");
   await page.getByRole("button", { name: "Report bug for case" }).click();
   const caseBar = dialog.getByRole("region", { name: "Screen recording" });
@@ -185,7 +188,8 @@ test("the recording bar stays in sight in the bug box and on a phone", async ({ 
 
   // 3. Phone: the bar sits above the menu bar and Save can scroll clear of it.
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("button", { name: /Record screen for case/ }).click();
+  await page.getByRole("button", { name: "More for case" }).click();
+  await page.getByRole("menuitem", { name: /Record screen for case/ }).click();
   const bar = page.getByRole("region", { name: "Screen recording" });
   await expect(bar).toBeVisible();
   const menu = (await page.locator("nav.fp-bar.fixed").boundingBox())!;
@@ -218,7 +222,7 @@ test("drag a box to attach just one area of the screenshot", async ({ page }) =>
 
   // Esc cancels: nothing is attached.
   const picker = page.getByRole("dialog", { name: "Pick the area to attach" });
-  await page.getByRole("button", { name: "📷 Take screenshot" }).click();
+  await page.getByRole("button", { name: "📷 Screenshot" }).click();
   await expect(picker).toContainText("Drag a box around the part you want");
   await expect(picker.getByRole("button", { name: "Attach whole screen" })).toBeFocused();
   await page.keyboard.press("Escape");
@@ -226,7 +230,7 @@ test("drag a box to attach just one area of the screenshot", async ({ page }) =>
   await expect(page.getByRole("link", { name: `${key}-1 case screenshot.png` })).toHaveCount(0);
 
   // A stray click isn't a box; a real drag is, and Redo clears it.
-  await page.getByRole("button", { name: "📷 Take screenshot" }).click();
+  await page.getByRole("button", { name: "📷 Screenshot" }).click();
   const shot = picker.locator("canvas");
   await expect(shot).toBeVisible();
   const r = (await shot.boundingBox())!;

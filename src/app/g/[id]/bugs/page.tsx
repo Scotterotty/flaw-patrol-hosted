@@ -151,7 +151,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
         {chip(showAll ? "Open and closed" : "Open", !showAll, link({ all: showAll ? undefined : "1" }))}
         {sp.jira === "local" && chip("Not in Jira", true, link({ jira: undefined }))}
         {sp.sev === "critical" ? chip("Critical only", true, link({ sev: undefined })) : chip("Critical", false, link({ sev: "critical" }))}
-        {chip("Written on its own", sp.from === "own", link({ from: sp.from === "own" ? undefined : "own" }))}
+        {chip("Not from a run", sp.from === "own", link({ from: sp.from === "own" ? undefined : "own" }))}
         {latestRc && chip(latestRc, sp.rc === latestRc, link({ rc: sp.rc === latestRc ? undefined : latestRc }))}
         {(versions.length > 0 || sp.version) && (
           <AutoFilterForm>
@@ -208,7 +208,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
                     <td className="px-4 py-2.5">
                       {isWritten(d.layout) && (
                         <span className="float-right ml-2 rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-medium text-accent-700" data-testid="written-chip">
-                          Written on its own
+                          Not from a run
                         </span>
                       )}
                       {d.externalUrl ? (

@@ -109,3 +109,35 @@ export function HashRedirect({ to }: { to: string }) {
   }, [to]);
   return null;
 }
+
+/**
+ * Rows someone can only look at, folded under one line (Monday audit: Members saw a long list
+ * of settings they couldn't change). Opens by itself when the address names one of its rows.
+ */
+export function FoldedRows({ title, sub, hashes, children }: { title: string; sub: string; hashes: string[]; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const check = () => hashes.includes(window.location.hash.slice(1)) && setOpen(true);
+    check();
+    window.addEventListener("hashchange", check);
+    return () => window.removeEventListener("hashchange", check);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hashes.join(" ")]);
+  return (
+    <li data-testid="team-setup">
+      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50" data-howto="settings-team-setup">
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5 font-medium text-slate-900">
+            {title}
+            <svg aria-hidden viewBox="0 0 10 6" className={`size-2.5 flex-none transition-transform motion-reduce:transition-none ${open ? "rotate-180 text-accent-700" : "text-slate-400"}`}>
+              <path d="M0 0h10L5 6z" fill="currentColor" />
+            </svg>
+          </span>
+          <span className="block text-sm text-slate-500">{sub}</span>
+        </span>
+        <span className="text-sm text-accent-700">{open ? "Hide" : "Show"}</span>
+      </button>
+      {open && <ul className="divide-y divide-slate-100 border-t border-slate-100 bg-slate-50/50">{children}</ul>}
+    </li>
+  );
+}

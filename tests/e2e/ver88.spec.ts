@@ -124,7 +124,8 @@ test("the bug box's + Add menu brings in other steps' files, takes a screenshot 
   // A screenshot on step 1, pasted in as a file.
   await page.getByRole("group", { name: "Step 1 status" }).getByRole("button", { name: "Failed" }).click();
   const chooser = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: "Attach file" }).first().click();
+  await page.getByRole("button", { name: "More for step 1" }).click();
+  await page.getByRole("menuitem", { name: "Attach a file or log", exact: true }).click();
   await (await chooser).setFiles({ name: "cart-empty.png", mimeType: "image/png", buffer: PNG });
   await expect(page.getByRole("link", { name: "cart-empty.png" })).toBeVisible();
 

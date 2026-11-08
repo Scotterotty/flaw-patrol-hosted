@@ -5,7 +5,7 @@ import { signIn } from "./auth";
 // Write a bug (Scott, Nov 4 2026): a bug that isn't from a test case, run or bug bash.
 // + Write a bug on the Bugs page, on Overview, as a + next to Bugs in the left menu and in
 // Ctrl+K. Plain or one of the team's templates; it saves on the Bugs page with a
-// "Written on its own" chip, and the filter finds it.
+// "Not from a run" chip, and the filter finds it.
 
 const TAG = Date.now().toString(36).slice(-4).toUpperCase();
 const KEY = `WB${TAG}`;
@@ -66,7 +66,7 @@ test("write a bug from Overview and the left menu, with Plain or a template", as
   // ?write=1 comes off, so a refresh doesn't open the box again.
   await expect(page).not.toHaveURL(/write=1/);
   const row = page.locator("tr").filter({ hasText: "Settings icon is blurry on big screens" });
-  await expect(row.getByTestId("written-chip")).toHaveText("Written on its own");
+  await expect(row.getByTestId("written-chip")).toHaveText("Not from a run");
   await expect(row.getByTestId("bug-found-in")).toHaveText("Version 1.4.2");
   await expect(row).not.toContainText("Not linked to a result yet");
 

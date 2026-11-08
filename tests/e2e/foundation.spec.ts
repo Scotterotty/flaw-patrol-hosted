@@ -99,7 +99,7 @@ test("foundation milestone end to end", async ({ page, context }) => {
   // Invite a tester; with open permissions (ver_96) testers can edit and import cases
   await page.goto(`/p/${KEY}/settings`);
   const testerEmail = `tester-${run.toLowerCase()}@example.com`;
-  await page.getByLabel("Add someone by email").fill(testerEmail);
+  await page.getByLabel("Add people by email").fill(testerEmail);
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByText(testerEmail, { exact: true })).toBeVisible();
 

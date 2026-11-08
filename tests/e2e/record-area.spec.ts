@@ -67,7 +67,8 @@ test("Record an area records only the box, and remembers it next time", async ({
   await openCase(page, KEY);
   const full = await page.evaluate(() => ({ w: window.innerWidth * devicePixelRatio, h: window.innerHeight * devicePixelRatio }));
 
-  await page.getByRole("button", { name: AREA }).first().click();
+  await page.getByRole("button", { name: "More for case" }).click();
+  await page.getByRole("menuitem", { name: AREA }).click();
   const picker = page.getByTestId("area-picker");
   await expect(picker).toContainText("Drag a box around the part to record. Only the box is saved.");
   // Only a box will do: there's no whole-screen button, and Enter with no box does nothing.
@@ -81,7 +82,9 @@ test("Record an area records only the box, and remembers it next time", async ({
   const bar = page.getByRole("region", { name: "Screen recording" });
   await expect(bar).toContainText("Recording for");
   // Only one recording at a time.
-  await expect(page.getByRole("button", { name: AREA }).first()).toBeDisabled();
+  await page.getByRole("button", { name: "More for case" }).click();
+  await expect(page.getByRole("menuitem", { name: AREA })).toBeDisabled();
+  await page.keyboard.press("Escape");
   await page.waitForTimeout(1500);
   await bar.getByRole("button", { name: "Stop and attach" }).click();
   const preview = page.getByRole("region", { name: "Recording attached" });
@@ -96,7 +99,8 @@ test("Record an area records only the box, and remembers it next time", async ({
   expect(size.h).toBeLessThan(full.h * 0.6);
 
   // Next time, last time's box is already drawn and Record this area is ready.
-  await page.getByRole("button", { name: AREA }).first().click();
+  await page.getByRole("button", { name: "More for case" }).click();
+  await page.getByRole("menuitem", { name: AREA }).click();
   await expect(page.getByTestId("area-box")).toBeVisible();
   await expect(picker.getByRole("button", { name: "Record this area" })).toBeFocused();
   // Esc cancels: nothing is recorded.
@@ -121,9 +125,11 @@ test("Record an area is grayed out where the browser can't do it", async ({ page
     delete (window as unknown as Record<string, unknown>).MediaStreamTrackGenerator;
   });
   await openCase(page, `${KEY}C`);
-  const btn = page.getByRole("button", { name: AREA }).first();
+  // Under + More since ver_199.
+  await page.getByRole("button", { name: "More for case" }).click();
+  const btn = page.getByRole("menuitem", { name: AREA });
   await expect(btn).toBeDisabled();
   await expect(btn).toHaveAttribute("title", "Record an area works in Chrome or Edge.");
   // Record screen still works as before.
-  await expect(page.getByRole("button", { name: /Record screen/ }).first()).toBeEnabled();
+  await expect(page.getByRole("menuitem", { name: /Record screen/ })).toBeEnabled();
 });

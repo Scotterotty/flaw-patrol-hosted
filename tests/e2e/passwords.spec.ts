@@ -24,7 +24,7 @@ test("passwords: first-time setup, wrong password, admin link, change", async ({
   await signIn(page, "admin@example.com", "Demo Admin");
   await standaloneProject(page, `Passwords ${run}`, KEY);
   await page.goto(`/p/${KEY}/settings`);
-  await page.getByLabel("Add someone by email").fill(member);
+  await page.getByLabel("Add people by email").fill(member);
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByText(member, { exact: true })).toBeVisible();
 

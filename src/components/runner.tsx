@@ -26,6 +26,7 @@ import { CaseFlagButton } from "./case-flag";
 import { StepText } from "./step-text";
 import { StatusChip, StatusIcon } from "./status";
 import { Button, buttonClass, cx, ErrorText, Textarea } from "./ui";
+import { MoreMenu } from "./more-menu";
 import { ScrollTabs } from "./scroll-tabs";
 import { RECORD_AREA_LABEL, RECORD_AREA_NO, RECORD_AREA_TIP, RecordingBar, RecordingPreview, takeScreenshot, useCaptureSupport, useScreenRecorder, type Finished } from "./screen-capture";
 import { CloseRunButton } from "./run-actions";
@@ -670,29 +671,44 @@ export function Runner({
     setPreview(null);
     void recorder.start({ stepIndex: i, label: i === null ? "for the case" : `for ${stepLabel(i)}`, baseName: captureName(i), area });
   };
+  // A failed step shows Report bug, Screenshot and + More (Monday audit): the rarer tools
+  // (attach a file or log, record screen, record an area) sit one click away under + More.
+  const attachTo = (i: number | null) => {
+    uploadStep.current = i;
+    fileInput.current?.click();
+  };
   const captureButtons = (i: number | null) => (
     <>
       <Button size="sm" disabled={!capture.ok || uploading || runClosed} title={capture.ok ? `Pick a tab, window or screen, then attach all of it or drag a box around just one part, to ${stepLabel(i)}` : capture.why} onClick={() => void screenshot(i)} data-howto="runner-screenshot">
-        📷 Take screenshot
+        📷 Screenshot
       </Button>
-      <Button
-        size="sm"
-        disabled={!capture.ok || runClosed || recorder.rec !== null || recorder.picking}
-        title={capture.ok ? `Record a tab, window or screen for up to 5 minutes and attach the video to ${stepLabel(i)}` : capture.why}
-        onClick={() => record(i)}
-        data-howto="runner-record"
-      >
-        <span aria-hidden className="text-red-600">●</span> {i === null ? "Record screen for case" : "Record screen"}
-      </Button>
-      <Button
-        size="sm"
-        disabled={!capture.ok || !capture.area || runClosed || recorder.rec !== null || recorder.picking}
-        title={!capture.ok ? capture.why : capture.area ? RECORD_AREA_TIP : RECORD_AREA_NO}
-        onClick={() => record(i, true)}
-        data-howto="runner-record-area"
-      >
-        <span aria-hidden>🔲</span> {RECORD_AREA_LABEL}
-      </Button>
+      <MoreMenu label="+ More" size="sm" ariaLabel={i === null ? "More for case" : `More for ${stepLabel(i)}`} title="Attach a file or log, or record your screen" howto={i === null ? "runner-more-case" : "runner-more"}>
+        <button type="button" role="menuitem" className={buttonClass("ghost", "sm")} disabled={uploading || runClosed} onClick={() => attachTo(i)} data-howto={i === null ? "runner-attach" : "runner-attach-step"}>
+          {uploading ? "Uploading…" : i === null ? "Attach a file or log to case" : "Attach a file or log"}
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          className={buttonClass("ghost", "sm")}
+          disabled={!capture.ok || runClosed || recorder.rec !== null || recorder.picking}
+          title={capture.ok ? `Record a tab, window or screen for up to 5 minutes and attach the video to ${stepLabel(i)}` : capture.why}
+          onClick={() => record(i)}
+          data-howto="runner-record"
+        >
+          <span aria-hidden className="text-red-600">●</span> {i === null ? "Record screen for case" : "Record screen"}
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          className={buttonClass("ghost", "sm")}
+          disabled={!capture.ok || !capture.area || runClosed || recorder.rec !== null || recorder.picking}
+          title={!capture.ok ? capture.why : capture.area ? RECORD_AREA_TIP : RECORD_AREA_NO}
+          onClick={() => record(i, true)}
+          data-howto="runner-record-area"
+        >
+          <span aria-hidden>🔲</span> {RECORD_AREA_LABEL}
+        </button>
+      </MoreMenu>
     </>
   );
 
@@ -1259,16 +1275,6 @@ export function Runner({
                         <Button size="sm" variant={s === "FAILED" ? "primary" : "secondary"} onClick={() => setBugFor(i)} disabled={runClosed} data-howto="runner-report-bug">
                           {jiraConnected ? "Report bug in Jira" : "Report bug"}
                         </Button>
-                        <Button
-                          size="sm"
-                          disabled={uploading || runClosed}
-                          onClick={() => {
-                            uploadStep.current = i;
-                            fileInput.current?.click();
-                          }}
-                        >
-                          {uploading ? "Uploading…" : "Attach file"}
-                        </Button>
                         {captureButtons(i)}
                         {stepDefects.map((d) => (
                           <DefectChip key={d.defect.id} d={d.defect} onRemove={() => setDefects((all) => all.filter((x) => x !== d))} />
@@ -1407,17 +1413,6 @@ export function Runner({
           <div className="flex flex-wrap items-start gap-2">
             <Button size="sm" onClick={() => setBugFor(null)} disabled={runClosed}>
               Report bug for case
-            </Button>
-            <Button
-              size="sm"
-              disabled={uploading || runClosed}
-              onClick={() => {
-                uploadStep.current = null;
-                fileInput.current?.click();
-              }}
-              data-howto="runner-attach"
-            >
-              Attach file to case
             </Button>
             {captureButtons(null)}
           </div>

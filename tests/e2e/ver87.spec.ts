@@ -39,7 +39,7 @@ test("invite message, Test cycles label, roomier runner, underlined links and Sk
   const setup = page.getByRole("listitem").filter({ hasText: "Invite your team" });
   await expect(setup.getByRole("link", { name: "Invite" })).toHaveAttribute("href", /\/settings#members$/);
   await setup.getByRole("link", { name: "Invite" }).click();
-  await page.getByLabel("Add someone by email").fill(`lee.${TAG.toLowerCase()}@acme.test`);
+  await page.getByLabel("Add people by email").fill(`lee.${TAG.toLowerCase()}@acme.test`);
   await page.getByRole("combobox", { name: "Role", exact: true }).selectOption("LEAD");
   await page.getByRole("button", { name: "Add", exact: true }).click();
   const note = page.getByRole("status").filter({ hasText: "was added as Lead" });

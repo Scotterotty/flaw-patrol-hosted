@@ -10,7 +10,7 @@ test("step results show up live, merge, and a part-done case saves as In progres
   await standaloneProject(a, `Live steps ${KEY}`, KEY);
   const testerEmail = `pair-${KEY.toLowerCase()}@example.com`;
   await a.goto(`/p/${KEY}/settings`);
-  await a.getByLabel("Add someone by email").fill(testerEmail);
+  await a.getByLabel("Add people by email").fill(testerEmail);
   await a.getByRole("button", { name: "Add", exact: true }).click();
   await expect(a.getByText(testerEmail, { exact: true })).toBeVisible();
 

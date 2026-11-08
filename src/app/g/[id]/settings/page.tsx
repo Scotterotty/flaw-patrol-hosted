@@ -6,7 +6,7 @@ import { parseRunKinds } from "@/lib/run-kinds";
 import { parseRunFields } from "@/lib/run-fields";
 import { DEFAULT_STORIES, parseStoriesConfig, requirementSource, requirementTypes } from "@/lib/stories-config";
 import { notFound } from "next/navigation";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { EditGroupButton, type GroupChoice } from "@/components/group-dialogs";
 import { Card, PageHeader } from "@/components/ui";
 import { AddUmbrellaProject } from "@/components/umbrella-add-project";
@@ -22,7 +22,7 @@ import { digestCardData } from "@/lib/digest-data";
 import { digestSummary, parseDigestSettings } from "@/lib/digest-settings";
 import { RegressionPanel } from "@/components/regression-settings";
 import { COMPARE_MODES, parseRegressionSettings } from "@/lib/regression";
-import { ExpandRow, SettingsRows } from "@/components/settings-row";
+import { ExpandRow, FoldedRows, SettingsRows } from "@/components/settings-row";
 import { AutomationFilesPanel } from "@/components/automation-storage";
 import { mb, parseFileSettings } from "@/lib/automation-files";
 import { storageUsage } from "@/lib/automation-storage";
@@ -334,29 +334,11 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
     return { key: p.key, id: p.id, archived: archivedAlone, name: p.name.startsWith(`${name} `) ? p.name.slice(name.length + 1) : p.name, fullName: p.name, color: platformColor(u.platforms, p.platform), older: u.older.some((o) => o.id === p.id), team, jira: jiraChip, slack: slackChip, panel };
   });
 
-  return (
-    <div className="mx-auto max-w-4xl">
-      <PageHeader
-        title="Settings"
-        subtitle={on("runs") ? `${name} and its test cycles` : `Everything ${name} uses`}
-        actions={
-          groupManager ? <EditGroupButton group={u.group} choices={choices} label="Name and test cycles" umbrella /> : undefined
-        }
-      />
-      {!seesMembers && <AskAdminLine admins={askAdmins} className="-mt-2 mb-4" />}
-      {on("runs") && (
-      <p className="mb-5 flex items-start gap-2 rounded-lg bg-accent-50 px-4 py-2.5 text-sm text-accent-700" data-testid="settings-scope">
-        <UmbrellaIcon className="mt-0.5 size-4 flex-none" />
-        <span>
-          Changes here apply to <b>every test cycle in {name}</b>. The <b>Test cycles</b> table below shows any that are set differently.
-        </span>
-      </p>
-      )}
-      <div>
-        <Card>
-          <h2 className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-900">Set once for {name}</h2>
-          <ul className="divide-y divide-slate-100">
-            <SettingsRows>
+  // Members' Settings (Monday audit): rows they can only look at fold under "Team setup · Admins
+  // change these", so what they can change (and Your account, moved to the top) comes first.
+  const setOnce: { id: string; change: boolean; node: ReactNode }[] = [
+    { id: "tools", change: u.role === "ADMIN" && !u.group.archivedAt, node: (
+      <Fragment key="tools">
             <ExpandRow
               id="tools"
               howto="settings-tools"
@@ -367,6 +349,10 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             >
               <ToolsPanel groupId={u.group.id} umbrella={name} tools={u.tools} canEdit={u.role === "ADMIN" && !u.group.archivedAt} counts={holdings} jira={jira?.jiraProjectKey ?? null} />
             </ExpandRow>
+      </Fragment>
+    ) },
+    { id: "jira", change: manage, node: (
+      <Fragment key="jira">
             {manage ? (
               <ExpandRow
                 id="jira"
@@ -393,6 +379,10 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                 action={jira ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">✓ Connected</span> : null}
               />
             )}
+      </Fragment>
+    ) },
+    { id: "templates", change: canTemplates, node: (
+      <Fragment key="templates">
             <ExpandRow id="bug-templates" howto="settings-bug-templates" hashes={["bug-templates", "template", "import-template"]} title="Bug templates" text={templatesText} label={canTemplates ? "Change" : "Open"}>
               <BugTemplatesSettings
                 projectId={u.hub.id}
@@ -405,6 +395,10 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                 currentPanel={manage && jira ? <BugTemplatePanel projectId={u.hub.id} template={template} jiraProjectKey={jira.jiraProjectKey} tokenReadable={canOpen(jira.tokenEncrypted)} shared={shared} /> : null}
               />
             </ExpandRow>
+      </Fragment>
+    ) },
+    { id: "stories", change: manage, node: (
+      <Fragment key="stories">
             {!on("stories") ? null : manage && jira ? (
               <ExpandRow id="stories" howto="settings-requirements" hashes={["stories"]} title="Requirements" text={storiesText} label="Change">
                 <StoriesPanel projectId={u.hub.id} stories={parseStoriesConfig(jira.stories)} bugProject={jira.jiraProjectKey} />
@@ -412,6 +406,10 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             ) : (
               <Row title="Requirements" text={storiesText} />
             )}
+      </Fragment>
+    ) },
+    { id: "fields", change: can(u.who, "umbrella:fields"), node: (
+      <Fragment key="fields">
             {on("runs") && (
             <ExpandRow howto="settings-run-fields"
               id="run-fields"
@@ -423,6 +421,10 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               <RunFieldsPanel groupId={u.group.id} umbrella={name} fields={runFields} canEdit={can(u.who, "umbrella:fields") && !u.group.archivedAt} />
             </ExpandRow>
             )}
+      </Fragment>
+    ) },
+    { id: "kinds", change: can(u.who, "umbrella:fields"), node: (
+      <Fragment key="kinds">
             {on("runs") && (
             <ExpandRow howto="settings-run-kinds"
               id="run-kinds"
@@ -434,6 +436,10 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               <RunKindsPanel groupId={u.group.id} umbrella={name} kinds={runKinds} suites={kindSuites} canEdit={can(u.who, "umbrella:fields") && !u.group.archivedAt} newSuiteHref={can(u.who, "suite:manage") ? `/p/${u.hub.key}/suites/new` : undefined} />
             </ExpandRow>
             )}
+      </Fragment>
+    ) },
+    { id: "crowns", change: can(u.who, "umbrella:manage"), node: (
+      <Fragment key="crowns">
             {on("quest") && (
             <ExpandRow
               id="crowns"
@@ -445,6 +451,10 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               <CrownNamesPanel groupId={u.group.id} platforms={u.platforms} canEdit={can(u.who, "umbrella:manage") && !u.group.archivedAt} />
             </ExpandRow>
             )}
+      </Fragment>
+    ) },
+    { id: "slack", change: manage, node: (
+      <Fragment key="slack">
             <ExpandRow
               id="slack"
               howto="settings-slack"
@@ -455,9 +465,17 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             >
               <SlackCard target={{ groupId: u.group.id }} channels={slack} canManage={manage} tip={`Post to Slack when something needs the team's eyes. Each channel picks its own alerts. Every ${name} test cycle follows these channels unless its own Settings change that.`} />
             </ExpandRow>
+      </Fragment>
+    ) },
+    { id: "digests", change: manage, node: (
+      <Fragment key="digests">
             <ExpandRow id="email-digests" howto="settings-digests" hashes={["email-digests"]} title="Email digests" text={digest.summary} label={manage ? (digest.settings.on ? "Change" : "Set up") : "View"}>
               <DigestCard target={{ groupId: u.group.id }} data={digest} canManage={manage && !u.group.archivedAt} team={name} isAdmin={user.isAdmin} />
             </ExpandRow>
+      </Fragment>
+    ) },
+    { id: "sentry", change: manage, node: (
+      <Fragment key="sentry">
             <ExpandRow howto="settings-sentry"
               id="sentry"
               hashes={["sentry"]}
@@ -473,6 +491,10 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                 saved={sentry && { baseUrl: sentry.baseUrl, org: sentry.org, connectedAs: sentry.connectedAs, projects: projectsOfSentry(sentry.projects), environment: sentry.environment, buildField: sentry.buildField, onlyTester: sentry.onlyTester, tokenReadable: canOpen(sentry.tokenEncrypted) }}
               />
             </ExpandRow>
+      </Fragment>
+    ) },
+    { id: "github", change: manage, node: (
+      <Fragment key="github">
             {!on("auto") ? null : manage ? (
               <ExpandRow
                 id="github"
@@ -489,6 +511,10 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             ) : (
               <Row title="GitHub" text={githubText} action={githubStatus} />
             )}
+      </Fragment>
+    ) },
+    { id: "ci", change: manage, node: (
+      <Fragment key="ci">
             {!on("auto") ? null : manage ? (
               <ExpandRow id="ci-uploads" howto="settings-ci" hashes={["ci-uploads"]} title="CI uploads" text={ciText} label={ciTokens.length ? "Manage" : "Set up"}>
                 <CiUploadsPanel
@@ -508,6 +534,10 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
             ) : (
               <Row title="CI uploads" text={ciText} />
             )}
+      </Fragment>
+    ) },
+    { id: "qase", change: manage, node: (
+      <Fragment key="qase">
             {on("runs") && (
               <ExpandRow howto="settings-qase"
                 id="qase"
@@ -527,6 +557,10 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                 />
               </ExpandRow>
             )}
+      </Fragment>
+    ) },
+    { id: "media", change: can(u.who, "run:manage"), node: (
+      <Fragment key="media">
             {on("auto") && (
             <ExpandRow howto="settings-media"
               id="automation-files"
@@ -538,6 +572,10 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               <AutomationFilesPanel groupId={u.group.id} settings={fileSettings} usage={usage} canEdit={can(u.who, "run:manage") && !u.group.archivedAt} />
             </ExpandRow>
             )}
+      </Fragment>
+    ) },
+    { id: "regression", change: can(u.who, "run:manage"), node: (
+      <Fragment key="regression">
             {on("runs") && (
             <ExpandRow howto="settings-regression"
               id="regression"
@@ -549,6 +587,10 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               <RegressionPanel groupId={u.group.id} settings={reg} canEdit={can(u.who, "run:manage") && !u.group.archivedAt} />
             </ExpandRow>
             )}
+      </Fragment>
+    ) },
+    { id: "members", change: true, node: (
+      <Fragment key="members">
             {seesMembers && (
             <ExpandRow
               id="members"
@@ -569,6 +611,47 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                 members={members.map((m) => ({ userId: m.userId, email: m.user.email, name: m.user.name, role: m.role, signedIn: !!m.user.lastLoginAt, hasPassword: !!m.user.passwordSetAt, avatarAt: m.user.avatarAt, inviteSentAt: invites.sent.get(m.userId) ?? null, inviteUntil: invites.until.get(m.userId) ?? null, ...badgeOf(m.user) }))}
               />
             </ExpandRow>
+            )}
+      </Fragment>
+    ) },
+  ];
+  const lookOnly = setOnce.filter((r) => !r.change);
+  const foldLookOnly = !manage && lookOnly.length > 0;
+
+  return (
+    <div className="mx-auto max-w-4xl">
+      <PageHeader
+        title="Settings"
+        subtitle={on("runs") ? `${name} and its test cycles` : `Everything ${name} uses`}
+        actions={
+          groupManager ? <EditGroupButton group={u.group} choices={choices} label="Name and test cycles" umbrella /> : undefined
+        }
+      />
+      {!seesMembers && <AskAdminLine admins={askAdmins} className="-mt-2 mb-4" />}
+      {/* Your account first for people who mostly look here (Monday audit). */}
+      {foldLookOnly && (
+        <div className="mb-5">
+          <OtherSettings admin={user.isAdmin} />
+        </div>
+      )}
+      {on("runs") && (
+      <p className="mb-5 flex items-start gap-2 rounded-lg bg-accent-50 px-4 py-2.5 text-sm text-accent-700" data-testid="settings-scope">
+        <UmbrellaIcon className="mt-0.5 size-4 flex-none" />
+        <span>
+          Changes here apply to <b>every test cycle in {name}</b>. The <b>Test cycles</b> table below shows any that are set differently.
+        </span>
+      </p>
+      )}
+      <div>
+        <Card>
+          <h2 className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-900">Set once for {name}</h2>
+          <ul className="divide-y divide-slate-100">
+            <SettingsRows>
+            {foldLookOnly ? setOnce.filter((r) => r.change).map((r) => r.node) : setOnce.map((r) => r.node)}
+            {foldLookOnly && (
+              <FoldedRows title="Team setup · Admins change these" sub={lookOnly.length === 1 ? "1 setting you can look at" : `${lookOnly.length} settings you can look at`} hashes={["tools", "jira", "stories", "slack", "email-digests", "sentry", "github", "ci-uploads", "qase"]}>
+                {lookOnly.map((r) => r.node)}
+              </FoldedRows>
             )}
             </SettingsRows>
           </ul>
@@ -595,9 +678,11 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
           <ArchiveCard data={archive} />
         </div>
       )}
-      <div className="mt-5">
-        <OtherSettings admin={user.isAdmin} />
-      </div>
+      {!foldLookOnly && (
+        <div className="mt-5">
+          <OtherSettings admin={user.isAdmin} />
+        </div>
+      )}
     </div>
   );
 }

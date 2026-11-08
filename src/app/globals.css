@@ -1061,8 +1061,9 @@ main:focus {
   outline: none;
 }
 
-/* Keyboard hints mean nothing on a phone or tablet with no keyboard (ver_89). */
-@media (hover: none) and (pointer: coarse) {
+/* Keyboard hints mean nothing on a phone or tablet with no keyboard (ver_89). Some phones say
+ * they can hover, so a touch screen or a phone-width window is enough (Monday audit). */
+@media (pointer: coarse), (max-width: 639px) {
   .fp-keyhint {
     display: none;
   }

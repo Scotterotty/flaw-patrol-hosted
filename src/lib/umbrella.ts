@@ -191,7 +191,7 @@ const loadUmbrellaOnce = cache(async (groupId: string, userId: string, isAdmin: 
   const live = (p: (typeof projects)[number]) => !p.archivedAt || (!!group.archivedAt && p.archivedWithUmbrella);
   const { current, older } = splitCycles(projects, live, platforms.map((p) => p.name));
   const ids = [hub.id, ...projects.map((p) => p.id)];
-  const [cases, charters, suites, shared, personas, activeRuns, openBugs, repos, liveBash] = await Promise.all([
+  const [cases, charters, suites, shared, personas, activeRuns, openBugs, repos, liveBash, jiraRows] = await Promise.all([
     // Charters have their own page since ver_93, so the Case library counts only cases.
     db.testCase.count({ where: { projectId: hub.id, archived: false, type: { not: "EXPLORATORY" } } }),
     db.testCase.count({ where: { projectId: hub.id, archived: false, type: "EXPLORATORY", ...NOT_BASH_CASE } }),
@@ -202,8 +202,10 @@ const loadUmbrellaOnce = cache(async (groupId: string, userId: string, isAdmin: 
     openBugCount(ids),
     db.gitHubRepo.count({ where: { groupId } }),
     liveBashOf(hub.id),
+    // Jira lives on the hub; until it's connected, Requirements and Risk board say "Needs Jira" in the menu.
+    db.jiraConfig.count({ where: { projectId: hub.id } }),
   ]);
-  return { group, hub, role, who, platforms, projects, current, older, live: liveBash, tools: toolsOn(group.tools), counts: { cases, charters, suites, shared, personas, activeRuns, openBugs, repos } };
+  return { group, hub, role, who, platforms, projects, current, older, live: liveBash, jira: jiraRows > 0, tools: toolsOn(group.tools), counts: { cases, charters, suites, shared, personas, activeRuns, openBugs, repos } };
 });
 export type Umbrella = NonNullable<Awaited<ReturnType<typeof loadUmbrella>>>;
 
@@ -238,6 +240,8 @@ export type UmbrellaNav = {
   canTools: boolean;
   /** Can write bugs here: Bugs in the menu gets a + for Write a bug. */
   canBug: boolean;
+  /** Jira is connected: without it, Requirements and Risk board are tagged "Needs Jira". */
+  jira?: boolean;
   /** The test cycle you're in, when the menu is shown on one of its pages. */
   cycle?: { key: string; name: string; color: string; older: boolean; ownCases: number; quests: boolean };
 };
@@ -261,6 +265,7 @@ export function navOf(u: Umbrella): UmbrellaNav {
     tools: u.tools,
     canTools: u.role === "ADMIN" && !u.group.archivedAt,
     canBug: can(u.who, "run:execute") && !u.group.archivedAt,
+    jira: u.jira,
   };
 }
 

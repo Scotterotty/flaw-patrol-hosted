@@ -75,12 +75,11 @@ test("Create a run opens blank: Use it, Use the release, a typed CSP version and
   await expect(box.getByTestId("cant-find")).toContainText("1 archived case is hidden");
   await expect(box.getByTestId("cant-find")).toContainText("[UNITY] or [WEB]");
 
-  // The release is offered from the ticked test cycle; the name is gray until typed.
+  // The release fills itself in from the ticked test cycle (ver_199); the name is gray until typed.
   await box.getByRole("checkbox", { name: `Demo RC 1 ${TAG}` }).check();
   await expect(todo).toContainText(`Goes in Demo RC 1 ${TAG}`);
-  await expect(box.getByLabel("Release", { exact: true })).toHaveValue("");
-  await box.getByTestId("release-suggest").getByRole("button", { name: "Use Demo RC 1" }).click();
   await expect(box.getByLabel("Release", { exact: true })).toHaveValue("Demo RC 1");
+  await expect(box.getByTestId("release-from-cycle")).toContainText(`From Demo RC 1 ${TAG}.`);
   await expect(box.getByLabel("Run name (optional)")).toHaveValue("");
   await expect(box.getByLabel("Run name (optional)")).toHaveAttribute("placeholder", /^Smoke test /);
   // A pick list takes a typed value.

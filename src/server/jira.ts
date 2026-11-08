@@ -1127,7 +1127,7 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
     answers = answers.map((a) => withFileNames(a, allFiles.map((f) => f.fileName)));
     const summary = layoutTitle(layout.title, { platform: data.platform, area: data.area, build: data.build, summary: data.summary });
     const notes = data.notes.filter((n) => n.text.trim());
-    // A written bug (no run entry) is marked in its saved layout, for the "Written on its own" chip.
+    // A written bug (no run entry) is marked in its saved layout, for the "Not from a run" chip.
     const keep = { templateName: name, layout: (entryId ? layout : { ...layout, written: true }) as unknown as Prisma.InputJsonValue, answers: answers as unknown as Prisma.InputJsonValue, description: [answersText(answers), ...notes.map((n) => `${n.name}\n${n.text}`)].filter(Boolean).join("\n\n").slice(0, 60000) };
     const client = data.jira || local ? await jiraFor(projectId) : null;
     if (!client) {

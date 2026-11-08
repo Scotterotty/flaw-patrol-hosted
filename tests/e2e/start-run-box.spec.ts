@@ -95,10 +95,9 @@ test("one Create a run box: whole library, a suite or picked cases, in one or mo
   await expect(box.getByRole("checkbox", { name: `${NAME} Unity RC4` })).toBeChecked();
   await expect(box.getByRole("checkbox", { name: `${NAME} Web RC4` })).not.toBeChecked();
   await expect(box.getByTestId("run-todo")).toContainText("3 cases");
-  // ver_99: the release is offered, not filled in.
-  await expect(box.getByLabel("Release", { exact: true })).toHaveValue("");
-  await box.getByRole("button", { name: "Use RC4" }).click();
+  // ver_199: the release fills itself in from the ticked test cycle.
   await expect(box.getByLabel("Release", { exact: true })).toHaveValue("RC4");
+  await expect(box.getByTestId("release-from-cycle")).toHaveText(`From ${NAME} Unity RC4. Change it if this run tests something else.`);
   await box.getByRole("button", { name: /^Create (run|smoke test)$/ }).click();
   await expect(page).toHaveURL(/\/runs\/2$/);
 

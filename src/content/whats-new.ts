@@ -22,6 +22,39 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 199,
+    date: "2026-11-07",
+    items: [
+      {
+        kind: "better",
+        title: "Sign in goes straight to your umbrella",
+        text: "If you're in only one umbrella, signing in opens it. In two or more, you still get the Umbrellas list.",
+      },
+      {
+        kind: "better",
+        title: "A failed step shows 3 buttons, not 10",
+        text: "Under a failed step: Report bug, 📷 Screenshot and + More. Attach a file or log, Record screen and Record an area are under + More. The case result row works the same way.",
+      },
+      {
+        kind: "better",
+        title: "Create a run: Regular run first, Release filled in",
+        text: "Regular run is picked for you, and Smoke test and your own kinds are still there. Release fills itself in from the test cycle you tick, so Reports group the run by release.",
+      },
+      {
+        kind: "new",
+        title: "Invite the whole team at once",
+        text: "In Settings → Members, paste many emails (one per line, or commas) and press Add. Copy all invites makes one Slack or Teams post with each person's own link.",
+        who: "lead",
+        link: "/g/{umbrella}/settings#members",
+      },
+      {
+        kind: "better",
+        title: "\"Needs Jira\" in the menu",
+        text: "Requirements and Risk board are tagged Needs Jira until Jira is connected, so you know why they're empty. Also: the Bugs chip is now \"Not from a run\", phones hide keyboard hints, and Settings shows Your account first with the settings only Admins change folded away.",
+      },
+    ],
+  },
+  {
     version: 198,
     date: "2026-11-06",
     items: [

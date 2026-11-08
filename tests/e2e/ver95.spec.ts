@@ -62,7 +62,7 @@ test("one Create a run button: pick the kind, add a kind, make the test cycle on
 
   // + New kind… adds it and uses it at once.
   await box.getByRole("button", { name: /New kind/ }).click();
-  await box.getByLabel("Name").fill("Regression");
+  await box.getByTestId("new-kind").getByLabel("Name").fill("Regression");
   await box.getByRole("button", { name: "Add and use it" }).click();
   await expect(box.getByTestId("kind-picked")).toContainText("Regression");
 
