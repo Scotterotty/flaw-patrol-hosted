@@ -32,6 +32,7 @@ import { flakyCases } from "@/lib/flaky";
 import { RunnerHistory } from "@/components/runner-history";
 import { caseNewsForRun } from "@/lib/case-news-data";
 import { shortDate } from "@/lib/spelling";
+import { viewerZone } from "@/lib/zone-server";
 import { TakeCase } from "@/components/take-case";
 import { countStatuses, isOpen, pct, STATUS_LABEL, totals } from "@/lib/status";
 import { cx } from "@/components/ui";
@@ -66,7 +67,7 @@ export default async function ExecutePage({
   const renderedAt = Date.now();
   const { key, number } = await params;
   const sp = await searchParams;
-  const [spelling, { project, user, who }] = await Promise.all([mySpelling(), timing.step("sign-in and project", projectAccess(key))]);
+  const [spelling, zone, { project, user, who }] = await Promise.all([mySpelling(), viewerZone(), timing.step("sign-in and project", projectAccess(key))]);
   const [tagColors, run, sort, jira, members, sentryOn] = await Promise.all([
     timing.step("tags", tagColorsFor(project.id)),
     timing.step("run and its cases", db.testRun.findUnique({
@@ -148,7 +149,7 @@ export default async function ExecutePage({
   const regression = cmp
     ? {
         label: againstLabel(cmp.against),
-        when: `${cmp.against.at.toLocaleDateString(spelling === "uk" ? "en-GB" : "en-US", { month: "short", day: "numeric" })}${cmp.against.tester ? `, tested by ${cmp.against.tester}` : ""}`,
+        when: `${cmp.against.at.toLocaleDateString(spelling === "uk" ? "en-GB" : "en-US", { month: "short", day: "numeric", timeZone: zone })}${cmp.against.tester ? `, tested by ${cmp.against.tester}` : ""}`,
         passed: cmp.against.stepStatuses.map((s) => s === "PASSED"),
         resultId: cmp.against.id,
         off: cmp.off,
@@ -300,7 +301,7 @@ export default async function ExecutePage({
               }))}
             />
           </div>
-          <RunnerHistory key={entry.id} olderNote={news?.kind === "updated" ? `Runs before ${shortDate(new Date(news.at), spelling)} used the older steps.` : undefined} runs={history} summary={historySummary} projectKey={project.key} canApply={run.state !== "COMPLETED" && entry.kind !== "EXPLORATORY"} />
+          <RunnerHistory key={entry.id} olderNote={news?.kind === "updated" ? `Runs before ${shortDate(new Date(news.at), spelling, zone)} used the older steps.` : undefined} runs={history} summary={historySummary} projectKey={project.key} canApply={run.state !== "COMPLETED" && entry.kind !== "EXPLORATORY"} />
           </RunListFold>
         </div>
       </aside>

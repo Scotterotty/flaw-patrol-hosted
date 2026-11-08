@@ -405,7 +405,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           news: (() => {
             const n = news.get(e.id);
             if (!n) return undefined;
-            if (n.kind === "new") return { kind: "new" as const, why: `Added by ${n.addedBy}, ${shortDate(new Date(n.addedAt), spelling)}` };
+            if (n.kind === "new") return { kind: "new" as const, why: `Added by ${n.addedBy}, ${shortDate(new Date(n.addedAt), spelling, zone)}` };
             return {
               kind: "updated" as const,
               why: n.what,

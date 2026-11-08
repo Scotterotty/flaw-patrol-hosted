@@ -53,6 +53,11 @@ export const WHATS_NEW: WhatsNewEntry[] = [
         text: "You, How it looks, Emails I get and Just for fun. Accessibility sits right under Appearance and has a new Easy-to-read font choice. Loading spinners moved to Just for fun, and menu order and panel sizes have their own Layout card.",
         link: "/account#accessibility",
       },
+      {
+        kind: "fix",
+        title: "New-case dates are on your clock",
+        text: "A case added in the evening showed the next day's date on the run page. It now shows your own day, the same as the runner.",
+      },
     ],
   },
   {
