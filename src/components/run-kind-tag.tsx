@@ -16,7 +16,7 @@ export function RunKindTag({ kinds, kind, live = false, className }: { kinds: Ru
       {icon && <span aria-hidden>{icon}</span>}
       {kindLabel(kinds, kind)}
       {live && (
-        <span className="ml-0.5 inline-flex items-center gap-1 rounded-full bg-rose-600 px-1.5 text-[10px] font-semibold text-white">
+        <span className="ml-0.5 inline-flex items-center gap-1 rounded-full bg-rose-600 px-1.5 text-[11px] font-semibold text-white">
           <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-white" />
           Live
         </span>

@@ -63,10 +63,11 @@ function Face({ person, size, className }: { person: AvatarPerson; size: number;
     <span
       aria-hidden="true"
       title={label}
-      style={{ ...style, background: colorFor(person.id), fontSize: Math.max(9, Math.round(size * 0.4)) }}
+      style={{ ...style, background: colorFor(person.id), fontSize: Math.max(11, Math.round(size * 0.4)) }}
       className={cx("inline-flex shrink-0 items-center justify-center rounded-full font-semibold text-white select-none", className)}
     >
-      {initials(label)}
+      {/* Small faces show one letter so it can stay 11px or bigger (ver_201). */}
+      {size < 24 ? initials(label).slice(0, 1) : initials(label)}
     </span>
   );
 }

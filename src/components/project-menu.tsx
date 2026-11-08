@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { glossaryMenu } from "@/lib/glossary-data";
 import { can } from "@/lib/permissions";
 import { roleRulesFor } from "@/lib/session";
-import { liveBashOf, loadUmbrella, navOf, openBugCount, platformColor, type Umbrella } from "@/lib/umbrella";
+import { liveBashOf, loadUmbrella, navOf, openBugCount, platformColor, umbrellaOf, type Umbrella } from "@/lib/umbrella";
 
 type Viewer = { id: string; isAdmin: boolean; gameEnabled: boolean; questMap: boolean };
 type MenuProject = { id: string; key: string; name: string; groupId: string | null; platform: string };
@@ -24,7 +24,10 @@ export async function ProjectMenu({ project, user, umbrella }: { project: MenuPr
     glossaryMenu(user.id),
     umbrella ? null : project.groupId ? db.projectGroup.findUnique({ where: { id: project.groupId }, select: { id: true, name: true, hubProjectId: true } }) : null,
   ]);
-  const u = umbrella ?? (group?.hubProjectId ? await loadUmbrella(group.id, user) : null);
+  // An umbrella's library project has no groupId of its own: it is the umbrella's hub, so it gets the umbrella's menu
+  // too (on Your account and Workspace settings it used to show a "Test cycle" menu, ver_201).
+  const hubOf = umbrella || project.groupId ? null : await umbrellaOf(project);
+  const u = umbrella ?? (group?.hubProjectId ? await loadUmbrella(group.id, user) : hubOf?.isHub ? await loadUmbrella(hubOf.group.id, user) : null);
   if (u) {
     const isHub = u.hub.id === project.id;
     const nav = navOf(u);

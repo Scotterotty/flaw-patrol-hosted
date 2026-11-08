@@ -17,7 +17,7 @@ export default async function UmbrellaCustomReports({ params }: { params: Promis
   if (!u) notFound();
   const [cs, reports] = await Promise.all([umbrellaScope(u, user, ""), reportsFor(u.hub.id, user, u.who)]);
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <PageHeader title="Reports" subtitle={`Your own reports, made from parts of ${u.group.name}'s other tabs.`} />
       <ViewTabs
         label="Reports"

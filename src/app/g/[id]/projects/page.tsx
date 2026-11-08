@@ -42,7 +42,7 @@ export default async function UmbrellaProjectsPage({ params }: { params: Promise
     </li>
   );
   return (
-    <div className="mx-auto max-w-4xl space-y-5">
+    <div className="max-w-4xl space-y-5">
       <PageHeader title={`Test cycles in ${u.group.name}`} subtitle={`The newest test cycle for each platform is current, plus any pinned with 📌 Keep in Current${canPin ? " (⋯ on its row)" : ""}.`} />
       <Card>
         <h2 className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-900">Current</h2>

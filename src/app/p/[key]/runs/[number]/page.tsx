@@ -173,12 +173,12 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   const handedCases = handedTo ? run.entries.filter((e) => e.assigneeId === handedTo.id).length : 0;
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <LiveRefresh url={`/api/live/runs/${run.id}`} rows renderedAt={renderedAt} />
       <CrumbName href={`/p/${project.key}/runs/${run.number}`} label={runTitle(run, spelling)} />
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
+          <h1 className="fp-name flex items-center gap-2 text-xl tracking-tight">
             <RunName run={run} spelling={spelling} className="font-mono text-base font-normal text-slate-500" />
             {run.state === "COMPLETED" && <Badge tone="gray">Closed</Badge>}
             {!run.build.trim() && can(who, "run:create") && (

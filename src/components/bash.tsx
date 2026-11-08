@@ -937,7 +937,7 @@ export function BashBoard({ bash, openJoin = false, openFind = null }: { bash: B
               <ul className="space-y-1.5 text-sm">
                 {bash.people.slice(0, 12).map((p) => (
                   <li key={p.id} className="flex items-center gap-2">
-                    <span className="flex size-6 items-center justify-center rounded-full bg-accent-100 text-[10px] font-semibold text-accent-800">{initials(p.name)}</span>
+                    <span className="flex size-6 items-center justify-center rounded-full bg-accent-100 text-[11px] font-semibold text-accent-800">{initials(p.name)}</span>
                     <span className="min-w-0 flex-1 truncate">
                       {p.name} · {areaName(p.areaId)}
                       {p.platform && <span className="text-slate-500"> · {p.platform}</span>}

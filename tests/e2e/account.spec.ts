@@ -42,6 +42,7 @@ test("people can change their own name", async ({ page }) => {
   // Your account keeps the left menu of the project you were just in.
   await page.locator('header button[aria-haspopup="menu"]').click();
   await page.getByRole("menuitem", { name: "Your account" }).click();
-  await expect(page.locator("nav").getByRole("link", { name: "Test cases" }).first()).toHaveAttribute("href", /\/p\/.+\/cases$/);
+  // ver_201: an umbrella's library shows the umbrella's own menu (Case library), never a "Test cycle" menu.
+  await expect(page.locator("nav").getByRole("link", { name: /^(Test cases|Case library)/ }).first()).toHaveAttribute("href", /\/p\/.+\/cases$/);
   expect(errors.filter((e) => !e.includes("__webpack_require__"))).toEqual([]);
 });

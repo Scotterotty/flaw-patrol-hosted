@@ -82,7 +82,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
   const flips = flaky.get(c.id);
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <FreshVersion caseId={c.id} version={c.currentVersion} />
       <nav aria-label="Folder" className="mb-2 text-xs text-slate-500">
         {folderPath.length === 0 && "No folder"}
@@ -110,7 +110,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
             )}
             {c.archived && <Badge tone="orange">Archived</Badge>}
           </div>
-          <h1 className="mt-0.5 text-xl font-semibold tracking-tight text-slate-900">{c.title}</h1>
+          <h1 className="fp-name mt-0.5 text-xl tracking-tight text-slate-900">{c.title}</h1>
           {c.automationId && (
             <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
               <span aria-hidden>🤖</span> Automated by <code className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-700">{c.automationId}</code>

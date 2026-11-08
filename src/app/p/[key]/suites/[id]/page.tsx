@@ -105,7 +105,7 @@ export default async function SuitePage({ params, searchParams }: { params: Prom
   );
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <CrumbName href={`/p/${project.key}/suites/${suite.id}`} label={suite.name} />
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>

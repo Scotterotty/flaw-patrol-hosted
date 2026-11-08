@@ -34,7 +34,7 @@ export default async function ImportPage({ params, searchParams }: { params: Pro
   if (!umbrella?.isHub) places.push(await place(project.id, project.key, project.name, umbrella ? "cycle" : "own"));
   const start = places.find((p) => p.id === project.id) ?? places[0];
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <PageHeader title="Import test cases" subtitle="Bring existing cases in from a CSV or Excel file. Nothing is saved until you press Import." />
       <CsvImporter
         projectId={project.id}

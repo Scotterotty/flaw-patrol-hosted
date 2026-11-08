@@ -89,7 +89,7 @@ export function SatchelCard({ projectKey, items, encounters }: { projectKey: str
                     >
                       <span aria-hidden>{it.emoji}</span>
                       {it.count > 1 && (
-                        <span className="absolute -right-1.5 -bottom-1.5 rounded-full bg-slate-700 px-1 text-[10px] leading-4 font-semibold text-slate-50 tabular-nums" aria-hidden>
+                        <span className="absolute -right-1.5 -bottom-1.5 rounded-full bg-slate-700 px-1 text-[11px] leading-4 font-semibold text-slate-50 tabular-nums" aria-hidden>
                           {it.count}
                         </span>
                       )}

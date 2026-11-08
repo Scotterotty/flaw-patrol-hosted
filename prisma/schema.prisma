@@ -67,6 +67,8 @@ model User {
   seasonalMaps      Boolean         @default(true)
   // Loading spinners (src/lib/spinners.ts): the ones ticked in Account → Appearance; long waits play one at random.
   spinners          String[]        @default(["ring"])
+  // Risk board look (src/lib/risk-looks.ts): only changes how the Risk board looks for this person.
+  riskLook          String          @default("classic")
   // Quest pawn and worn gear (src/lib/quest-gear.ts): looks only, cleared with the satchel on an XP reset.
   questPawn         String          @default("classic")
   questColor        String          @default("accent") @map("questColour")

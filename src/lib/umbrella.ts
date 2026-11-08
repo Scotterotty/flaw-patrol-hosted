@@ -149,8 +149,9 @@ export function linkPath(input: string) {
   }
 }
 
-/** Dot colors for platforms, in the order they're listed (Unity blue, Unreal red, Web green…). */
-export const PLATFORM_COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#64748b"];
+/** Dot colors for platforms, in the order they're listed (blue, purple, amber…). */
+// No red or green: a red "iOS 2.1" dot read as Failed (ver_201).
+export const PLATFORM_COLORS = ["#3b82f6", "#8b5cf6", "#f59e0b", "#ec4899", "#0891b2", "#64748b", "#a855f7", "#14b8a6"];
 export function platformColor(platforms: Platform[], name: string) {
   const i = platforms.findIndex((p) => p.name.toLowerCase() === name.toLowerCase());
   return i < 0 ? "#94a3b8" : PLATFORM_COLORS[i % PLATFORM_COLORS.length];

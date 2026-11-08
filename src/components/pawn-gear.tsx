@@ -134,7 +134,7 @@ export function PawnGear({ worn, auto, nearest, owned, pawn, color, photo, unloc
                 <span className="min-w-0 text-right text-slate-800">
                   {byId(gear[s.id])?.name ?? "Empty"}
                   {gear[s.id] && autoSlots.includes(s.id) && (
-                    <span className="ml-1.5 rounded bg-accent-50 px-1 text-[10px] font-semibold text-accent-700" title="Went on by itself because the slot was empty">
+                    <span className="ml-1.5 rounded bg-accent-50 px-1 text-[11px] font-semibold text-accent-700" title="Went on by itself because the slot was empty">
                       Auto
                     </span>
                   )}
@@ -200,7 +200,7 @@ export function PawnGear({ worn, auto, nearest, owned, pawn, color, photo, unloc
                   >
                     <span aria-hidden>{it.emoji}</span>
                     {on && (
-                      <span aria-hidden className="absolute -right-1.5 -bottom-1.5 grid size-4 place-items-center rounded-full bg-accent-600 text-[10px] font-bold text-white">
+                      <span aria-hidden className="absolute -right-1.5 -bottom-1.5 grid size-[18px] place-items-center rounded-full bg-accent-600 text-[11px] font-bold text-white">
                         ✓
                       </span>
                     )}

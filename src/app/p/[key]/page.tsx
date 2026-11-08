@@ -117,7 +117,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ ke
   const quiet = [myWork.length ? "" : "your work", openBugs.length ? "" : "open bugs", flagged.length ? "" : "flagged cases", flaky.length ? "" : "flaky cases"].filter(Boolean);
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <PageHeader
         title={project.name}
         subtitle={project.description || undefined}

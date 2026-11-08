@@ -7,26 +7,55 @@ import { crumbsFor } from "@/lib/breadcrumbs";
 import { useCrumbNames } from "./crumb-name";
 import { cx } from "./ui";
 
+type Crumb = { label: string; href?: string; more?: boolean; title?: string };
+
+/**
+ * Where you are, next to the logo. On a laptop a long trail keeps the first crumb and the
+ * last two, and the ones between fold into "…" (point at it to see them). On a phone it's one
+ * back link, "‹ Test runs", instead of cut-off crumbs (ver_201).
+ */
 export function Breadcrumbs({ project }: { project?: { key: string; name: string; group?: { id: string; name: string } | null; hub?: string } }) {
-  const crumbs = crumbsFor(usePathname(), project, useCrumbNames());
+  const all: Crumb[] = crumbsFor(usePathname(), project, useCrumbNames());
+  const back = all.slice(0, -1).findLast((c) => c.href);
+  const folded = all.length > 4 ? all.slice(1, -2) : [];
+  const crumbs: Crumb[] = folded.length ? [all[0], { label: "…", href: folded.findLast((c) => c.href)?.href, more: true, title: folded.map((c) => c.label).join(" › ") }, ...all.slice(-2)] : all;
   const last = crumbs.length - 1;
   return (
     <nav aria-label="Breadcrumb" className="min-w-0">
       <ol className="flex min-w-0 items-center gap-1.5 text-sm text-slate-500">
+        {back?.href && (
+          <li className="min-w-0 truncate sm:hidden">
+            <Link href={back.href} className="font-medium text-slate-700 hover:text-slate-900 hover:underline">
+              ‹ {back.label}
+            </Link>
+          </li>
+        )}
         {crumbs.map((c, i) => (
           <Fragment key={i}>
             {i > 0 && (
-              <li aria-hidden className={cx("text-slate-300", i - 1 < last - 1 && "max-sm:hidden")}>
+              <li aria-hidden className="flex-none text-slate-300 max-sm:hidden">
                 ›
               </li>
             )}
-            <li className={cx("min-w-0 truncate", i < last && "max-w-48 shrink-[2]", i < last - 1 && "max-sm:hidden")}>
+            <li
+              className={cx(
+                "min-w-0 truncate",
+                // With a back link, a phone shows only that; with none (a top page) it shows the page name.
+                (back?.href || i < last) && "max-sm:hidden",
+                c.more ? "flex-none" : i === last ? "max-w-60 flex-none" : "max-w-56 shrink",
+              )}
+            >
               {i === last || !c.href ? (
                 <span aria-current={i === last ? "page" : undefined} className="font-medium text-slate-800">
                   {c.label}
                 </span>
               ) : (
-                <Link href={c.href} className="hover:text-slate-900 hover:underline">
+                <Link
+                  href={c.href}
+                  title={c.more ? c.title : undefined}
+                  aria-label={c.more ? `More: ${c.title}` : undefined}
+                  className="hover:text-slate-900 hover:underline"
+                >
                   {c.label}
                 </Link>
               )}

@@ -267,7 +267,7 @@ function StartBashForm({
             <span key={a.name} className="inline-flex items-center gap-1 rounded-full bg-accent-50 px-2.5 py-0.5 text-sm text-accent-800 ring-1 ring-accent-200 ring-inset" title={a.links?.map((l) => `${l.key} ${l.title}`).join(", ")}>
               {a.name}
               {a.links?.map((l) => (
-                <span key={l.key} className="rounded bg-surface px-1 text-[10px] font-semibold text-slate-600">
+                <span key={l.key} className="rounded bg-surface px-1 text-[11px] font-semibold text-slate-600">
                   {l.key}
                 </span>
               ))}

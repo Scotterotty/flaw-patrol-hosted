@@ -130,7 +130,7 @@ export function InfoTip({ text, className }: { text: string; className?: string 
       role="img"
       title={text}
       aria-label={text}
-      className={cx("inline-grid size-4 cursor-help place-items-center rounded-full border border-slate-300 align-middle text-[10px] leading-none font-semibold text-slate-500 hover:border-accent-500 hover:text-accent-700", className)}
+      className={cx("inline-grid size-[18px] cursor-help place-items-center rounded-full border border-slate-300 align-middle text-[11px] leading-none font-semibold text-slate-500 hover:border-accent-500 hover:text-accent-700", className)}
     >
       i
     </span>

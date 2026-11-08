@@ -96,6 +96,20 @@ export const HOW_TO: HowToTask[] = [
       { text: "Open **Layout** under **How it looks** to put the left menu order or panel sizes back the way they started.", see: "**Reset to default order** and **Reset panel sizes**.", target: "account-layout" },
       { text: "Under **Just for fun**, open **Loading spinners** and tick the ones you like.", see: "One of them plays at random while Flaw Patrol is busy.", target: "account-spinners" },
     ],
+    next: "risk-look",
+  },
+  {
+    id: "risk-look",
+    group: "Make it yours",
+    title: "Change how the Risk board looks",
+    sub: "Classic, Mission control, Whiteboard and more",
+    words: "risk board look style theme mission control whiteboard blueprint arcade high contrast",
+    steps: [
+      { text: "Click your name at the top right.", see: "Your account menu.", target: "top-account" },
+      { text: "Choose **Appearance and accessibility**.", see: "**Your account**, with the **Appearance** card open under **How it looks**.", target: "account-appearance" },
+      { text: "Under **Risk board look**, pick a look, like **Mission control** or **High contrast**.", see: "It saves by itself. Only your Risk board changes; everyone else keeps their own look.", target: "appearance-risk-look" },
+      { text: "Open the **Risk board** from the left menu.", see: "The same cards in your new look. Moving cards works the same.", target: "menu-risk" },
+    ],
     next: "profile",
   },
   {
@@ -950,7 +964,7 @@ export const HOW_TO: HowToTask[] = [
     steps: [
       { text: "In the left menu, under **Testing**, press **Risk board**.", see: "A 3 by 3 board: how likely to break, against how much it would hurt.", target: "menu-risk" },
       { text: "Pick a release.", see: "That release's requirements as cards.", target: "risk-release" },
-      { text: "Drag a card to the square that fits it, or click it to pick.", see: "The card in its new square, saved for everyone.", target: "risk-card" },
+      { text: "Drag a card to the square that fits it, or click it to pick. On a phone, tap a card in the list instead.", see: "The card in its new square, saved for everyone. Each square says **High risk**, **Medium risk** or **Low risk**, and cards with no test cases have a red **No tests** tag.", target: "risk-card" },
       { text: "Press **Start a bug bash** on the board.", see: "The bash box filled in with the riskiest items first.", target: "bash-start" },
     ],
     next: "reports",

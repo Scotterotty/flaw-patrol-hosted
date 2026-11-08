@@ -63,7 +63,7 @@ export function RunsInProgressList({ rows, kinds, canExecute, spelling }: { rows
             <div className="flex flex-wrap items-center justify-between gap-3">
               <span className="flex min-w-0 items-center gap-2">
                 {r.cycle && (
-                  <span aria-hidden className="grid size-6 flex-none place-items-center rounded-md text-[10px] font-semibold text-white" style={{ background: r.cycle.color }}>
+                  <span aria-hidden className="grid size-6 flex-none place-items-center rounded-md text-[11px] font-semibold text-white" style={{ background: r.cycle.color }}>
                     {r.cycle.badge}
                   </span>
                 )}

@@ -50,7 +50,7 @@ export default async function ChartersPage({ params, searchParams }: { params: P
     return `/p/${project.key}/charters${s ? `?${s}` : ""}`;
   };
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <PageHeader
         title={archived === "1" ? "Archived charters" : "Charters"}
         subtitle="Missions to explore, and the people you can pretend to be while you do."

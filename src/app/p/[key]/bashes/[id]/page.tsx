@@ -25,7 +25,7 @@ export default async function BashPage({ params, searchParams }: { params: Promi
   const myArea = view.areas.find((a) => a.id === view.me.areaId);
   const [jira, releases] = await Promise.all([jiraConfigFor(view.runProjectId).then(Boolean), guest ? [] : bashReleases(project)]);
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <CrumbName href={`/p/${view.homeKey}/bashes/${id}`} label={`Bug bash · ${view.name}`} />
       <LiveRefresh url={`/api/live/bashes/${id}`} />
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">

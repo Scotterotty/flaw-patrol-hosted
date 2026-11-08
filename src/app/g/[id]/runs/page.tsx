@@ -50,7 +50,7 @@ export default async function UmbrellaRunsPage({ params, searchParams }: { param
       include: { project: { select: { key: true, name: true } }, entries: { where: { assigneeId: user.id }, select: { status: true } } },
     });
     return (
-      <div className="mx-auto max-w-5xl">
+      <div className="max-w-5xl">
         <PageHeader title="My assigned cases" subtitle={`Cases waiting for you in ${u.group.name}'s active runs`} />
         {runs.length === 0 ? (
           <EmptyState title="Nothing waiting for you">When someone assigns you cases in an active run, they show up here.</EmptyState>
@@ -82,7 +82,7 @@ export default async function UmbrellaRunsPage({ params, searchParams }: { param
 
   const kinds = parseRunKinds(u.group.runKinds);
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="max-w-5xl">
       <PageHeader title="Test runs" subtitle={`Every run across ${u.group.name}'s test cycles, newest first`} 
         actions={
           !u.group.archivedAt && (

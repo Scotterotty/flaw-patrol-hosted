@@ -358,7 +358,7 @@ function BuildBars({ points }: { points: BuildPoint[] }) {
       </div>
       {/* Under a hand run that isn't finished: how much of it is done. */}
       {points.some((p) => p.manual && donePct(p.manual) < 100) && (
-        <div className="flex gap-1 text-[10px] font-medium text-blue-700 tabular-nums" data-testid="done-row">
+        <div className="flex gap-1 text-[11px] font-medium text-blue-700 tabular-nums" data-testid="done-row">
           {points.map((p) => (
             <span key={p.runId} className="max-w-12 min-w-0 flex-1 truncate text-center">
               {p.manual && donePct(p.manual) < 100 ? `${donePct(p.manual)}%` : ""}

@@ -56,7 +56,7 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
   const kinds = parseRunKinds(umbrella?.group.runKinds);
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <PageHeader
         title="Test runs"
         subtitle="Create a run from a test suite, or select cases in the library and run them."

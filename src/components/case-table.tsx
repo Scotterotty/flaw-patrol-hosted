@@ -234,17 +234,22 @@ export function CaseTable({
       )}
       {message && <p className="mb-2 text-sm text-slate-600">{message}</p>}
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-surface shadow-sm">
-        <table className="w-full text-sm">
+        <table className="fp-case-table w-full text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
             <tr>
               {selectable && (
-                <th className="w-8 px-3 py-2">
-                  <input
-                    type="checkbox"
-                    aria-label="Select all"
-                    checked={selected.size === rows.length && rows.length > 0}
-                    onChange={(e) => setSelected(e.target.checked ? new Set(rows.map((r) => r.id)) : new Set())}
-                  />
+                <th className="fp-c-tick w-8 px-1.5 py-1">
+                  <label className="fp-tap">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all"
+                      checked={selected.size === rows.length && rows.length > 0}
+                      onChange={(e) => setSelected(e.target.checked ? new Set(rows.map((r) => r.id)) : new Set())}
+                    />
+                    <span aria-hidden className="ml-2 text-xs font-normal sm:hidden">
+                      Select all
+                    </span>
+                  </label>
                 </th>
               )}
               <th className="w-24 px-3 py-2 font-medium">ID</th>
@@ -260,7 +265,7 @@ export function CaseTable({
               <Fragment key={r.id}>
               {rowIndex === closeStart && (
                 <tr>
-                  <td colSpan={20} className="bg-amber-50/40 px-0 py-1">
+                  <td colSpan={20} className="fp-c-full bg-amber-50/40 px-0 py-1">
                     {closeStart === 0 && <p className="px-3 pb-1 text-xs text-slate-500">No exact matches.</p>}
                     <CloseMatchesLabel />
                   </td>
@@ -280,7 +285,8 @@ export function CaseTable({
                 }}
               >
                 {selectable && (
-                  <td className="px-3 py-2">
+                  <td className="fp-c-tick px-1.5 py-1">
+                    <label className="fp-tap">
                     <input
                       type="checkbox"
                       data-howto="case-tick"
@@ -295,10 +301,11 @@ export function CaseTable({
                         })
                       }
                     />
+                    </label>
                   </td>
                 )}
-                <td className="px-3 py-2 font-mono text-xs whitespace-nowrap text-slate-500">{caseKey(projectKey, r.number)}</td>
-                <td className="px-3 py-2">
+                <td className="fp-c-id px-3 py-2 font-mono text-xs whitespace-nowrap text-slate-500">{caseKey(projectKey, r.number)}</td>
+                <td className="fp-c-title px-3 py-2">
                   <span className="flex items-start gap-1.5">
                     {r.tags.length > 0 && (
                       <span className="flex flex-none gap-1 pt-0.5">
@@ -352,7 +359,7 @@ export function CaseTable({
                     </span>
                   </td>
                 )}
-                <td className="px-3 py-2">
+                <td className="fp-c-pri px-3 py-2">
                   <PriorityBadge priority={r.priority} />
                 </td>
                 <td className="hidden px-3 py-2 md:table-cell">

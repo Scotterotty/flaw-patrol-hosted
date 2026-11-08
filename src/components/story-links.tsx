@@ -25,7 +25,7 @@ export function StoryTag({ s, onRemove }: { s: StoryChip; onRemove?: () => void 
       <span className={cx("min-w-0 truncate", s.missing ? "text-orange-800" : "text-slate-700")} title={s.stale ? `As of ${new Date(s.stale).toLocaleString()}: Jira couldn't be reached` : s.title}>
         {s.title || "…"}
       </span>
-      {s.status && <span className="flex-none rounded bg-slate-100 px-1 text-[10px] text-slate-600">{s.status}</span>}
+      {s.status && <span className="flex-none rounded bg-slate-100 px-1 text-[11px] text-slate-600">{s.status}</span>}
       {onRemove && (
         <button type="button" aria-label={`Unlink ${s.key}`} title={s.missing ? "Unlink" : `Unlink ${s.key}`} onClick={onRemove} className="flex-none text-slate-400 hover:text-red-700">
           ×
@@ -106,7 +106,7 @@ export function StorySearch({ projectId, onPick, onClose, autoFocus = true }: { 
             {h.type && <TypeBadge type={h.type} />}
             <span className="font-mono text-slate-600">{h.key}</span>
             <span className="min-w-0 flex-1 truncate text-slate-800">{h.title}</span>
-            <span className="text-[10px] text-slate-500">{h.status}</span>
+            <span className="text-[11px] text-slate-500">{h.status}</span>
           </li>
         ))}
         {hits && !hits.length && <li className="px-2 py-1 text-xs text-slate-500">Nothing matches.</li>}

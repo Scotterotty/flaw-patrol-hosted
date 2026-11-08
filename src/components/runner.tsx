@@ -895,7 +895,7 @@ export function Runner({
               · version {entry.caseVersion}
               {entry.folderPath && ` · ${entry.folderPath}`}
             </p>
-            <h1 className="text-xl font-semibold tracking-tight text-slate-900">
+            <h1 className="fp-name text-xl tracking-tight text-slate-900">
               {entry.tags.length > 0 && (
                 <span className="mr-1.5 inline-flex gap-1 align-[3px]">
                   <TagPills tags={entry.tags} colors={tagColors} />
@@ -1196,6 +1196,8 @@ export function Runner({
                       </div>
                       <div className="min-w-0 md:col-start-2 md:border-l md:border-slate-200 md:pl-3">
                         <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-dashed border-slate-200 pt-2 select-none" role="group" aria-label={`Step ${step.number} status`} data-howto="runner-status">
+                          {/* One row of five, so Skipped never wraps onto a line alone (ver_201). Icons drop out when the row is narrow. */}
+                          <span className="@container grid min-w-0 basis-full grid-cols-5 gap-1">
                           {SETTABLE.map(({ status }) => (
                             <button
                               key={status}
@@ -1211,14 +1213,17 @@ export function Runner({
                                 if (status === "FAILED") setReveal((r) => ({ i, focus: true, n: (r?.n ?? 0) + 1 }));
                               }}
                               className={cx(
-                                "inline-flex h-7 items-center gap-1 rounded px-2 text-xs font-medium ring-1 ring-inset transition",
+                                "inline-flex h-7 min-w-0 items-center justify-center gap-1 rounded px-0.5 text-[11px] font-medium ring-1 ring-inset transition @[20rem]:px-1 @[20rem]:text-xs",
                                 s === status ? cx(STATUS_STYLE[status].solid, "ring-transparent") : "bg-surface text-slate-600 ring-slate-200 hover:bg-slate-50",
                               )}
                             >
-                              <StatusIcon status={status} />
-                              {STATUS_LABEL[status]}
+                              <span className="hidden flex-none @[24rem]:inline-flex">
+                                <StatusIcon status={status} />
+                              </span>
+                              <span className="truncate">{STATUS_LABEL[status]}</span>
                             </button>
                           ))}
+                          </span>
                           {s !== "UNTESTED" && !runClosed && (
                             <button
                               type="button"

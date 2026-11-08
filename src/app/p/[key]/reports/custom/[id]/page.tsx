@@ -17,7 +17,7 @@ export default async function CycleCustomReport({ params, searchParams }: { para
   const cs = await cycleScope(project, user);
   const base = `/p/${project.key}/reports`;
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <PageHeader title="Reports" subtitle={project.name} />
       <ViewTabs
         label="Reports"

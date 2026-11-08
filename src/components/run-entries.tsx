@@ -575,7 +575,7 @@ export function StepProgress({ steps, lastChange }: { steps: ResultStatus[]; las
       </span>
       {/* Qase (ver_164): results saved in Qase say so with a small tag. */}
       {lastChange?.qase && (
-        <span className="rounded border border-slate-200 bg-slate-50 px-1 text-[10px] font-semibold text-slate-600" title="Someone saved this result in Qase" data-testid="from-qase">
+        <span className="rounded border border-slate-200 bg-slate-50 px-1 text-[11px] font-semibold text-slate-600" title="Someone saved this result in Qase" data-testid="from-qase">
           Qase
         </span>
       )}

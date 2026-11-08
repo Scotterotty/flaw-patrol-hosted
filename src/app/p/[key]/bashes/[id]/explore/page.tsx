@@ -17,7 +17,7 @@ export default async function ExploreBashPage({ params }: { params: Promise<{ ke
   const area = view.areas.find((a) => a.id === view.me.areaId);
   const { projectId: _p, ...finds } = (await bashFinds(id))!; // eslint-disable-line @typescript-eslint/no-unused-vars
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="max-w-7xl">
       <CrumbName href={`/p/${view.homeKey}/bashes/${id}/explore`} label={`${view.name} · ${area?.name ?? ""}`} />
       <LiveRefresh url={`/api/live/bashes/${id}`} />
       <h1 className="mb-4 text-xl font-semibold tracking-tight text-slate-900">

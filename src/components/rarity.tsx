@@ -17,7 +17,7 @@ export const RARITY_STYLE: Record<Rarity, { badge: string; ring: string; stroke:
 
 export function RarityBadge({ rarity, className }: { rarity: Rarity; className?: string }) {
   return (
-    <span className={cx("inline-flex items-center rounded px-1.5 py-px text-[10px] font-semibold tracking-wide uppercase ring-1 ring-inset", RARITY_STYLE[rarity].badge, className)}>
+    <span className={cx("inline-flex items-center rounded px-1.5 py-px text-[11px] font-semibold tracking-wide uppercase ring-1 ring-inset", RARITY_STYLE[rarity].badge, className)}>
       {rarity === "exotic" && <span aria-hidden>✦&nbsp;</span>}
       {RARITY_LABEL[rarity]}
     </span>

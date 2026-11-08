@@ -35,7 +35,7 @@ export default async function BashesPage({ params, searchParams }: { params: Pro
   const again = new Map((await db.bugBash.findMany({ where: { id: { in: past.map((p) => p.id) } }, select: { id: true, areas: true, minutes: true, name: true } })).map((b) => [b.id, { name: b.name, minutes: b.minutes, areas: parseAreas(b.areas).map((a) => a.name) }]));
   const date = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <PageHeader
         title="Bug bashes"
         subtitle="A short, timed session where anyone picks an area and logs bugs in one line. Whoever starts it wraps up and files the bugs."

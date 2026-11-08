@@ -359,7 +359,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
     { id: "more", title: "More", show: !foldLookOnly || moreRows || !!archive },
   ].filter((g) => g.show);
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="max-w-4xl">
       <PageHeader
         title="Settings"
         subtitle={on("runs") ? `${name} and its test cycles` : `Everything ${name} uses`}

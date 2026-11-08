@@ -180,7 +180,7 @@ export function BugsOverTime({ buckets }: { buckets: TrendBucket[] }) {
 
 function XLabels({ buckets }: { buckets: TrendBucket[] }) {
   return (
-    <div className="mt-1 flex gap-[2px] text-[10px] text-slate-500">
+    <div className="mt-1 flex gap-[2px] text-[11px] text-slate-500">
       {buckets.map((b, i) => (
         <div key={b.key} className="min-w-0 flex-1 text-center whitespace-nowrap">
           {showLabel(i, buckets.length) ? b.label : ""}

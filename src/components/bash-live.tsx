@@ -315,8 +315,8 @@ export function LiveFinds({
                     }}>
                     <KindTag kind={i.kind} className="mt-0.5" />
                     <span className="min-w-0 text-slate-900 [overflow-wrap:anywhere]">
-                      {fresh(i.id) && !mine && <span className="mr-1 rounded bg-accent-600 px-1 py-px text-[10px] font-semibold text-white uppercase">New</span>}
-                      {isAlike && <span className="mr-1 rounded bg-amber-200 px-1 py-px text-[10px] font-semibold text-amber-900">Looks like yours</span>}
+                      {fresh(i.id) && !mine && <span className="mr-1 rounded bg-accent-600 px-1 py-px text-[11px] font-semibold text-white uppercase">New</span>}
+                      {isAlike && <span className="mr-1 rounded bg-amber-200 px-1 py-px text-[11px] font-semibold text-amber-900">Looks like yours</span>}
                       {i.text}
                     </span>
                     {/* Severity is its own column on the right, lined up on every row (ver_160). */}
@@ -595,7 +595,7 @@ export function FindDetail({
 export function LinkRow({ l, onRemove }: { l: BashLink; onRemove?: () => void }) {
   const body = (
     <>
-      <span className="shrink-0 rounded bg-slate-100 px-1 py-px text-[10px] font-semibold text-slate-600">{LINK_KIND_LABEL[l.kind]}</span>
+      <span className="shrink-0 rounded bg-slate-100 px-1 py-px text-[11px] font-semibold text-slate-600">{LINK_KIND_LABEL[l.kind]}</span>
       <span className="min-w-0 flex-1 truncate">
         <b className="font-medium text-slate-900">{l.key}</b> {l.title}
       </span>
@@ -792,7 +792,7 @@ export function useNewArea() {
 
 /** The green "New" tag on an area added while the bash was on. */
 export function NewTag({ className }: { className?: string }) {
-  return <span className={cx("ml-1.5 inline-block rounded-full bg-emerald-50 px-1.5 py-px text-[10px] font-semibold text-emerald-700 normal-case", className)} data-testid="new-area-tag">New</span>;
+  return <span className={cx("ml-1.5 inline-block rounded-full bg-emerald-50 px-1.5 py-px text-[11px] font-semibold text-emerald-700 normal-case", className)} data-testid="new-area-tag">New</span>;
 }
 
 /** + Add area: a name and Enter. The new area shows for everyone right away. */

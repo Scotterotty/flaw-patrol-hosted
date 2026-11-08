@@ -454,7 +454,7 @@ function TaskButton({ task: t, spell, onOpen }: { task: HowToTask; spell: (s: st
 
 function AdminsTag() {
   return (
-    <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-slate-200 ring-inset" title="Only Admins can do this">
+    <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200 ring-inset" title="Only Admins can do this">
       Admins
     </span>
   );

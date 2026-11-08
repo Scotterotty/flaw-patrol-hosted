@@ -320,7 +320,7 @@ function Column({ c, release, now, auto }: { c: RcColumn; release: string; now: 
         </div>
       )}
       <div className="mt-1 mb-2">
-        <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide" style={{ background: st.chip.fill, color: st.chip.text }}>
+        <span className="rounded px-1.5 py-0.5 text-[11px] font-semibold tracking-wide" style={{ background: st.chip.fill, color: st.chip.text }}>
           {st.label}
         </span>
       </div>

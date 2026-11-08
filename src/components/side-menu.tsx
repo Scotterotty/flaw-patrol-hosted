@@ -189,8 +189,8 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
     >
       {i.dot && <span aria-hidden className="size-1.5 flex-none rounded-full" style={{ background: i.dot }} />}
       <span className="min-w-0 flex-1 truncate">{i.label}</span>
-      {i.badge && <span className="rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{i.badge}</span>}
-      {i.tag && <span className="flex-none rounded-full bg-slate-100 px-1.5 text-[10px] font-medium text-slate-500 ring-1 ring-slate-200 ring-inset" data-testid="menu-tag">{i.tag}</span>}
+      {i.badge && <span className="rounded-full bg-red-600 px-1.5 text-[11px] font-semibold text-white">{i.badge}</span>}
+      {i.tag && <span className="flex-none rounded-full bg-slate-100 px-1.5 text-[11px] font-medium text-slate-500 ring-1 ring-slate-200 ring-inset" data-testid="menu-tag">{i.tag}</span>}
       {i.note && <span className="size-2 flex-none rounded-full bg-accent-600" title="New answer to your question" aria-label="New answer to your question" data-testid="menu-note" />}
       {i.count !== undefined && <span className="text-xs font-normal text-slate-400 tabular-nums">{i.count}</span>}
     </Link>
@@ -208,7 +208,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
       )}
     >
       <span className={small ? undefined : "min-w-0 flex-1 truncate"}>{i.label}</span>
-      {i.isNew && <span className={cx("rounded-full bg-orange-600 px-1.5 text-[10px] font-bold text-white", small && "ml-1")}>NEW</span>}
+      {i.isNew && <span className={cx("rounded-full bg-orange-600 px-1.5 text-[11px] font-bold text-white", small && "ml-1")}>NEW</span>}
     </button>
   );
   /** A row while arranging: a grip to drag (or ↑/↓), and the name, which doesn't open the page. */
@@ -410,7 +410,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
                 )}
               >
                 {i.label}
-                {i.badge && <span className="ml-1 rounded-full bg-red-600 px-1 text-[9px] font-semibold text-white">{i.badge}</span>}
+                {i.badge && <span className="ml-1 rounded-full bg-red-600 px-1 text-[11px] leading-4 font-semibold text-white">{i.badge}</span>}
               </Link>
             ))}
           </Fragment>

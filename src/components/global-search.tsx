@@ -202,8 +202,8 @@ function SearchDialog({ scope: start, onClose }: { scope: { id: string; name: st
           <span className="flex items-center gap-1.5">
             {row.hit.key && <span className="font-mono text-xs text-slate-500">{row.hit.key}</span>}
             <span className="truncate font-medium text-slate-900">{row.hit.label}</span>
-            {row.hit.best && <span className="rounded bg-accent-100 px-1.5 text-[10px] font-semibold text-accent-700">Best match</span>}
-            {row.hit.archived && <span className="rounded bg-orange-50 px-1.5 text-[10px] font-medium text-orange-700">Archived</span>}
+            {row.hit.best && <span className="rounded bg-accent-100 px-1.5 text-[11px] font-semibold text-accent-700">Best match</span>}
+            {row.hit.archived && <span className="rounded bg-orange-50 px-1.5 text-[11px] font-medium text-orange-700">Archived</span>}
           </span>
           {row.hit.sub && <span className="block truncate text-xs text-slate-500">{row.hit.sub}</span>}
         </span>

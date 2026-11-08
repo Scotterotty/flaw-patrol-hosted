@@ -86,7 +86,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
   const bugTemplates = umbrella ? null : await loadBugTemplates(project);
   const jira = jiraRow && { siteUrl: jiraRow.siteUrl, email: jiraRow.email, jiraProjectKey: jiraRow.jiraProjectKey, issueType: jiraRow.issueType, tokenReadable: canOpen(jiraRow.tokenEncrypted) };
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="max-w-3xl space-y-5">
       <PageHeader title="Test cycle settings" subtitle={<>Test cycle key <code className="font-mono">{project.key}</code></>} />
       {umbrella && (
         <Card className="space-y-3 p-5">

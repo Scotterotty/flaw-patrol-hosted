@@ -23,7 +23,7 @@ export default async function UmbrellaCustomReport({ params, searchParams }: { p
   const cs = await umbrellaScope(u, user, platform);
   const platforms = [...new Set([...u.platforms.map((p) => p.name), ...u.projects.map((p) => p.platform).filter(Boolean)])];
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <PageHeader title="Reports" subtitle={u.group.name} />
       <ViewTabs
         label="Reports"

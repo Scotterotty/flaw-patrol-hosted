@@ -178,7 +178,7 @@ export async function UmbrellaHome({ u, user, welcome = false }: { u: Umbrella; 
   const started = !!firstRun || !runsOn;
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <CrumbName href={g} label={u.group.name} />
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -407,7 +407,7 @@ function initials(name: string) {
 /** A colored square with a project's platform initials (U, UE, W). */
 export function ProjectBadge({ name, color, small }: { name: string; color: string; small?: boolean }) {
   return (
-    <span aria-hidden className={cx("grid flex-none place-items-center rounded-md font-semibold text-white", small ? "size-5 text-[9px]" : "size-8 text-xs")} style={{ background: color }}>
+    <span aria-hidden className={cx("grid flex-none place-items-center rounded-md font-semibold text-white", small ? "size-6 text-[11px]" : "size-8 text-xs")} style={{ background: color }}>
       {initials(name)}
     </span>
   );

@@ -25,7 +25,7 @@ export default async function QaseLinkPage({ params }: { params: Promise<{ id: s
   const cfg = await db.qaseConfig.findUnique({ where: { groupId: u.group.id } });
   if (!cfg)
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="max-w-3xl">
         <PageHeader title="Link cases to Qase" />
         <Card className="p-4 text-sm text-slate-600">
           {u.group.name} isn&apos;t connected to Qase yet. <Link href={`${g}/settings#qase`} className="font-medium text-accent-700 hover:underline">Connect it in Settings → Qase</Link>.
@@ -81,7 +81,7 @@ export default async function QaseLinkPage({ params }: { params: Promise<{ id: s
   );
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="max-w-4xl">
       <PageHeader
         title="Link cases to Qase"
         subtitle={`${u.group.name} ↔ Qase project ${cfg.projectTitle} (${cfg.projectCode}). Only linked cases share results.`}

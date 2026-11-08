@@ -12,9 +12,16 @@ import { Button, cx, InfoTip, Select } from "./ui";
 import { shortDate } from "@/lib/spelling";
 import { StartBashButton } from "./bash-start";
 import { useSpelling, useZone } from "./spelling";
+import type { RiskLook } from "@/lib/risk-looks";
 
 const LEVELS: Level[] = [1, 2, 3];
 const CELL: Record<RiskLevel, string> = { High: "bg-red-50", Med: "bg-amber-50", Low: "bg-emerald-50/60" };
+/** Each square says its risk in words too, so color is never the only clue (ver_201). */
+const RISK_WORD: Record<RiskLevel, string> = { High: "High risk", Med: "Medium risk", Low: "Low risk" };
+const LABEL_INK: Record<RiskLevel, string> = { High: "text-red-800", Med: "text-amber-800", Low: "text-emerald-800" };
+/** The short level name the looks' CSS keys on (src/app/risk-looks.css). */
+const LV: Record<RiskLevel, "hi" | "md" | "lo"> = { High: "hi", Med: "md", Low: "lo" };
+const ORDER: RiskLevel[] = ["High", "Med", "Low"];
 const CHIP: Record<RiskLevel, string> = { High: "bg-red-100 text-red-800", Med: "bg-amber-100 text-amber-800", Low: "bg-emerald-100 text-emerald-800" };
 
 export function RiskChip({ level }: { level: RiskLevel }) {
@@ -35,7 +42,10 @@ export function RiskBoard({
   bashed = {},
   withCases = true,
   planData,
+  look = "classic",
 }: {
+  /** How the board is drawn for this person (Your account → Appearance → Risk board look). */
+  look?: RiskLook;
   /** Plan this release's names, kinds, personas and open runs. */
   planData?: PlanData;
   homeId: string;
@@ -57,8 +67,6 @@ export function RiskBoard({
   withCases?: boolean;
 }) {
   const router = useRouter();
-  const spelling = useSpelling();
-  const zone = useZone();
   const [cards, setCards] = useState(start);
   const [open, setOpen] = useState<string | null>(null);
   const [drag, setDrag] = useState<string | null>(null);
@@ -113,7 +121,7 @@ export function RiskBoard({
           {withCases && ` · ${noTests} with no tests`}
           {canMove && <span className="text-slate-500"> · Drag a card, or click it, to move it</span>}
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {note && (
             <span role="status" className="text-xs text-emerald-700">
               {note}
@@ -145,65 +153,83 @@ export function RiskBoard({
           )}
         </div>
       </div>
-      <div className="flex gap-2">
-        <div className="flex w-6 items-center justify-center">
-          <span className="-rotate-90 text-xs font-medium whitespace-nowrap text-slate-500">How likely to break →</span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="grid grid-cols-3 gap-1.5" role="grid" aria-label={`Risk board for ${release}`}>
-            {[3, 2, 1].map((l) =>
-              LEVELS.map((i) => {
-                const here = cards.filter((c) => c.likelihood === l && c.impact === i);
-                const lvl = riskLevel(l, i);
-                return (
-                  <div
-                    key={`${l}-${i}`}
-                    role="gridcell"
-                    aria-label={`${LEVEL_WORD[l as Level]} likelihood, ${LEVEL_WORD[i]} impact: ${here.length}`}
-                    className={cx("min-h-28 rounded-md p-1.5", CELL[lvl], drag && "ring-1 ring-slate-300 ring-inset")}
-                    onDragOver={(e) => canMove && drag && e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      if (drag) move(drag, l as Level, i);
-                      setDrag(null);
-                    }}
-                  >
-                    <div className="flex flex-col gap-1">
-                      {here.map((c) => (
-                        <button
-                          key={c.key}
-                          type="button"
-                          draggable={canMove}
-                          data-howto="risk-card"
-                          onDragStart={() => setDrag(c.key)}
-                          onDragEnd={() => setDrag(null)}
-                          onClick={() => setOpen(c.key)}
-                          className={cx("rounded-md border bg-surface px-2 py-1 text-left text-xs shadow-sm hover:border-accent-400", open === c.key ? "border-accent-600" : "border-slate-200")}
-                          data-testid="risk-card"
-                        >
-                          <span className="font-mono text-[11px] text-slate-500">{c.key}</span>
-                          {!c.cases && withCases && <span className="ml-1 rounded bg-slate-800 px-1 text-[10px] font-medium text-white">No tests</span>}
-                          {c.moved && <span className="ml-1 text-[10px] text-slate-400" title={`Moved by ${c.moved.by}`}>✋</span>}
-                          <span className="block truncate text-slate-800">{c.title || c.key}</span>
-                          {bashed[c.key] && (
-                            <span className="block text-[10px] text-rose-700">
-                              🐞 Bashed {shortDate(new Date(bashed[c.key].at), spelling, zone)} · {bashed[c.key].bugs} {bashed[c.key].bugs === 1 ? "bug" : "bugs"}
-                            </span>
-                          )}
-                        </button>
-                      ))}
+      <div className="fp-risk" data-risk-look={look} data-testid="risk-board">
+        {/* Laptop and tablet: the 3×3 board. */}
+        <div className="hidden gap-2 sm:flex">
+          <div className="flex w-6 items-center justify-center">
+            <span className="fp-risk-axis -rotate-90 text-xs font-medium whitespace-nowrap text-slate-500">How likely to break →</span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="fp-risk-grid grid grid-cols-3 gap-1.5" role="grid" aria-label={`Risk board for ${release}`}>
+              {[3, 2, 1].map((l) =>
+                LEVELS.map((i) => {
+                  const here = cards.filter((c) => c.likelihood === l && c.impact === i);
+                  const lvl = riskLevel(l, i);
+                  return (
+                    <div
+                      key={`${l}-${i}`}
+                      role="gridcell"
+                      aria-label={`${LEVEL_WORD[l as Level]} likelihood, ${LEVEL_WORD[i]} impact, ${RISK_WORD[lvl].toLowerCase()}: ${here.length}`}
+                      data-level={LV[lvl]}
+                      className={cx("fp-risk-cell min-h-28 min-w-0 rounded-md p-1.5", CELL[lvl], drag && "ring-1 ring-slate-300 ring-inset")}
+                      onDragOver={(e) => canMove && drag && e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (drag) move(drag, l as Level, i);
+                        setDrag(null);
+                      }}
+                    >
+                      <span aria-hidden className={cx("fp-risk-label mb-1 block text-[11px] font-semibold", LABEL_INK[lvl])}>
+                        {RISK_WORD[lvl]}
+                      </span>
+                      <div className="flex flex-col gap-1">
+                        {here.map((c) => (
+                          <CardButton
+                            key={c.key}
+                            c={c}
+                            open={open === c.key}
+                            withCases={withCases}
+                            bashed={bashed[c.key]}
+                            draggable={canMove}
+                            onDragStart={() => setDrag(c.key)}
+                            onDragEnd={() => setDrag(null)}
+                            onClick={() => setOpen(c.key)}
+                            testId="risk-card"
+                            howto="risk-card"
+                          />
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                );
-              }),
-            )}
+                  );
+                }),
+              )}
+            </div>
+            <div className="fp-risk-axis mt-1 grid grid-cols-3 gap-1.5 text-center text-xs font-medium text-slate-500">
+              {LEVELS.map((i) => (
+                <span key={i}>{LEVEL_WORD[i]} impact</span>
+              ))}
+            </div>
+            <p className="fp-risk-axis mt-0.5 text-center text-xs text-slate-500">How much it would hurt →</p>
           </div>
-          <div className="mt-1 grid grid-cols-3 gap-1.5 text-center text-xs font-medium text-slate-500">
-            {LEVELS.map((i) => (
-              <span key={i}>{LEVEL_WORD[i]} impact</span>
-            ))}
-          </div>
-          <p className="mt-0.5 text-center text-xs text-slate-500">How much it would hurt →</p>
+        </div>
+        {/* Phone: one list, riskiest first, full names, no sideways scroll. Tap a card to move it. */}
+        <div className="space-y-3 sm:hidden" data-testid="risk-list">
+          {ORDER.map((lvl) => {
+            const here = cards.filter((c) => c.level === lvl).sort((a, b) => riskScore(b.likelihood, b.impact) - riskScore(a.likelihood, a.impact));
+            if (!here.length) return null;
+            return (
+              <section key={lvl} className={cx("fp-risk-cell rounded-md p-1.5", CELL[lvl])} data-level={LV[lvl]} aria-label={`${RISK_WORD[lvl]} in ${release}`}>
+                <h3 className={cx("fp-risk-label mb-1 text-xs font-semibold", LABEL_INK[lvl])}>{RISK_WORD[lvl]}</h3>
+                <ul className="flex flex-col gap-1.5">
+                  {here.map((c) => (
+                    <li key={c.key}>
+                      <CardButton c={c} open={open === c.key} withCases={withCases} bashed={bashed[c.key]} onClick={() => setOpen(c.key)} testId="risk-row" wide />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            );
+          })}
         </div>
       </div>
 
@@ -214,6 +240,70 @@ export function RiskBoard({
         {plan && planData && <PlanRc homeId={homeId} release={release} releases={releases} cards={cards} cycles={cycles} templates={templates} data={planData} onClose={() => setPlan(false)} />}
       </Modal>
     </div>
+  );
+}
+
+/** One requirement on the board or the phone list. Names wrap; nothing is cut off. */
+function CardButton({
+  c,
+  open,
+  withCases,
+  bashed,
+  onClick,
+  testId,
+  howto,
+  wide,
+  draggable,
+  onDragStart,
+  onDragEnd,
+}: {
+  c: RiskCard;
+  open: boolean;
+  withCases: boolean;
+  bashed?: { at: string; bugs: number };
+  onClick: () => void;
+  testId: string;
+  howto?: string;
+  wide?: boolean;
+  draggable?: boolean;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
+}) {
+  const spelling = useSpelling();
+  const zone = useZone();
+  return (
+    <button
+      type="button"
+      draggable={draggable}
+      data-howto={howto}
+      data-level={LV[c.level]}
+      data-open={open || undefined}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onClick={onClick}
+      className={cx(
+        "fp-risk-card w-full min-w-0 rounded-md border bg-surface px-2 py-1 text-left shadow-sm hover:border-accent-400",
+        wide ? "py-2 text-sm" : "text-xs",
+        open ? "border-accent-600" : "border-slate-200",
+      )}
+      data-testid={testId}
+    >
+      <span className="flex flex-wrap items-center gap-1">
+        <span className="fp-risk-key font-mono text-[11px] text-slate-500">{c.key}</span>
+        {!c.cases && withCases && <span className="fp-risk-nt rounded border border-red-300 bg-red-50 px-1.5 text-[11px] leading-4 font-semibold text-red-800">No tests</span>}
+        {c.moved && (
+          <span className="text-[11px] text-slate-500" title={`Moved by ${c.moved.by}`}>
+            ✋
+          </span>
+        )}
+      </span>
+      <span className="fp-risk-title block break-words text-slate-800">{c.title || c.key}</span>
+      {bashed && (
+        <span className="fp-risk-bash block text-[11px] text-rose-700">
+          🐞 Bashed {shortDate(new Date(bashed.at), spelling, zone)} · {bashed.bugs} {bashed.bugs === 1 ? "bug" : "bugs"}
+        </span>
+      )}
+    </button>
   );
 }
 

@@ -1,6 +1,7 @@
 "use server";
 
 import { cleanSpinners } from "@/lib/spinners";
+import { isRiskLook } from "@/lib/risk-looks";
 import { isVision } from "@/lib/vision";
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -104,6 +105,17 @@ export async function updateMySpinners(ids: string[]) {
     // The folded Appearance card's summary follows.
     revalidatePath("/account");
     return { spinners };
+  });
+}
+
+/** Risk board look: only changes how the Risk board looks for you. */
+export async function updateMyRiskLook(look: string) {
+  return attempt(async () => {
+    if (!isRiskLook(look)) throw new UserError("Pick one of the looks in the list.");
+    const user = await requireUser();
+    await db.user.update({ where: { id: user.id }, data: { riskLook: look } });
+    revalidatePath("/account");
+    return {};
   });
 }
 

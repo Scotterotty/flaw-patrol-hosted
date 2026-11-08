@@ -11,7 +11,7 @@ export default async function ProjectRcPage({ params, searchParams }: { params: 
   const { project, user, who } = await projectAccess((await params).key);
   const base = `/p/${project.key}/reports`;
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <PageHeader title="Reports" subtitle="A quick look at how testing of a release is going on each platform." />
       <ViewTabs
         label="Reports"

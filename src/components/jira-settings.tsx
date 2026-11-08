@@ -314,7 +314,7 @@ function BugTemplateSettings({ projectId, saved, jiraProjectKey, standalone = fa
                 `shared:${t.id}`,
                 <span className="inline-flex flex-wrap items-center gap-1.5">
                   {t.name}
-                  <span className="rounded-full bg-accent-100 px-1.5 py-px text-[10px] font-semibold text-accent-800 uppercase">Shared</span>
+                  <span className="rounded-full bg-accent-100 px-1.5 py-px text-[11px] font-semibold text-accent-800 uppercase">Shared</span>
                 </span>,
                 `${t.source} · title ${t.title}${t.mine ? "" : " · Shared with other emails, so once you switch away only they can pick it again."}`,
                 )}

@@ -23,6 +23,8 @@ import { MenuOrderReset } from "./menu-order-reset";
 import { PaneSizesReset } from "./pane-sizes-reset";
 import { RadioSettings } from "./radio-settings";
 import { SpinnerPicker } from "./spinner-picker";
+import { RiskLookPicker } from "./risk-look-picker";
+import { cleanRiskLook, riskLookLabel } from "@/lib/risk-looks";
 import { cleanSpinners, pawnEmoji, SPINNER_FOLD } from "@/lib/spinners";
 
 type Me = {
@@ -54,6 +56,7 @@ type Me = {
   isAdmin: boolean;
   openCards?: string[];
   spinners?: string[];
+  riskLook?: string;
   questPawn?: string;
   digestPrefs?: unknown;
 };
@@ -72,7 +75,10 @@ export async function ProfileSettings({ user }: { user: Me }) {
     THEMES.some((t) => t.id === user.accent) ? label(THEMES, user.accent) : label(ACCENTS, user.accent),
     label(THEME_MODES, user.themeMode),
     `${fontFor(user.fontBody)?.label ?? "Poppins"} and ${user.fontHeading === "body" ? "the same for headings" : (fontFor(user.fontHeading)?.label ?? "Bungee")}`,
-  ].join(" · ");
+    cleanRiskLook(user.riskLook) !== "classic" ? `${riskLookLabel(user.riskLook)} Risk board` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const aids = [user.strongContrast && "stronger contrast", user.underlineLinks && "underlined links", user.reduceMotion && "less motion"].filter(Boolean);
   const vision = VISIONS.find((v) => v.id === user.colorVision);
   const access = [
@@ -126,6 +132,9 @@ export async function ProfileSettings({ user }: { user: Me }) {
                 fontHeading: isHeadingFont(user.fontHeading) ? user.fontHeading : "bungee",
               }}
             />
+            <div className="mt-5">
+              <RiskLookPicker initial={cleanRiskLook(user.riskLook)} />
+            </div>
           </AccountCard>
           <AccountCard id="accessibility" howto="account-accessibility" title="Accessibility" summary={access}>
             <AccessibilitySettings

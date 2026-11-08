@@ -20,7 +20,7 @@ export default async function AccountPage() {
       <TopBar user={user} />
       <div className="flex">
         {last && <ProjectMenu project={last.project} user={user} />}
-        <main className="mx-auto max-w-xl min-w-0 flex-1 px-4 py-8 pb-16 md:pb-8">
+        <main className="max-w-xl min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
           <PageHeader title="Your account" subtitle={user.email} />
           {/* Every card folds to one line, so the section tabs went: Open all / Close all instead. */}
           <ProfileSettings user={user} />

@@ -22,6 +22,32 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 201,
+    date: "2026-11-08",
+    items: [
+      {
+        kind: "new",
+        title: "Pick a look for the Risk board",
+        text: "Your account → How it looks → Appearance → Risk board look: Classic, Mission control, Whiteboard, Blueprint, Arcade or High contrast. It only changes how the board looks for you.",
+      },
+      {
+        kind: "better",
+        title: "Risk board you can read anywhere",
+        text: "Each square says High, Medium or Low risk, the red No tests tag is readable in dark mode, long names wrap, and on a phone the board is one list with the riskiest first.",
+      },
+      {
+        kind: "better",
+        title: "Calmer, easier to read pages",
+        text: "Case titles and run names are in normal bold text, page titles start in the same spot, tags are darker, and nothing is smaller than 11px. Your account keeps your umbrella's menu.",
+      },
+      {
+        kind: "better",
+        title: "Better on a phone",
+        text: "The Case library and case steps are cards, tick boxes are easier to tap, and the top shows one back link. Step buttons fit on one row, and test cycle colors skip red and green.",
+      },
+    ],
+  },
+  {
     version: 200,
     date: "2026-11-07",
     items: [

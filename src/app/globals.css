@@ -66,6 +66,18 @@ h3:not(.uppercase),
   font-size-adjust: var(--font-head-adjust);
 }
 
+/* Names people typed (case titles, run names, shared steps) read better in the text font,
+   bold and as typed, even when the heading font is all caps like Bungee (ver_201). Page names keep the heading font. */
+h1.fp-name,
+h2.fp-name,
+h3.fp-name,
+.fp-name {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size-adjust: none;
+  text-transform: none;
+}
+
 /* Accent colors, as oklch hues. Keep in sync with ACCENTS in src/lib/theme.ts. */
 :root {
   --accent-h: 295;
@@ -1871,4 +1883,87 @@ main:focus {
 .fp-sel-lock body [data-sel-on],
 .fp-sel-lock body [data-sel-on] :not(.select-none) {
   user-select: text;
+}
+
+/* ---------- ver_201: phone layouts and tap areas ---------- */
+
+/* A tick box with a 24px tap area around it. */
+.fp-tap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+  cursor: pointer;
+}
+
+@media (max-width: 639px) {
+  /* Case library: each case is a card. Tick box, ID and priority on top; the full title under them. */
+  .fp-case-table,
+  .fp-case-table tbody {
+    display: block;
+  }
+  .fp-case-table thead tr {
+    display: flex;
+  }
+  .fp-case-table thead th:not(.fp-c-tick) {
+    display: none;
+  }
+  .fp-case-table tbody tr {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    grid-template-areas: "tick id pri" "title title title";
+    align-items: center;
+    padding: 6px 0;
+  }
+  .fp-case-table tbody tr:has(> .fp-c-full) {
+    display: block;
+  }
+  .fp-case-table .fp-c-tick { grid-area: tick; }
+  .fp-case-table .fp-c-id { grid-area: id; padding-top: 0; padding-bottom: 0; }
+  .fp-case-table .fp-c-pri { grid-area: pri; justify-self: end; padding-top: 0; padding-bottom: 0; }
+  .fp-case-table .fp-c-title { grid-area: title; padding-top: 2px; }
+  .fp-case-table tbody tr:not(:has(.fp-c-tick)) {
+    grid-template-columns: auto 1fr;
+    grid-template-areas: "id pri" "title title";
+  }
+
+  /* Read-only steps (case page, old versions, shared steps): Action above Expected result. */
+  [data-steps-table] {
+    display: block;
+  }
+  [data-steps-table] thead,
+  [data-steps-table] colgroup {
+    display: none;
+  }
+  [data-steps-table] tbody,
+  [data-steps-table] tr {
+    display: block;
+  }
+  [data-steps-table] tr:has(> td:nth-child(3)) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 4px;
+    padding: 8px 0;
+  }
+  [data-steps-table] tr:has(> td:nth-child(4)) {
+    grid-template-columns: auto auto minmax(0, 1fr);
+  }
+  [data-steps-table] tr:has(> td:nth-child(3)) > td {
+    display: block;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  [data-steps-table] tr:has(> td:nth-child(3)) > td:last-child {
+    grid-column: -2;
+    border-left: 0;
+    margin-top: 6px;
+  }
+  [data-steps-table] tr:has(> td:nth-child(3)) > td:last-child::before {
+    content: "Expected result";
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-slate-500);
+  }
 }

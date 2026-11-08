@@ -67,7 +67,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
     : new Map();
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <PageHeader
         title="Bugs"
         subtitle={

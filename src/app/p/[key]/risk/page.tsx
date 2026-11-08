@@ -19,6 +19,7 @@ import { db } from "@/lib/db";
 import { parseRunKinds, kindLabel } from "@/lib/run-kinds";
 import { countStatuses, totals } from "@/lib/status";
 import type { PlanData } from "@/components/risk-board";
+import { cleanRiskLook } from "@/lib/risk-looks";
 
 export const metadata = { title: "Risk board" };
 
@@ -101,7 +102,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
 
   if (!releases.length || !board?.connected)
     return (
-      <div className="mx-auto max-w-6xl">
+      <div className="max-w-6xl">
         {header}
         <RequirementsViews base={`/p/${project.key}`} current="risk" />
         <EmptyState title={board && !board.connected ? "Jira isn't connected" : "No Jira releases yet"} action={can(who, "jira:manage") ? <LinkButton href={full ? `/g/${full.group.id}/settings#stories` : await cycleSettingsHref(project, user, "jira")}>Open Settings</LinkButton> : null}>
@@ -111,7 +112,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
     );
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       {header}
       <RequirementsViews base={`/p/${project.key}`} current="risk" query={reqQuery({ releases: chosen, proj })} />
       <div className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-3" data-howto="risk-release">
@@ -120,7 +121,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
       </div>
       {board.jiraError && <p className="mb-3 rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-900">Couldn&apos;t read the release from Jira: {board.jiraError}</p>}
       {cards.length ? (
-        <RiskBoard key={`${chosen.join("|")}|${proj ?? ""}`} homeId={project.id} release={release!} releases={chosen} cards={cards} canMove={can(who, "risk:move")} canPlan={canPlan} cycles={runCycles} templates={[...BUILT_IN, ...team]} bash={canRun && withBashes ? project.id : undefined} bashed={bashed} planData={planData} withCases={withCases} />
+        <RiskBoard key={`${chosen.join("|")}|${proj ?? ""}`} homeId={project.id} release={release!} releases={chosen} cards={cards} canMove={can(who, "risk:move")} canPlan={canPlan} cycles={runCycles} templates={[...BUILT_IN, ...team]} bash={canRun && withBashes ? project.id : undefined} bashed={bashed} planData={planData} withCases={withCases} look={cleanRiskLook(user.riskLook)} />
       ) : (
         <EmptyState title="Nothing in this release">Jira has no requirements{proj ? ` from ${proj}` : ""} in {release}. Pick another release above.</EmptyState>
       )}

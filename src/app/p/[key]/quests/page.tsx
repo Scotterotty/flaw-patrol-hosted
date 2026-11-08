@@ -67,7 +67,7 @@ export default async function QuestsPage({ params, searchParams }: { params: Pro
   const look = { userId: user.id, name: user.name ?? user.email, pawn: user.questPawn, color: user.questColor, gear: gear.worn, photo: gear.photo };
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <PageHeader title="Quest map" subtitle="Every test run is a quest. Each case that gets a result moves the team's pawn a step." />
       <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
         <div className="space-y-5">
@@ -180,7 +180,7 @@ function TeamRow({ label, projectKey, finds }: { label: string; projectKey: stri
               >
                 {f.emoji}
                 {f.count > 1 && (
-                  <span className="absolute -right-1.5 -bottom-1.5 rounded-full bg-slate-700 px-1 text-[10px] leading-4 font-semibold text-slate-50 tabular-nums" aria-hidden>
+                  <span className="absolute -right-1.5 -bottom-1.5 rounded-full bg-slate-700 px-1 text-[11px] leading-4 font-semibold text-slate-50 tabular-nums" aria-hidden>
                     {f.count}
                   </span>
                 )}

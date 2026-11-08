@@ -47,7 +47,7 @@ export default async function ReposPage({ params }: { params: Promise<{ id: stri
   const cards = await Promise.all(repos.map((r) => repoCard(r)));
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="max-w-5xl">
       <PageHeader title="Repositories" subtitle={`Test health of each GitHub repo connected to ${u.group.name}, from its workflow runs and the results pulled into Flaw Patrol.`} />
       {repos.length === 0 && (
         <Card className="p-6 text-center text-sm text-slate-600">

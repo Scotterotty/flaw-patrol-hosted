@@ -19,7 +19,7 @@ export function RolesNudge({ target, href }: { target: { groupId: string } | { p
   return (
     <div className="my-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm text-sky-900" data-testid="roles-nudge">
       <p>
-        <span aria-hidden className="mr-1.5 inline-grid size-4 place-items-center rounded-full bg-sky-600 text-[10px] font-bold text-white">
+        <span aria-hidden className="mr-1.5 inline-grid size-[18px] place-items-center rounded-full bg-sky-600 text-[11px] font-bold text-white">
           i
         </span>
         <span className="font-semibold">Before you invite:</span> people you add can use every feature except archive, delete and connections. Want it tighter? Set it first.

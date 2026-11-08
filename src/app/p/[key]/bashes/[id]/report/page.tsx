@@ -24,7 +24,7 @@ export default async function BashReportPage({ params }: { params: Promise<{ key
   const runProjectId = r.bash.run?.projectId ?? r.bash.projectId;
   const file = !guest && (r.bash.createdById === user.id || can(who, "run:manage")) ? { projectId: runProjectId, jiraConnected: !!(await jiraConfigFor(runProjectId)) } : undefined;
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <CrumbName href={`/p/${project.key}/bashes/${id}/report`} label={`Report · ${r.bash.name}`} />
       {!guest && (
         <div className="mb-3">

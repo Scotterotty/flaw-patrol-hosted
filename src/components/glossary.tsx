@@ -338,7 +338,7 @@ function LookItUp() {
       className="flex items-center gap-2 rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-white shadow-lg after:absolute after:top-full after:left-1/2 after:-ml-1 after:border-4 after:border-transparent after:border-t-slate-900 dark:bg-slate-100 dark:text-slate-900"
     >
       {known ? "Look it up" : g.canEdit ? "Look it up / Add to Glossary" : "Look it up / Ask the team"}
-      <kbd className="rounded border border-white/30 px-1 font-mono text-[10px] font-normal opacity-80">G</kbd>
+      <kbd className="rounded border border-white/30 px-1 font-mono text-[11px] font-normal opacity-80">G</kbd>
     </button>,
     sel.host,
   );

@@ -1,0 +1,456 @@
+/*
+ * Risk board looks (ver_201). Each person picks one in Your account → Appearance.
+ * Classic is the board's own Tailwind classes; every other look restyles the same
+ * elements here, keyed on data-risk-look. Only the drawing changes.
+ *
+ * Groundwork for app-wide looks: every look sets its colors as --rk-* tokens on the
+ * board root first, then the rules below only read tokens. A future app-wide look can
+ * set the same kind of tokens on :root.
+ *
+ * Elements: .fp-risk (root) · .fp-risk-cell[data-level=hi|md|lo] · .fp-risk-label ·
+ * .fp-risk-card[data-level] · .fp-risk-key · .fp-risk-nt (No tests) · .fp-risk-title ·
+ * .fp-risk-bash · .fp-risk-axis.
+ * Text stays at 4.5:1 or better in every look; only Arcade's pixel labels go under 11px.
+ */
+
+.fp-risk:not([data-risk-look="classic"]) {
+  position: relative;
+  overflow: hidden;
+  padding: 14px;
+  border-radius: 14px;
+  color: var(--rk-ink);
+  background: var(--rk-bg);
+  border: var(--rk-frame);
+}
+.fp-risk:not([data-risk-look="classic"]) > * {
+  position: relative;
+}
+.fp-risk:not([data-risk-look="classic"]) .fp-risk-cell {
+  background: var(--rk-cell);
+  border: var(--rk-cell-line);
+}
+.fp-risk:not([data-risk-look="classic"]) .fp-risk-card {
+  background: var(--rk-card);
+  border: var(--rk-card-line);
+  color: var(--rk-card-ink);
+  box-shadow: var(--rk-card-shadow, none);
+}
+.fp-risk:not([data-risk-look="classic"]) .fp-risk-card:hover,
+.fp-risk:not([data-risk-look="classic"]) .fp-risk-card[data-open] {
+  outline: 2px solid var(--rk-focus);
+  outline-offset: 1px;
+}
+.fp-risk:not([data-risk-look="classic"]) .fp-risk-card:focus-visible {
+  outline: 3px solid var(--rk-focus);
+  outline-offset: 2px;
+}
+.fp-risk:not([data-risk-look="classic"]) .fp-risk-title {
+  color: var(--rk-card-ink);
+}
+.fp-risk:not([data-risk-look="classic"]) .fp-risk-key {
+  color: var(--rk-key);
+}
+.fp-risk:not([data-risk-look="classic"]) .fp-risk-bash {
+  color: var(--rk-bash);
+}
+.fp-risk:not([data-risk-look="classic"]) .fp-risk-axis {
+  color: var(--rk-axis);
+}
+.fp-risk:not([data-risk-look="classic"]) .fp-risk-label {
+  color: var(--rk-label);
+}
+.fp-risk:not([data-risk-look="classic"]) .fp-risk-nt {
+  color: var(--rk-nt-ink);
+  background: var(--rk-nt-bg);
+  border: var(--rk-nt-line);
+}
+.fp-risk .fp-risk-cell[data-level="hi"] { --rk-c: var(--rk-hi); }
+.fp-risk .fp-risk-cell[data-level="md"] { --rk-c: var(--rk-md); }
+.fp-risk .fp-risk-cell[data-level="lo"] { --rk-c: var(--rk-lo); }
+.fp-risk .fp-risk-card[data-level="hi"] { --rk-c: var(--rk-hi); }
+.fp-risk .fp-risk-card[data-level="md"] { --rk-c: var(--rk-md); }
+.fp-risk .fp-risk-card[data-level="lo"] { --rk-c: var(--rk-lo); }
+
+/* ---------- Mission control: light is frosted glass, dark is the control room screen ---------- */
+.fp-risk[data-risk-look="mission"] {
+  --rk-hi: #c4185a;
+  --rk-md: #9a5d00;
+  --rk-lo: #08766a;
+  --rk-ink: #1b1830;
+  --rk-key: #4c5277;
+  --rk-axis: #4c5277;
+  --rk-bash: #a3134a;
+  --rk-focus: #4a5bd6;
+  --rk-bg: radial-gradient(120% 90% at 100% 0%, rgb(255 61 127 / 0.14), transparent 55%), radial-gradient(110% 90% at 0% 100%, rgb(46 200 180 / 0.14), transparent 55%), linear-gradient(160deg, #f6f7ff, #eef0fb);
+  --rk-frame: 1px solid #d9dcf3;
+  --rk-base: white;
+  --rk-cell-a: 12%;
+  --rk-line-a: 40%;
+  --rk-label-mix: black;
+  --rk-card: rgb(255 255 255 / 0.88);
+  --rk-card-line: 1px solid rgb(120 120 190 / 0.3);
+  --rk-card-ink: #1b1830;
+  --rk-glow: 0 4px 16px -6px;
+  --rk-nt-ink: #a3134a;
+  --rk-nt-bg: #ffe3ee;
+  --rk-nt-line: 1px solid #e0286b;
+  --rk-grid: rgb(90 100 200 / 0.08);
+  --rk-scan: rgb(120 110 255 / 0.1);
+  box-shadow: 0 14px 40px rgb(60 50 140 / 0.15);
+}
+.fp-risk[data-risk-look="mission"] {
+  --rk-dark-hi: #ff3d7f;
+  --rk-dark-md: #ffb547;
+  --rk-dark-lo: #2ee6c5;
+}
+:root[data-theme="dark"] .fp-risk[data-risk-look="mission"] {
+  --rk-hi: var(--rk-dark-hi);
+  --rk-md: var(--rk-dark-md);
+  --rk-lo: var(--rk-dark-lo);
+  --rk-ink: #e8f1ff;
+  --rk-key: #a3acd0;
+  --rk-axis: #a3acd0;
+  --rk-bash: #ffb3cb;
+  --rk-focus: #9fb4ff;
+  --rk-bg: radial-gradient(120% 90% at 100% 0%, rgb(255 61 127 / 0.22), transparent 55%), radial-gradient(110% 90% at 0% 100%, rgb(46 230 197 / 0.18), transparent 55%), #0b0d1c;
+  --rk-frame: 1px solid #262b52;
+  --rk-base: transparent;
+  --rk-cell-a: 16%;
+  --rk-line-a: 35%;
+  --rk-label-mix: white;
+  --rk-card: rgb(14 17 40 / 0.85);
+  --rk-card-line: 1px solid rgb(160 170 255 / 0.2);
+  --rk-card-ink: #e8f1ff;
+  --rk-glow: 0 0 18px -6px;
+  --rk-nt-ink: #fff;
+  --rk-nt-bg: rgb(255 61 127 / 0.3);
+  --rk-nt-line: 1px solid #ff3d7f;
+  --rk-grid: rgb(124 140 255 / 0.07);
+  --rk-scan: rgb(124 160 255 / 0.1);
+  box-shadow: 0 0 0 1px rgb(124 92 255 / 0.15), 0 20px 50px rgb(20 10 60 / 0.35);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] .fp-risk[data-risk-look="mission"] {
+    --rk-hi: var(--rk-dark-hi);
+    --rk-md: var(--rk-dark-md);
+    --rk-lo: var(--rk-dark-lo);
+    --rk-ink: #e8f1ff;
+    --rk-key: #a3acd0;
+    --rk-axis: #a3acd0;
+    --rk-bash: #ffb3cb;
+    --rk-focus: #9fb4ff;
+    --rk-bg: radial-gradient(120% 90% at 100% 0%, rgb(255 61 127 / 0.22), transparent 55%), radial-gradient(110% 90% at 0% 100%, rgb(46 230 197 / 0.18), transparent 55%), #0b0d1c;
+    --rk-frame: 1px solid #262b52;
+    --rk-base: transparent;
+    --rk-cell-a: 16%;
+    --rk-line-a: 35%;
+    --rk-label-mix: white;
+    --rk-card: rgb(14 17 40 / 0.85);
+    --rk-card-line: 1px solid rgb(160 170 255 / 0.2);
+    --rk-card-ink: #e8f1ff;
+    --rk-glow: 0 0 18px -6px;
+    --rk-nt-ink: #fff;
+    --rk-nt-bg: rgb(255 61 127 / 0.3);
+    --rk-nt-line: 1px solid #ff3d7f;
+    --rk-grid: rgb(124 140 255 / 0.07);
+    --rk-scan: rgb(124 160 255 / 0.1);
+    box-shadow: 0 0 0 1px rgb(124 92 255 / 0.15), 0 20px 50px rgb(20 10 60 / 0.35);
+  }
+}
+.fp-risk[data-risk-look="mission"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(var(--rk-grid) 1px, transparent 1px), linear-gradient(90deg, var(--rk-grid) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.fp-risk[data-risk-look="mission"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 80px;
+  top: -80px;
+  pointer-events: none;
+  background: linear-gradient(transparent, var(--rk-scan), transparent);
+  animation: fp-risk-scan 5s linear infinite;
+}
+@keyframes fp-risk-scan {
+  to { top: 110%; }
+}
+/* Colors that depend on each square's level are worked out on the square itself. */
+.fp-risk[data-risk-look="mission"] .fp-risk-cell {
+  border-radius: 12px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--rk-c) var(--rk-cell-a), var(--rk-base)), color-mix(in srgb, var(--rk-c) 4%, var(--rk-base)));
+  border: 1px solid color-mix(in srgb, var(--rk-c) var(--rk-line-a), var(--rk-base));
+}
+.fp-risk[data-risk-look="mission"] .fp-risk-cell > .fp-risk-label {
+  color: color-mix(in srgb, var(--rk-c) 80%, var(--rk-label-mix));
+}
+.fp-risk[data-risk-look="mission"] .fp-risk-card {
+  box-shadow: var(--rk-glow) var(--rk-c);
+}
+.fp-risk[data-risk-look="mission"] .fp-risk-label,
+.fp-risk[data-risk-look="mission"] .fp-risk-axis,
+.fp-risk[data-risk-look="mission"] .fp-risk-key,
+.fp-risk[data-risk-look="mission"] .fp-risk-nt {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: 0.1em;
+}
+.fp-risk[data-risk-look="mission"] .fp-risk-label {
+  text-transform: uppercase;
+}
+.fp-risk[data-risk-look="mission"] .fp-risk-card {
+  position: relative;
+  padding-left: 12px;
+  border-radius: 9px;
+  backdrop-filter: blur(6px);
+}
+.fp-risk[data-risk-look="mission"] .fp-risk-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--rk-c);
+  box-shadow: 0 0 10px var(--rk-c);
+}
+.fp-risk[data-risk-look="mission"] .fp-risk-nt {
+  border-radius: 999px;
+  animation: fp-risk-pulse 2s ease-in-out infinite;
+}
+@keyframes fp-risk-pulse {
+  50% { box-shadow: 0 0 12px rgb(255 61 127 / 0.8); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fp-risk[data-risk-look="mission"]::after,
+  .fp-risk[data-risk-look="mission"] .fp-risk-nt {
+    animation: none !important;
+  }
+  .fp-risk[data-risk-look="mission"]::after {
+    display: none;
+  }
+}
+:root[data-motion="reduce"] .fp-risk[data-risk-look="mission"]::after {
+  display: none;
+}
+:root[data-motion="reduce"] .fp-risk[data-risk-look="mission"] .fp-risk-nt {
+  animation: none !important;
+}
+
+/* ---------- Whiteboard: sticky notes; same in light and dark mode ---------- */
+.fp-risk[data-risk-look="white"] {
+  --rk-hi: #9e1730;
+  --rk-md: #8f5600;
+  --rk-lo: #17683f;
+  --rk-ink: #22222a;
+  --rk-key: #4a4a55;
+  --rk-axis: #1d4fb8;
+  --rk-bash: #a3132e;
+  --rk-focus: #1d4fb8;
+  --rk-bg: #fdfdfb;
+  --rk-frame: 10px solid #c9ccd3;
+  --rk-cell: transparent;
+  --rk-cell-line: 2px dashed #b9bcc6;
+  --rk-card: #fff6a8;
+  --rk-card-line: 0 solid transparent;
+  --rk-card-ink: #22222a;
+  --rk-card-shadow: 2px 4px 8px rgb(0 0 0 / 0.18);
+  --rk-nt-ink: #9e1730;
+  --rk-nt-bg: transparent;
+  --rk-nt-line: 2px solid #9e1730;
+  color-scheme: light;
+  border-radius: 10px;
+  box-shadow: inset 0 0 40px rgb(0 0 0 / 0.05);
+  font-family: "Caveat", cursive;
+}
+.fp-risk[data-risk-look="white"] .fp-risk-cell {
+  border-radius: 4px;
+}
+.fp-risk[data-risk-look="white"] .fp-risk-cell > .fp-risk-label {
+  color: var(--rk-c);
+}
+.fp-risk[data-risk-look="white"] .fp-risk-card {
+  border-radius: 2px;
+  transform: rotate(-1deg);
+  font-size: 1.1rem;
+  line-height: 1.15;
+}
+.fp-risk[data-risk-look="white"] .fp-risk-card[data-level="hi"] {
+  --rk-card: #ffc7d6;
+  transform: rotate(1deg);
+}
+.fp-risk[data-risk-look="white"] .fp-risk-card[data-level="md"] {
+  --rk-card: #c9ecff;
+}
+.fp-risk[data-risk-look="white"] .fp-risk-label,
+.fp-risk[data-risk-look="white"] .fp-risk-axis {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.fp-risk[data-risk-look="white"] .fp-risk-key,
+.fp-risk[data-risk-look="white"] .fp-risk-nt,
+.fp-risk[data-risk-look="white"] .fp-risk-bash {
+  font-family: "Caveat", cursive;
+  font-size: 1rem;
+}
+.fp-risk[data-risk-look="white"] .fp-risk-nt {
+  border-radius: 40% 55% 45% 60%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fp-risk[data-risk-look="white"] .fp-risk-card { transform: none; }
+}
+
+/* ---------- Blueprint: white lines on engineering blue; diamonds show risk ---------- */
+.fp-risk[data-risk-look="blue"] {
+  --rk-hi: #fff;
+  --rk-md: #fff;
+  --rk-lo: #fff;
+  --rk-ink: #eaf3ff;
+  --rk-key: #cfe0ff;
+  --rk-axis: #cfe0ff;
+  --rk-bash: #ffd1dc;
+  --rk-focus: #ffe14d;
+  --rk-bg: #123d82;
+  --rk-frame: 2px solid #8fb6f0;
+  --rk-cell: rgb(10 40 100 / 0.35);
+  --rk-cell-line: 1.5px solid rgb(220 235 255 / 0.65);
+  --rk-label: #e3eeff;
+  --rk-card: rgb(10 40 100 / 0.55);
+  --rk-card-line: 1.5px solid #fff;
+  --rk-card-ink: #fff;
+  --rk-nt-ink: #ffe0e8;
+  --rk-nt-bg: rgb(255 80 120 / 0.2);
+  --rk-nt-line: 1px dashed #ffd1dc;
+  color-scheme: dark;
+  border-radius: 4px;
+  background-image: linear-gradient(rgb(255 255 255 / 0.12) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 0.12) 1px, transparent 1px), linear-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 0.05) 1px, transparent 1px);
+  background-size: 60px 60px, 60px 60px, 12px 12px, 12px 12px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+.fp-risk[data-risk-look="blue"] .fp-risk-cell,
+.fp-risk[data-risk-look="blue"] .fp-risk-card,
+.fp-risk[data-risk-look="blue"] .fp-risk-nt {
+  border-radius: 0;
+}
+.fp-risk[data-risk-look="blue"] .fp-risk-card[data-level="hi"] {
+  border-width: 3px;
+}
+.fp-risk[data-risk-look="blue"] .fp-risk-label,
+.fp-risk[data-risk-look="blue"] .fp-risk-axis {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.fp-risk[data-risk-look="blue"] [data-level="hi"] > .fp-risk-label::after { content: " ◆◆◆"; }
+.fp-risk[data-risk-look="blue"] [data-level="md"] > .fp-risk-label::after { content: " ◆◆"; }
+.fp-risk[data-risk-look="blue"] [data-level="lo"] > .fp-risk-label::after { content: " ◆"; }
+
+/* ---------- Arcade: pixel squares and chunky borders ---------- */
+.fp-risk[data-risk-look="arcade"] {
+  --rk-ink: #fff;
+  --rk-key: #4b2296;
+  --rk-axis: #ffe14d;
+  --rk-bash: #a3134a;
+  --rk-focus: #ffe14d;
+  --rk-bg: #140b2e;
+  --rk-frame: 4px solid #fff;
+  --rk-cell-line: 3px solid #000;
+  --rk-label: #fff;
+  --rk-card: #fff;
+  --rk-card-line: 3px solid #000;
+  --rk-card-ink: #140b2e;
+  --rk-card-shadow: 3px 3px 0 #000;
+  --rk-nt-ink: #fff;
+  --rk-nt-bg: #b81e5a;
+  --rk-nt-line: 0 solid transparent;
+  color-scheme: dark;
+  border-radius: 0;
+  box-shadow: 6px 6px 0 #7442c8;
+}
+.fp-risk[data-risk-look="arcade"] .fp-risk-cell {
+  border-radius: 0;
+  box-shadow: inset -4px -4px 0 rgb(0 0 0 / 0.35), inset 4px 4px 0 rgb(255 255 255 / 0.2);
+}
+.fp-risk[data-risk-look="arcade"] .fp-risk-cell[data-level="hi"] { --rk-cell: #a3194f; }
+.fp-risk[data-risk-look="arcade"] .fp-risk-cell[data-level="md"] { --rk-cell: #8a5506; }
+.fp-risk[data-risk-look="arcade"] .fp-risk-cell[data-level="lo"] { --rk-cell: #0f6650; }
+.fp-risk[data-risk-look="arcade"] .fp-risk-card,
+.fp-risk[data-risk-look="arcade"] .fp-risk-nt {
+  border-radius: 0;
+}
+.fp-risk[data-risk-look="arcade"] .fp-risk-card {
+  font-weight: 600;
+}
+/* Pixel labels: the only text allowed under 11px; the font draws big for its size. */
+.fp-risk[data-risk-look="arcade"] .fp-risk-label,
+.fp-risk[data-risk-look="arcade"] .fp-risk-axis,
+.fp-risk[data-risk-look="arcade"] .fp-risk-key,
+.fp-risk[data-risk-look="arcade"] .fp-risk-nt {
+  font-family: "Press Start 2P", monospace;
+  font-size: 8px;
+  line-height: 1.6;
+  letter-spacing: 0;
+}
+.fp-risk[data-risk-look="arcade"] .fp-risk-nt {
+  padding: 2px 4px;
+}
+
+/* ---------- High contrast: black on white always; stripes and dots, not color alone ---------- */
+.fp-risk[data-risk-look="hc"] {
+  --rk-ink: #000;
+  --rk-key: #000;
+  --rk-axis: #000;
+  --rk-bash: #000;
+  --rk-focus: #0047ff;
+  --rk-bg: #fff;
+  --rk-frame: 3px solid #000;
+  --rk-cell: #fff;
+  --rk-cell-line: 3px solid #000;
+  --rk-label: #fff;
+  --rk-card: #fff;
+  --rk-card-line: 2px solid #000;
+  --rk-card-ink: #000;
+  --rk-nt-ink: #fff;
+  --rk-nt-bg: #000;
+  --rk-nt-line: 0 solid transparent;
+  color-scheme: light;
+  border-radius: 6px;
+  font-family: "Atkinson Hyperlegible Next", var(--font-body, sans-serif);
+}
+.fp-risk[data-risk-look="hc"] .fp-risk-cell {
+  border-radius: 4px;
+}
+.fp-risk[data-risk-look="hc"] .fp-risk-cell[data-level="hi"] {
+  background: repeating-linear-gradient(45deg, #ffd6d6 0 6px, #fff 6px 12px);
+}
+.fp-risk[data-risk-look="hc"] .fp-risk-cell[data-level="md"] {
+  background: radial-gradient(#ffd98a 1.6px, transparent 1.8px) 0 0 / 9px 9px, #fff;
+}
+.fp-risk[data-risk-look="hc"] .fp-risk-label {
+  display: inline-block;
+  background: #000;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.fp-risk[data-risk-look="hc"] .fp-risk-card {
+  font-weight: 700;
+}
+.fp-risk[data-risk-look="hc"] .fp-risk-key {
+  font-weight: 400;
+}
+.fp-risk[data-risk-look="hc"] .fp-risk-nt::before {
+  content: "⚠ ";
+}
+.fp-risk[data-risk-look="hc"] .fp-risk-axis {
+  font-weight: 700;
+}
+
+/* Square and group labels use the board's own font, not the page heading font. */
+.fp-risk .fp-risk-label {
+  font-family: inherit;
+}

@@ -17,7 +17,7 @@ export default async function CharterGalleryPage({ params, searchParams }: { par
   const home = await charterHome(project);
   const [team, personas] = await Promise.all([teamTemplates(home.id), db.persona.findMany({ where: { projectId: { in: [project.id, home.id] }, archived: false }, orderBy: { name: "asc" }, select: { id: true, name: true, emoji: true } })]);
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <PageHeader title="Start from a tour or checklist" subtitle="Click a card to see the charter it makes. Hover a card for what it's for." />
       <TemplateGallery projectId={project.id} projectKey={project.key} templates={[...BUILT_IN, ...team]} personas={personas} canManage={can(who, "shared:manage")} story={story && /^[A-Z][A-Z0-9_]*-\d+$/.test(story) ? story : undefined} />
     </div>

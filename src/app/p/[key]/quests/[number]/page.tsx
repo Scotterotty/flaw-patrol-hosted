@@ -30,7 +30,7 @@ export default async function QuestPage({ params }: { params: Promise<{ key: str
   if (!q) notFound();
   if (q.run.automated)
     return (
-      <div className="mx-auto max-w-xl">
+      <div className="max-w-xl">
         <EmptyState title="No quest for this run">
           Automated runs don&apos;t go on a quest. Only cases people test move the pawn.
           <span className="mt-3 block">
@@ -46,7 +46,7 @@ export default async function QuestPage({ params }: { params: Promise<{ key: str
   const along = [...q.rewards.map((r) => ({ step: r.step, r, t: null })), ...q.teamwork.map((t) => ({ step: t.step, r: null, t }))].sort((a, b) => a.step - b.step);
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <LiveRefresh url={`/api/live/runs/${q.run.id}`} />
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>

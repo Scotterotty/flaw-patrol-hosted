@@ -91,6 +91,7 @@ import "@fontsource/bluu-next/700.css";
 import "@fontsource/bagnard/400.css";
 import "@fontsource/lexend/600.css";
 import "./globals.css";
+import "./risk-looks.css";
 import { QuestToaster } from "@/components/quest-toast";
 import { CrownToaster } from "@/components/crown-toast";
 import { crownChanges } from "@/lib/crowns";
