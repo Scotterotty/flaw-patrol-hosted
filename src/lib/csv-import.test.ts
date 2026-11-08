@@ -440,3 +440,47 @@ describe("header row below row 1", () => {
     expect(splitTitle("Only")).toEqual(["Only", ""]);
   });
 });
+
+// ver_203 (Monday dry run): a sheet with numbered steps in one cell and one Expected result per
+// test put that result on step 1. It belongs on the last step.
+describe("one Expected result per test goes on the last step", () => {
+  const header = ["Test ID", "Title", "Steps", "Expected Result"];
+  const steps = (stepsCell: string, expected: string) => {
+    const rows = [header, ["CK-1", "Guest checkout", stepsCell, expected]];
+    return rowsToCases(rows, guessMapping(header)).cases[0].steps;
+  };
+
+  it("puts a single Expected line on the last numbered step", () => {
+    expect(steps("1. Add item to cart\n2. Click Checkout\n3. Pay with test Visa", "Order confirmation shows order number")).toEqual([
+      { action: "Add item to cart", expected: "" },
+      { action: "Click Checkout", expected: "" },
+      { action: "Pay with test Visa", expected: "Order confirmation shows order number" },
+    ]);
+  });
+
+  it("keeps several plain Expected lines together on the last step", () => {
+    expect(steps("1. Add item\n2. Pay", "Order placed\nEmail sent\nReceipt shows")).toEqual([
+      { action: "Add item", expected: "" },
+      { action: "Pay", expected: "Order placed\nEmail sent\nReceipt shows" },
+    ]);
+    expect(steps("Add item\nPay", "Order placed\nEmail sent\nReceipt shows")[1].expected).toBe("Order placed\nEmail sent\nReceipt shows");
+  });
+
+  it("still pairs a numbered Expected list one for one", () => {
+    expect(steps("1. Open\n2. Sign in", "1. Page loads\n2. Dashboard shows")).toEqual([
+      { action: "Open", expected: "Page loads" },
+      { action: "Sign in", expected: "Dashboard shows" },
+    ]);
+  });
+
+  it("still pairs plain lines that line up", () => {
+    expect(steps("Open login\nSubmit", "Form shows\nSigned in")).toEqual([
+      { action: "Open login", expected: "Form shows" },
+      { action: "Submit", expected: "Signed in" },
+    ]);
+  });
+
+  it("leaves one-step cases alone", () => {
+    expect(steps("Open the app", "It opens")).toEqual([{ action: "Open the app", expected: "It opens" }]);
+  });
+});

@@ -40,6 +40,12 @@ export const WHATS_NEW: WhatsNewEntry[] = [
         title: "Import results, in the same word as Google Sheets",
         text: "Test runs → Bring in results is now Import results. Search finds Import cases and Export a run, too.",
       },
+      {
+        kind: "fix",
+        title: "A sheet's Expected result goes on the last step",
+        text: "When you import cases from a sheet with one Expected result per test, it now goes on the last step, not step 1. Numbered Expected lists still pair up step by step. Cases imported before need importing again.",
+        who: "lead",
+      },
     ],
   },
   {

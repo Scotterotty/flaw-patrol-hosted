@@ -301,6 +301,20 @@ export function pairSteps(actions: string[], expected: string[]): PlainStep[] {
   return steps;
 }
 
+/**
+ * A sheet's Expected cell, split per step (ver_203). Most sheets have one Expected result per
+ * test: the outcome of the last step. So unless the Expected cell is a numbered list, or both
+ * cells are plain lines that line up one for one, all of it goes on the last step.
+ */
+export function expectedPerStep(stepsText: string, expectedText: string, steps: number): string[] {
+  const lines = splitStepCell(expectedText);
+  if (steps < 2 || lines.length === 0) return lines;
+  const numbered = (t: string) => t.split(/\r?\n/).some((l) => NUMBERED.test(l));
+  if (numbered(expectedText)) return lines;
+  if (!numbered(stepsText) && lines.length === steps) return lines;
+  return [...Array<string>(steps - 1).fill(""), lines.join("\n")];
+}
+
 export function parsePriority(raw: string): Priority | null {
   const v = raw.trim().toLowerCase();
   if (!v || /^(not prioriti[sz]ed|none|unprioriti[sz]ed|—|-)$/.test(v)) return "MEDIUM";
@@ -388,7 +402,10 @@ export function rowsToCases(rows: string[][], mapping: ColumnMapping, source: Im
     let underTitle = "";
     if (sheetMode && options.firstLineTitle) [title, underTitle] = splitTitle(title);
     const expectedText = [cell(row, "expected"), underTitle].filter(Boolean).join("\n");
-    const steps = withData(pairSteps(split(cell(row, "steps")), split(expectedText)), split(cell(row, "testData")));
+    const stepsText = cell(row, "steps");
+    const actions = split(stepsText);
+    const expected = oneStepPerRow ? split(expectedText) : expectedPerStep(stepsText, expectedText, actions.length);
+    const steps = withData(pairSteps(actions, expected), split(cell(row, "testData")));
     const sourceId = cell(row, "sourceId");
     const prevCase = cases[cases.length - 1];
     const order = cell(row, "stepOrder");
