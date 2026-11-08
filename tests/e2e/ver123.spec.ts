@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
 
-// ver_123: Loading spinners (Your account → Appearance) folds to one line.
+// ver_123: Loading spinners folds to one line (Your account → Just for fun since ver_200).
 test("Loading spinners folds to one line and remembers if it's open", async ({ page }) => {
   test.setTimeout(120_000);
   await signIn(page, "admin@example.com", "Demo Admin");
@@ -39,7 +39,8 @@ test("Loading spinners folds to one line and remembers if it's open", async ({ p
   const closeAll = page.getByRole("button", { name: "Close all", exact: true });
   if (await openAll.count()) await openAll.click();
   await closeAll.click();
-  await expect(page.getByTestId("spinner-picker")).toHaveCount(0);
+  // ver_200: Loading spinners is its own card under Just for fun, so Close all folds it.
+  await expect(fold).toHaveAttribute("aria-expanded", "false");
   await openAll.click();
   await expect(fold).toHaveAttribute("aria-expanded", "true");
   await closeAll.click();

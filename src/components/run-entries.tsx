@@ -509,7 +509,7 @@ export function RunEntries({
                       </Link>
                     )}
                     {(r.status === "PASSED" || r.status === "SKIPPED" || (canRemove && r.removable)) && (
-                      <MoreMenu label="⋯" caret={false} size="sm" ariaLabel={`More for ${r.caseKey}`} title="More">
+                      <MoreMenu label="⋯" caret={false} size="sm" ariaLabel={`Options for ${r.caseKey}`} title="Options">
                         {(r.status === "PASSED" || r.status === "SKIPPED") && (
                           <Link href={`/p/${projectKey}/runs/${runNumber}/execute?entry=${r.id}`} className={buttonClass("ghost")} role="menuitem">
                             Test again

@@ -61,7 +61,9 @@ test("step results save as they're picked and are still there after leaving the 
   await expect(rowA).not.toContainText("In progress");
 
   // Reopening the finished case shows its saved step results, not blank steps.
-  await rowA.getByRole("link", { name: "Retest" }).click();
+  // Passed cases keep Test again under ⋯ (ver_200: one action per row).
+  await rowA.getByRole("button", { name: `Options for ${KEY}-1` }).click();
+  await rowA.getByRole("menuitem", { name: "Test again" }).click();
   await expect(page.getByText("Its step results are shown below.")).toBeVisible();
   for (const n of [1, 2, 3, 4, 5]) await expect(page.getByRole("group", { name: `Step ${n} status` }).getByRole("button", { name: "Passed" })).toHaveAttribute("aria-pressed", "true");
   // Saving without changes keeps the one result rather than adding a copy, and stays on the case.

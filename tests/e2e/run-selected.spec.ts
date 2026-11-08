@@ -60,7 +60,7 @@ test("run just the cases picked on the run page", async ({ page }) => {
 
   // Back on the run page: only the two picked cases have results.
   await expect(page).toHaveURL(runUrl);
-  await expect(page.getByText("2 of 4 cases")).toBeVisible();
+  await expect(page.getByTestId("run-summary")).toContainText("50% done");
 
   // Sort by status: untested first, then failed, then passed.
   await page.getByLabel("Sort cases").selectOption("status");

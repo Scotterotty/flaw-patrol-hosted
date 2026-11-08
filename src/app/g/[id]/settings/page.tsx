@@ -514,9 +514,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                   />
                   {storiesOn && jira && (
                     // ver_200: Requirements needs Jira, so it lives inside the Jira row.
-                    <div id="stories" className="mt-5 scroll-mt-24 border-t border-accent-200 pt-4" data-howto="settings-requirements">
-                      <h3 className="font-semibold text-slate-900">Requirements</h3>
-                      <p className="mb-3 text-sm text-slate-500">{storiesText}</p>
+                    <div data-howto="settings-requirements">
                       <StoriesPanel projectId={u.hub.id} stories={parseStoriesConfig(jira.stories)} bugProject={jira.jiraProjectKey} />
                     </div>
                   )}

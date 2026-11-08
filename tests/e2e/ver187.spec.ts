@@ -89,7 +89,8 @@ test("admin: short New umbrella box, run name date, quest offer and Reports filt
   await box.getByRole("button", { name: "Create smoke test" }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${CYCLE}/runs/1$`));
   // 7. The run page's words.
-  await expect(page.getByText("of cases tested")).toBeVisible();
+  // ver_200: the run summary says "% passed", with the cases tested on hover.
+  await expect(page.getByTestId("run-pass-rate")).toHaveAttribute("title", /cases tested/);
   await expect(page.getByRole("button", { name: "Run these before? Say so" })).toBeVisible();
 });
 

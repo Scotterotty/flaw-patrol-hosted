@@ -114,7 +114,9 @@ test("suites, runs, Jira bugs and reports", async ({ page }) => {
   // Dashboard
   await backToRun(page);
   await expect(page.getByText("2.4.0-rc1").first()).toBeVisible();
-  await expect(page.getByText("QA-101")).toBeVisible();
+  // ver_200: the run's bugs sit behind See bugs in the summary box.
+  await page.getByRole("button", { name: "See bugs" }).click();
+  await expect(page.getByText("QA-101").first()).toBeVisible();
   await snap(page, "run-dashboard");
 
   const created = await (await fetch(`${JIRA}/__issues`)).json();

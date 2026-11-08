@@ -120,7 +120,7 @@ test("a charter with a persona runs as a timed session with a log, bugs and an o
   await expect(page.getByText(/1\s*bug\b/)).toBeVisible();
   await page.getByRole("button", { name: "Finish", exact: true }).click();
   await expect(page).toHaveURL(runUrl);
-  await expect(page.getByText("Explored").first()).toBeVisible();
+  await expect(page.getByRole("row").getByText("Explored", { exact: true }).first()).toBeVisible();
 
   // The charter's history keeps the session log.
   await page.goto(`/p/${KEY}/cases/1`);

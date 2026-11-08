@@ -190,7 +190,7 @@ test("umbrella settings open in place; the test cycle counts the Case library; p
     .first()
     .click();
   await expect(page.getByText("Robin Tester")).toBeVisible();
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await page.locator("[data-howto=settings-jira]").click();
   await expect(page.getByLabel("Jira site")).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`/g/${groupId}/settings`));
 

@@ -45,7 +45,8 @@ test("umbrella settings rows open in place, one at a time, and the field list re
   // Let Connect's page refresh land first: it rewrites the address and would drop the row's #hash.
   await page.waitForLoadState("networkidle");
   await expect(row("jira").getByTestId("bug-template-settings")).toHaveCount(0);
-  await expect(row("jira").locator("#stories")).toHaveCount(0);
+  // ver_200: Requirements needs Jira, so it sits inside the Jira row.
+  await expect(row("jira").locator("#stories")).toHaveCount(1);
 
   // Opening Members closes the Jira row.
   await row("members").getByRole("button", { name: "Manage" }).click();
@@ -72,9 +73,9 @@ test("umbrella settings rows open in place, one at a time, and the field list re
   await expect(fields.getByTestId("fields-filled")).toContainText("Team");
   await expect(fields).not.toContainText("not on the create screen");
 
-  // Stories gets its own row too.
-  await row("stories").getByRole("button", { name: "Change" }).click();
-  await expect(row("stories").getByRole("button", { name: "Save requirements" })).toBeVisible();
+  // Requirements opens with the Jira row.
+  await row("jira").getByRole("button", { name: "Change" }).click();
+  await expect(row("jira").getByRole("button", { name: "Save requirements" })).toBeVisible();
   await expect(page.getByTestId("bug-template-settings")).toHaveCount(0);
 
   // Slack lives in its row; there's no separate Slack box lower down.
@@ -87,8 +88,9 @@ test("umbrella settings rows open in place, one at a time, and the field list re
 
   // Links with a #part still open the right row.
   await page.goto(`${settings}#stories`);
-  await expect(row("stories").getByRole("button", { name: "Hide" })).toBeVisible();
+  await expect(row("jira").getByRole("button", { name: "Hide" })).toBeVisible();
+  await expect(row("jira").getByRole("button", { name: "Save requirements" })).toBeVisible();
   await page.goto(`${settings}#slack`);
   await expect(row("slack").getByRole("button", { name: "Hide" })).toBeVisible();
-  await expect(row("stories").getByRole("button", { name: "Change" })).toBeVisible();
+  await expect(row("jira").getByRole("button", { name: "Change" })).toBeVisible();
 });
