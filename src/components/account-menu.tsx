@@ -55,7 +55,7 @@ export function AccountMenu({ children, label, admin, signOut, joins }: { childr
             Your account
           </Link>
           <Link role="menuitem" href="/account#appearance" className={item} data-howto="account-appearance">
-            Appearance
+            Appearance and accessibility
           </Link>
           <Link role="menuitem" href="/whats-new" className={item} data-howto="account-whats-new">
             What&apos;s new

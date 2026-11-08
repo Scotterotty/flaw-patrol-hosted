@@ -13,7 +13,8 @@ import { STATUSES, STATUS_LABEL, STATUS_STYLE } from "@/lib/status";
 import { assignEntries, keepAutomatedInRun, markRunCasesRunBefore, removeRunEntries, restoreRunEntries } from "@/server/runs";
 import { useLiveSteps } from "@/lib/live-steps";
 import { useLiveRow, useLiveRows, type LiveRow } from "@/lib/live-rows";
-import { PersonLabel } from "./avatar";
+import { MoreMenu } from "./more-menu";
+import { shortNames } from "@/lib/short-names";
 import type { CaseSort } from "@/lib/case-sort";
 import { AutomatedBadge, PriorityBadge, TypeBadge, FlakyBadge, RegressionBadge } from "./badges";
 import { CaseSortToggle } from "./case-sort-toggle";
@@ -163,6 +164,8 @@ export function RunEntries({
     });
   const autoLeft = rows.filter((r) => r.automated && r.removable);
   const byId = new Map(members.map((m) => [m.id, m]));
+  // First names, never initials; "You" for your own cases (ver_200).
+  const names = useMemo(() => shortNames(members, meId), [members, meId]);
   const canSelect = canManage || canRun || canRemove;
   // Selected cases in the order they're listed, as case numbers for a short, shareable link.
   const only = rows.filter((r) => selected.has(r.id)).map((r) => r.caseNumber);
@@ -179,7 +182,6 @@ export function RunEntries({
     query,
     (r) => `${r.caseKey} ${r.title} ${r.folderPath} ${r.tags.join(" ")}`,
   );
-  const hasKnown = rows.some((r) => r.known);
   const shown = [...found.exact, ...found.close];
   const closeStart = found.close.length ? found.exact.length : -1;
   const shownIds = new Set(shown.map((r) => r.id));
@@ -401,11 +403,10 @@ export function RunEntries({
                 </th>
               )}
               <th className="px-3 py-2 font-medium max-sm:hidden">Case</th>
-              <th className="w-20 px-3 py-2 font-medium max-sm:hidden">Priority</th>
-              <th className="hidden w-36 px-3 py-2 font-medium md:table-cell">Assigned to</th>
-              <th className="w-24 px-3 py-2 font-medium max-sm:hidden">Status</th>
-              {hasKnown && <th className="hidden px-3 py-2 font-medium whitespace-nowrap lg:table-cell">Known bugs</th>}
-              <th className="w-16 px-3 py-2 max-sm:hidden">
+              <th className="hidden w-20 px-3 py-2 font-medium lg:table-cell">Priority</th>
+              <th className="hidden w-28 px-3 py-2 font-medium md:table-cell">Who</th>
+              <th className="w-40 px-3 py-2 font-medium max-sm:hidden">Status</th>
+              <th className="w-24 px-3 py-2 max-sm:hidden">
                 <span className="sr-only">Actions</span>
               </th>
             </tr>
@@ -439,87 +440,89 @@ export function RunEntries({
                     />
                   </td>
                 )}
-                <td className="px-3 py-2 max-sm:order-first max-sm:basis-full max-sm:p-0">
-                  <Link href={`/p/${projectKey}/runs/${runNumber}/execute?entry=${r.id}`} className="hover:underline">
-                    <span className="font-mono text-xs text-slate-500">{r.caseKey}</span> <TagPills tags={r.tags} colors={tagColors} hits={tagHits(query, r.tags)} /> <span className="font-medium text-slate-900">{r.title}</span>
-                  </Link>
-                  {r.automated ? <span className="ml-1.5 align-middle"><AutomatedBadge /></span> : null}
-                  {r.regression ? <span className="ml-1.5 align-middle"><RegressionBadge tip={r.regression} /></span> : null}
-                  {r.flaky ? <span className="ml-1.5 align-middle"><FlakyBadge flips={r.flaky} /></span> : null}
-                  {r.news && <NewsTag kind={r.news.kind} title={r.news.why} className="ml-1.5" />}
-                  {r.added && (
-                    <span title={r.added} className="ml-1.5 inline-flex items-center rounded-full bg-violet-50 px-2 py-px align-middle text-[11px] font-semibold text-violet-800 ring-1 ring-violet-200 ring-inset">
-                      Added
-                    </span>
-                  )}
-                  <p className="text-xs text-slate-500">
-                    {r.folderPath}
-                    {r.defects > 0 && <span className="ml-2 text-red-600">{r.defects} {r.defects === 1 ? "bug" : "bugs"}</span>}
-                    {r.news && (
-                      <span className={cx("ml-2", r.news.kind === "new" ? "text-sky-800" : "text-amber-800")}>
-                        {r.news.why}
-                        {r.news.href && (
-                          <>
-                            {" · "}
-                            <Link href={r.news.href} className="underline hover:no-underline">
-                              What was updated
-                            </Link>
-                          </>
-                        )}
+                <td className="px-3 py-1.5 max-sm:order-first max-sm:basis-full max-sm:p-0" title={[r.folderPath, r.news?.why, r.added].filter(Boolean).join(" · ") || undefined}>
+                  {/* ver_200: one line per case. The folder and why it's new are on hover; bugs are a small chip. */}
+                  <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                    <Link href={`/p/${projectKey}/runs/${runNumber}/execute?entry=${r.id}`} className="min-w-0 hover:underline">
+                      <span className="font-mono text-xs text-slate-500">{r.caseKey}</span> <TagPills tags={r.tags} colors={tagColors} hits={tagHits(query, r.tags)} /> <span className="font-medium text-slate-900">{r.title}</span>
+                    </Link>
+                    {r.defects > 0 && (
+                      <span className="rounded-full bg-red-50 px-1.5 text-[11px] font-semibold whitespace-nowrap text-red-700" title={`${r.defects} ${r.defects === 1 ? "bug" : "bugs"} found in this run`} data-testid="bug-chip">
+                        🐞{r.defects}
                       </span>
                     )}
-                  </p>
-                </td>
-                <td className="px-3 py-2 max-sm:order-1 max-sm:p-0">
-                  <span className="inline-flex flex-wrap gap-1">
-                    <PriorityBadge priority={r.priority} />
+                    {r.known ? (
+                      <span className="rounded-full bg-amber-100 px-1.5 text-[11px] font-semibold whitespace-nowrap text-amber-900" title={`${r.known} known ${r.known === 1 ? "bug" : "bugs"} from earlier runs on this case`} data-testid="known-chip">
+                        🐞{r.known}
+                      </span>
+                    ) : null}
+                    {r.automated ? <AutomatedBadge /> : null}
+                    {r.regression ? <RegressionBadge tip={r.regression} /> : null}
+                    {r.flaky ? <FlakyBadge flips={r.flaky} /> : null}
+                    {r.news && <NewsTag kind={r.news.kind} title={r.news.why} />}
+                    {r.news?.href && (
+                      <Link href={r.news.href} className="text-[11px] text-amber-800 underline hover:no-underline">
+                        What was updated
+                      </Link>
+                    )}
+                    {r.added && (
+                      <span title={r.added} className="inline-flex items-center rounded-full bg-violet-50 px-2 py-px text-[11px] font-semibold text-violet-800 ring-1 ring-violet-200 ring-inset">
+                        Added
+                      </span>
+                    )}
                     {r.charter && <TypeBadge type="EXPLORATORY" />}
+                    {/* Priority moves into the line below the lg breakpoint, where its column hides. */}
+                    <span className="lg:hidden">
+                      <PriorityBadge priority={r.priority} />
+                    </span>
                   </span>
                 </td>
-                <td className="hidden px-3 py-2 text-xs text-slate-600 md:table-cell">{r.assigneeId ? (
+                <td className="hidden px-3 py-1.5 lg:table-cell">
+                  <PriorityBadge priority={r.priority} />
+                </td>
+                <td className="hidden px-3 py-1.5 text-xs whitespace-nowrap text-slate-700 md:table-cell">
+                  {r.assigneeId ? (
                     byId.has(r.assigneeId) ? (
-                      <PersonLabel person={byId.get(r.assigneeId)!} />
+                      <span title={byId.get(r.assigneeId)!.name}>{names.get(r.assigneeId)}</span>
                     ) : (
                       "Former member"
                     )
                   ) : (
                     <span className="text-slate-400">Unassigned</span>
-                  )}</td>
-                <td className="px-3 py-2 max-sm:order-2 max-sm:p-0">
-                  <StatusChip status={r.status} />
-                  {r.progress ? (
-                    <StepProgress steps={r.progress} lastChange={r.lastChange} />
-                  ) : (
-                    r.lastTestedAt && <p className="mt-0.5 text-[11px] text-slate-400" suppressHydrationWarning>{relativeTime(new Date(r.lastTestedAt), spelling)}</p>
                   )}
                 </td>
-                {hasKnown && (
-                  <td className="hidden px-3 py-2 lg:table-cell">
-                    {r.known ? (
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900" title={`${r.known} ${r.known === 1 ? "bug" : "bugs"} from earlier runs on this case`}>
-                        {r.known}
-                      </span>
-                    ) : null}
-                  </td>
-                )}
-                <td className="px-3 py-2 text-right max-sm:order-4 max-sm:ml-auto max-sm:p-0">
-                  <Link
-                    href={`/p/${projectKey}/runs/${runNumber}/execute?entry=${r.id}`}
-                    className="text-xs font-medium text-accent-700 hover:underline max-sm:inline-block max-sm:rounded-md max-sm:bg-accent-600 max-sm:px-3 max-sm:py-1.5 max-sm:text-sm max-sm:text-white max-sm:hover:no-underline"
-                  >
-                    {r.status === "UNTESTED" ? "Test" : r.status === "IN_PROGRESS" ? "Continue" : "Retest"}
-                  </Link>
-                  {canRemove && r.removable && (
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => remove([r.id])}
-                      aria-label={`Remove ${r.caseKey} from run`}
-                      className="mt-1 block w-full text-right text-[11px] text-slate-500 hover:text-red-700 hover:underline max-sm:mt-0 max-sm:ml-2 max-sm:inline max-sm:w-auto"
-                    >
-                      Remove from run
-                    </button>
-                  )}
+                <td className="px-3 py-1.5 max-sm:order-2 max-sm:p-0">
+                  <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5" title={r.progress ? undefined : r.lastChange ? changeLine(r.lastChange, spelling) : r.lastTestedAt ? relativeTime(new Date(r.lastTestedAt), spelling) : undefined} suppressHydrationWarning>
+                    <StatusChip status={r.status} />
+                    {r.progress && <StepProgress steps={r.progress} lastChange={r.lastChange} />}
+                  </span>
+                </td>
+                <td className="px-3 py-1.5 text-right whitespace-nowrap max-sm:order-4 max-sm:ml-auto max-sm:p-0">
+                  {/* One action per row: Test, Continue or Retest where it didn't pass. The rest is under ⋯. */}
+                  <span className="inline-flex items-center justify-end gap-1">
+                    {r.status !== "PASSED" && r.status !== "SKIPPED" && (
+                      <Link
+                        href={`/p/${projectKey}/runs/${runNumber}/execute?entry=${r.id}`}
+                        className="text-xs font-medium text-accent-700 hover:underline max-sm:inline-block max-sm:rounded-md max-sm:bg-accent-600 max-sm:px-3 max-sm:py-1.5 max-sm:text-sm max-sm:text-white max-sm:hover:no-underline"
+                      >
+                        {r.status === "UNTESTED" ? "Test" : r.status === "IN_PROGRESS" ? "Continue" : "Retest"}
+                      </Link>
+                    )}
+                    {(r.status === "PASSED" || r.status === "SKIPPED" || (canRemove && r.removable)) && (
+                      <MoreMenu label="⋯" caret={false} size="sm" ariaLabel={`More for ${r.caseKey}`} title="More">
+                        {(r.status === "PASSED" || r.status === "SKIPPED") && (
+                          <Link href={`/p/${projectKey}/runs/${runNumber}/execute?entry=${r.id}`} className={buttonClass("ghost")} role="menuitem">
+                            Test again
+                          </Link>
+                        )}
+                        {canRemove && r.removable && (
+                          <button type="button" role="menuitem" disabled={pending} onClick={() => remove([r.id])} aria-label={`Remove ${r.caseKey} from run`} className={cx(buttonClass("ghost"), "text-red-700")}>
+                            Remove from run
+                          </button>
+                        )}
+                      </MoreMenu>
+                    )}
+                  </span>
                 </td>
               </tr>
               </Fragment>
@@ -538,47 +541,51 @@ export function RunEntries({
   );
 }
 
-/** A pip per step (colored once it has a result), the count, and who's on it. Compact keeps it to one line. */
-export function StepProgress({ steps, lastChange, compact = false }: { steps: ResultStatus[]; lastChange: EntryRow["lastChange"]; compact?: boolean }) {
+/** "Dana Lead · 2 min ago", "Dana Lead is testing now" or "Saved in Qase · 2 min ago": who last changed a case, for its hover. */
+export function changeLine(lastChange: EntryRow["lastChange"], spelling: ReturnType<typeof useSpelling>): string {
+  if (!lastChange) return "";
+  const when = relativeTime(new Date(lastChange.at), spelling);
+  if (lastChange.qase) return `Saved in Qase · ${when}`;
+  if (isRecent(lastChange)) return `${lastChange.mine ? "You're" : `${lastChange.name} is`} testing now`;
+  return `${lastChange.mine ? "You" : lastChange.name} · ${when}`;
+}
+
+const isRecent = (lastChange: EntryRow["lastChange"]) => !!lastChange && !lastChange.saved && Date.now() - Date.parse(lastChange.at) < 2 * 60_000;
+
+/**
+ * A pip per step (colored once it has a result) and the count, on one line (ver_200). Who changed it
+ * and when is on hover; someone testing right now gets a green dot.
+ */
+export function StepProgress({ steps, lastChange }: { steps: ResultStatus[]; lastChange: EntryRow["lastChange"] }) {
   const spelling = useSpelling();
   const done = steps.filter((s) => s !== "UNTESTED").length;
-  const recent = lastChange && !lastChange.saved && Date.now() - Date.parse(lastChange.at) < 2 * 60_000;
-  const who = lastChange && (
-    <span className={cx("flex items-center gap-1 text-[11px] text-slate-400", !compact && "mt-0.5")} suppressHydrationWarning>
-      {recent && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
+  const recent = isRecent(lastChange);
+  const who = changeLine(lastChange, spelling);
+  return (
+    <span className="inline-flex min-w-0 items-center gap-x-1.5 align-middle" title={who || undefined} suppressHydrationWarning>
+      {steps.length <= 24 && (
+        <span className="flex shrink-0 gap-0.5">
+          {steps.map((s, i) => (
+            <span key={i} title={`Step ${i + 1}: ${STATUS_LABEL[s]}`} className={cx("st-pip h-1.5 w-2.5 rounded-sm", STATUS_STYLE[s].bar)} />
+          ))}
+        </span>
+      )}
+      <span className="shrink-0 text-[11px] text-slate-500 tabular-nums">
+        {done}/{steps.length}
+      </span>
       {/* Qase (ver_164): results saved in Qase say so with a small tag. */}
-      {lastChange.qase ? (
-        <>
-          <span className="rounded border border-slate-200 bg-slate-50 px-1 text-[10px] font-semibold text-slate-600" title="Someone saved this result in Qase" data-testid="from-qase">
-            Qase
-          </span>
-          {relativeTime(new Date(lastChange.at), spelling)}
-        </>
-      ) : recent ? (
-        `${lastChange.mine ? "You're" : `${lastChange.name} is`} testing now`
-      ) : (
-        `${lastChange.mine ? "You" : lastChange.name} · ${relativeTime(new Date(lastChange.at), spelling)}`
+      {lastChange?.qase && (
+        <span className="rounded border border-slate-200 bg-slate-50 px-1 text-[10px] font-semibold text-slate-600" title="Someone saved this result in Qase" data-testid="from-qase">
+          Qase
+        </span>
+      )}
+      {recent && (
+        <span className="flex items-center" suppressHydrationWarning>
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          <span className="sr-only">{who}</span>
+        </span>
       )}
     </span>
-  );
-  return (
-    <div className="mt-1">
-      <div className={cx("flex min-w-0 items-center gap-x-1.5", compact && "flex-wrap gap-y-0.5")}>
-        {steps.length <= 24 && (
-          <span className="flex shrink-0 gap-0.5">
-            {steps.map((s, i) => (
-              <span key={i} title={`Step ${i + 1}: ${STATUS_LABEL[s]}`} className={cx("st-pip h-1.5 w-2.5 rounded-sm", STATUS_STYLE[s].bar)} />
-            ))}
-          </span>
-        )}
-        <span className="shrink-0 text-[11px] text-slate-500">
-          {done}/{steps.length}
-        </span>
-        {compact && who && <span className="text-[11px] text-slate-300">·</span>}
-        {compact && who}
-      </div>
-      {!compact && who}
-    </div>
   );
 }
 
@@ -590,7 +597,7 @@ export function LiveStepProgress({ entryId, steps, lastChange }: { entryId: stri
   const live = useLiveSteps(entryId);
   const shown = live?.steps ?? steps;
   if (!shown?.some((s) => s !== "UNTESTED")) return null;
-  return <StepProgress compact steps={shown} lastChange={live ? { name: "", at: live.at, mine: true } : lastChange} />;
+  return <StepProgress steps={shown} lastChange={live ? { name: "", at: live.at, mine: true } : lastChange} />;
 }
 
 const saved = (s: ResultStatus) => s !== "IN_PROGRESS" && s !== "UNTESTED";
@@ -601,10 +608,10 @@ export function LiveStatusPip({ id, status, renderedAt }: { id: string; status: 
   return <span className={cx("st-pip mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full", STATUS_STYLE[s].bar)} />;
 }
 
-/** A runner list row's status word, kept current by the live check. */
+/** A runner list row's status word, kept current by the live check. Spoken only: the dot shows it (ver_200). */
 export function LiveStatusLabel({ id, status, renderedAt }: { id: string; status: ResultStatus; renderedAt: number }) {
   const s = useLiveRow(id, renderedAt)?.status ?? status;
-  return <span className="text-xs text-slate-500">{STATUS_LABEL[s]}</span>;
+  return <span className="sr-only">{STATUS_LABEL[s]}</span>;
 }
 
 /**
@@ -614,7 +621,7 @@ export function LiveStatusLabel({ id, status, renderedAt }: { id: string; status
  */
 export function LiveEntryProgress({ row, current, renderedAt }: { row: LiveRow; current: boolean; renderedAt: number }) {
   const r = useLiveRow(row.id, renderedAt) ?? row;
-  if (saved(r.status)) return r.progress ? <StepProgress compact steps={r.progress} lastChange={r.lastChange} /> : null;
+  if (saved(r.status)) return r.progress ? <StepProgress steps={r.progress} lastChange={r.lastChange} /> : null;
   if (current) return <LiveStepProgress entryId={r.id} steps={r.progress} lastChange={r.lastChange} />;
-  return r.status === "IN_PROGRESS" && r.progress ? <StepProgress compact steps={r.progress} lastChange={r.lastChange} /> : null;
+  return r.status === "IN_PROGRESS" && r.progress ? <StepProgress steps={r.progress} lastChange={r.lastChange} /> : null;
 }

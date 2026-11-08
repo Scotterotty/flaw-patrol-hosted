@@ -18,7 +18,6 @@ import { CaseSortToggle } from "@/components/case-sort-toggle";
 import { sortCases } from "@/lib/case-sort";
 import { readCaseSort } from "@/lib/case-sort-server";
 import { notFound, redirect } from "next/navigation";
-import { Avatar } from "@/components/avatar";
 import { LiveRefresh } from "@/components/live-refresh";
 import { LiveEntryProgress, LiveStatusLabel, LiveStatusPip } from "@/components/run-entries";
 import { liveRowOf } from "@/lib/live-rows-data";
@@ -28,6 +27,7 @@ import { RunListFold } from "@/components/runner-case-list";
 import { SessionRunner } from "@/components/session-runner";
 import { parseCharter, parsePersona, parseSessionLog } from "@/lib/charter";
 import { RunnerCaseList } from "@/components/runner-case-list";
+import { shortNames } from "@/lib/short-names";
 import { flakyCases } from "@/lib/flaky";
 import { RunnerHistory } from "@/components/runner-history";
 import { caseNewsForRun } from "@/lib/case-news-data";
@@ -117,7 +117,7 @@ export default async function ExecutePage({
       orderBy: { createdAt: "desc" },
       include: { defects: { include: { defect: true } }, attachments: { orderBy: { createdAt: "asc" }, select: { id: true, fileName: true, contentType: true, size: true, stepIndex: true } } },
     })),
-    timing.step("bugs filed", db.defectLink.findMany({ where: { result: { runId: run.id } }, include: { defect: true }, orderBy: { defect: { createdAt: "desc" } } })),
+    timing.step("bugs filed", db.defectLink.findMany({ where: { result: { runId: run.id } }, include: { defect: true, result: { select: { entryId: true } } }, orderBy: { defect: { createdAt: "desc" } } })),
     timing.step("flaky cases", flakyCases({ caseIds: [...new Set(list.map((e) => e.caseId))] })),
     // New or Updated since its last run.
     timing.step("new or updated", entryP.then(async (e) => (await caseNewsForRun(run, [e])).get(e.id) ?? null)),
@@ -194,6 +194,10 @@ export default async function ExecutePage({
     flaky: isFlaky(counted.map((r) => r.status)),
   };
   const people = new Map(members.map((m) => [m.id, m]));
+  // The run list (ver_200): first names, never initials, and how many bugs each case found in this run.
+  const shortName = shortNames(members, user.id);
+  const bugsOn = new Map<string, Set<string>>();
+  for (const l of runLinks) bugsOn.set(l.result.entryId, (bugsOn.get(l.result.entryId) ?? new Set()).add(l.defectId));
   const runDefects = [...new Map(runLinks.map((l) => [l.defectId, l.defect])).values()].map((d) => ({
     id: d.id,
     number: d.number,
@@ -264,18 +268,19 @@ export default async function ExecutePage({
                     href={`?entry=${e.id}${keep}`}
                     aria-current={e.id === pick.id ? "true" : undefined}
                     className={cx(
-                      "flex items-start gap-2.5 border-l-2 px-3 py-2 text-sm",
+                      "flex items-start gap-2.5 border-l-2 px-3 py-1.5 text-sm",
                       e.id === pick.id ? "border-accent-600 bg-accent-50 text-accent-900" : "border-transparent text-slate-800 hover:bg-slate-50",
                     )}
-                    title={`${e.title} · ${STATUS_LABEL[e.status as ResultStatus]}`}
+                    title={`${e.title} · ${STATUS_LABEL[e.status as ResultStatus]}${e.assigneeId && people.has(e.assigneeId) ? ` · ${people.get(e.assigneeId)!.name}` : ""}`}
                   >
+                    {/* ver_200: two lines per case. The dot's color is the status; the word is there for screen readers. */}
                     <LiveStatusPip id={e.id} status={e.status} renderedAt={renderedAt} />
                     <span className="min-w-0 flex-1">
-                      <span className="line-clamp-2 leading-snug font-medium">
+                      <span className="block truncate leading-snug font-medium">
                         <TagPills tags={titleWithTags(e.title, e.testCase.tags).tags} colors={tagColors} /> {titleWithTags(e.title).title}
                       </span>
-                      <span className="mt-1 flex items-center gap-2">
-                        <span className="font-mono text-xs text-slate-500">{caseKey(e.testCase.project.key, e.testCase.number)}</span>
+                      <span className="mt-0.5 flex min-w-0 items-center gap-1.5 overflow-hidden text-[11px] whitespace-nowrap text-slate-500">
+                        <span className="font-mono">{caseKey(e.testCase.project.key, e.testCase.number)}</span>
                         <PriorityBadge priority={e.priority} />
                         <LiveStatusLabel id={e.id} status={e.status} renderedAt={renderedAt} />
                         {flakyIds.has(e.caseId) && <FlakyBadge flips={flakyIds.get(e.caseId)!} compact />}
@@ -285,10 +290,11 @@ export default async function ExecutePage({
                             <FlagIcon className="size-3.5" />
                           </span>
                         )}
+                        <LiveEntryProgress row={liveRowOf(e, user.id)} current={e.id === pick.id} renderedAt={renderedAt} />
+                        {e.assigneeId && shortName.has(e.assigneeId) && <span className="truncate">· {shortName.get(e.assigneeId)}</span>}
+                        {bugsOn.has(e.id) && <span className="text-red-600">· {bugsOn.get(e.id)!.size} {bugsOn.get(e.id)!.size === 1 ? "bug" : "bugs"}</span>}
                       </span>
-                      <LiveEntryProgress row={liveRowOf(e, user.id)} current={e.id === pick.id} renderedAt={renderedAt} />
                     </span>
-                    {e.assigneeId && people.has(e.assigneeId) && <Avatar person={people.get(e.assigneeId)!} size={20} />}
                   </Link>
                 ),
               }))}

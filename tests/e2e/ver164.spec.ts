@@ -53,7 +53,7 @@ test("connect Qase, link cases by title, and share results both ways", async ({ 
   await page.goto(`/g/${groupId}/settings`);
   const row = page.locator("#row-qase");
   await expect(row.getByText("Not connected. Share test results with a Qase project, both ways.")).toBeVisible();
-  await row.getByRole("button", { name: "Connect to Qase" }).click();
+  await row.getByRole("button", { name: "Connect", exact: true }).click();
   await row.getByLabel("Qase API token").fill("qase_wrong");
   await row.getByRole("button", { name: "Check token and load projects" }).click();
   await expect(row.getByText("Qase didn't accept the API token")).toBeVisible();

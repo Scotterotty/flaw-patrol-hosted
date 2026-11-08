@@ -41,9 +41,9 @@ test("an umbrella has no Delete, and someone not on it can't delete or rename it
   }
 
   await signIn(page, "admin@example.com", "Demo Admin");
-  // Umbrella Settings → Name and test cycles: no Delete, a pointer to Archive instead.
+  // Umbrella Settings → Rename: no Delete, a pointer to Archive instead.
   await page.goto(`/g/${umbrellaId}/settings`);
-  await page.getByRole("button", { name: "Name and test cycles" }).click();
+  await page.getByRole("button", { name: "Rename", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByTestId("umbrella-archive-hint")).toHaveText("To put this umbrella away, use Archive in its Settings.");
   await expect(dialog.getByRole("button", { name: "Delete group…" })).toHaveCount(0);

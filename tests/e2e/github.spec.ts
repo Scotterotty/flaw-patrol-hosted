@@ -33,7 +33,7 @@ test("connect a GitHub repo, pull a workflow run's results and see the repo's te
   await expect(row.getByRole("button", { name: "⬇ Pull from GitHub" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /^Repositories/ })).toHaveCount(0);
 
-  await row.getByRole("button", { name: "Connect to GitHub" }).click();
+  await row.getByRole("button", { name: "Connect", exact: true }).click();
   await row.getByLabel("Repository", { exact: true }).fill("https://github.com/Scotterotty/flaw-patrol-ci-demo");
   await row.getByLabel("Access token", { exact: true }).fill("github_pat_wrong");
   await row.getByRole("button", { name: "Save and test" }).click();

@@ -9,7 +9,6 @@ import { headingRows } from "@/lib/step-checks";
 import { Fragment } from "react";
 import { CrumbName } from "@/components/crumb-name";
 import Link from "next/link";
-import { PersonLabel } from "@/components/avatar";
 import { notFound } from "next/navigation";
 import { startTiming } from "@/lib/timing";
 import { EditRunButton } from "@/components/edit-run";
@@ -27,8 +26,8 @@ import { RunEntries } from "@/components/run-entries";
 import { liveRowOf } from "@/lib/live-rows-data";
 import { flakyCases } from "@/lib/flaky";
 import { RunSheetButton, RunSheetStatus, type SheetState } from "@/components/run-sheet";
-import { StatusBar, StatusLegend } from "@/components/status";
-import { Badge, buttonClass, Card, LinkButton } from "@/components/ui";
+import { StatusBar } from "@/components/status";
+import { Badge, buttonClass, LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
 import { caseKey, relativeTime } from "@/lib/format";
 import { can } from "@/lib/permissions";
@@ -49,7 +48,9 @@ import { CompareWith } from "@/components/regression";
 import { knownBugsForRun } from "@/lib/known-bugs";
 import { caseNewsForRun } from "@/lib/case-news-data";
 import { shortDate } from "@/lib/spelling";
-import { KnownBugsHeadsUp, KnownBugsPanel, type RunKnown } from "@/components/known-bugs-panel";
+import { KnownBugsPanel, type RunKnown } from "@/components/known-bugs-panel";
+import { RunSummary } from "@/components/run-summary";
+import { shortNames } from "@/lib/short-names";
 import { viewerZone } from "@/lib/zone-server";
 
 export const metadata = { title: "Test run" };
@@ -141,6 +142,8 @@ export default async function RunPage({ params, searchParams }: { params: Promis
     })
     .filter((m) => m.total > 0);
   const unassigned = run.entries.filter((e) => !e.assigneeId);
+  // First names in the list, "You" for your own cases (ver_200).
+  const names = shortNames(members, user.id);
   const sheet: SheetState = {
     hook: run.sheetHook,
     tab: run.sheetTab,
@@ -305,42 +308,54 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         </div>
       )}
 
-      <KnownBugsHeadsUp list={knownList} />
-      <div className="mb-5 grid gap-4 md:grid-cols-[1fr_1fr_1fr]">
-        <Card className="p-4 md:col-span-2">
-          <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
-            <Stat label="Progress" value={`${Math.round(t.progress * 100)}%`} sub={`${t.tested} of ${t.total} cases`} />
-            <Stat label="Pass rate" value={pct(t.passRate)} sub="of cases tested" />
-            <Stat
-              label="Steps"
-              value={`${steps.PASSED ?? 0} passed`}
-              sub={`${(steps.FAILED ?? 0) + (steps.BLOCKED ?? 0)} failed or blocked of ${stepTotal} steps`}
-            />
-            <Stat label="Bugs" value={String(defects.length)} sub="found in this run" />
-          </div>
-          <StatusBar counts={counts} className="mt-4" height="h-3" />
-          <div className="mt-2">
-            <StatusLegend counts={counts} />
-          </div>
-        </Card>
-        <Card className="p-4">
-          <h2 className="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">By tester</h2>
-          <ul className="space-y-2 text-sm">
-            {byTester.map((m) => (
-              <li key={m.id}>
-                <div className="flex justify-between text-xs">
-                  <PersonLabel person={m} size={18} className="text-slate-700" />
-                  <span className="text-slate-500 tabular-nums">
-                    {totals(m.counts).tested}/{m.total}
-                  </span>
-                </div>
-                <StatusBar counts={m.counts} className="mt-1" />
-              </li>
+      {/* ver_200: one box above the cases. The bug lists open under See bugs; By tester shows done counts, never pass or fail per person. */}
+      <RunSummary
+        done={`${Math.round(t.progress * 100)}%`}
+        passed={pct(t.passRate)}
+        passedTip={`${t.tested} of ${t.total} cases tested · Steps: ${steps.PASSED ?? 0} passed · ${(steps.FAILED ?? 0) + (steps.BLOCKED ?? 0)} failed or blocked of ${stepTotal} steps`}
+        newBugs={defects.length}
+        knownBugs={new Set(knownList.map((k) => k.bug.id)).size}
+        bar={<StatusBar counts={counts} height="h-2" />}
+        testers={
+          <>
+            {byTester.map((m, i) => (
+              <Fragment key={m.id}>
+                {i > 0 && " · "}
+                <span title={m.name}>
+                  {names.get(m.id) ?? m.name} {totals(m.counts).tested}/{m.total}
+                  {i === 0 ? " done" : ""}
+                </span>
+              </Fragment>
             ))}
-            {unassigned.length > 0 && <li className="text-xs text-slate-500">{unassigned.length} unassigned</li>}
-          </ul>
-        </Card>
-      </div>
+            {unassigned.length > 0 && `${byTester.length ? " · " : ""}${unassigned.length} unassigned`}
+          </>
+        }
+        bugs={
+          <>
+            {defects.length > 0 && (
+              <div>
+                <h2 className="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">Bugs found in this run</h2>
+                <ul className="space-y-1 text-sm">
+                  {defects.map((d) => (
+                    <li key={d.id} className="flex flex-wrap items-center gap-2">
+                      {d.externalUrl ? (
+                        <a href={d.externalUrl} target="_blank" rel="noreferrer" className="font-mono text-xs font-medium text-accent-700 hover:underline">
+                          {d.externalKey}
+                        </a>
+                      ) : (
+                        <span className="font-mono text-xs text-slate-500">D-{d.number}</span>
+                      )}
+                      <span className="text-slate-800">{d.title}</span>
+                      <Badge tone={d.status === "OPEN" ? "red" : "green"}>{d.externalStatus ?? d.status.toLowerCase()}</Badge>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <KnownBugsPanel list={knownList} spelling={spelling} />
+          </>
+        }
+      />
 
       {/* Sentry: how this build is doing, for runs tested by hand. */}
       {!run.automated && sentryOn && (
@@ -348,29 +363,6 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           <SentryCard projectId={project.id} runIds={[run.id]} />
         </div>
       )}
-
-      {defects.length > 0 && (
-        <Card className="mb-5 p-4">
-          <h2 className="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">Bugs found in this run</h2>
-          <ul className="space-y-1 text-sm">
-            {defects.map((d) => (
-              <li key={d.id} className="flex flex-wrap items-center gap-2">
-                {d.externalUrl ? (
-                  <a href={d.externalUrl} target="_blank" rel="noreferrer" className="font-mono text-xs font-medium text-accent-700 hover:underline">
-                    {d.externalKey}
-                  </a>
-                ) : (
-                  <span className="font-mono text-xs text-slate-500">D-{d.number}</span>
-                )}
-                <span className="text-slate-800">{d.title}</span>
-                <Badge tone={d.status === "OPEN" ? "red" : "green"}>{d.externalStatus ?? d.status.toLowerCase()}</Badge>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      <KnownBugsPanel list={knownList} spelling={spelling} />
 
       {reg.settings.on && reg.comparedWith && (
         <CompareWith
@@ -426,16 +418,6 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           ...liveRowOf(e, user.id),
         }))}
       />
-    </div>
-  );
-}
-
-function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
-  return (
-    <div>
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="text-2xl font-semibold text-slate-900 tabular-nums">{value}</p>
-      <p className="text-[11px] text-slate-400">{sub}</p>
     </div>
   );
 }

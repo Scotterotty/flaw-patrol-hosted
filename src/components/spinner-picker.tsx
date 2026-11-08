@@ -15,7 +15,7 @@ import { cx, ErrorText } from "./ui";
  * Folds to one line: what you ticked, small still pictures of up to 4, and "N of 13".
  * Starts closed; open or closed is saved on your account like the other folding cards.
  */
-export function SpinnerPicker({ initial, pawn }: { initial: SpinnerId[]; pawn: string }) {
+export function SpinnerPicker({ initial, pawn, card = false }: { initial: SpinnerId[]; pawn: string; /** Its own card under Just for fun (ver_200), not a fold inside Appearance. */ card?: boolean }) {
   const router = useRouter();
   const [mine, setMine] = useState<SpinnerId[]>(cleanSpinners(initial));
   const [error, setError] = useState<string | null>(null);
@@ -35,8 +35,9 @@ export function SpinnerPicker({ initial, pawn }: { initial: SpinnerId[]; pawn: s
   const { open, toggle } = useOpenCard(SPINNER_FOLD);
   const picked = SPINNERS.filter((s) => mine.includes(s.id));
   return (
-    <section className="border-t border-slate-200 pt-1.5" data-testid="spinner-picker">
+    <section id={card ? "spinners" : undefined} className={card ? "scroll-mt-20 rounded-lg border border-slate-200 bg-surface shadow-sm" : "border-t border-slate-200 pt-1.5"} data-testid="spinner-picker" data-howto={card ? "account-spinners" : undefined}>
       <FoldHeader
+        big={card}
         title="Loading spinners"
         summary={<span data-testid="spinner-summary">{spinnerLine(mine)}</span>}
         open={open}
@@ -55,7 +56,7 @@ export function SpinnerPicker({ initial, pawn }: { initial: SpinnerId[]; pawn: s
         }
       />
       {open && (
-        <div className="pt-1 pb-3">
+        <div className={card ? "border-t border-slate-100 p-5" : "pt-1 pb-3"}>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <p className="min-w-0 flex-1 text-xs text-slate-500">
               Shown while Flaw Patrol is busy, like when a run starts or opens. Tick one to always see it, or several to mix them up. Point at one to see it move.

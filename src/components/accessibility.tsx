@@ -4,10 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type { ResultStatus } from "@prisma/client";
 import { STATUS_LABEL } from "@/lib/status";
-import { TEXT_SIZES, type TextSize } from "@/lib/theme";
+import { FONTS, fontVars, TEXT_SIZES, type TextSize } from "@/lib/theme";
 import { shapesOn, VISIONS, type Vision } from "@/lib/vision";
 import { StatusChip, StatusIcon } from "./status";
-import { updateMyAccessibility } from "@/server/account";
+import { updateMyAccessibility, updateMyBodyFont } from "@/server/account";
 import { Sp } from "./spelling";
 import { cx, ErrorText } from "./ui";
 
@@ -159,5 +159,51 @@ export function AccessibilitySettings({ initial }: { initial: Settings }) {
         ))}
       </div>
     </div>
+  );
+}
+
+/** The three fonts made for easy reading. Appearance lists them too, with every other font. */
+const EASY = (["atkinson", "lexend", "opendyslexic"] as const).map((id) => FONTS.find((f) => f.id === id)!);
+
+/**
+ * Accessibility's Easy-to-read font shortcut (ver_200): sets your text font to one that's easier
+ * to read. It's the same setting as Appearance's Text font, which still lists every font.
+ */
+export function EasyReadFont({ body, heading }: { body: string; heading: string }) {
+  const router = useRouter();
+  const [mine, setMine] = useState(body);
+  const [before] = useState(EASY.some((f) => f.id === body) ? "poppins" : body);
+  const [error, setError] = useState<string | null>(null);
+  const [, start] = useTransition();
+  const pick = (id: string) => {
+    setMine(id);
+    document.documentElement.dataset.fontBody = id;
+    for (const [k, v] of Object.entries(fontVars(id, heading))) document.documentElement.style.setProperty(k, v);
+    start(async () => {
+      const res = await updateMyBodyFont(id);
+      setError(res.ok ? null : res.error);
+      if (res.ok) router.refresh();
+    });
+  };
+  const choices = [{ id: before, label: "My usual font", text: "Whatever Appearance has", family: "" }, ...EASY.map((f) => ({ id: f.id, label: f.label, text: "text" in f ? (f.text ?? "") : "", family: f.family }))];
+  return (
+    <fieldset data-testid="easy-font" data-howto="access-easy-font">
+      <legend className="mb-0.5 text-sm font-semibold text-slate-900">Easy-to-read font</legend>
+      <p className="mb-2 text-xs text-slate-500">Sets your text font. Appearance still lists every font.</p>
+      <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {choices.map((f) => (
+          <label key={f.id} className={cx("flex cursor-pointer gap-2.5 rounded-lg border p-2.5", mine === f.id ? "border-accent-600 ring-2 ring-accent-500/30" : "border-slate-200 hover:border-slate-300")}>
+            <input type="radio" name="easy-font" value={f.id} checked={mine === f.id} onChange={() => pick(f.id)} className="mt-0.5 accent-accent-600" />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-slate-900" style={f.family ? { fontFamily: f.family } : undefined}>
+                {f.label}
+              </span>
+              <span className="block text-xs text-slate-500">{f.text}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }

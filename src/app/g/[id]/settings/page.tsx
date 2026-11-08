@@ -334,297 +334,37 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
     return { key: p.key, id: p.id, archived: archivedAlone, name: p.name.startsWith(`${name} `) ? p.name.slice(name.length + 1) : p.name, fullName: p.name, color: platformColor(u.platforms, p.platform), older: u.older.some((o) => o.id === p.id), team, jira: jiraChip, slack: slackChip, panel };
   });
 
-  // Members' Settings (Monday audit): rows they can only look at fold under "Team setup · Admins
-  // change these", so what they can change (and Your account, moved to the top) comes first.
-  const setOnce: { id: string; change: boolean; node: ReactNode }[] = [
-    { id: "tools", change: u.role === "ADMIN" && !u.group.archivedAt, node: (
-      <Fragment key="tools">
-            <ExpandRow
-              id="tools"
-              howto="settings-tools"
-              hashes={["tools"]}
-              title="Tools"
-              text={everything(u.tools) ? "Every tool: test cases, runs, bug bashes, risk board and the rest" : toolsLine(u.tools)}
-              label={u.role === "ADMIN" && !u.group.archivedAt ? "Change" : "View"}
-            >
-              <ToolsPanel groupId={u.group.id} umbrella={name} tools={u.tools} canEdit={u.role === "ADMIN" && !u.group.archivedAt} counts={holdings} jira={jira?.jiraProjectKey ?? null} />
-            </ExpandRow>
-      </Fragment>
-    ) },
-    { id: "jira", change: manage, node: (
-      <Fragment key="jira">
-            {manage ? (
-              <ExpandRow
-                id="jira"
-                howto="settings-jira"
-                hashes={["jira"]}
-                title="Jira connection"
-                text={jira ? `${site} · Jira project ${jira.jiraProjectKey} · token from ${jira.email}` : `Not connected. Connect it once here and every ${name} test cycle files bugs into it.`}
-                label={jira ? "Change" : "Connect"}
-                status={jira ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">✓ Connected</span> : undefined}
-              >
-                <JiraSettings
-                  projectId={u.hub.id}
-                  current={jira && { siteUrl: jira.siteUrl, email: jira.email, jiraProjectKey: jira.jiraProjectKey, issueType: jira.issueType, tokenReadable: canOpen(jira.tokenEncrypted) }}
-                  template={template}
-                  connectionOnly
-                  severity={parseSeverityConfig(jira?.severity)}
-                  foundIn={parseFoundIn(jira?.foundIn)}
-                />
-              </ExpandRow>
-            ) : (
-              <Row
-                title="Jira connection"
-                text={jira ? `${site} · Jira project ${jira.jiraProjectKey}` : `Not connected yet.`}
-                action={jira ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">✓ Connected</span> : null}
-              />
-            )}
-      </Fragment>
-    ) },
-    { id: "templates", change: canTemplates, node: (
-      <Fragment key="templates">
-            <ExpandRow id="bug-templates" howto="settings-bug-templates" hashes={["bug-templates", "template", "import-template"]} title="Bug templates" text={templatesText} label={canTemplates ? "Change" : "Open"}>
-              <BugTemplatesSettings
-                projectId={u.hub.id}
-                current={bugTemplates.current}
-                templates={bugTemplates.templates}
-                defaultId={bugTemplates.defaultId}
-                canEdit={canTemplates}
-                canDelete={can(u.who, "bugtemplate:delete")}
-                jiraConnected={!!jira}
-                currentPanel={manage && jira ? <BugTemplatePanel projectId={u.hub.id} template={template} jiraProjectKey={jira.jiraProjectKey} tokenReadable={canOpen(jira.tokenEncrypted)} shared={shared} /> : null}
-              />
-            </ExpandRow>
-      </Fragment>
-    ) },
-    { id: "stories", change: manage, node: (
-      <Fragment key="stories">
-            {!on("stories") ? null : manage && jira ? (
-              <ExpandRow id="stories" howto="settings-requirements" hashes={["stories"]} title="Requirements" text={storiesText} label="Change">
-                <StoriesPanel projectId={u.hub.id} stories={parseStoriesConfig(jira.stories)} bugProject={jira.jiraProjectKey} />
-              </ExpandRow>
-            ) : (
-              <Row title="Requirements" text={storiesText} />
-            )}
-      </Fragment>
-    ) },
-    { id: "fields", change: can(u.who, "umbrella:fields"), node: (
-      <Fragment key="fields">
-            {on("runs") && (
-            <ExpandRow howto="settings-run-fields"
-              id="run-fields"
-              hashes={["run-fields"]}
-              title="Run fields"
-              text={runFields.length ? `Release, Version, Environment and ${runFields.map((f) => f.name).join(", ")}` : "Release, Version and Environment. Add your own, like a firmware or API version."}
-              label={can(u.who, "umbrella:fields") ? "Change" : "View"}
-            >
-              <RunFieldsPanel groupId={u.group.id} umbrella={name} fields={runFields} canEdit={can(u.who, "umbrella:fields") && !u.group.archivedAt} />
-            </ExpandRow>
-            )}
-      </Fragment>
-    ) },
-    { id: "kinds", change: can(u.who, "umbrella:fields"), node: (
-      <Fragment key="kinds">
-            {on("runs") && (
-            <ExpandRow howto="settings-run-kinds"
-              id="run-kinds"
-              hashes={["run-kinds"]}
-              title="Run kinds"
-              text={runKinds.filter((k) => !k.hidden).map((k) => k.name).join(", ")}
-              label={can(u.who, "umbrella:fields") ? "Change" : "View"}
-            >
-              <RunKindsPanel groupId={u.group.id} umbrella={name} kinds={runKinds} suites={kindSuites} canEdit={can(u.who, "umbrella:fields") && !u.group.archivedAt} newSuiteHref={can(u.who, "suite:manage") ? `/p/${u.hub.key}/suites/new` : undefined} />
-            </ExpandRow>
-            )}
-      </Fragment>
-    ) },
-    { id: "crowns", change: can(u.who, "umbrella:manage"), node: (
-      <Fragment key="crowns">
-            {on("quest") && (
-            <ExpandRow
-              id="crowns"
-              hashes={["crowns"]}
-              title="Mini game crowns"
-              text={u.platforms.length ? u.platforms.map((p) => p.crownName || `Ruler of ${p.name}`).join(", ") : "One crown per platform, for whoever runs the most there"}
-              label={can(u.who, "umbrella:manage") ? "Change" : "View"}
-            >
-              <CrownNamesPanel groupId={u.group.id} platforms={u.platforms} canEdit={can(u.who, "umbrella:manage") && !u.group.archivedAt} />
-            </ExpandRow>
-            )}
-      </Fragment>
-    ) },
-    { id: "slack", change: manage, node: (
-      <Fragment key="slack">
-            <ExpandRow
-              id="slack"
-              howto="settings-slack"
-              hashes={["slack"]}
-              title="Slack alerts"
-              text={slack.length ? `${slackPaused ? "Paused · " : ""}${slack.map((c) => c.name).join(", ")} · every test cycle follows unless changed` : "No channels yet. Post regressions, serious bugs and finished runs to Slack."}
-              label={manage ? (slack.length ? "Manage" : "Set up") : "View"}
-            >
-              <SlackCard target={{ groupId: u.group.id }} channels={slack} canManage={manage} tip={`Post to Slack when something needs the team's eyes. Each channel picks its own alerts. Every ${name} test cycle follows these channels unless its own Settings change that.`} />
-            </ExpandRow>
-      </Fragment>
-    ) },
-    { id: "digests", change: manage, node: (
-      <Fragment key="digests">
-            <ExpandRow id="email-digests" howto="settings-digests" hashes={["email-digests"]} title="Email digests" text={digest.summary} label={manage ? (digest.settings.on ? "Change" : "Set up") : "View"}>
-              <DigestCard target={{ groupId: u.group.id }} data={digest} canManage={manage && !u.group.archivedAt} team={name} isAdmin={user.isAdmin} />
-            </ExpandRow>
-      </Fragment>
-    ) },
-    { id: "sentry", change: manage, node: (
-      <Fragment key="sentry">
-            <ExpandRow howto="settings-sentry"
-              id="sentry"
-              hashes={["sentry"]}
-              title="Sentry"
-              text={sentry ? `${sentry.org} · ${projectsOfSentry(sentry.projects).map((p) => p.slug).join(", ")}${sentry.environment ? ` · ${sentry.environment}` : ""}` : "Not connected. See the app's errors next to failed steps and add them to bugs."}
-              label={manage ? (sentry ? "Change" : "Connect to Sentry") : "View"}
-              buttonVariant={sentry || !manage ? undefined : "primary"}
-            >
-              <SentryPanel
-                projectId={u.hub.id}
-                canManage={manage}
-                fields={runFields.map((f) => ({ id: f.id, name: f.name }))}
-                saved={sentry && { baseUrl: sentry.baseUrl, org: sentry.org, connectedAs: sentry.connectedAs, projects: projectsOfSentry(sentry.projects), environment: sentry.environment, buildField: sentry.buildField, onlyTester: sentry.onlyTester, tokenReadable: canOpen(sentry.tokenEncrypted) }}
-              />
-            </ExpandRow>
-      </Fragment>
-    ) },
-    { id: "github", change: manage, node: (
-      <Fragment key="github">
-            {!on("auto") ? null : manage ? (
-              <ExpandRow
-                id="github"
-                howto="settings-github"
-                hashes={["github"]}
-                title="GitHub"
-                text={githubText}
-                label={repos.length ? "Change" : "Connect to GitHub"}
-                buttonVariant={repos.length ? undefined : "primary"}
-                status={githubStatus}
-              >
-                <GitHubPanel groupId={u.group.id} repos={repos.map((r) => ({ id: r.id, fullName: r.fullName, workflowId: r.workflowId, workflowName: r.workflowName, glob: r.resultsGlob, bringFiles: r.bringFiles }))} />
-              </ExpandRow>
-            ) : (
-              <Row title="GitHub" text={githubText} action={githubStatus} />
-            )}
-      </Fragment>
-    ) },
-    { id: "ci", change: manage, node: (
-      <Fragment key="ci">
-            {!on("auto") ? null : manage ? (
-              <ExpandRow id="ci-uploads" howto="settings-ci" hashes={["ci-uploads"]} title="CI uploads" text={ciText} label={ciTokens.length ? "Manage" : "Set up"}>
-                <CiUploadsPanel
-                  groupId={u.group.id}
-                  canManage={!u.group.archivedAt}
-                  platforms={u.platforms.map((p) => p.name)}
-                  tokens={ciTokens.map((t) => ({
-                    id: t.id,
-                    name: t.name,
-                    last4: t.last4,
-                    createdBy: t.createdBy,
-                    created: relativeTime(t.createdAt, spelling),
-                    lastUsed: t.lastUsedAt ? relativeTime(t.lastUsedAt, spelling) : null,
-                  }))}
-                />
-              </ExpandRow>
-            ) : (
-              <Row title="CI uploads" text={ciText} />
-            )}
-      </Fragment>
-    ) },
-    { id: "qase", change: manage, node: (
-      <Fragment key="qase">
-            {on("runs") && (
-              <ExpandRow howto="settings-qase"
-                id="qase"
-                hashes={["qase"]}
-                title="Qase"
-                text={qaseText}
-                label={manage ? (qase ? "Change" : "Connect to Qase") : "View"}
-                buttonVariant={qase || !manage ? undefined : "primary"}
-                status={qase ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">✓ Connected</span> : undefined}
-              >
-                <QasePanel
-                  groupId={u.group.id}
-                  canEdit={manage && !u.group.archivedAt}
-                  linkHref={`/g/${u.group.id}/qase`}
-                  links={qaseLinks}
-                  saved={qase && { projectCode: qase.projectCode, projectTitle: qase.projectTitle, send: qase.send, bring: qase.bring, statusMap: parseStatusMap(qase.statusMap), tokenReadable: canOpen(qase.tokenEncrypted), hookPath: manage ? `/api/qase/hook/${qase.hookSecret}` : "" }}
-                />
-              </ExpandRow>
-            )}
-      </Fragment>
-    ) },
-    { id: "media", change: can(u.who, "run:manage"), node: (
-      <Fragment key="media">
-            {on("auto") && (
-            <ExpandRow howto="settings-media"
-              id="automation-files"
-              hashes={["automation-files"]}
-              title="Screenshots, videos and replays"
-              text={`From automation · keeping ${fileSettings.keep === "failed" ? "failed and flaky tests only" : "every test"}, up to ${fileSettings.maxMb} MB a file · using ${mb(usage.bytes)}`}
-              label={can(u.who, "run:manage") ? "Change" : "View"}
-            >
-              <AutomationFilesPanel groupId={u.group.id} settings={fileSettings} usage={usage} canEdit={can(u.who, "run:manage") && !u.group.archivedAt} />
-            </ExpandRow>
-            )}
-      </Fragment>
-    ) },
-    { id: "regression", change: can(u.who, "run:manage"), node: (
-      <Fragment key="regression">
-            {on("runs") && (
-            <ExpandRow howto="settings-regression"
-              id="regression"
-              hashes={["regression"]}
-              title="Regression flag"
-              text={reg.on ? `On · compares with ${COMPARE_MODES.find((m) => m.id === reg.compare)!.label.toLowerCase()} · Jira label ${reg.label}` : "Off. Tests that passed before and fail now aren't marked."}
-              label={can(u.who, "run:manage") ? "Change" : "View"}
-            >
-              <RegressionPanel groupId={u.group.id} settings={reg} canEdit={can(u.who, "run:manage") && !u.group.archivedAt} />
-            </ExpandRow>
-            )}
-      </Fragment>
-    ) },
-    { id: "members", change: true, node: (
-      <Fragment key="members">
-            {seesMembers && (
-            <ExpandRow
-              id="members"
-              hashes={["members"]}
-              title="Members"
-              howto="settings-members"
-              text={`${requests.length ? `${requests.length} asking to join · ` : ""}${members.length} ${members.length === 1 ? "person" : "people"} · ${leads} ${leads === 1 ? "lead or admin" : "leads and admins"} · everyone gets every ${name} test cycle unless it keeps members separate`}
-              label="Manage"
-            >
-              <MembersPanel
-                projectId={u.hub.id}
-                me={user.id}
-                canManage={can(u.who, "members:manage")}
-                canEmail={invites.canEmail}
-                requests={requests}
-                team={u.group.name}
-                nudge={!u.group.rolesChosenAt && <RolesNudge target={{ groupId: u.group.id }} href={`/g/${u.group.id}/settings#roles`} />}
-                members={members.map((m) => ({ userId: m.userId, email: m.user.email, name: m.user.name, role: m.role, signedIn: !!m.user.lastLoginAt, hasPassword: !!m.user.passwordSetAt, avatarAt: m.user.avatarAt, inviteSentAt: invites.sent.get(m.userId) ?? null, inviteUntil: invites.until.get(m.userId) ?? null, ...badgeOf(m.user) }))}
-              />
-            </ExpandRow>
-            )}
-      </Fragment>
-    ) },
-  ];
-  const lookOnly = setOnce.filter((r) => !r.change);
-  const foldLookOnly = !manage && lookOnly.length > 0;
-
+  // Members' Settings (Monday audit, kept in ver_200's groups): rows they can only look at fold
+  // under one "Team setup · Admins change these" line, and Your account comes first.
+  const foldLookOnly = !manage;
+  const lookOnly: ReactNode[] = [];
+  const keep = (change: boolean, node: ReactNode) => {
+    if (!foldLookOnly || change) return node;
+    lookOnly.push(<Fragment key={lookOnly.length}>{node}</Fragment>);
+    return null;
+  };
+  const testingRows = [on("runs") && can(u.who, "umbrella:fields"), canTemplates, on("runs") && can(u.who, "run:manage")].some(Boolean);
+  const moreRows = [u.role === "ADMIN" && !u.group.archivedAt, on("auto") && can(u.who, "run:manage"), on("quest") && can(u.who, "umbrella:manage")].some(Boolean);
+  // ver_200: Settings sorted into People · Testing · Connections · More, Members first.
+  const notConnected = <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">Not connected</span>;
+  const connected = <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">✓ Connected</span>;
+  const storiesOn = on("stories");
+  const jiraText = jira
+    ? `${site} · Jira project ${jira.jiraProjectKey} · token from ${jira.email}${storiesOn ? " · Requirements on" : ""}`
+    : `Not connected. Connect it once here and every ${name} test cycle files bugs into it.${storiesOn ? " It also turns on Requirements." : ""}`;
+  const groups = [
+    { id: "people", title: "People", show: seesMembers || can(u.who, "members:manage") },
+    { id: "testing", title: "Testing", show: true },
+    { id: "connections", title: "Connections", show: !foldLookOnly },
+    { id: "more", title: "More", show: !foldLookOnly || moreRows || !!archive },
+  ].filter((g) => g.show);
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader
         title="Settings"
         subtitle={on("runs") ? `${name} and its test cycles` : `Everything ${name} uses`}
         actions={
-          groupManager ? <EditGroupButton group={u.group} choices={choices} label="Name and test cycles" umbrella /> : undefined
+          groupManager ? <EditGroupButton group={u.group} choices={choices} label="Rename" umbrella /> : undefined
         }
       />
       {!seesMembers && <AskAdminLine admins={askAdmins} className="-mt-2 mb-4" />}
@@ -635,55 +375,320 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
         </div>
       )}
       {on("runs") && (
-      <p className="mb-5 flex items-start gap-2 rounded-lg bg-accent-50 px-4 py-2.5 text-sm text-accent-700" data-testid="settings-scope">
+      <p className="mb-4 flex items-start gap-2 rounded-lg bg-accent-50 px-4 py-2.5 text-sm text-accent-700" data-testid="settings-scope">
         <UmbrellaIcon className="mt-0.5 size-4 flex-none" />
         <span>
-          Changes here apply to <b>every test cycle in {name}</b>. The <b>Test cycles</b> table below shows any that are set differently.
+          Changes here apply to <b>every test cycle in {name}</b>. The <b>Test cycles</b> table shows any that are set differently.
         </span>
       </p>
       )}
-      <div>
-        <Card>
-          <h2 className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-900">Set once for {name}</h2>
-          <ul className="divide-y divide-slate-100">
-            <SettingsRows>
-            {foldLookOnly ? setOnce.filter((r) => r.change).map((r) => r.node) : setOnce.map((r) => r.node)}
-            {foldLookOnly && (
-              <FoldedRows title="Team setup · Admins change these" sub={lookOnly.length === 1 ? "1 setting you can look at" : `${lookOnly.length} settings you can look at`} hashes={["tools", "jira", "stories", "slack", "email-digests", "sentry", "github", "ci-uploads", "qase"]}>
-                {lookOnly.map((r) => r.node)}
-              </FoldedRows>
+      <nav aria-label="Settings groups" className="mb-5 flex flex-wrap items-center gap-1.5" data-testid="settings-jump">
+        {groups.map((g) => (
+          <a key={g.id} href={`#group-${g.id}`} className="rounded-full border border-slate-300 bg-surface px-3 py-1 text-xs font-medium text-slate-700 hover:border-accent-500 hover:text-accent-700">
+            {g.title}
+          </a>
+        ))}
+      </nav>
+      <SettingsRows>
+        {seesMembers || can(u.who, "members:manage") ? (
+          <SettingsGroup id="people" title="People">
+            {seesMembers && (
+              <Card>
+                <ul className="divide-y divide-slate-100">
+                  <ExpandRow
+                    id="members"
+                    hashes={["members"]}
+                    title="Members"
+                    howto="settings-members"
+                    text={`${requests.length ? `${requests.length} asking to join · ` : ""}${members.length} ${members.length === 1 ? "person" : "people"} · ${leads} ${leads === 1 ? "lead or admin" : "leads and admins"} · everyone gets every ${name} test cycle unless it keeps members separate`}
+                    label="Manage"
+                  >
+                    <MembersPanel
+                      projectId={u.hub.id}
+                      me={user.id}
+                      canManage={can(u.who, "members:manage")}
+                      canEmail={invites.canEmail}
+                      requests={requests}
+                      team={u.group.name}
+                      nudge={!u.group.rolesChosenAt && <RolesNudge target={{ groupId: u.group.id }} href={`/g/${u.group.id}/settings#roles`} />}
+                      members={members.map((m) => ({ userId: m.userId, email: m.user.email, name: m.user.name, role: m.role, signedIn: !!m.user.lastLoginAt, hasPassword: !!m.user.passwordSetAt, avatarAt: m.user.avatarAt, inviteSentAt: invites.sent.get(m.userId) ?? null, inviteUntil: invites.until.get(m.userId) ?? null, ...badgeOf(m.user) }))}
+                    />
+                  </ExpandRow>
+                </ul>
+              </Card>
             )}
-            </SettingsRows>
-          </ul>
-        </Card>
-      </div>
-      {on("runs") && (
-      <div className="mt-5">
-        <CycleSettingsTable
-          rows={rows}
-          umbrella={name}
-          canArchive={canArchiveCycles}
-          canChange={u.who.role !== "VIEWER"}
-          addButton={can(u.who, "cycle:create") && !u.group.archivedAt ? <AddUmbrellaProject groupId={u.group.id} umbrella={name} platforms={u.platforms.map((p) => p.name)} colors={u.platforms.map((p) => platformColor(u.platforms, p.name))} loose={loose} label="Add test cycle" /> : undefined}
-        />
-      </div>
-      )}
-      {can(u.who, "members:manage") && (
-        <div className="mt-5">
-          <RolesCard target={{ groupId: u.group.id }} rules={u.who.rules ?? null} appliesTo={`${name}, its Case library and all its test cycles`} />
-        </div>
-      )}
-      {archive && (
-        <div className="mt-5">
-          <ArchiveCard data={archive} />
-        </div>
-      )}
+            {can(u.who, "members:manage") && <RolesCard target={{ groupId: u.group.id }} rules={u.who.rules ?? null} appliesTo={`${name}, its Case library and all its test cycles`} />}
+          </SettingsGroup>
+        ) : null}
+
+        <SettingsGroup id="testing" title="Testing">
+          {on("runs") && (
+            <CycleSettingsTable
+              rows={rows}
+              umbrella={name}
+              canArchive={canArchiveCycles}
+              canChange={u.who.role !== "VIEWER"}
+              addButton={can(u.who, "cycle:create") && !u.group.archivedAt ? <AddUmbrellaProject groupId={u.group.id} umbrella={name} platforms={u.platforms.map((p) => p.name)} colors={u.platforms.map((p) => platformColor(u.platforms, p.name))} loose={loose} label="Add test cycle" /> : undefined}
+            />
+          )}
+          {hideIf(foldLookOnly && !testingRows, <Card>
+            <ul className="divide-y divide-slate-100">
+              {keep(can(u.who, "umbrella:fields"), <>
+              {on("runs") && (
+              <ExpandRow howto="settings-run-kinds"
+                id="run-kinds"
+                hashes={["run-kinds"]}
+                title="Run kinds"
+                text={runKinds.filter((k) => !k.hidden).map((k) => k.name).join(", ")}
+                label={can(u.who, "umbrella:fields") ? "Change" : "View"}
+              >
+                <RunKindsPanel groupId={u.group.id} umbrella={name} kinds={runKinds} suites={kindSuites} canEdit={can(u.who, "umbrella:fields") && !u.group.archivedAt} newSuiteHref={can(u.who, "suite:manage") ? `/p/${u.hub.key}/suites/new` : undefined} />
+              </ExpandRow>
+              )}
+              </>)}
+              {keep(can(u.who, "umbrella:fields"), <>
+              {on("runs") && (
+              <ExpandRow howto="settings-run-fields"
+                id="run-fields"
+                hashes={["run-fields"]}
+                title="Run fields"
+                text={runFields.length ? `Release, Version, Environment and ${runFields.map((f) => f.name).join(", ")}` : "Release, Version and Environment. Add your own, like a firmware or API version."}
+                label={can(u.who, "umbrella:fields") ? "Change" : "View"}
+              >
+                <RunFieldsPanel groupId={u.group.id} umbrella={name} fields={runFields} canEdit={can(u.who, "umbrella:fields") && !u.group.archivedAt} />
+              </ExpandRow>
+              )}
+              </>)}
+              {keep(canTemplates, <>
+              <ExpandRow id="bug-templates" howto="settings-bug-templates" hashes={["bug-templates", "template", "import-template"]} title="Bug templates" text={templatesText} label={canTemplates ? "Change" : "Open"}>
+                <BugTemplatesSettings
+                  projectId={u.hub.id}
+                  current={bugTemplates.current}
+                  templates={bugTemplates.templates}
+                  defaultId={bugTemplates.defaultId}
+                  canEdit={canTemplates}
+                  canDelete={can(u.who, "bugtemplate:delete")}
+                  jiraConnected={!!jira}
+                  currentPanel={manage && jira ? <BugTemplatePanel projectId={u.hub.id} template={template} jiraProjectKey={jira.jiraProjectKey} tokenReadable={canOpen(jira.tokenEncrypted)} shared={shared} /> : null}
+                />
+              </ExpandRow>
+              </>)}
+              {keep(can(u.who, "run:manage"), <>
+              {on("runs") && (
+              <ExpandRow howto="settings-regression"
+                id="regression"
+                hashes={["regression"]}
+                title="Regression flag"
+                text={reg.on ? `On · compares with ${COMPARE_MODES.find((m) => m.id === reg.compare)!.label.toLowerCase()} · Jira label ${reg.label}` : "Off. Tests that passed before and fail now aren't marked."}
+                label={can(u.who, "run:manage") ? "Change" : "View"}
+              >
+                <RegressionPanel groupId={u.group.id} settings={reg} canEdit={can(u.who, "run:manage") && !u.group.archivedAt} />
+              </ExpandRow>
+              )}
+              </>)}
+            </ul>
+          </Card>)}
+        </SettingsGroup>
+
+        {hideIf(foldLookOnly, <SettingsGroup id="connections" title="Connections">
+          <Card>
+            <ul className="divide-y divide-slate-100">
+              {keep(manage, <>
+              {manage ? (
+                <ExpandRow
+                  id="jira"
+                  howto="settings-jira"
+                  hashes={["jira", "stories"]}
+                  title="Jira"
+                  text={jiraText}
+                  label={jira ? "Change" : "Connect"}
+                  status={jira ? connected : notConnected}
+                >
+                  <JiraSettings
+                    projectId={u.hub.id}
+                    current={jira && { siteUrl: jira.siteUrl, email: jira.email, jiraProjectKey: jira.jiraProjectKey, issueType: jira.issueType, tokenReadable: canOpen(jira.tokenEncrypted) }}
+                    template={template}
+                    connectionOnly
+                    severity={parseSeverityConfig(jira?.severity)}
+                    foundIn={parseFoundIn(jira?.foundIn)}
+                  />
+                  {storiesOn && jira && (
+                    // ver_200: Requirements needs Jira, so it lives inside the Jira row.
+                    <div id="stories" className="mt-5 scroll-mt-24 border-t border-accent-200 pt-4" data-howto="settings-requirements">
+                      <h3 className="font-semibold text-slate-900">Requirements</h3>
+                      <p className="mb-3 text-sm text-slate-500">{storiesText}</p>
+                      <StoriesPanel projectId={u.hub.id} stories={parseStoriesConfig(jira.stories)} bugProject={jira.jiraProjectKey} />
+                    </div>
+                  )}
+                </ExpandRow>
+              ) : (
+                <Row
+                  title="Jira"
+                  text={jira ? `${site} · Jira project ${jira.jiraProjectKey}${storiesOn ? ` · Requirements: ${storiesText}` : ""}` : `Not connected yet.`}
+                  action={jira ? connected : notConnected}
+                />
+              )}
+              <ExpandRow
+                id="slack"
+                howto="settings-slack"
+                hashes={["slack"]}
+                title="Slack alerts"
+                text={slack.length ? `${slackPaused ? "Paused · " : ""}${slack.map((c) => c.name).join(", ")} · every test cycle follows unless changed` : "No channels yet. Post regressions, serious bugs and finished runs to Slack."}
+                label={manage ? (slack.length ? "Manage" : "Set up") : "View"}
+              >
+                <SlackCard target={{ groupId: u.group.id }} channels={slack} canManage={manage} tip={`Post to Slack when something needs the team's eyes. Each channel picks its own alerts. Every ${name} test cycle follows these channels unless its own Settings change that.`} />
+              </ExpandRow>
+              <ExpandRow id="email-digests" howto="settings-digests" hashes={["email-digests"]} title="Email digests" text={digest.summary} label={manage ? (digest.settings.on ? "Change" : "Set up") : "View"}>
+                <DigestCard target={{ groupId: u.group.id }} data={digest} canManage={manage && !u.group.archivedAt} team={name} isAdmin={user.isAdmin} />
+              </ExpandRow>
+              {!on("auto") ? null : manage ? (
+                <ExpandRow
+                  id="github"
+                  howto="settings-github"
+                  hashes={["github"]}
+                  title="GitHub"
+                  text={githubText}
+                  label={repos.length ? "Change" : "Connect"}
+                  status={repos.length ? githubStatus : notConnected}
+                >
+                  <GitHubPanel groupId={u.group.id} repos={repos.map((r) => ({ id: r.id, fullName: r.fullName, workflowId: r.workflowId, workflowName: r.workflowName, glob: r.resultsGlob, bringFiles: r.bringFiles }))} />
+                </ExpandRow>
+              ) : (
+                <Row title="GitHub" text={githubText} action={repos.length ? githubStatus : notConnected} />
+              )}
+              {!on("auto") ? null : manage ? (
+                <ExpandRow id="ci-uploads" howto="settings-ci" hashes={["ci-uploads"]} title="CI uploads" text={ciText} label={ciTokens.length ? "Manage" : "Set up"}>
+                  <CiUploadsPanel
+                    groupId={u.group.id}
+                    canManage={!u.group.archivedAt}
+                    platforms={u.platforms.map((p) => p.name)}
+                    tokens={ciTokens.map((t) => ({
+                      id: t.id,
+                      name: t.name,
+                      last4: t.last4,
+                      createdBy: t.createdBy,
+                      created: relativeTime(t.createdAt, spelling),
+                      lastUsed: t.lastUsedAt ? relativeTime(t.lastUsedAt, spelling) : null,
+                    }))}
+                  />
+                </ExpandRow>
+              ) : (
+                <Row title="CI uploads" text={ciText} />
+              )}
+              <ExpandRow howto="settings-sentry"
+                id="sentry"
+                hashes={["sentry"]}
+                title="Sentry"
+                text={sentry ? `${sentry.org} · ${projectsOfSentry(sentry.projects).map((p) => p.slug).join(", ")}${sentry.environment ? ` · ${sentry.environment}` : ""}` : "See the app's errors next to failed steps and add them to bugs."}
+                label={manage ? (sentry ? "Change" : "Connect") : "View"}
+                status={sentry ? connected : notConnected}
+              >
+                <SentryPanel
+                  projectId={u.hub.id}
+                  canManage={manage}
+                  fields={runFields.map((f) => ({ id: f.id, name: f.name }))}
+                  saved={sentry && { baseUrl: sentry.baseUrl, org: sentry.org, connectedAs: sentry.connectedAs, projects: projectsOfSentry(sentry.projects), environment: sentry.environment, buildField: sentry.buildField, onlyTester: sentry.onlyTester, tokenReadable: canOpen(sentry.tokenEncrypted) }}
+                />
+              </ExpandRow>
+              {on("runs") && (
+                <ExpandRow howto="settings-qase"
+                  id="qase"
+                  hashes={["qase"]}
+                  title="Qase"
+                  text={qaseText}
+                  label={manage ? (qase ? "Change" : "Connect") : "View"}
+                  status={qase ? connected : notConnected}
+                >
+                  <QasePanel
+                    groupId={u.group.id}
+                    canEdit={manage && !u.group.archivedAt}
+                    linkHref={`/g/${u.group.id}/qase`}
+                    links={qaseLinks}
+                    saved={qase && { projectCode: qase.projectCode, projectTitle: qase.projectTitle, send: qase.send, bring: qase.bring, statusMap: parseStatusMap(qase.statusMap), tokenReadable: canOpen(qase.tokenEncrypted), hookPath: manage ? `/api/qase/hook/${qase.hookSecret}` : "" }}
+                  />
+                </ExpandRow>
+              )}
+              </>)}
+            </ul>
+          </Card>
+        </SettingsGroup>)}
+
+        {hideIf(foldLookOnly && !moreRows && !archive, <SettingsGroup id="more" title="More">
+          {hideIf(foldLookOnly && !moreRows, <Card>
+            <ul className="divide-y divide-slate-100">
+              {keep(u.role === "ADMIN" && !u.group.archivedAt, <>
+              <ExpandRow
+                id="tools"
+                howto="settings-tools"
+                hashes={["tools"]}
+                title="Tools"
+                text={everything(u.tools) ? "Every tool: test cases, runs, bug bashes, risk board and the rest" : toolsLine(u.tools)}
+                label={u.role === "ADMIN" && !u.group.archivedAt ? "Change" : "View"}
+              >
+                <ToolsPanel groupId={u.group.id} umbrella={name} tools={u.tools} canEdit={u.role === "ADMIN" && !u.group.archivedAt} counts={holdings} jira={jira?.jiraProjectKey ?? null} />
+              </ExpandRow>
+              </>)}
+              {keep(can(u.who, "run:manage"), <>
+              {on("auto") && (
+              <ExpandRow howto="settings-media"
+                id="automation-files"
+                hashes={["automation-files"]}
+                title="Screenshots, videos and replays"
+                text={`From automation · keeping ${fileSettings.keep === "failed" ? "failed and flaky tests only" : "every test"}, up to ${fileSettings.maxMb} MB a file · using ${mb(usage.bytes)}`}
+                label={can(u.who, "run:manage") ? "Change" : "View"}
+              >
+                <AutomationFilesPanel groupId={u.group.id} settings={fileSettings} usage={usage} canEdit={can(u.who, "run:manage") && !u.group.archivedAt} />
+              </ExpandRow>
+              )}
+              </>)}
+              {keep(can(u.who, "umbrella:manage"), <>
+              {on("quest") && (
+              <ExpandRow
+                id="crowns"
+                hashes={["crowns"]}
+                title="Mini game crowns"
+                text={u.platforms.length ? u.platforms.map((p) => p.crownName || `Ruler of ${p.name}`).join(", ") : "One crown per platform, for whoever runs the most there"}
+                label={can(u.who, "umbrella:manage") ? "Change" : "View"}
+              >
+                <CrownNamesPanel groupId={u.group.id} platforms={u.platforms} canEdit={can(u.who, "umbrella:manage") && !u.group.archivedAt} />
+              </ExpandRow>
+              )}
+              </>)}
+            </ul>
+          </Card>)}
+          {archive && <ArchiveCard data={archive} />}
+        </SettingsGroup>)}
+        {foldLookOnly && lookOnly.length > 0 && (
+          <Card className="mb-6">
+            <ul>
+              <FoldedRows title="Team setup · Admins change these" sub={lookOnly.length === 1 ? "1 setting you can look at" : `${lookOnly.length} settings you can look at`} hashes={["tools", "jira", "stories", "slack", "email-digests", "sentry", "github", "ci-uploads", "qase", "run-fields", "run-kinds", "regression", "automation-files", "crowns", "bug-templates"]}>
+                {lookOnly}
+              </FoldedRows>
+            </ul>
+          </Card>
+        )}
+      </SettingsRows>
       {!foldLookOnly && (
-        <div className="mt-5">
+        <div className="mt-6">
           <OtherSettings admin={user.isAdmin} />
         </div>
       )}
     </div>
+  );
+}
+
+/** Leaves a part out while still building it, so its look-only rows still reach the Team setup fold. */
+const hideIf = (hide: boolean, node: ReactNode) => (hide ? null : node);
+
+/** One group of umbrella Settings (People, Testing, Connections, More), with its heading for the jump bar. */
+function SettingsGroup({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+  return (
+    <section id={`group-${id}`} aria-labelledby={`group-${id}-h`} className="mb-6 scroll-mt-20 space-y-3">
+      <h2 id={`group-${id}-h`} className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+        {title}
+      </h2>
+      {children}
+    </section>
   );
 }
 

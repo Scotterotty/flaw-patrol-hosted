@@ -193,7 +193,7 @@ test("a GitHub repo with no workflow saved says Setup not finished and shows the
   await signIn(page, "admin@example.com", "Demo Admin");
   await page.goto(`/g/${groupId}/settings`);
   const row = page.locator("#row-github");
-  await row.getByRole("button", { name: "Connect to GitHub" }).click();
+  await row.getByRole("button", { name: "Connect", exact: true }).click();
   await row.getByLabel("Repository", { exact: true }).fill("Scotterotty/flaw-patrol-ci-demo");
   await row.getByLabel("Access token", { exact: true }).fill("github_pat_good");
   await row.getByRole("button", { name: "Save and test" }).click();

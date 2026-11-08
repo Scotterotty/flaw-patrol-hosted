@@ -101,7 +101,7 @@ export function parsePrefs(v: unknown): DigestPrefs {
 export function prefsSummary(p: DigestPrefs) {
   const runs = RUN_PREFS.find((x) => x.id === p.runs)!.label;
   const bashes = BASH_PREFS.find((x) => x.id === p.bashes)!.label;
-  return `${p.runs === "none" ? "No runs" : runs} · ${p.bashes === "none" ? "No bug bashes" : bashes} · release done ${p.rc ? "on" : "off"}`;
+  return `${p.runs === "none" ? "No runs" : runs} · ${p.bashes === "none" ? "No bug bashes" : bashes} · Release done emails ${p.rc ? "on" : "off"}`;
 }
 
 /**

@@ -14,7 +14,7 @@ export function MenuOrderReset() {
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   return (
-    <div className="border-t border-slate-200 pt-4">
+    <div className="border-t border-slate-200 pt-4 first:border-t-0 first:pt-0">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-slate-900">

@@ -3,31 +3,10 @@ import { runTitle } from "@/lib/run-label";
 import { relativeTime } from "@/lib/format";
 import type { Spelling } from "@/lib/spelling";
 import { KnownStatus } from "./known-bugs";
-import { Card } from "./ui";
 
-// Known bugs on the run page: a heads-up line and the list with this run's checks.
+// Known bugs on the run page: the list with this run's checks, under See bugs (ver_200).
 
 export type RunKnown = { bug: KnownBug; caseKey: string };
-
-export function KnownBugsHeadsUp({ list }: { list: RunKnown[] }) {
-  const bugs = new Set(list.map((k) => k.bug.id)).size;
-  const cases = new Set(list.map((k) => k.caseKey)).size;
-  if (!bugs) return null;
-  return (
-    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950" data-testid="known-heads-up">
-      <span aria-hidden>🐞</span>
-      <span className="flex-1">
-        <b>
-          {bugs} known {bugs === 1 ? "bug" : "bugs"}
-        </b>{" "}
-        from earlier runs {bugs === 1 ? "touches" : "touch"} {cases} {cases === 1 ? "case" : "cases"} in this run. Each case shows them before you start.
-      </span>
-      <a href="#known-bugs" className="text-xs font-medium text-accent-700 hover:underline">
-        See the list
-      </a>
-    </div>
-  );
-}
 
 export function KnownBugsPanel({ list, spelling }: { list: RunKnown[]; spelling: Spelling }) {
   if (!list.length) return null;
@@ -36,7 +15,7 @@ export function KnownBugsPanel({ list, spelling }: { list: RunKnown[]; spelling:
   const gone = live.filter((k) => k.bug.check?.outcome === "gone").length;
   const unchecked = live.length - still - gone;
   return (
-    <Card id="known-bugs" className="mb-5 scroll-mt-20 p-4" data-testid="known-bugs-panel">
+    <div id="known-bugs" className="scroll-mt-20" data-testid="known-bugs-panel">
       <h2 className="flex items-center gap-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">
         Known bugs <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] text-amber-900 normal-case">{new Set(list.map((k) => k.bug.id)).size}</span>
       </h2>
@@ -76,7 +55,7 @@ export function KnownBugsPanel({ list, spelling }: { list: RunKnown[]; spelling:
           </li>
         ))}
       </ul>
-    </Card>
+    </div>
   );
 }
 

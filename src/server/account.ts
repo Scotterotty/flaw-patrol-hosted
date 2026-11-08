@@ -52,6 +52,17 @@ export async function updateMyAppearance(a: { themeMode: string; accent: string;
   });
 }
 
+/** Accessibility's Easy-to-read font: sets only your text font, the same one Appearance lists. */
+export async function updateMyBodyFont(fontBody: string) {
+  return attempt(async () => {
+    const user = await requireUser();
+    if (!isBodyFont(fontBody)) throw new UserError("Unknown font.");
+    await db.user.update({ where: { id: user.id }, data: { fontBody } });
+    revalidatePath("/", "layout");
+    return {};
+  });
+}
+
 /** US or UK English for the app's words and dates, just for you. */
 export async function updateMySpelling(spelling: string) {
   return attempt(async () => {

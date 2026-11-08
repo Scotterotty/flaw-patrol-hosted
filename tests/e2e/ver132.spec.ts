@@ -161,7 +161,7 @@ test("email digests: a group, a finished run, the Stop link, Emails I get and a 
   await prefs.getByRole("radio", { name: "None" }).first().check();
   await expect(prefs.getByText("Saved.")).toBeVisible();
   await page.reload();
-  await expect(page.locator("#emails")).toContainText("No runs · Bashes I joined · release done on");
+  await expect(page.locator("#emails")).toContainText("No runs · Bashes I joined · Release done emails on");
 
   // Send me a sample: the newest run, to me only.
   await fetch(`${SSO}/__mail`, { method: "DELETE" });

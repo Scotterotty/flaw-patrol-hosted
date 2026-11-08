@@ -82,7 +82,9 @@ test("automated cases are left out of hand-tested runs unless asked, and can be 
   await expect(page.getByTestId("auto-note")).toBeVisible();
 
   // Remove from run on one case; Keep them hides the note for good.
-  await page.getByRole("button", { name: new RegExp(`Remove ${KEY}-1 from run`) }).click();
+  // ver_200: Remove from run sits under the row's ⋯.
+  await page.getByRole("button", { name: `More for ${KEY}-1` }).click();
+  await page.getByRole("menuitem", { name: new RegExp(`Remove ${KEY}-1 from run`) }).click();
   await expect(page.getByText("3 of 3", { exact: true })).toBeVisible();
   await page.getByTestId("removed-note").getByRole("button", { name: "Dismiss" }).click();
   await page.getByTestId("auto-note").getByRole("button", { name: "Keep them" }).click();

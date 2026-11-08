@@ -72,7 +72,7 @@ test("heading rows aren't counted as steps, and real steps are", async ({ page }
   await page.goto(`/p/${KEY}/runs/1`);
   const savedRow = page.getByRole("row").filter({ hasText: "In Space - Assets Panel" });
   await expect(savedRow.getByText("4/4", { exact: true })).toBeVisible();
-  await expect(page.getByText("0 failed or blocked of 8 steps")).toBeVisible();
+  await expect(page.getByTestId("run-pass-rate")).toHaveAttribute("title", /0 failed or blocked of 8 steps/);
 
   // Runner: the TCT-3 style case has one heading and four real steps, each with its own buttons.
   await page.goto(`/p/${KEY}/runs/1/execute?entry=${ids.live}`);
@@ -95,8 +95,7 @@ test("heading rows aren't counted as steps, and real steps are", async ({ page }
   // Back on the run page: both cases 4/4, and 8 steps passed of 8.
   await page.goto(`/p/${KEY}/runs/1`);
   await expect(page.getByRole("row").filter({ hasText: "Hub - Entering Spaces" }).getByText("4/4", { exact: true })).toBeVisible();
-  await expect(page.getByText("8 passed", { exact: true })).toBeVisible();
-  await expect(page.getByText("0 failed or blocked of 8 steps")).toBeVisible();
+  await expect(page.getByTestId("run-pass-rate")).toHaveAttribute("title", /Steps: 8 passed · 0 failed or blocked of 8 steps/);
 
   // The short "Owned By You" row after a heading is a real step with its own buttons.
   await page.goto(`/p/${KEY}/runs/1/execute?entry=${ids.saved}`);
