@@ -67,8 +67,8 @@ test("Fill in my columns fills only the picked columns of an existing tab", asyn
     await expect(page.getByRole("heading", { name: "Charlie", level: 1 })).toBeVisible();
 
     await page.goto(runUrl);
-    await page.getByRole("button", { name: "More" }).click();
-    await page.getByRole("button", { name: "Send to a Google Sheet" }).click();
+    await page.getByRole("button", { name: "Import / Export" }).click();
+    await page.getByRole("button", { name: "Export to a Google Sheet" }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByLabel("Script")).toHaveValue(/function fillTab/);
     await expect(dialog.getByRole("radio", { name: /Fill in my columns/ })).toBeChecked();
@@ -106,8 +106,8 @@ test("Fill in my columns fills only the picked columns of an existing tab", asyn
     await expect(status).toContainText("2 cells filled");
 
     // The dialog says what it fills, and Send uses the saved choices (Charlie stays on row 6).
-    await page.getByRole("button", { name: "More" }).click();
-    await page.getByRole("button", { name: "Send to a Google Sheet" }).click();
+    await page.getByRole("button", { name: "Import / Export" }).click();
+    await page.getByRole("button", { name: "Export to a Google Sheet" }).click();
     await expect(dialog).toContainText("Fills Result and Bug Ticket (columns F to H) in the Checklist tab");
     await dialog.getByRole("button", { name: "Send to sheet" }).click();
     await expect.poll(() => fills.length).toBe(2);

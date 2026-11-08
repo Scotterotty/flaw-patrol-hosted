@@ -165,7 +165,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   // Every case has a result: the run only needs closing.
   const finished = run.state === "ACTIVE" && t.total > 0 && t.tested === t.total;
   // Just started and handed to someone else: a link to send them.
-  // Bring in results from a sheet: open runs you test by hand, for whoever can bring in results.
+  // Import results from a sheet: open runs you test by hand, for whoever can bring in results.
   const fromSheet = run.state === "ACTIVE" && run.kind !== "bash" && can(who, "run:import");
   const updatedCount = Math.max(0, Math.floor(Number(updated) || 0));
   const assignedCount = Math.max(0, Math.floor(Number(assigned) || 0));
@@ -224,7 +224,25 @@ export default async function RunPage({ params, searchParams }: { params: Promis
               href={can(who, "jira:manage") ? (project.groupId && project.slackMode === "umbrella" ? `/g/${project.groupId}/settings#slack` : await cycleSettingsHref(project, user, "slack")) : null}
             />
           )}
-          {(SHEETS_ENABLED || fromSheet || can(who, "run:create") || can(who, "run:manage") || can(who, "run:delete")) && (
+          {/* ver_203: import and export get their own gray button, away from Close run and Delete.
+              Viewers see only the Export lines, and the button then just says Export. */}
+          {(fromSheet || SHEETS_ENABLED) && (
+            <MoreMenu label={fromSheet ? "Import / Export" : "Export"} howto="run-import-export">
+              {fromSheet && (
+                // ver_177: bring a spreadsheet's results into this run, where people already are.
+                <Link href={`/p/${project.key}/runs/import?run=${run.number}`} className={buttonClass("ghost")} data-howto="run-update-sheet">
+                  Import results from a sheet
+                </Link>
+              )}
+              {SHEETS_ENABLED && (
+                <a href={`/p/${project.key}/runs/${run.number}/export`} download className={buttonClass("ghost")} data-howto="run-export">
+                  Export to Excel (.xlsx)
+                </a>
+              )}
+              {SHEETS_ENABLED && can(who, "run:create") && <RunSheetButton projectId={project.id} runId={run.id} runName={run.name} sheet={sheet} />}
+            </MoreMenu>
+          )}
+          {(can(who, "run:create") || can(who, "run:manage") || can(who, "run:delete")) && (
             <MoreMenu howto="run-more">
               {can(who, "run:create") && (
                 <EditRunButton
@@ -234,26 +252,6 @@ export default async function RunPage({ params, searchParams }: { params: Promis
                   releases={releases}
                   fields={runFields}
                 />
-              )}
-              {/* ver_178: every spreadsheet action under one heading, with one word for them. */}
-              {(fromSheet || SHEETS_ENABLED) && (
-                <div role="group" aria-label="Spreadsheet" className="my-1 border-y border-slate-100 py-1">
-                  <p className="px-3 pt-1 pb-0.5 text-[11px] font-semibold tracking-wide text-slate-500 uppercase" aria-hidden>
-                    Spreadsheet
-                  </p>
-                  {fromSheet && (
-                    // ver_177: bring a spreadsheet's results into this run, where people already are.
-                    <Link href={`/p/${project.key}/runs/import?run=${run.number}`} className={buttonClass("ghost")} data-howto="run-update-sheet">
-                      Bring in results from a sheet
-                    </Link>
-                  )}
-                  {SHEETS_ENABLED && (
-                    <a href={`/p/${project.key}/runs/${run.number}/export`} download className={buttonClass("ghost")} data-howto="run-export">
-                      Download as Excel
-                    </a>
-                  )}
-                  {SHEETS_ENABLED && can(who, "run:create") && <RunSheetButton projectId={project.id} runId={run.id} runName={run.name} sheet={sheet} />}
-                </div>
               )}
               {(can(who, "run:manage") || can(who, "run:delete")) && <RunStateButtons projectId={project.id} projectKey={project.key} runId={run.id} state={run.state} canClose={can(who, "run:manage")} canDelete={can(who, "run:delete")} />}
             </MoreMenu>

@@ -99,7 +99,7 @@ export function RunSheetButton({ projectId, runId, runName, sheet }: { projectId
   return (
     <>
       <Button variant="ghost" onClick={show} data-howto="run-google-sheet">
-        Send to a Google Sheet
+        Export to a Google Sheet
       </Button>
       <Modal open={open} onClose={() => setOpen(false)} title="Send results to a Google Sheet" wide>
         <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>

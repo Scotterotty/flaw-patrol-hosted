@@ -82,12 +82,12 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
           {!canStart ? (
             <>{automated ? "When someone uploads results from automated tests, they show here." : closed ? "When a run is closed, it moves here." : "When someone starts a run, it shows here."}</>
           ) : automated ? (
-            <>Use Bring in results → Automated test results to add results from your automated tests. Each upload shows here.</>
+            <>Use Import results → Automated test results to add results from your automated tests. Each upload shows here.</>
           ) : closed ? (
             <>When a run is closed, it moves here. Open a closed run to reopen it.</>
           ) : (
             <>
-              Press Create a run to test by hand, or use Bring in results for results from your automated tests or a spreadsheet.
+              Press Create a run to test by hand, or use Import results for results from your automated tests or a spreadsheet.
             </>
           )}
         </EmptyState>

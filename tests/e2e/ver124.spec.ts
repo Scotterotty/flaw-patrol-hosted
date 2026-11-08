@@ -73,12 +73,12 @@ test("a failed step stays in view, and Report bug for case starts from it", asyn
   await expect(page.getByText(/Actual: Stays on the login page/)).toBeVisible();
 });
 
-test("Test runs has one Bring in results menu, and Reports opens with a summary", async ({ page }) => {
+test("Test runs has one Import results menu, and Reports opens with a summary", async ({ page }) => {
   test.setTimeout(120_000);
   await signIn(page, "admin@example.com", "Demo Admin");
   await page.goto(`/p/${KEY}/runs`);
   await expect(page.getByRole("link", { name: "Import a run" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Bring in results" }).click();
+  await page.getByRole("button", { name: "Import results" }).click();
   await expect(page.getByRole("menuitem", { name: /Automated test results/ })).toBeVisible();
   await page.getByRole("menuitem", { name: /Results from a spreadsheet/ }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${KEY}/runs/import`));

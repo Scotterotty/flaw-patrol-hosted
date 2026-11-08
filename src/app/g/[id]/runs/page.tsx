@@ -124,7 +124,7 @@ export default async function UmbrellaRunsPage({ params, searchParams }: { param
 
 /**
  * The test cycles this viewer may bring results into (run:import), current ones first.
- * None means no Bring in results menu: leads and admins see it, like before.
+ * None means no Import results menu: leads and admins see it, like before.
  */
 async function importCycles(u: NonNullable<Awaited<ReturnType<typeof loadUmbrella>>>, user: { id: string; isAdmin: boolean }) {
   const current = new Set(u.current.map((p) => p.id));

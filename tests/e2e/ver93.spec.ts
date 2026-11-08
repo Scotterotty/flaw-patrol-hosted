@@ -143,7 +143,7 @@ test("a Playwright zip brings in screenshots and a replay that opens in Flaw Pat
   await signIn(page, "admin@example.com", "Demo Admin");
   await standaloneProject(page, `Replays ${TAG}`, KEY);
   await page.goto(`/p/${KEY}/runs`);
-  await page.getByRole("button", { name: "Bring in results" }).click();
+  await page.getByRole("button", { name: "Import results" }).click();
   await page.getByRole("menuitem", { name: /Automated test results/ }).click();
   const zip = readFileSync(join(__dirname, "fixtures", "playwright-results-1187.zip"));
   await page.getByLabel("Results files").setInputFiles({ name: "playwright-results.zip", mimeType: "application/zip", buffer: zip });

@@ -55,13 +55,16 @@ test("Overview, Create a run, the release box and a run's More menu", async ({ p
   await box.getByRole("button", { name: "Create smoke test" }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${CYCLE}/runs/1$`));
 
-  // 3. More: Edit details, then Spreadsheet with its actions, then Close run.
+  // 3. ver_203: the spreadsheet actions have their own Import / Export button; More keeps Edit, Close and Delete.
+  await page.getByRole("button", { name: "Import / Export" }).click();
+  const sheet = page.getByRole("menu");
+  await expect(sheet.getByRole("link", { name: "Import results from a sheet" })).toBeVisible();
+  await expect(sheet.getByRole("link", { name: "Export to Excel (.xlsx)" })).toBeVisible();
+  await expect(sheet.getByRole("button", { name: "Export to a Google Sheet" })).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "More" }).click();
-  const menu = page.getByRole("menu");
-  const sheet = menu.getByRole("group", { name: "Spreadsheet" });
-  await expect(sheet.getByRole("link", { name: "Bring in results from a sheet" })).toBeVisible();
-  await expect(sheet.getByRole("link", { name: "Download as Excel" })).toBeVisible();
-  await expect(sheet.getByRole("button", { name: "Send to a Google Sheet" })).toBeVisible();
+  await expect(page.getByRole("menu").getByRole("button", { name: "Edit details" })).toBeVisible();
+  await expect(page.getByRole("menu").getByText("Export to Excel (.xlsx)")).toHaveCount(0);
   await page.keyboard.press("Escape");
 
   // Now there's a run: the Overview's shortcuts come back.

@@ -66,7 +66,7 @@ test("a sheet goes into a run in progress from the umbrella, filling only untest
   test.setTimeout(180_000);
   await signIn(page, "admin@example.com", "Demo Admin");
   await page.goto(`/g/${ids.group}/runs`);
-  await page.getByRole("button", { name: "Bring in results" }).click();
+  await page.getByRole("button", { name: "Import results" }).click();
   await expect(page.getByRole("menuitem", { name: /Automated test results/ })).toBeVisible();
   await page.getByRole("menuitem", { name: /Results from a spreadsheet/ }).click();
 

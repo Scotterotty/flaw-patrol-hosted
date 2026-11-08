@@ -33,9 +33,9 @@ export async function Runs({ projectIds, state, kind, kinds = [], canStart = tru
   const newsCounts = await caseNewsCounts(runs.filter((r) => r.state === "ACTIVE" || r.automated).slice(0, 30).map((r) => r.id));
   if (runs.length === 0)
     return state === "automated" ? (
-      <EmptyState title="No automated runs yet">{canStart ? "Use Bring in results → Automated test results to add results from your automated tests. Each upload shows here." : "When someone uploads results from automated tests, they show here."}</EmptyState>
+      <EmptyState title="No automated runs yet">{canStart ? "Use Import results → Automated test results to add results from your automated tests. Each upload shows here." : "When someone uploads results from automated tests, they show here."}</EmptyState>
     ) : (
-      <EmptyState title="No runs yet">{canStart ? "Press Create a run to test by hand, or use Bring in results for results from your automated tests or a spreadsheet." : "When someone starts a run, it shows here."}</EmptyState>
+      <EmptyState title="No runs yet">{canStart ? "Press Create a run to test by hand, or use Import results for results from your automated tests or a spreadsheet." : "When someone starts a run, it shows here."}</EmptyState>
     );
   return (
     <Card className="divide-y divide-slate-100">

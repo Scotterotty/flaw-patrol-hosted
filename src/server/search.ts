@@ -74,16 +74,20 @@ const ACCOUNT_PAGES: { label: string; anchor: string; words: string }[] = [
   { label: "Password", anchor: "password", words: "password change password" },
 ];
 /** `adminOnly`: only an umbrella's Admins see it (Members, ver_168). */
-const UMBRELLA_PAGES: { label: string; path: (g: string, hub: string) => string; words: string; tool?: ToolId; adminOnly?: true }[] = [
+/** `sub`: where to go once there, shown under the label instead of the umbrella's name. */
+const UMBRELLA_PAGES: { label: string; path: (g: string, hub: string) => string; words: string; tool?: ToolId; adminOnly?: true; sub?: string }[] = [
   { label: "Overview", path: (g) => `/g/${g}`, words: "overview home" },
   { label: "Case library", path: (_, h) => `/p/${h}/cases`, words: "case library cases tests", tool: "cases" },
+  // ver_203: "import" and "export run" find these too.
+  { label: "Import cases", path: (_, h) => `/p/${h}/import`, words: "import cases csv excel xlsx upload spreadsheet google sheets testrail qtest zephyr xray move from another tool", tool: "cases" },
   { label: "Export cases", path: (_, h) => `/p/${h}/cases?export=1`, words: "export download cases qase qtest testrail excel spreadsheet csv xlsx google sheets move to another tool", tool: "cases" },
   { label: "Test suites", path: (_, h) => `/p/${h}/suites`, words: "test suites suite plans", tool: "cases" },
   { label: "Shared steps", path: (_, h) => `/p/${h}/shared-steps`, words: "shared steps reusable", tool: "cases" },
   { label: "Personas", path: (_, h) => `/p/${h}/charters?tab=personas`, words: "personas test persona charters exploratory", tool: "charters" },
   { label: "Charters", path: (_, h) => `/p/${h}/charters`, words: "charters exploratory sessions tours checklists", tool: "charters" },
   { label: "Test runs", path: (g) => `/g/${g}/runs`, words: "test runs runs automated", tool: "runs" },
-  { label: "Bring in results from a spreadsheet", path: (g) => `/g/${g}?start=run&what=sheet`, words: "update run from sheet spreadsheet import results excel csv xlsx google sheets in progress bring in", tool: "runs" },
+  { label: "Import results from a spreadsheet", path: (g) => `/g/${g}?start=run&what=sheet`, words: "update run from sheet spreadsheet import results excel csv xlsx google sheets in progress bring in", tool: "runs" },
+  { label: "Export a run", path: (g) => `/g/${g}/runs`, words: "export run results download excel xlsx google sheets spreadsheet copy save in progress", tool: "runs", sub: "Open a run, then Import / Export" },
   { label: "Bug bashes", path: (_, h) => `/p/${h}/bashes`, words: "bug bashes bash blitz hunt", tool: "bashes" },
   { label: "Start a bug bash", path: (_, h) => `/p/${h}/bashes?bash=start`, words: "start new bug bash blitz", tool: "bashes" },
   { label: "Risk board", path: (_, h) => `/p/${h}/risk`, words: "risk board rc plan likelihood impact", tool: "risk" },
@@ -117,7 +121,7 @@ function pageHit(p: (typeof UMBRELLA_PAGES)[number], u: PageScope, label: string
       off: { groupId: u.id, tool: p.tool, canTurnOn: u.admin },
     };
   }
-  return { href, label, sub: u.name };
+  return { href, label, sub: p.sub ? `${u.name} · ${p.sub}` : u.name };
 }
 
 function pageHits(q: string, umbrella: PageScope | null, everywhere: PageScope[] = [], close = false): SearchHit[] {

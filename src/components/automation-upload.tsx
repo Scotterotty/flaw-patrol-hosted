@@ -103,7 +103,7 @@ export function UploadAutomationButton({ scope }: { scope: { groupId: string } |
 }
 
 /**
- * Test runs → Bring in results (persona audit #8): Import a run and Upload
+ * Test runs → Import results (persona audit #8; "Bring in results" until ver_203): Import a run and Upload
  * automation results used to be two equal buttons that sounded the same. One menu now
  * holds both, each saying what kind of file it takes, so Create a run stands out.
  * The two choices stay in a fixed order.
@@ -130,7 +130,7 @@ export function BringInResults({
   if (!auto && !sheet) return null;
   return (
     <>
-      <MoreMenu label="Bring in results" howto="runs-bring-in">
+      <MoreMenu label="Import results" howto="runs-bring-in">
         {auto && (
           <button
             type="button"

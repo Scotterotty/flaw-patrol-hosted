@@ -40,7 +40,7 @@ test("a run kept in a sheet imports as an open run with results, testers and wor
   ].join("\n");
 
   await page.goto(`/p/${key}/runs`);
-  await page.getByRole("button", { name: "Bring in results" }).click();
+  await page.getByRole("button", { name: "Import results" }).click();
   await page.getByRole("menuitem", { name: /Results from a spreadsheet/ }).click();
   await page.getByLabel("Sheet file").setInputFiles({ name: "R22 Test Cycle - Unreal.csv", mimeType: "text/csv", buffer: Buffer.from(sheet) });
 

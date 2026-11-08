@@ -139,11 +139,11 @@ test("A new run from the sheet keeps the name and kind picked in the box", async
   }
 });
 
-test("A run's More menu has Update from a sheet", async ({ page }) => {
+test("A run's Import / Export menu has Import results from a sheet", async ({ page }) => {
   await signIn(page, "admin@example.com", "Demo Admin");
   await page.goto(`/p/${CYCLE}/runs/1`);
-  await page.getByRole("button", { name: "More" }).click();
-  await page.getByRole("menu").getByRole("link", { name: "Bring in results from a sheet" }).click();
+  await page.getByRole("button", { name: "Import / Export" }).click();
+  await page.getByRole("menu").getByRole("link", { name: "Import results from a sheet" }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${CYCLE}/runs/import\\?run=1$`));
   await page.getByLabel("Sheet file").setInputFiles(file("Again.csv"));
   await expect(page.getByLabel("Run in progress", { exact: true })).toHaveValue(ids.run);
