@@ -22,6 +22,27 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 203,
+    date: "2026-11-08",
+    items: [
+      {
+        kind: "better",
+        title: "Import / Export on every run",
+        text: "A run's page has its own Import / Export button: Export to Excel (.xlsx), Export to a Google Sheet, or Import results from a sheet. It works halfway through a run too. More keeps Edit details, Close run and Delete.",
+      },
+      {
+        kind: "fix",
+        title: "Menus fit on a phone",
+        text: "Menus that opened past the edge of a phone's screen now open fully on it.",
+      },
+      {
+        kind: "better",
+        title: "Import results, in the same word as Google Sheets",
+        text: "Test runs → Bring in results is now Import results. Search finds Import cases and Export a run, too.",
+      },
+    ],
+  },
+  {
     version: 202,
     date: "2026-11-08",
     items: [
