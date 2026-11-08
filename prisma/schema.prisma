@@ -38,6 +38,7 @@ model User {
   // Appearance, see src/lib/theme.ts.
   themeMode         String          @default("light")
   accent            String          @default("violet")
+  look              String          @default("classic")
   fontBody          String          @default("poppins")
   fontHeading       String          @default("bungee")
   // Accessibility: text size as a percentage, and opt-in display aids.

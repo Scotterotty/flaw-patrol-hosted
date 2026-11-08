@@ -4,7 +4,7 @@ import { RadioProvider } from "@/components/radio-player";
 import { SpellingProvider } from "@/components/spelling";
 import { currentUser, mySpelling } from "@/lib/session";
 import { parseSpotifyLinks, validStation } from "@/lib/spotify";
-import { fontVars } from "@/lib/theme";
+import { lookAttrs } from "@/lib/looks";
 import { cleanSpinners, pawnEmoji } from "@/lib/spinners";
 import "@fontsource/young-serif/400.css";
 import "@fontsource/poppins/400.css";
@@ -48,6 +48,8 @@ import "@fontsource/righteous/400.css";
 import "@fontsource/lobster/400.css";
 import "@fontsource/caveat/700.css";
 import "@fontsource/press-start-2p/400.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/700.css";
 import "@fontsource/bungee/400.css";
 import "@fontsource/archivo/400.css";
 import "@fontsource/archivo/500.css";
@@ -92,6 +94,7 @@ import "@fontsource/bagnard/400.css";
 import "@fontsource/lexend/600.css";
 import "./globals.css";
 import "./risk-looks.css";
+import "./looks.css";
 import { QuestToaster } from "@/components/quest-toast";
 import { CrownToaster } from "@/components/crown-toast";
 import { crownChanges } from "@/lib/crowns";
@@ -123,12 +126,21 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const whatsNew = user && (user.whatsNewSeen ?? 0) < BUILD ? unseenFor(user.whatsNewSeen, await viewerOf(user)) : [];
   // Mini game crowns: tell players once when they take or lose one.
   const crowns = user?.gameEnabled ? await crownChanges(user).catch(() => null) : null;
+  // Your look (Classic, Mission control…) sits on top of mode, color and fonts (ver_202).
+  const looks = lookAttrs(user?.look, {
+    themeMode: user?.themeMode ?? "system",
+    accent: user?.accent ?? "violet",
+    fontBody: user?.fontBody ?? "poppins",
+    fontHeading: user?.fontHeading ?? "bungee",
+    shapes: !!user && shapesOn(user.colorVision, user.visionShapes),
+  });
   return (
     <html
       // en-GB also switches the browser's spell checker to British English.
       lang={spelling === "uk" ? "en-GB" : "en-US"}
-      data-theme={user?.themeMode ?? "system"}
-      data-accent={user?.accent ?? "violet"}
+      data-look={looks.look === "classic" ? undefined : looks.look}
+      data-theme={looks.theme}
+      data-accent={looks.accent}
       data-font-body={user?.fontBody ?? "poppins"}
       data-font-heading={user?.fontHeading ?? "bungee"}
       data-text-size={user?.textSize ?? "100"}
@@ -137,11 +149,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       data-links={user?.underlineLinks ? "underline" : undefined}
       // Color vision: another status palette, and shapes and patterns on statuses.
       data-vision={user && user.colorVision !== "standard" ? user.colorVision : undefined}
-      data-shapes={user && shapesOn(user.colorVision, user.visionShapes) ? "on" : undefined}
+      data-shapes={looks.shapes ? "on" : undefined}
       // Loading spinners: the ones you ticked, and your quest pawn for Pawn hop.
       data-spinners={cleanSpinners(user?.spinners).join(" ")}
       data-pawn={pawnEmoji(user?.questPawn)}
-      style={fontVars(user?.fontBody ?? "poppins", user?.fontHeading ?? "bungee")}
+      style={looks.fonts as React.CSSProperties}
     >
       {/* Browser extensions (Testim, Grammarly…) add attributes to body before React loads; don't warn about those. */}
       <body className="min-h-screen font-sans antialiased" suppressHydrationWarning>

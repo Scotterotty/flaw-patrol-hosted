@@ -1,0 +1,305 @@
+/*
+ * App-wide looks (ver_202), data-look on <html> (src/lib/looks.ts). Classic has no data-look.
+ * A look only changes colors, borders and fonts; nothing moves. Every screen reads the shared
+ * tokens from globals.css (--page, --color-surface, the slate grays, the accent, --st-* statuses),
+ * so each look is mostly a new set of tokens plus a few rules for buttons, cards and the menu.
+ * Mission control, Blueprint and Arcade always render on top of dark mode; High contrast and
+ * Whiteboard on top of light mode (layout.tsx sets data-theme for them). Fonts come from fontVars.
+ * Rules: 4.5:1 for text, nothing under 11px except Arcade's pixel titles, no motion.
+ */
+
+/* ───────── Mission control: navy screen, faint grid, glow, neon statuses ───────── */
+:root[data-look="mission"] {
+  --page: radial-gradient(90% 60% at 100% 0%, rgb(255 61 127 / 0.1), transparent 60%) fixed, radial-gradient(90% 70% at 0% 100%, rgb(46 230 197 / 0.08), transparent 60%) fixed, #0b0d1c;
+  --color-surface: #11152f;
+  --color-slate-50: #0e1228;
+  --color-slate-100: #181d3e;
+  --color-slate-200: #282e58;
+  --color-slate-300: #383f72;
+  --color-slate-400: #a3acd0;
+  --color-slate-500: #a3acd0;
+  --color-slate-600: #b3bbdc;
+  --color-slate-700: #cdd5f0;
+  --color-slate-800: #e0e8fb;
+  --color-slate-900: #e8f1ff;
+  --color-slate-950: #f4f8ff;
+  --color-accent-50: oklch(0.25 0.08 var(--accent-h));
+  --color-accent-100: oklch(0.3 0.11 var(--accent-h));
+  --color-accent-500: oklch(0.7 0.18 var(--accent-h));
+  --color-accent-600: oklch(0.52 0.22 var(--accent-h));
+  --color-accent-700: oklch(0.83 0.12 var(--accent-h));
+  --look-glow: 0 0 16px -4px oklch(0.7 0.2 var(--accent-h) / 0.8);
+  --st-passed: #2ee6a0;
+  --st-failed: #ff4f8b;
+  --st-blocked: #8a93b8;
+  --st-retest: #4cc3ff;
+  --st-skipped: #b9a6ff;
+  --st-explored: #2ee6c5;
+  --st-passed-on: #03130c;
+  --st-failed-on: #1a0410;
+  --st-blocked-on: #0b0d1c;
+  --st-retest-on: #04121c;
+  --st-skipped-on: #0f0a24;
+  --st-explored-on: #03130f;
+}
+/* The faint grid behind everything; it never takes clicks. */
+:root[data-look="mission"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: linear-gradient(rgb(124 140 255 / 0.06) 1px, transparent 1px), linear-gradient(90deg, rgb(124 140 255 / 0.06) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+:root[data-look="mission"] h1 {
+  background: linear-gradient(90deg, #a9bcff, #ff8fbd);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+:root[data-look="mission"] .bg-accent-600 {
+  background-image: linear-gradient(90deg, oklch(0.5 0.22 var(--accent-h)), oklch(0.5 0.22 calc(var(--accent-h) + 25)));
+  box-shadow: var(--look-glow);
+}
+:root[data-look="mission"] .fp-bar [aria-current="page"].bg-accent-100 {
+  box-shadow: var(--look-glow);
+}
+:root[data-look="mission"] .st-bar-PASSED,
+:root[data-look="mission"] .st-bar-FAILED {
+  box-shadow: 0 0 8px -1px currentColor;
+}
+:root[data-look="mission"] .st-bar-PASSED {
+  color: var(--st-passed);
+}
+:root[data-look="mission"] .st-bar-FAILED {
+  color: var(--st-failed);
+}
+
+/* ───────── High contrast: black on white, thick outlines, shapes on statuses ───────── */
+:root[data-look="hc"] {
+  --page: #fff;
+  --color-surface: #fff;
+  --color-slate-50: #f3f3f3;
+  --color-slate-100: #e8e8e8;
+  --color-slate-200: #9a9a9a;
+  --color-slate-300: #000;
+  --color-slate-400: #333;
+  --color-slate-500: #333;
+  --color-slate-600: #222;
+  --color-slate-700: #111;
+  --color-slate-800: #000;
+  --color-slate-900: #000;
+  --color-slate-950: #000;
+  --color-accent-50: oklch(0.96 0.02 var(--accent-h));
+  --color-accent-100: oklch(0.92 0.04 var(--accent-h));
+  --color-accent-500: oklch(0.4 0.17 var(--accent-h));
+  --color-accent-600: oklch(0.36 0.17 var(--accent-h));
+  --color-accent-700: oklch(0.3 0.15 var(--accent-h));
+  --st-passed: #0a6b34;
+  --st-failed: #a3001b;
+  --st-blocked: #000;
+  --st-retest: #0b4f80;
+  --st-skipped: #5b3aa8;
+  --st-explored: #075e57;
+  --st-untested: #fff;
+  --st-ov-light: rgb(255 255 255 / 0.7);
+  --st-passed-soft: #fff;
+  --st-passed-ink: #0a6b34;
+  --st-passed-ring: #0a6b34;
+  --st-failed-soft: #fff;
+  --st-failed-ink: #a3001b;
+  --st-failed-ring: #a3001b;
+  --st-blocked-soft: #fff;
+  --st-blocked-ink: #000;
+  --st-blocked-ring: #000;
+  --st-retest-soft: #fff;
+  --st-retest-ink: #0b4f80;
+  --st-retest-ring: #0b4f80;
+  --st-skipped-soft: #fff;
+  --st-skipped-ink: #5b3aa8;
+  --st-skipped-ring: #5b3aa8;
+  --st-untested-ring: #000;
+}
+/* Cards, panels and the top bar and menu get black outlines. */
+:root[data-look="hc"] :is(.border, .border-b, .border-t, .border-r, .border-l):is(.border-slate-200, .border-slate-100) {
+  border-color: #000;
+}
+:root[data-look="hc"] .rounded-lg.border {
+  border-width: 2px;
+}
+:root[data-look="hc"] .fp-bar [aria-current="page"].bg-accent-100 {
+  background: #000;
+  color: #fff;
+}
+:root[data-look="hc"] :focus-visible {
+  outline: 3px solid #000 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 5px #fff;
+}
+:root[data-look="hc"] :is(h1, h2, h3) {
+  font-weight: 700;
+}
+
+/* ───────── Whiteboard: marker blue, dashed cards, sticky-note yellow ───────── */
+:root[data-look="white"] {
+  --page: #fbfbf8;
+  --color-surface: #fff;
+  --color-slate-50: #f6f6f2;
+  --color-slate-100: #efefea;
+  --color-slate-200: #c9ccd3;
+  --color-slate-300: #a9adb8;
+  --color-slate-400: #55555f;
+  --color-slate-500: #55555f;
+  --color-slate-600: #45454f;
+  --color-slate-700: #33333b;
+  --color-slate-800: #26262d;
+  --color-slate-900: #22222a;
+  --color-slate-950: #16161c;
+  --color-accent-50: #fffbd6;
+  --color-accent-100: #fff6a8;
+  --color-accent-500: #3a68c8;
+  --color-accent-600: #1d4fb8;
+  --color-accent-700: #173f93;
+  --st-passed: #1b7a4a;
+  --st-failed: #c21f3a;
+  --st-blocked: #3a3a44;
+}
+:root[data-look="white"] :is(h1, h2:not(.uppercase), h3:not(.uppercase), .font-heading) {
+  color: #1d4fb8;
+}
+:root[data-look="white"] .rounded-lg.border {
+  border-style: dashed;
+  border-width: 2px;
+  box-shadow: none;
+}
+:root[data-look="white"] :is(.bg-accent-600, .bg-accent-600:hover, .hover\:bg-accent-700:hover) {
+  background-color: #fff6a8;
+  color: #22222a;
+  box-shadow: 0 0 0 2px #22222a, 2px 3px 0 2px rgb(0 0 0 / 0.2);
+}
+:root[data-look="white"] .bg-accent-600:hover {
+  background-color: #fdeb6e;
+}
+:root[data-look="white"] .fp-bar [aria-current="page"].bg-accent-100 {
+  color: #22222a;
+}
+
+/* ───────── Blueprint: engineering blue, grid, white outlines, typewriter font ───────── */
+:root[data-look="blue"] {
+  --page: linear-gradient(rgb(255 255 255 / 0.1) 1px, transparent 1px) 0 0 / 60px 60px fixed, linear-gradient(90deg, rgb(255 255 255 / 0.1) 1px, transparent 1px) 0 0 / 60px 60px fixed,
+    linear-gradient(rgb(255 255 255 / 0.04) 1px, transparent 1px) 0 0 / 12px 12px fixed, linear-gradient(90deg, rgb(255 255 255 / 0.04) 1px, transparent 1px) 0 0 / 12px 12px fixed, #123d82;
+  --color-surface: #0e3372;
+  --color-slate-50: #113a7c;
+  --color-slate-100: #18468e;
+  --color-slate-200: #6f8fc4;
+  --color-slate-300: #a9c0e6;
+  --color-slate-400: #c3d6f7;
+  --color-slate-500: #c3d6f7;
+  --color-slate-600: #cfdffa;
+  --color-slate-700: #dde9fc;
+  --color-slate-800: #eaf3ff;
+  --color-slate-900: #f2f7ff;
+  --color-slate-950: #fff;
+  --color-accent-50: #16458f;
+  --color-accent-100: #1d52a6;
+  --color-accent-500: #cfe0ff;
+  --color-accent-600: #fff;
+  --color-accent-700: #fff;
+  --st-passed: #8ff5cf;
+  --st-failed: #ffb3c6;
+  --st-blocked: #cfe0ff;
+  --st-retest: #9fd8ff;
+  --st-skipped: #d6c8ff;
+  --st-explored: #8ff0ea;
+  --st-passed-on: #0b2350;
+  --st-failed-on: #0b2350;
+  --st-blocked-on: #0b2350;
+  --st-retest-on: #0b2350;
+  --st-skipped-on: #0b2350;
+  --st-explored-on: #0b2350;
+  --radius-xs: 0;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+}
+:root[data-look="blue"] :is(h1, h2:not(.uppercase), h3:not(.uppercase), .font-heading) {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+:root[data-look="blue"] .rounded-lg.border {
+  border-color: rgb(220 235 255 / 0.75);
+}
+:root[data-look="blue"] :is(.bg-accent-600, .bg-accent-600:hover, .hover\:bg-accent-700:hover) {
+  background-color: #fff;
+  color: #123d82;
+}
+:root[data-look="blue"] .bg-accent-600:hover {
+  background-color: #dbe8ff;
+}
+:root[data-look="blue"] .fp-bar [aria-current="page"].bg-accent-100 {
+  background: #fff;
+  color: #123d82;
+}
+
+/* ───────── Arcade: pixel titles, chunky black borders, hard shadows, yellow ───────── */
+:root[data-look="arcade"] {
+  --page: #140b2e;
+  --color-surface: #1d1242;
+  --color-slate-50: #180e38;
+  --color-slate-100: #271a56;
+  --color-slate-200: #3d2d78;
+  --color-slate-300: #5a4a9a;
+  --color-slate-400: #cdbdff;
+  --color-slate-500: #cdbdff;
+  --color-slate-600: #d8ccff;
+  --color-slate-700: #e6deff;
+  --color-slate-800: #f3efff;
+  --color-slate-900: #fff;
+  --color-slate-950: #fff;
+  --color-accent-50: #2a1b5c;
+  --color-accent-100: #3a2775;
+  --color-accent-500: #ffe14d;
+  --color-accent-600: #ffe14d;
+  --color-accent-700: #ffe14d;
+  --st-passed: #2ee6a0;
+  --st-failed: #ff4f8b;
+  --st-blocked: #8a93b8;
+  --st-retest: #4cc3ff;
+  --st-skipped: #b9a6ff;
+  --st-explored: #2ee6c5;
+  --st-passed-on: #140b2e;
+  --st-failed-on: #140b2e;
+  --st-blocked-on: #140b2e;
+  --st-retest-on: #140b2e;
+  --st-skipped-on: #140b2e;
+  --st-explored-on: #140b2e;
+  --radius-xs: 0;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+}
+:root[data-look="arcade"] :is(h1, h2:not(.uppercase), h3:not(.uppercase), .font-heading) {
+  color: #ffe14d;
+  text-shadow: 2px 2px 0 #e0286b;
+  line-height: 1.5;
+}
+:root[data-look="arcade"] .rounded-lg.border {
+  border-color: #000;
+  border-width: 3px;
+  box-shadow: 4px 4px 0 #000;
+}
+:root[data-look="arcade"] :is(.bg-accent-600, .bg-accent-600:hover, .hover\:bg-accent-700:hover) {
+  background-color: #ffe14d;
+  color: #140b2e;
+  box-shadow: 3px 3px 0 #000;
+}
+:root[data-look="arcade"] .bg-accent-600:hover {
+  background-color: #fff07a;
+}
+:root[data-look="arcade"] .fp-bar [aria-current="page"].bg-accent-100 {
+  background: #ffe14d;
+  color: #140b2e;
+}
