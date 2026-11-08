@@ -22,6 +22,22 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 202,
+    date: "2026-11-08",
+    items: [
+      {
+        kind: "new",
+        title: "Pick a look for the whole app",
+        text: "Your account → How it looks → Appearance → Look: Classic, Mission control, High contrast, Whiteboard, Blueprint or Arcade. Only colors, borders and fonts change; nothing moves. Only you see it.",
+      },
+      {
+        kind: "better",
+        title: "The Risk board follows your look",
+        text: "Risk board look now starts on Same as my look. Pick another to give only the board its own look.",
+      },
+    ],
+  },
+  {
     version: 201,
     date: "2026-11-08",
     items: [

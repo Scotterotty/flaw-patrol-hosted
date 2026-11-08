@@ -66,7 +66,7 @@ async function pickLook(page: Page, look: string, id: string) {
 test.afterAll(async () => {
   const db = new PrismaClient();
   try {
-    await db.user.update({ where: { email: EMAIL }, data: { riskLook: "classic" } });
+    await db.user.update({ where: { email: EMAIL }, data: { riskLook: null } });
   } finally {
     await db.$disconnect();
   }

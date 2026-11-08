@@ -121,7 +121,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
       </div>
       {board.jiraError && <p className="mb-3 rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-900">Couldn&apos;t read the release from Jira: {board.jiraError}</p>}
       {cards.length ? (
-        <RiskBoard key={`${chosen.join("|")}|${proj ?? ""}`} homeId={project.id} release={release!} releases={chosen} cards={cards} canMove={can(who, "risk:move")} canPlan={canPlan} cycles={runCycles} templates={[...BUILT_IN, ...team]} bash={canRun && withBashes ? project.id : undefined} bashed={bashed} planData={planData} withCases={withCases} look={cleanRiskLook(user.riskLook)} />
+        <RiskBoard key={`${chosen.join("|")}|${proj ?? ""}`} homeId={project.id} release={release!} releases={chosen} cards={cards} canMove={can(who, "risk:move")} canPlan={canPlan} cycles={runCycles} templates={[...BUILT_IN, ...team]} bash={canRun && withBashes ? project.id : undefined} bashed={bashed} planData={planData} withCases={withCases} look={cleanRiskLook(user.riskLook ?? user.look)} />
       ) : (
         <EmptyState title="Nothing in this release">Jira has no requirements{proj ? ` from ${proj}` : ""} in {release}. Pick another release above.</EmptyState>
       )}

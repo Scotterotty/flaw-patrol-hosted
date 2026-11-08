@@ -2,6 +2,7 @@
 
 import { cleanSpinners } from "@/lib/spinners";
 import { isRiskLook } from "@/lib/risk-looks";
+import { isLook } from "@/lib/looks";
 import { isVision } from "@/lib/vision";
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -108,12 +109,23 @@ export async function updateMySpinners(ids: string[]) {
   });
 }
 
-/** Risk board look: only changes how the Risk board looks for you. */
+/** Your look for the whole app (ver_202): Classic, Mission control, High contrast… */
+export async function updateMyLook(look: string) {
+  return attempt(async () => {
+    if (!isLook(look)) throw new UserError("Pick one of the looks in the list.");
+    const user = await requireUser();
+    await db.user.update({ where: { id: user.id }, data: { look } });
+    revalidatePath("/", "layout");
+    return {};
+  });
+}
+
+/** Risk board look: "same" follows your app look (ver_202); any other look is just for the board. */
 export async function updateMyRiskLook(look: string) {
   return attempt(async () => {
-    if (!isRiskLook(look)) throw new UserError("Pick one of the looks in the list.");
+    if (look !== "same" && !isRiskLook(look)) throw new UserError("Pick one of the looks in the list.");
     const user = await requireUser();
-    await db.user.update({ where: { id: user.id }, data: { riskLook: look } });
+    await db.user.update({ where: { id: user.id }, data: { riskLook: look === "same" ? null : look } });
     revalidatePath("/account");
     return {};
   });

@@ -43,7 +43,8 @@ export function AccessibilitySettings({ initial }: { initial: Settings }) {
     if (next.colorVision !== "standard") root.vision = next.colorVision;
     else delete root.vision;
     if (shapesOn(next.colorVision, next.visionShapes)) root.shapes = "on";
-    else delete root.shapes;
+    // High contrast look always shows shapes (ver_202).
+    else if (root.look !== "hc") delete root.shapes;
     start(async () => {
       const res = await updateMyAccessibility(next);
       setError(res.ok ? null : res.error);
@@ -178,7 +179,9 @@ export function EasyReadFont({ body, heading }: { body: string; heading: string 
   const pick = (id: string) => {
     setMine(id);
     document.documentElement.dataset.fontBody = id;
-    for (const [k, v] of Object.entries(fontVars(id, heading))) document.documentElement.style.setProperty(k, v);
+    // High contrast and Blueprint looks set their own text font (ver_202).
+    if (!["hc", "blue"].includes(document.documentElement.dataset.look ?? ""))
+      for (const [k, v] of Object.entries(fontVars(id, heading))) document.documentElement.style.setProperty(k, v);
     start(async () => {
       const res = await updateMyBodyFont(id);
       setError(res.ok ? null : res.error);

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { ACCENTS, BODY_FONTS, THEMES, FONT_GROUPS, FONTS, fontVars, THEME_MODES, type Accent, type BodyFont, type HeadingFont, type ThemeMode } from "@/lib/theme";
-import { updateMyAppearance } from "@/server/account";
+import { ACCENTS, BODY_FONTS, THEMES, FONT_GROUPS, FONTS, THEME_MODES, type Accent, type BodyFont, type HeadingFont, type ThemeMode } from "@/lib/theme";
+import { LOOKS, lookAttrs, lookMode, type Look } from "@/lib/looks";
+import { updateMyAppearance, updateMyLook } from "@/server/account";
 import { Sp } from "./spelling";
 import { cx, ErrorText, Select } from "./ui";
 
-type Appearance = { themeMode: ThemeMode; accent: Accent; fontBody: BodyFont; fontHeading: HeadingFont };
+type Appearance = { look: Look; themeMode: ThemeMode; accent: Accent; fontBody: BodyFont; fontHeading: HeadingFont };
 
 // Small fixed previews of each mode; they don't follow the current theme.
 const PREVIEW: Record<ThemeMode, { bg: string; card: string; line: string }> = {
@@ -18,37 +19,93 @@ const PREVIEW: Record<ThemeMode, { bg: string; card: string; line: string }> = {
 const option = (selected: boolean) =>
   cx("cursor-pointer rounded-lg border text-xs", selected ? "border-accent-600 ring-2 ring-accent-500/30" : "border-slate-200 hover:border-slate-300");
 
-/** Light, dark or follow the computer; accent color; fonts. Applies instantly and saves to your account. */
-export function AppearancePicker({ initial }: { initial: Appearance }) {
+/** Put a look and the person's own choices on <html> right away (the same attributes layout.tsx draws). */
+function applyLook(look: Look, a: Omit<Appearance, "look">, shapes: boolean) {
+  const html = document.documentElement;
+  const root = html.dataset;
+  const attrs = lookAttrs(look, { ...a, shapes });
+  if (look === "classic") delete root.look;
+  else root.look = look;
+  root.theme = attrs.theme;
+  root.accent = attrs.accent;
+  root.fontBody = a.fontBody;
+  root.fontHeading = a.fontHeading;
+  if (attrs.shapes) root.shapes = "on";
+  else delete root.shapes;
+  for (const [k, v] of Object.entries(attrs.fonts)) html.style.setProperty(k, v);
+}
+
+/**
+ * Look (ver_202); light, dark or follow the computer; accent color; fonts.
+ * Applies instantly and saves to your account. `shapes` is the Accessibility shapes setting.
+ */
+export function AppearancePicker({ initial, shapes = false }: { initial: Appearance; shapes?: boolean }) {
   const [a, setA] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const [, start] = useTransition();
 
-  const save = (change: Partial<Appearance>) => {
+  const save = (change: Partial<Omit<Appearance, "look">>) => {
     const next = { ...a, ...change };
     setA(next);
-    const root = document.documentElement.dataset;
-    root.theme = next.themeMode;
-    root.accent = next.accent;
-    root.fontBody = next.fontBody;
-    root.fontHeading = next.fontHeading;
-    for (const [k, v] of Object.entries(fontVars(next.fontBody, next.fontHeading))) document.documentElement.style.setProperty(k, v);
+    applyLook(next.look, next, shapes);
     start(async () => {
       const res = await updateMyAppearance(next);
       setError(res.ok ? null : res.error);
     });
   };
+  const pickLook = (look: Look) => {
+    const before = a.look;
+    setA({ ...a, look });
+    applyLook(look, a, shapes);
+    start(async () => {
+      const res = await updateMyLook(look);
+      if (!res.ok) {
+        setA((x) => ({ ...x, look: before }));
+        applyLook(before, a, shapes);
+      }
+      setError(res.ok ? null : res.error);
+    });
+  };
+  const fixedMode = lookMode(a.look);
+  const lookName = LOOKS.find((l) => l.id === a.look)!.label;
 
   return (
     <div className="space-y-5">
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
-      <fieldset data-howto="appearance-mode">
+      <fieldset data-howto="appearance-look" data-testid="look-picker">
+        <legend className="mb-2 text-sm font-semibold text-slate-900">Look</legend>
+        <div className="flex flex-wrap gap-2">
+          {LOOKS.map((l) => (
+            <label
+              key={l.id}
+              title={l.sub}
+              className={cx(
+                "cursor-pointer rounded-lg border px-3 py-1.5 text-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent-500",
+                a.look === l.id ? "border-accent-600 bg-accent-50 font-semibold text-accent-800 ring-2 ring-accent-500/30" : "border-slate-200 text-slate-700 hover:border-slate-300",
+              )}
+            >
+              <input type="radio" name="look" value={l.id} checked={a.look === l.id} onChange={() => pickLook(l.id)} className="sr-only" />
+              {l.label}
+            </label>
+          ))}
+        </div>
+        <p className="mt-1.5 text-xs text-slate-500">
+          <Sp>Changes colors, borders and fonts everywhere, just for you. Nothing moves.</Sp>
+        </p>
+      </fieldset>
+
+      <fieldset data-howto="appearance-mode" disabled={!!fixedMode}>
         <legend className="mb-2 text-sm font-semibold text-slate-900">Mode</legend>
-        <div className="grid grid-cols-3 gap-2">
+        {fixedMode && (
+          <p className="mb-2 text-xs text-slate-500" data-testid="look-sets-mode">
+            {lookName} has its own {fixedMode} screen. Pick Classic to choose light or dark.
+          </p>
+        )}
+        <div className={cx("grid grid-cols-3 gap-2", fixedMode && "opacity-60")}>
           {THEME_MODES.map((m) => {
             const p = PREVIEW[m.id];
             return (
-              <label key={m.id} className={cx(option(a.themeMode === m.id), "p-2 text-center")}>
+              <label key={m.id} className={cx(option(a.themeMode === m.id), "p-2 text-center", fixedMode && "cursor-not-allowed")}>
                 <input type="radio" name="theme-mode" value={m.id} checked={a.themeMode === m.id} onChange={() => save({ themeMode: m.id })} className="sr-only" />
                 <span aria-hidden="true" className="mb-1.5 block h-12 rounded-md border border-slate-200 p-1.5" style={{ background: p.bg }}>
                   <span className="block h-full rounded" style={{ background: p.card, boxShadow: `inset 0 0 0 1px ${p.line}` }} />
@@ -67,6 +124,7 @@ export function AppearancePicker({ initial }: { initial: Appearance }) {
         <ColorPicker value={a.accent} mode={a.themeMode} onChange={(accent) => save({ accent })} />
         <p className="mt-1.5 text-xs text-slate-500">
           <Sp>Buttons, links and backgrounds follow this choice. Test statuses keep their own colors in every theme.</Sp>
+          {a.look !== "classic" && THEMES.some((t) => t.id === a.accent) && <Sp> Two- and three-color themes show with the Classic look.</Sp>}
         </p>
       </fieldset>
 

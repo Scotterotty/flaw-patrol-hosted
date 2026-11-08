@@ -38,6 +38,7 @@ model User {
   // Appearance, see src/lib/theme.ts.
   themeMode         String          @default("light")
   accent            String          @default("violet")
+  // App-wide look (src/lib/looks.ts, ver_202): Classic, Mission control, High contrast…
   look              String          @default("classic")
   fontBody          String          @default("poppins")
   fontHeading       String          @default("bungee")
@@ -68,8 +69,8 @@ model User {
   seasonalMaps      Boolean         @default(true)
   // Loading spinners (src/lib/spinners.ts): the ones ticked in Account → Appearance; long waits play one at random.
   spinners          String[]        @default(["ring"])
-  // Risk board look (src/lib/risk-looks.ts): only changes how the Risk board looks for this person.
-  riskLook          String          @default("classic")
+  // Risk board look (src/lib/risk-looks.ts): null follows the app look (User.look, ver_202).
+  riskLook          String?
   // Quest pawn and worn gear (src/lib/quest-gear.ts): looks only, cleared with the satchel on an XP reset.
   questPawn         String          @default("classic")
   questColor        String          @default("accent") @map("questColour")

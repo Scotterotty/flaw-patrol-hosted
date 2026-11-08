@@ -24,7 +24,8 @@ import { PaneSizesReset } from "./pane-sizes-reset";
 import { RadioSettings } from "./radio-settings";
 import { SpinnerPicker } from "./spinner-picker";
 import { RiskLookPicker } from "./risk-look-picker";
-import { cleanRiskLook, riskLookLabel } from "@/lib/risk-looks";
+import { isRiskLook, riskLookLabel } from "@/lib/risk-looks";
+import { cleanLook, LOOKS } from "@/lib/looks";
 import { cleanSpinners, pawnEmoji, SPINNER_FOLD } from "@/lib/spinners";
 
 type Me = {
@@ -56,7 +57,8 @@ type Me = {
   isAdmin: boolean;
   openCards?: string[];
   spinners?: string[];
-  riskLook?: string;
+  riskLook?: string | null;
+  look?: string;
   questPawn?: string;
   digestPrefs?: unknown;
 };
@@ -72,10 +74,11 @@ export async function ProfileSettings({ user }: { user: Me }) {
   const stats = user.gameEnabled ? await gameStats(user.id) : null;
   const level = stats ? levelFor(totalXp(stats)).level : 0;
   const appearance = [
+    cleanLook(user.look) !== "classic" ? `${LOOKS.find((l) => l.id === cleanLook(user.look))!.label} look` : "",
     THEMES.some((t) => t.id === user.accent) ? label(THEMES, user.accent) : label(ACCENTS, user.accent),
     label(THEME_MODES, user.themeMode),
     `${fontFor(user.fontBody)?.label ?? "Poppins"} and ${user.fontHeading === "body" ? "the same for headings" : (fontFor(user.fontHeading)?.label ?? "Bungee")}`,
-    cleanRiskLook(user.riskLook) !== "classic" ? `${riskLookLabel(user.riskLook)} Risk board` : "",
+    user.riskLook && isRiskLook(user.riskLook) && user.riskLook !== cleanLook(user.look) ? `${riskLookLabel(user.riskLook)} Risk board` : "",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -125,7 +128,9 @@ export async function ProfileSettings({ user }: { user: Me }) {
         <AccountGroup title="How it looks">
           <AccountCard id="appearance" title="Appearance" summary={appearance}>
             <AppearancePicker
+              shapes={shapesOn(user.colorVision, user.visionShapes)}
               initial={{
+                look: cleanLook(user.look),
                 themeMode: isThemeMode(user.themeMode) ? user.themeMode : "light",
                 accent: isAccent(user.accent) ? user.accent : "violet",
                 fontBody: isBodyFont(user.fontBody) ? user.fontBody : "poppins",
@@ -133,7 +138,7 @@ export async function ProfileSettings({ user }: { user: Me }) {
               }}
             />
             <div className="mt-5">
-              <RiskLookPicker initial={cleanRiskLook(user.riskLook)} />
+              <RiskLookPicker initial={user.riskLook && isRiskLook(user.riskLook) ? user.riskLook : "same"} />
             </div>
           </AccountCard>
           <AccountCard id="accessibility" howto="account-accessibility" title="Accessibility" summary={access}>
