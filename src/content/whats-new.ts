@@ -22,6 +22,22 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 208,
+    date: "2026-11-09",
+    items: [
+      {
+        kind: "new",
+        title: "New look: 80s retrowave",
+        text: "Your account → How it looks → Appearance → Look → 80s retrowave: a neon sunset with a pink grid, cyan buttons and glowing edges. The Risk board gets a matching neon look. Only you see it.",
+      },
+      {
+        kind: "new",
+        title: "New text font: Chakra Petch",
+        text: "Angled 80s tech letters, under Text font in the Fun group. It works with any look, and no look turns it on for you.",
+      },
+    ],
+  },
+  {
     version: 207,
     date: "2026-11-09",
     items: [
