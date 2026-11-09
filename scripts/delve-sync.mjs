@@ -45,6 +45,9 @@ if ((html.match(/DELVE_STORE\./g) ?? []).length !== 3) throw new Error("The game
 const hook = `window.__fpDelveHook&&window.__fpDelveHook({${NAMES.map((n) => `get ${n}(){return ${n};},set ${n}(v){${n}=v;}`).join(",")}});\n`;
 swap("window.__delve", "\nwindow.__delve={", `\n${hook}window.__delve={`);
 html = html.replace("<title>The Delve Pocket</title>", "<title>The Delve</title>");
+// The game's name inside Flaw Patrol is "The Delve" (the version label on the stats page too).
+html = html.split("THE DELVE POCKET").join("THE DELVE");
+if (/pocket/i.test(html.replace(/<title>[^<]*<\/title>/, ""))) throw new Error('The game shows "Pocket" somewhere new. Rename it to "The Delve" in scripts/delve-sync.mjs.');
 
 for (const dir of ["sp", "t"]) {
   rmSync(join(out, dir), { recursive: true, force: true });

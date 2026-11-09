@@ -147,6 +147,24 @@ test("a code on the quest map opens the hidden page, and your closed run becomes
   const practice = await frame2.evaluate(() => (window as unknown as { __delve: { get: () => { practice: boolean; dungeon?: unknown } } }).__delve.get());
   expect(practice.practice).toBe(true);
   expect(practice.dungeon).toBeUndefined();
+  // An Old Tome is read right away (a new card to pick), never kept in the backpack.
+  const tome = await frame2.evaluate(() => {
+    const d = (window as unknown as { __delve: { get: () => { bag: Record<string, number> }; act: (x: number, y: number) => void } }).__delve;
+    d.get().bag.tome = 1;
+    d.act(0, 0);
+    return d.get().bag.tome ?? 0;
+  });
+  expect(tome).toBe(0);
+  await expect(game.getByText("OLD TOME!")).toBeVisible();
+  await frame2.evaluate(() => {
+    (document.querySelector("#cards .card") as HTMLButtonElement).click();
+    (document.querySelector("#cards .card") as HTMLButtonElement).click();
+  });
+  // The game is called The Delve here, with its version on the stats page.
+  await frame2.evaluate(() => (document.getElementById("heroBtn") as HTMLButtonElement).click());
+  await expect(game.getByText(/^THE DELVE · v\d+$/)).toBeVisible();
+  await expect(game.getByText(/pocket/i)).toHaveCount(0);
+  await frame2.evaluate(() => (document.getElementById("charClose") as HTMLButtonElement).click());
   await frame2.evaluate(() => (document.getElementById("quitBtn") as HTMLButtonElement).click());
   await expect(game.getByText("PRACTICE BANKS NO SHARDS")).toBeVisible();
 
