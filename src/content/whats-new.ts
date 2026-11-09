@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 209,
+    date: "2026-11-09",
+    items: [
+      {
+        kind: "better",
+        title: "Easier to read and use, for everyone",
+        text: "Tag text has more contrast in every look, text links are underlined, small buttons are easier to hit, and Skip to content, the resize handles and the Search button now work better with screen readers. The main pages score 100 for accessibility in Lighthouse.",
+      },
+    ],
+  },
+  {
     version: 208,
     date: "2026-11-09",
     items: [
