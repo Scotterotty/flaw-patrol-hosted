@@ -9,6 +9,7 @@ export const RISK_LOOKS = [
   { id: "white", label: "Whiteboard", help: "Sticky notes on a whiteboard." },
   { id: "blue", label: "Blueprint", help: "White lines on engineering blue. Diamonds show risk." },
   { id: "arcade", label: "Arcade", help: "Pixel squares and chunky borders." },
+  { id: "retro", label: "80s retrowave", help: "A neon sunset heat map: pink is riskiest, cyan is safest." },
   { id: "hc", label: "High contrast", help: "Black outlines, big labels, and stripes and dots, so you never have to tell shades apart." },
 ] as const;
 

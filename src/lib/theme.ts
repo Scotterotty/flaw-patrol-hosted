@@ -94,6 +94,7 @@ export const FONTS = [
   { id: "quicksand", label: "Quicksand", family: '"Quicksand"', group: "Fun", weight: 700, text: "Light and friendly" },
   { id: "comic-neue", label: "Comic Neue", family: '"Comic Neue"', group: "Fun", weight: 700, text: "Comic style, but tidy" },
   { id: "space-grotesk", label: "Space Grotesk", family: '"Space Grotesk"', group: "Fun", weight: 700, text: "Quirky and techy" },
+  { id: "chakra-petch", label: "Chakra Petch", family: '"Chakra Petch"', group: "Fun", weight: 700, text: "Angled 80s tech letters" },
   { id: "courier-prime", label: "Courier Prime", family: '"Courier Prime"', group: "Fun", weight: 700, text: "Typewriter" },
   { id: "fraunces", label: "Fraunces", family: '"Fraunces"', group: "Fun", weight: 600 },
   { id: "playfair", label: "Playfair Display", family: '"Playfair Display"', group: "Fun", weight: 700 },

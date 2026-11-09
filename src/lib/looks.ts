@@ -10,13 +10,14 @@ export const LOOKS = [
   { id: "white", label: "Whiteboard", sub: "Handwritten titles, sticky notes" },
   { id: "blue", label: "Blueprint", sub: "Engineering blue, typewriter font" },
   { id: "arcade", label: "Arcade", sub: "Pixel titles, chunky borders" },
+  { id: "retro", label: "80s retrowave", sub: "Neon sunset, pink grid, glowing edges" },
 ] as const;
 export type Look = (typeof LOOKS)[number]["id"];
 export const isLook = (v: unknown): v is Look => typeof v === "string" && LOOKS.some((l) => l.id === v);
 export const cleanLook = (v: unknown): Look => (isLook(v) ? v : "classic");
 
 /** Looks with their own screen color: Light and dark mode don't apply to them. */
-const FIXED_MODE: Partial<Record<Look, "light" | "dark">> = { mission: "dark", blue: "dark", arcade: "dark", hc: "light", white: "light" };
+const FIXED_MODE: Partial<Record<Look, "light" | "dark">> = { mission: "dark", blue: "dark", arcade: "dark", retro: "dark", hc: "light", white: "light" };
 export const lookMode = (look: Look) => FIXED_MODE[look];
 
 /** Fonts a look sets: body and/or heading. Handwriting and pixel fonts are on titles only. */
@@ -25,6 +26,8 @@ const LOOK_FONTS: Partial<Record<Look, { body?: string; heading?: string }>> = {
   white: { heading: "caveat" },
   blue: { body: "mono", heading: "body" },
   arcade: { heading: "pixel" },
+  // Titles only; the text font stays the person's own (Chakra Petch is an optional Text font, ver_208).
+  retro: { heading: "righteous" },
 };
 
 // Blueprint's typewriter font isn't in the font lists; it's only for this look.

@@ -16,6 +16,7 @@ const LOOKS: [string, string][] = [
   ["Whiteboard", "white"],
   ["Blueprint", "blue"],
   ["Arcade", "arcade"],
+  ["80s retrowave", "retro"],
   ["High contrast", "hc"],
 ];
 test.describe.configure({ mode: "serial" });

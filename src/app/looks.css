@@ -41,6 +41,7 @@
   --st-retest-on: #04121c;
   --st-skipped-on: #0f0a24;
   --st-explored-on: #03130f;
+  --tag-ink: 55%;
 }
 /* The faint grid behind everything; it never takes clicks. */
 :root[data-look="mission"] body::before {
@@ -218,6 +219,7 @@
   --st-retest-on: #0b2350;
   --st-skipped-on: #0b2350;
   --st-explored-on: #0b2350;
+  --tag-ink: 40%;
   --radius-xs: 0;
   --radius-sm: 0;
   --radius-md: 0;
@@ -275,6 +277,7 @@
   --st-retest-on: #140b2e;
   --st-skipped-on: #140b2e;
   --st-explored-on: #140b2e;
+  --tag-ink: 55%;
   --radius-xs: 0;
   --radius-sm: 0;
   --radius-md: 0;
@@ -302,4 +305,126 @@
 :root[data-look="arcade"] .fp-bar [aria-current="page"].bg-accent-100 {
   background: #ffe14d;
   color: #140b2e;
+}
+
+/* ───────── 80s retrowave (ver_208): neon sunset, pink grid, cyan buttons, glowing edges ───────── */
+/* Pink is never a button color, so Failed (coral) never looks like something to click. */
+:root[data-look="retro"] {
+  --page: linear-gradient(180deg, #0b031c 0%, #1a0838 55%, #3a0c4f 100%) fixed, #120726;
+  --color-surface: #1c0d38;
+  --color-slate-50: #170a30;
+  --color-slate-100: #261343;
+  --color-slate-200: #6a2a68;
+  --color-slate-300: #8f4689;
+  --color-slate-400: #c3b2e8;
+  --color-slate-500: #c3b2e8;
+  --color-slate-600: #d0c2ef;
+  --color-slate-700: #e0d5f7;
+  --color-slate-800: #ece3fc;
+  --color-slate-900: #f3eaff;
+  --color-slate-950: #fff;
+  --color-accent-50: #10263d;
+  --color-accent-100: #133650;
+  --color-accent-500: #2de2e6;
+  --color-accent-600: #2de2e6;
+  --color-accent-700: #8ff4f6;
+  --look-glow: 0 0 14px -3px rgb(45 226 230 / 0.85);
+  --look-pink: rgb(255 95 200 / 0.42);
+  --st-passed: #72f7a0;
+  --st-failed: #ff6b8a;
+  --st-blocked: #b9acdf;
+  --st-retest: #ffd84d;
+  --st-skipped: #cfa6ff;
+  --st-explored: #5ff0e0;
+  --st-passed-on: #120726;
+  --st-failed-on: #120726;
+  --st-blocked-on: #120726;
+  --st-retest-on: #120726;
+  --st-skipped-on: #120726;
+  --st-explored-on: #120726;
+  /* Tag text: lighter than other looks so every tag color reads on the dark screen. */
+  --tag-ink: 55%;
+}
+/* The sunset and the grid sit at the bottom of the window, behind everything. They never take clicks or move. */
+:root[data-look="retro"] body::before {
+  content: "";
+  position: fixed;
+  left: 50%;
+  bottom: 19vh;
+  width: min(420px, 70vw);
+  aspect-ratio: 2 / 1;
+  transform: translateX(-50%);
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 999px 999px 0 0;
+  background: repeating-linear-gradient(180deg, transparent 0 62%, #2a0b45 62% 64%, transparent 64% 72%, #2a0b45 72% 75%, transparent 75% 83%, #2a0b45 83% 87%), linear-gradient(180deg, #ffd84d, #ff8a3d 50%, #ff3fa4);
+  opacity: 0.35;
+}
+:root[data-look="retro"] body::after {
+  content: "";
+  position: fixed;
+  left: -40vw;
+  right: -40vw;
+  bottom: 0;
+  height: 22vh;
+  z-index: -1;
+  pointer-events: none;
+  background-image: linear-gradient(rgb(255 79 216 / 0.45) 2px, transparent 2px), linear-gradient(90deg, rgb(255 79 216 / 0.45) 2px, transparent 2px);
+  background-size: 64px 34px;
+  transform: perspective(260px) rotateX(55deg);
+  transform-origin: bottom;
+  border-top: 2px solid rgb(255 79 216 / 0.8);
+  box-shadow: 0 -8px 24px rgb(255 79 216 / 0.35);
+}
+/* Chrome-sunset page titles; card and section titles in neon pink. Titles only, never body text. */
+:root[data-look="retro"] h1 {
+  background: linear-gradient(180deg, #ffd84d 10%, #ff8a3d 55%, #ff4fb5 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: 0.02em;
+}
+:root[data-look="retro"] :is(h2:not(.uppercase), h3:not(.uppercase)) {
+  color: #ff7fd0;
+  letter-spacing: 0.03em;
+}
+:root[data-look="retro"] .rounded-lg.border {
+  border-color: var(--look-pink);
+  box-shadow: 0 0 18px -8px rgb(255 79 216 / 0.7);
+}
+:root[data-look="retro"] :is(.bg-accent-600, .bg-accent-600:hover, .hover\:bg-accent-700:hover) {
+  background-color: #2de2e6;
+  color: #120726;
+  box-shadow: var(--look-glow);
+}
+:root[data-look="retro"] .bg-accent-600:hover {
+  background-color: #7ff0f2;
+}
+/* The top bar gets a pink-to-cyan line; the current menu item a cyan bar on its left. */
+:root[data-look="retro"] header.fp-bar {
+  background: #0d0420;
+  border-bottom: 2px solid transparent;
+  border-image: linear-gradient(90deg, #ff4fd8, #2de2e6) 1;
+}
+:root[data-look="retro"] .fp-bar [aria-current="page"].bg-accent-100 {
+  color: #8ff4f6;
+  box-shadow: inset 3px 0 0 #2de2e6, var(--look-glow);
+}
+:root[data-look="retro"] .st-bar-PASSED,
+:root[data-look="retro"] .st-bar-FAILED {
+  box-shadow: 0 0 6px -1px currentColor;
+}
+:root[data-look="retro"] .st-bar-PASSED {
+  color: var(--st-passed);
+}
+:root[data-look="retro"] .st-bar-FAILED {
+  color: var(--st-failed);
+}
+/* Tags keep their own colors, with an outline and a small glow in the same color. */
+:root[data-look="retro"] .fp-tag:not(.ring-2) {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tag-c) 75%, transparent), 0 0 8px -3px var(--tag-c);
+}
+:root[data-look="retro"] :focus-visible {
+  outline: 3px solid #2de2e6 !important;
+  outline-offset: 2px !important;
 }

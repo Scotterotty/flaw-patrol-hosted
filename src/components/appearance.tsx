@@ -92,6 +92,11 @@ export function AppearancePicker({ initial, shapes = false }: { initial: Appeara
         <p className="mt-1.5 text-xs text-slate-500">
           <Sp>Changes colors, borders and fonts everywhere, just for you. Nothing moves.</Sp>
         </p>
+        {a.look === "retro" && (
+          <p className="mt-1 text-xs text-slate-500" data-testid="retro-font-hint">
+            Want 80s text too? Pick <b className="font-semibold text-slate-700">Chakra Petch</b> under <b className="font-semibold text-slate-700">Text font</b>.
+          </p>
+        )}
       </fieldset>
 
       <fieldset data-howto="appearance-mode" disabled={!!fixedMode}>

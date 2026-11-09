@@ -12,6 +12,7 @@ const LOOKS: [string, string, string | null][] = [
   ["Whiteboard", "white", "light"],
   ["Blueprint", "blue", "dark"],
   ["Arcade", "arcade", "dark"],
+  ["80s retrowave", "retro", "dark"],
 ];
 test.describe.configure({ mode: "serial" });
 const AXE = require.resolve("axe-core/axe.min.js");
