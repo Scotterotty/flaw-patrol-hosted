@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 210,
+    date: "2026-11-09",
+    items: [
+      {
+        kind: "fix",
+        title: "Sending to a Google Sheet works with the sheet's dropdowns",
+        text: "Fill in my columns now writes Executed By the way the sheet's dropdown spells each name, and leaves a cell alone (and tells you why) if the dropdown doesn't have that name. Other problems show Google's own reason. Copy the script again and deploy a new version to get all of it.",
+      },
+    ],
+  },
+  {
     version: 209,
     date: "2026-11-09",
     items: [
