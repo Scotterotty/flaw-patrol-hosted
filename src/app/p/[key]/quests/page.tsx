@@ -15,6 +15,7 @@ import { fitsOf, isSlot, parseGear, PAWNS, pawnUnlocked, photoUrl, type Look } f
 import { projectAccess } from "@/lib/session";
 import { seasonFor } from "@/lib/seasons";
 import { QuestOff } from "./quest-off";
+import { DelveDoor } from "@/components/delve-door";
 
 export const metadata = { title: "Quest map" };
 
@@ -68,6 +69,7 @@ export default async function QuestsPage({ params, searchParams }: { params: Pro
 
   return (
     <div className="max-w-6xl">
+      <DelveDoor />
       <PageHeader title="Quest map" subtitle="Every test run is a quest. Each case that gets a result moves the team's pawn a step." />
       <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
         <div className="space-y-5">

@@ -111,6 +111,7 @@ model User {
   glossaryUnderline Boolean         @default(true)
   // Ask to join: teams this person asked to be added to from a shared link.
   joinRequests      JoinRequest[]
+  delveSave         DelveSave?
 }
 
 // Workspace-wide settings, one row (id 1). launchedAt is when an admin launched
@@ -1466,4 +1467,16 @@ model FeedbackReply {
   createdAt  DateTime @default(now())
 
   @@index([feedbackId])
+}
+
+/// A hidden page's per-person save. Its own table, so loading a user never loads it.
+/// Only its owner reads or writes it, through /api/delve.
+model DelveSave {
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @id
+  /// The page's saved keys: { "delve.meta": "<json text>", ... }.
+  keys      Json     @default("{}")
+  /// Runs whose first-clear bonus was paid, so it's paid once per run.
+  cleared   String[] @default([])
+  updatedAt DateTime @updatedAt
 }

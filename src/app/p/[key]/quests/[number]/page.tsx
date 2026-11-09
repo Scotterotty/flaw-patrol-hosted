@@ -14,6 +14,7 @@ import { cx } from "@/components/ui";
 import { projectAccess } from "@/lib/session";
 import { seasonFor } from "@/lib/seasons";
 import { QuestOff } from "../quest-off";
+import { DelveDoor } from "@/components/delve-door";
 
 export const metadata = { title: "Quest" };
 
@@ -47,6 +48,7 @@ export default async function QuestPage({ params }: { params: Promise<{ key: str
 
   return (
     <div className="max-w-6xl">
+      <DelveDoor />
       <LiveRefresh url={`/api/live/runs/${q.run.id}`} />
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
