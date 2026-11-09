@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 207,
+    date: "2026-11-09",
+    items: [
+      {
+        kind: "fix",
+        title: "Release status bars keep their colors in Confluence",
+        text: "Copy for Confluence now pastes passed cases green and skipped cases purple, like the app. Before, passed came out black and skipped looked like cases nobody had run.",
+      },
+    ],
+  },
+  {
     version: 206,
     date: "2026-11-09",
     items: [
