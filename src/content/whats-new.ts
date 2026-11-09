@@ -22,6 +22,23 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 211,
+    date: "2026-11-09",
+    items: [
+      {
+        kind: "new",
+        title: "A Board view for bugs",
+        text: "Press Board next to the Bugs title to see every bug on your Jira board, in the same columns. Click a card for Jira's description, comments and files, and the step where testing found it.",
+        link: "/g/{umbrella}/bugs?view=board",
+      },
+      {
+        kind: "fix",
+        title: "Flaky and Keeps failing links open the case again",
+        text: "Clicking a case under Flaky or Keeps failing on an umbrella's Overview opens the case again, and a week's report now includes older runs that were tested that week.",
+      },
+    ],
+  },
+  {
     version: 210,
     date: "2026-11-09",
     items: [
