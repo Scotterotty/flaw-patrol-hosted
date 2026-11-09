@@ -36,7 +36,8 @@
   --color-slate-300: oklch(86.9% calc(0.026 * var(--tint)) var(--accent-h));
   /* The faint gray for small hints and counts, dark enough to read: 5.3:1 on white (ver_86, was 2.7:1). */
   --color-slate-400: oklch(53% calc(0.04 * var(--tint)) var(--accent-h));
-  --color-slate-500: oklch(55.4% calc(0.046 * var(--tint)) var(--accent-h));
+  /* 52% (was 55.4%, ver_209): 4.5:1 or better even on tinted cards like the umbrella cards. */
+  --color-slate-500: oklch(52% calc(0.046 * var(--tint)) var(--accent-h));
   --color-slate-600: oklch(44.6% calc(0.043 * var(--tint)) var(--accent-h));
   --color-slate-700: oklch(37.2% calc(0.044 * var(--tint)) var(--accent-h));
   --color-slate-800: oklch(27.9% calc(0.041 * var(--tint)) var(--accent-h));

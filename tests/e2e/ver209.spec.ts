@@ -15,7 +15,7 @@ async function problems(page: Page) {
   return page.evaluate(async (rules) => {
     // @ts-expect-error axe is added by the script tag
     const r = await window.axe.run(document, { runOnly: { type: "rule", values: rules } });
-    return r.violations.flatMap((v: { id: string; nodes: { target: string[] }[] }) => v.nodes.map((n) => `${v.id}: ${n.target.join(" ")}`));
+    return r.violations.flatMap((v: { id: string; nodes: { target: string[]; any: { message: string }[] }[] }) => v.nodes.map((n) => `${v.id}: ${n.target.join(" ")}: ${n.any[0]?.message}`));
   }, RULES);
 }
 
