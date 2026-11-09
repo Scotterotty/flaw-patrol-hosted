@@ -21,13 +21,15 @@ import { BugDescription } from "@/components/bug-description";
 import { isWritten, parseAnswers } from "@/lib/bug-layout";
 import { SendWrittenBugButton, WriteBugButton } from "@/components/write-bug";
 import { LastCheckLine, type LastCheck } from "@/components/known-bugs-panel";
+import { BugViewSwitch } from "@/components/bug-board";
+import { BugBoardSection, bugsView } from "@/components/bug-board-section";
 
 export const metadata = { title: "Bugs" };
 
 const SEV_BG: Record<Severity, string> = { SHOWSTOPPER: "#b91c1c", CRITICAL: "#ea580c", PROBLEMATIC: "#ca8a04", MINOR: "#475569", ENHANCEMENT: "#94a3b8" };
 
 /** Every bug filed from any project under the umbrella, once each: a Jira issue filed from two platforms shows once with both. */
-export default async function UmbrellaBugsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ q?: string; all?: string; rc?: string; platform?: string; sev?: string; jira?: string; version?: string; from?: string }> }) {
+export default async function UmbrellaBugsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ q?: string; all?: string; rc?: string; platform?: string; sev?: string; jira?: string; version?: string; from?: string; view?: string; board?: string }> }) {
   const spelling = await mySpelling();
   const { id } = await params;
   const sp = await searchParams;
@@ -46,6 +48,22 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
   const canWrite = canRun && !u.group.archivedAt;
   const shortName = (name: string) => (name.startsWith(`${u.group.name} `) ? name.slice(u.group.name.length + 1) : name);
   const writeTo = u.current.length ? u.current.map((p) => ({ id: p.id, name: shortName(p.name) })) : [{ id: u.hub.id, name: u.group.name }];
+  // Board (ver_211): every bug on the Jira board, in its columns. Only with Jira connected.
+  const view = jira ? await bugsView(sp.view) : "table";
+  const actions =
+    (jira && canRun) || canWrite ? (
+      <div className="flex flex-wrap gap-2">
+        {jira && canRun && <RefreshJiraButton projectId={u.hub.id} projectIds={projects.map((p) => p.id)} />}
+        {canWrite && <WriteBugButton cycles={writeTo} scale={scale} />}
+      </div>
+    ) : null;
+  if (view === "board")
+    return (
+      <div>
+        <PageHeader title="Bugs" beside={<BugViewSwitch view="board" />} subtitle={`Every bug on your Jira board for ${jira!.jiraProjectKey}. Click one for its details.`} actions={actions} />
+        <BugBoardSection where={{ groupId: id }} jiraProjectId={u.hub.id} scopeIds={projects.map((p) => p.id)} board={sp.board} me={{ name: user.name ?? "", email: user.email ?? "" }} />
+      </div>
+    );
   const defects = await db.defect.findMany({
     where: { projectId: { in: projects.map((p) => p.id) }, ...(showAll ? {} : OPEN_BUG), ...(sp.jira === "local" ? { externalKey: null } : {}) },
     orderBy: { createdAt: "asc" },
@@ -125,15 +143,9 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
     <div className="max-w-6xl">
       <PageHeader
         title="Bugs"
+        beside={jira ? <BugViewSwitch view="table" /> : undefined}
         subtitle={`${openRows.length} open across ${projectCount} ${projectCount === 1 ? "test cycle" : "test cycles"}${critical ? ` · ${critical} critical` : ""}. A bug filed from more than one platform shows once.`}
-        actions={
-          (jira && canRun) || canWrite ? (
-            <div className="flex flex-wrap gap-2">
-              {jira && canRun && <RefreshJiraButton projectId={u.hub.id} projectIds={projects.map((p) => p.id)} />}
-              {canWrite && <WriteBugButton cycles={writeTo} scale={scale} />}
-            </div>
-          ) : null
-        }
+        actions={actions}
       />
       {sendable.size > 0 && sp.jira !== "local" && (
         <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="not-in-jira">

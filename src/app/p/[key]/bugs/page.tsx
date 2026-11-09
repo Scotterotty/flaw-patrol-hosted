@@ -18,11 +18,13 @@ import { BugDescription } from "@/components/bug-description";
 import { isWritten, parseAnswers } from "@/lib/bug-layout";
 import { SendWrittenBugButton, WriteBugButton } from "@/components/write-bug";
 import { LastCheckLine } from "@/components/known-bugs-panel";
+import { BugViewSwitch } from "@/components/bug-board";
+import { BugBoardSection, bugsView } from "@/components/bug-board-section";
 import { cycleSettingsHref, hubGroupId, jiraConfigFor } from "@/lib/umbrella";
 
 export const metadata = { title: "Bugs" };
 
-export default async function DefectsPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ status?: string; severity?: string; jira?: string; version?: string; from?: string; write?: string }> }) {
+export default async function DefectsPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ status?: string; severity?: string; jira?: string; version?: string; from?: string; write?: string; view?: string; board?: string }> }) {
   const spelling = await mySpelling();
   const { key } = await params;
   const sp = await searchParams;
@@ -33,6 +35,30 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
   const jira = await jiraConfigFor(project.id);
   // Keep Jira statuses reasonably fresh without a webhook (only re-fetches stale ones).
   if (jira) await refreshDefectStatuses(project.id).catch(() => null);
+
+  // Board (ver_211): every bug on the Jira board, in its columns. Only with Jira connected.
+  const view = jira ? await bugsView(sp.view) : "table";
+  if (view === "board") {
+    const canWriteBoard = can(who, "run:execute");
+    return (
+      <div>
+        <PageHeader
+          title="Bugs"
+          beside={<BugViewSwitch view="board" />}
+          subtitle={`Every bug on your Jira board for ${jira!.jiraProjectKey}. Click one for its details.`}
+          actions={
+            canWriteBoard ? (
+              <div className="flex flex-wrap gap-2">
+                <RefreshJiraButton projectId={project.id} />
+                <WriteBugButton cycles={[{ id: project.id, name: project.name }]} scale={await severityScaleFor(project.id)} />
+              </div>
+            ) : null
+          }
+        />
+        <BugBoardSection where={{ projectId: project.id }} jiraProjectId={project.id} scopeIds={[project.id]} board={sp.board} me={{ name: user.name ?? "", email: user.email ?? "" }} />
+      </div>
+    );
+  }
 
   const where: Prisma.DefectWhereInput = { projectId: project.id };
   if (sp.status === "open") where.status = "OPEN";
@@ -70,6 +96,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
     <div className="max-w-6xl">
       <PageHeader
         title="Bugs"
+        beside={jira ? <BugViewSwitch view="table" /> : undefined}
         subtitle={
           jira ? (
             `Bugs found while testing or written here, linked to Jira project ${jira.jiraProjectKey}.`

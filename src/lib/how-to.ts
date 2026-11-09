@@ -899,6 +899,22 @@ export const HOW_TO: HowToTask[] = [
       { text: "If some bugs aren't in Jira yet, press **Send them to Jira** in the yellow note.", see: "Only the bugs that aren't in Jira.", target: "bugs-send-jira" },
       { text: "Press **Send to Jira** on a bug.", see: "The bug's Jira key on its row.", target: "bug-send-jira" },
     ],
+    next: "bug-board",
+  },
+  {
+    id: "bug-board",
+    group: "Bugs",
+    title: "See every bug on the Jira board",
+    sub: "The Board view on the Bugs page, and the bug panel",
+    words: "board kanban columns jira status needs qa in test column card ticket description comments attachments where found",
+    steps: [
+      { text: "In the left menu, under **Results**, press **Bugs**.", see: "The Bugs page.", target: "menu-bugs" },
+      { text: "Press **Board** next to the **Bugs** title. (It's there once Jira is connected.)", see: "Every bug on your Jira board, in the same columns as in Jira. Bugs opens this way from now on.", target: "bugs-board-switch" },
+      { text: "To narrow it, type in **Search bugs**, or press **Mine** or **Found in testing**. **Version**, **Label** and **Priority** narrow it too.", see: "Only the matching cards. Bugs your runs found have a green **Found in testing** tag.", target: "board-found" },
+      { text: "Click a card.", see: "The bug panel: Jira's description, then **Where the bug was found** with the case and the step that found it highlighted.", target: "board-columns" },
+      { text: "Press **+ Comments**, **+ Attachments** or **+ Details** to read more.", see: "The ticket's comments (newest first), its screenshots and logs, and its fields." },
+      { text: "Press **Open in Jira** to change the bug in Jira, or **Open this case** to test it again.", see: "The Jira ticket, or the case in the run that found the bug.", target: "board-open-jira" },
+    ],
     next: "bug-templates",
   },
   {

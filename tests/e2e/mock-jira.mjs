@@ -6,7 +6,7 @@ const port = Number(process.env.MOCK_JIRA_PORT ?? 3199);
 // Like the team's site: a custom Severity field (A to E), and Priority set by producers.
 const SEVERITY = "customfield_10050";
 const issues = new Map([["QA-7", { summary: "Checkout button unresponsive on Safari", status: "In Progress", category: "indeterminate", attachments: 0, severity: "B - Critical", priority: "Blocker" }]]);
-const seq = { QA: 100, RP: 100, OB: 5000 };
+const seq = { QA: 100, RP: 100, OB: 5000, BB: 100 };
 // Project OB has the team's bug template fields, like OB-5292. Bug Workaround is
 // on neither screen so the description has to carry it. Like the team's real site
 // (ver_143), Severity is only on the Edit screen and Priority is required.
@@ -103,6 +103,58 @@ Object.assign(issues.get("WEB-42"), { priority: "Highest", points: 8 });
 // Every issue type (Fix Version across boards): WEB tickets in RC 22 that aren't Stories or Tasks.
 issues.set("WEB-43", story("Faster lobby load", "To Do", "new", "Improvement", ["RC 22"]));
 issues.set("WEB-44", story("Lobby load: profile the asset bundle", "To Do", "new", "Sub-task", ["RC 22"]));
+// Bug board (ver_211): project BB has a Kanban board with the team's columns, like the OB board.
+// Its saved filter is the whole project; Done statuses sit in a column the board leaves out.
+const STATUSES = [
+  ["1", "New", "new"],
+  ["2", "Open", "indeterminate"],
+  ["3", "Reopened", "indeterminate"],
+  ["4", "Blocked", "indeterminate"],
+  ["5", "Needs QA", "indeterminate"],
+  ["6", "In Test", "indeterminate"],
+  ["9", "Closed", "done"],
+].map(([id, name, key]) => ({ id, name, statusCategory: { key } }));
+const statusId = (name) => STATUSES.find((s) => s.name === name)?.id;
+const BB_COLUMNS = [
+  { name: "New", statuses: [{ id: "1" }] },
+  { name: "Open / Reopen", statuses: [{ id: "2" }, { id: "3" }] },
+  { name: "Blocked / NMI", statuses: [{ id: "4" }] },
+  { name: "Needs QA", statuses: [{ id: "5" }] },
+  { name: "In test", statuses: [{ id: "6" }] },
+  { name: "Done", statuses: [{ id: "9" }] },
+];
+const person = (displayName, emailAddress) => ({ displayName, emailAddress });
+const adf = (...lines) => ({ type: "doc", version: 1, content: lines.map((t) => (typeof t === "string" ? p_(t) : t)) });
+const bb = (n, summary, status, priority, extra = {}) =>
+  issues.set(`BB-${n}`, { summary, status, category: STATUSES.find((s) => s.name === status).statusCategory.key, attachments: 0, priority, fields: { labels: [], versions: [], created: "2026-11-02T18:14:00.000+0000", reporter: person("Priya Patel", "priya@example.com"), comment: { comments: [] }, attachment: [], ...extra } });
+bb(1, "Clone button does nothing on second try", "New", "High", { labels: ["Support Duty"], assignee: null });
+bb(2, "Panel background wrong when viewed on phone", "Open", "Medium", { assignee: person("Jordan Lee", "jordan@example.com"), versions: [{ name: "2.4.2" }] });
+bb(3, "Material list splits after another user edits", "Needs QA", "Medium", {
+  assignee: person("Demo Admin", "admin@example.com"),
+  labels: ["UE_Materials", "goal-support", "priority-6"],
+  versions: [{ name: "2.4.2" }],
+  fixVersions: [{ name: "2.4.3" }],
+  comment: {
+    comments: [
+      { id: "11", author: person("Priya Patel"), created: "2026-11-06T17:00:00.000+0000", body: adf("Also happens on Unity.") },
+      { id: "12", author: person("Sam Rivera"), created: "2026-11-08T17:00:00.000+0000", body: adf("Fixed in build 4.21. Moving to Needs QA.") },
+    ],
+  },
+  attachment: [
+    { id: "7001", filename: "split-list.png", size: 2048, mimeType: "image/png" },
+    { id: "7002", filename: "client.log", size: 52000, mimeType: "text/plain" },
+  ],
+});
+issues.get("BB-3").description = adf(
+  "Material list splits into two lists when another user renames a material.",
+  { type: "heading", attrs: { level: 3 }, content: [{ type: "text", text: "Steps to reproduce" }] },
+  { type: "orderedList", content: ["Open a space with two users signed in.", "User B renames any material."].map((t) => ({ type: "listItem", content: [p_(t)] })) },
+);
+bb(4, "Typing indicator shows for the wrong user", "Blocked", "Low", { labels: ["UE_Materials"] });
+bb(5, "Old crash on exit", "Closed", "High");
+// 55 open bugs in New, so the board shows 50 and Show more.
+for (let n = 10; n < 65; n++) bb(n, `Lobby glitch number ${n}`, "New", "Low");
+const BOARD_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
 const ISSUE_TYPES = ["Bug", "Story", "Task", "Epic", "Requirement"].map((name) => ({ name, subtask: false, hierarchyLevel: name === "Epic" ? 1 : 0 })).concat([{ name: "Sub-task", subtask: true, hierarchyLevel: -1 }]);
 const VERSIONS = ["RC 21", "RC 22", "RC 23"];
 // Each project's releases, oldest first like Jira. WEB names one release its own way.
@@ -128,7 +180,7 @@ const raw = (key) => {
     key,
     fields: {
       summary: i.summary,
-      status: { name: i.status, statusCategory: { key: i.category } },
+      status: { id: statusId(i.status), name: i.status, statusCategory: { key: i.category } },
       priority: { name: i.priority ?? "Not Prioritized" },
       [SEVERITY]: i.severity ? { value: i.severity } : null,
       issuetype: { name: i.type ?? "Bug" },
@@ -191,7 +243,12 @@ http
       links.push({ type: type?.name, from: inwardIssue.key, to: outwardIssue.key });
       return send(res, 201);
     }
-    if (p.startsWith("/rest/api/3/project/")) return /\/(QA|RP|OB|WEB)$/.test(p) ? send(res, 200, { key: "QA", issueTypes: ISSUE_TYPES }) : send(res, 404, { errorMessages: ["No project"] });
+    // Bug board (ver_211): Jira Software's board list and setup, saved filters and statuses.
+    if (p === "/rest/agile/1.0/board") return send(res, 200, { values: url.searchParams.get("projectKeyOrId") === "BB" ? [{ id: 7, name: "BB board", type: "kanban" }] : [] });
+    if (p === "/rest/agile/1.0/board/7/configuration") return send(res, 200, { filter: { id: "700" }, columnConfig: { columns: BB_COLUMNS } });
+    if (p === "/rest/api/3/filter/700") return send(res, 200, { id: "700", jql: 'project = "BB" ORDER BY Rank ASC' });
+    if (p === "/rest/api/3/status") return send(res, 200, STATUSES);
+    if (p.startsWith("/rest/api/3/project/")) return /\/(QA|RP|OB|WEB|BB)$/.test(p) ? send(res, 200, { key: "QA", issueTypes: ISSUE_TYPES }) : send(res, 404, { errorMessages: ["No project"] });
     if (p === "/rest/api/3/issuetype") return send(res, 200, ISSUE_TYPES);
     const meta = /^\/rest\/api\/3\/issue\/createmeta\/([^/]+)\/issuetypes(?:\/(\w+))?$/.exec(p);
     if (meta) {
@@ -202,6 +259,10 @@ http
     // Like a Jira Cloud site: it says it takes 1 GB, while the team's really refuses files over 24 MB (ver_185).
     if (p === "/rest/api/3/attachment/meta") return send(res, 200, { enabled: true, uploadLimit: 1024 ** 3 });
     const content = /^\/rest\/api\/3\/attachment\/content\/(\d+)$/.exec(p);
+    if (content && Number(content[1]) >= 7000) {
+      res.writeHead(200, { "Content-Type": content[1] === "7001" ? "image/png" : "text/plain" });
+      return res.end(content[1] === "7001" ? BOARD_PNG : "log line 1\n");
+    }
     if (content) {
       res.writeHead(303, { Location: `https://api.media.atlassian.com/file/00000000-0000-4000-8000-${content[1].padStart(12, "0")}/binary?token=x` });
       return res.end();
@@ -239,6 +300,8 @@ http
         // Every issue type: Jira's subTaskIssueTypes() leaves Sub-tasks out.
         if (/issuetype not in subTaskIssueTypes\(\)/.test(jql ?? "")) keys = keys.filter((k) => !/^sub-?task$/i.test(issues.get(k).type ?? "Bug"));
         if (fix) keys = keys.filter((k) => (issues.get(k).fixVersions ?? []).includes(fix[1]));
+        const statusIn = /status in \(([^)]*)\)/.exec(jql ?? "");
+        if (statusIn) keys = keys.filter((k) => list(statusIn).includes(statusId(issues.get(k).status)));
         if (keyEq && issues.has(keyEq[1]) && keys.includes(keyEq[1])) keys = [keyEq[1]];
         else if (m) keys = keys.filter((k) => issues.get(k).summary.toLowerCase().includes(m[1].toLowerCase()));
         if (/ORDER BY key ASC/.test(jql ?? "")) keys.sort((a, b) => Number(a.split("-")[1]) - Number(b.split("-")[1]));

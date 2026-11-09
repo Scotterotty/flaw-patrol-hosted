@@ -429,6 +429,41 @@ export class JiraClient {
     return { key: raw.key, project, summary: String(raw.fields.summary ?? ""), description: raw.fields.description ?? null, fields: raw.fields, names: raw.names ?? {} };
   }
 
+  /** A read-only GET on the site (bug board, ver_211): Jira's Agile board API and one ticket's full view. */
+  read<T>(path: string) {
+    return this.call<T>(path);
+  }
+
+  /** Issues with exactly these fields, page by page up to `max` (bug board, ver_211). */
+  async searchFields<T>(jql: string, fields: string[], max: number) {
+    const raw: T[] = [];
+    let next: string | undefined;
+    do {
+      const res = await this.call<{ issues?: T[]; nextPageToken?: string; isLast?: boolean }>("/rest/api/3/search/jql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jql, maxResults: Math.min(100, max - raw.length), fields, ...(next ? { nextPageToken: next } : {}) }),
+      });
+      raw.push(...(res.issues ?? []));
+      next = res.isLast === false || res.nextPageToken ? res.nextPageToken : undefined;
+    } while (next && raw.length < max);
+    return { issues: raw.slice(0, max), more: !!next };
+  }
+
+  /** A Jira attachment's file, for showing it to people without a Jira login (bug board, ver_211). */
+  async attachment(id: string) {
+    const auth = Buffer.from(`${this.creds.email}:${this.creds.token}`).toString("base64");
+    const res = await fetch(`${normalizeSite(this.creds.siteUrl)}/rest/api/3/attachment/content/${encodeURIComponent(id)}`, {
+      headers: { Authorization: `Basic ${auth}` },
+      signal: AbortSignal.timeout(60_000),
+      cache: "no-store",
+    }).catch(() => null);
+    if (!res) throw new JiraError("Couldn't reach Jira. Check the site address.");
+    if (res.status === 401 || res.status === 403) throw new JiraError("Jira rejected the email or API token, or it lacks permission.");
+    if (!res.ok) throw new JiraError("Not found in Jira.");
+    return res;
+  }
+
   async getIssue(key: string) {
     return this.toIssue(await this.call<RawIssue>(`/rest/api/3/issue/${encodeURIComponent(key)}?fields=${(await this.fields()).join(",")}`));
   }

@@ -8,6 +8,7 @@ import { Prisma, type Severity } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { forgetBugBoard } from "@/lib/bug-board-server";
 import { seal } from "@/lib/crypto";
 import {
   adfHeadings,
@@ -737,6 +738,7 @@ export async function refreshFromJira(projectId: string) {
   return wrap(async () => {
     const { project } = await requireProjectAction(projectId, "run:execute");
     const res = await refreshDefectStatuses(projectId, true);
+    forgetBugBoard(projectId);
     revalidatePath(`/p/${project.key}`, "layout");
     return res;
   });
@@ -751,6 +753,7 @@ export async function refreshFromJiraMany(projectIds: string[]) {
       const { project } = await requireProjectAction(id, "run:execute").catch(() => ({ project: null }));
       if (!project) continue;
       const res = await refreshDefectStatuses(id, true);
+      forgetBugBoard(id);
       refreshed += res.refreshed;
       failed.push(...res.failed);
       revalidatePath(`/p/${project.key}`, "layout");

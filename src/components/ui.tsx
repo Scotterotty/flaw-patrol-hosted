@@ -98,11 +98,18 @@ export function Card({ className, ...props }: ComponentProps<"div">) {
   return <div className={cx("rounded-lg border border-slate-200 bg-surface shadow-sm", className)} {...props} />;
 }
 
-export function PageHeader({ title, subtitle, actions }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
+export function PageHeader({ title, subtitle, actions, beside }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; /** Shown right after the title, like the Bugs page's Table | Board switch. */ beside?: ReactNode }) {
   return (
     <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h1>
+        {beside ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h1>
+            {beside}
+          </div>
+        ) : (
+          <h1 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h1>
+        )}
         {subtitle && <div className="mt-1 text-sm text-slate-500">{subtitle}</div>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
