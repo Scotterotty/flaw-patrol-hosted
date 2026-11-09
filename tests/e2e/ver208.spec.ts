@@ -32,7 +32,7 @@ async function tagContrast(page: Page) {
       const s = document.createElement("span");
       s.className = "fp-tag inline-flex rounded-full px-1.5 text-[11px] font-semibold";
       s.style.background = `color-mix(in oklab, ${c} 16%, var(--color-surface))`;
-      s.style.color = `color-mix(in oklab, ${c} var(--tag-ink, 78%), var(--color-slate-900))`;
+      s.style.color = `color-mix(in oklab, ${c} var(--tag-ink, 62%), var(--color-slate-900))`;
       s.style.setProperty("--tag-c", c);
       s.textContent = `tag ${c}`;
       box.append(s);
@@ -90,15 +90,22 @@ test("Chakra Petch is a Text font anyone can pick, with any look", async ({ page
   expect(await page.evaluate(() => document.fonts.check('16px "Chakra Petch"'))).toBe(true);
 });
 
-test("tag text is readable in every dark look", async ({ page }) => {
+test("tag text is readable in every look, and in Classic light and dark", async ({ page }) => {
   await signIn(page, EMAIL);
   const db = new PrismaClient();
   try {
-    for (const look of ["mission", "blue", "arcade", "retro"]) {
+    for (const look of ["mission", "blue", "arcade", "retro", "hc", "white"]) {
       await db.user.update({ where: { email: EMAIL }, data: { look } });
       await page.goto("/account");
       await expect(page.locator("html")).toHaveAttribute("data-look", look);
       expect(await tagContrast(page), look).toEqual([]);
+    }
+    // ver_209: Classic, light and dark.
+    await db.user.update({ where: { email: EMAIL }, data: { look: "classic" } });
+    for (const theme of ["light", "dark"]) {
+      await page.goto("/account");
+      await page.evaluate((t) => (document.documentElement.dataset.theme = t), theme);
+      expect(await tagContrast(page), `classic ${theme}`).toEqual([]);
     }
   } finally {
     await db.$disconnect();

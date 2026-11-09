@@ -1967,3 +1967,13 @@ main:focus {
     color: var(--color-slate-500);
   }
 }
+
+/*
+ * ver_209 (Lighthouse "links rely on color"): text links are always underlined, not only on hover,
+ * so they stand out from the words around them without relying on color alone.
+ */
+a[href]:is(.text-accent-600, .text-accent-700).hover\:underline {
+  text-decoration-line: underline;
+  text-decoration-thickness: from-font;
+  text-underline-offset: 2px;
+}

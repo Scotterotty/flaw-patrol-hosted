@@ -18,7 +18,7 @@ export default async function ProjectLayout({ children, params }: { children: Re
     return (
       <>
         <TopBar user={user} />
-        <main className="min-w-0 px-4 pt-6 pb-16 sm:px-6 md:pb-6">{children}</main>
+        <main id="main" tabIndex={-1} className="min-w-0 px-4 pt-6 pb-16 sm:px-6 md:pb-6">{children}</main>
       </>
     );
   // Recent on the Projects page is noted after the page is sent, so nobody waits for it.
@@ -35,7 +35,7 @@ export default async function ProjectLayout({ children, params }: { children: Re
         <TopBar user={user} project={{ key: project.key, name: umbrella.group.name, hub: umbrella.group.id }} />
         <div className="flex">
           <ProjectMenu project={project} user={user} umbrella={umbrella} />
-          <main className="min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
+          <main id="main" tabIndex={-1} className="min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
             {umbrella.group.archivedAt && <UmbrellaArchivedBanner groupId={umbrella.group.id} name={umbrella.group.name} canRestore={can(umbrella.who, "umbrella:archive")} />}
             {viewer && <ViewerNoteFor project={project} userId={user.id} />}
             <ToolGate info={await gateInfo(umbrella)}>{children}</ToolGate>
@@ -53,7 +53,7 @@ export default async function ProjectLayout({ children, params }: { children: Re
       <TopBar user={user} project={{ key: project.key, name: project.name, group: group && { id: group.id, name: group.name } }} />
       <div className="flex">
         <ProjectMenu project={project} user={user} />
-        <main className="min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
+        <main id="main" tabIndex={-1} className="min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
           {umbrellaArchived ? (
             <UmbrellaArchivedBanner groupId={group!.id} name={group!.name} canRestore={role === "ADMIN"} />
           ) : (

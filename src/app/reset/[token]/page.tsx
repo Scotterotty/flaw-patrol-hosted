@@ -10,7 +10,7 @@ export default async function ResetPage({ params }: { params: Promise<{ token: s
   const { token } = await params;
   const link = await findPasswordLink(token);
   return (
-    <main className="flex min-h-screen items-center justify-center px-4">
+    <main id="main" tabIndex={-1} className="flex min-h-screen items-center justify-center px-4">
       <Card className="w-full max-w-sm overflow-hidden p-6">
         <div className="-mx-6 -mt-6 mb-6 bg-[#191d24]">
           <LogoBanner />

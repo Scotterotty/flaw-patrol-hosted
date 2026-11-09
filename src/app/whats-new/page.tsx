@@ -25,7 +25,7 @@ export default async function WhatsNewPage() {
       <TopBar user={user} />
       <div className="flex">
         {last && <ProjectMenu project={last.project} user={user} />}
-        <main className="max-w-2xl min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
+        <main id="main" tabIndex={-1} className="max-w-2xl min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
           <PageHeader title="What's new" subtitle="Every Flaw Patrol version, newest first. The how-to steps are in the release notes." />
           {entries.length ? (
             <div className="space-y-4">

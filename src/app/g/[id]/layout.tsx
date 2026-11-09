@@ -27,7 +27,7 @@ export default async function GroupLayout({ children, params }: { children: Reac
       <TopBar user={user} project={{ key: u.hub.key, name: u.group.name, hub: u.group.id }} />
       <div className="flex">
         <UmbrellaNav u={navOf(u)} glossary={glossary} />
-        <main className="min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
+        <main id="main" tabIndex={-1} className="min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
           {u.group.archivedAt && <UmbrellaArchivedBanner groupId={u.group.id} name={u.group.name} canRestore={can(u.who, "umbrella:archive")} />}
           {u.who.role === "VIEWER" && !user.isAdmin && <ViewerNoteFor project={{ id: u.hub.id, key: u.hub.key, name: u.group.name, groupId: null, keepMembersSeparate: false }} userId={user.id} />}
           <ToolGate info={await gateInfo(u)}>{children}</ToolGate>

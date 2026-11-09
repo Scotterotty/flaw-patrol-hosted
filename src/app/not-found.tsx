@@ -7,7 +7,7 @@ import { currentUser } from "@/lib/session";
 export default async function NotFound() {
   const user = await currentUser().catch(() => null);
   const body = (
-    <main className="flex min-h-[60vh] min-w-0 flex-1 flex-col items-center justify-center gap-2 px-4 text-center">
+    <main id="main" tabIndex={-1} className="flex min-h-[60vh] min-w-0 flex-1 flex-col items-center justify-center gap-2 px-4 text-center">
       <h1 className="text-lg font-semibold">Not found</h1>
       <p className="text-sm text-slate-500">It doesn&apos;t exist, or you don&apos;t have access to it.</p>
       <Link href="/" className="text-sm text-accent-700 hover:underline">

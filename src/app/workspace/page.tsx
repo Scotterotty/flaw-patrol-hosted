@@ -84,7 +84,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
       <TopBar user={user} />
       <div className="flex">
         {last && <ProjectMenu project={last.project} user={user} />}
-        <main className="max-w-3xl min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
+        <main id="main" tabIndex={-1} className="max-w-3xl min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
           <PageHeader title="Workspace settings" subtitle="Only workspace admins see this page." />
           <AccountTabs
             label="Workspace sections"

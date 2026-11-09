@@ -153,7 +153,7 @@ export default async function HomePage() {
   return (
     <>
       <TopBar user={user} />
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main id="main" tabIndex={-1} className="mx-auto max-w-5xl px-4 py-8">
         {empty && !user.isAdmin ? (
           <WaitingHome
             userId={user.id}

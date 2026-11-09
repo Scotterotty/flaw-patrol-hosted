@@ -208,7 +208,7 @@ export function FolderTree({
             <button
               type="button"
               aria-label={isOpen ? "Collapse" : "Expand"}
-              className={cx("w-5 shrink-0 text-xs text-slate-400", !node.children.length && "invisible")}
+              className={cx("-my-1 h-6 w-6 shrink-0 text-xs text-slate-400", !node.children.length && "invisible")}
               onClick={() =>
                 setCollapsed((c) => {
                   const n = new Set(c);

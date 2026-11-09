@@ -68,7 +68,8 @@ export function PaneResizer({
         box.style.removeProperty("--fp-pane");
         p.style.removeProperty("width");
         p.style.removeProperty("flex");
-        el.removeAttribute("aria-valuenow");
+        // A separator that can be moved needs a value (ver_209, Lighthouse): the width it has now.
+        el.setAttribute("aria-valuenow", String(limit(Math.round(p.getBoundingClientRect().width))));
       } else {
         const w = limit(px);
         if (grid) box.style.setProperty("--fp-pane", `${w}px`);

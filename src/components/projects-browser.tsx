@@ -871,6 +871,8 @@ function Section({
           {action}
         </div>
       )}
+      {/* Cards inside use h3, so a section without a shown title still names itself for screen readers (ver_209, Lighthouse). */}
+      {!title && <h2 className="sr-only">Umbrellas</h2>}
       {hint && <p className="-mt-1 mb-2 text-xs text-slate-500">{hint}</p>}
       {children}
     </section>

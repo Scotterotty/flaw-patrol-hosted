@@ -52,7 +52,6 @@ export function GlobalSearch({ scope }: { scope: { id: string; name: string } | 
         type="button"
         onClick={() => setOpen(true)}
         title={`Search cases, runs, bugs, test cycles and pages (${mac ? "⌘K" : "Ctrl+K"})`}
-        aria-label="Search"
         data-howto="top-search"
         aria-keyshortcuts={mac ? "Meta+K" : "Control+K"}
         className="flex h-8 items-center gap-2 rounded-md border border-slate-200 bg-surface px-2 text-sm text-slate-500 hover:border-slate-300 hover:text-slate-800 sm:w-48 sm:px-2.5"
@@ -61,8 +60,9 @@ export function GlobalSearch({ scope }: { scope: { id: string; name: string } | 
           <circle cx="8.5" cy="8.5" r="5.5" />
           <path d="m13 13 4 4" strokeLinecap="round" />
         </svg>
-        <span className="hidden flex-1 text-left sm:inline">Search</span>
-        <kbd className="hidden rounded border border-slate-200 px-1 font-sans text-[11px] text-slate-500 sm:inline">{mac ? "⌘ K" : "Ctrl K"}</kbd>
+        {/* The button is named by its own word "Search" (ver_209, Lighthouse); on a phone the word is for screen readers only. */}
+        <span className="sr-only sm:not-sr-only sm:flex-1 sm:text-left">Search</span>
+        <kbd aria-hidden className="hidden rounded border border-slate-200 px-1 font-sans text-[11px] text-slate-500 sm:inline">{mac ? "⌘ K" : "Ctrl K"}</kbd>
       </button>
       {open && (
         <SearchDialog

@@ -27,7 +27,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
     <>
       <TopBar user={user} />
       <LiveRefresh url="/api/live/me" />
-      <main className="mx-auto max-w-xl px-4 py-12">
+      <main id="main" tabIndex={-1} className="mx-auto max-w-xl px-4 py-12">
         <Card className="p-6">
           <h1 className="text-lg font-semibold text-slate-900">You&apos;re not on this team yet</h1>
           <p className="mt-2 text-sm text-slate-600">

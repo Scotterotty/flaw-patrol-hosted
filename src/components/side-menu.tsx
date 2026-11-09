@@ -208,7 +208,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
       )}
     >
       <span className={small ? undefined : "min-w-0 flex-1 truncate"}>{i.label}</span>
-      {i.isNew && <span className={cx("rounded-full bg-orange-600 px-1.5 text-[11px] font-bold text-white", small && "ml-1")}>NEW</span>}
+      {i.isNew && <span className={cx("rounded-full bg-[#c2410c] px-1.5 text-[11px] font-bold text-white", small && "ml-1")}>NEW</span>}
     </button>
   );
   /** A row while arranging: a grip to drag (or ↑/↓), and the name, which doesn't open the page. */

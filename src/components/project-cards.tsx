@@ -112,7 +112,7 @@ export function OrganizeCard({
             aria-label={p.starred ? `Unstar ${p.name}` : `Star ${p.name}`}
             title={p.starred ? "Unstar" : "Star to keep it at the top"}
             className={cx(
-              "relative z-10 -m-1 rounded p-1 text-base leading-none transition hover:bg-slate-100",
+              "relative z-10 -my-1 min-w-6 rounded p-1 text-base leading-none transition hover:bg-slate-100",
               p.starred
                 ? "text-amber-500"
                 : "text-slate-300 hover:text-amber-500",
@@ -326,7 +326,7 @@ export function GroupCard({
               aria-label={g.starred ? `Unstar ${g.name}` : `Star ${g.name}`}
               title={g.starred ? "Unstar" : "Star to keep it at the top"}
               className={cx(
-                "relative z-10 -m-1 rounded p-1 text-base leading-none transition hover:bg-slate-100",
+                "relative z-10 -my-1 min-w-6 rounded p-1 text-base leading-none transition hover:bg-slate-100",
                 g.starred
                   ? "text-amber-500"
                   : "text-slate-300 hover:text-amber-500",

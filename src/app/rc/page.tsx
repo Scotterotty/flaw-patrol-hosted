@@ -11,7 +11,7 @@ export default async function RcStatusPage({ searchParams }: { searchParams: Pro
   return (
     <>
       <TopBar user={user} />
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main id="main" tabIndex={-1} className="mx-auto max-w-5xl px-4 py-8">
         <PageHeader title="Release status" subtitle="A quick look at how testing of a release is going on each platform." />
         <RcReport user={user} want={(await searchParams).release} base="/rc" />
       </main>

@@ -100,7 +100,7 @@ export default async function GroupPage({
   return (
     <>
       <TopBar user={user} />
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <main id="main" tabIndex={-1} className="mx-auto max-w-6xl px-4 py-8">
         <PageHeader
           title={
             <>

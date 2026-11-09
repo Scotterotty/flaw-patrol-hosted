@@ -14,7 +14,7 @@ export function TagPill({ tag, color, hit = false, className, children }: { tag:
   return (
     <span
       className={cx("fp-tag inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-px align-middle text-[11px] leading-4 font-semibold whitespace-nowrap", hit && "ring-2 ring-offset-1 ring-offset-surface", className)}
-      style={{ background: `color-mix(in oklab, ${c} 16%, var(--color-surface))`, color: `color-mix(in oklab, ${c} var(--tag-ink, 78%), var(--color-slate-900))`, ["--tag-c" as string]: c, ...(hit ? { ["--tw-ring-color" as string]: c } : {}) }}
+      style={{ background: `color-mix(in oklab, ${c} 16%, var(--color-surface))`, color: `color-mix(in oklab, ${c} var(--tag-ink, 62%), var(--color-slate-900))`, ["--tag-c" as string]: c, ...(hit ? { ["--tw-ring-color" as string]: c } : {}) }}
       data-testid="tag-pill"
     >
       {tag}
@@ -96,7 +96,8 @@ export function TagsRow({ projectId, tags, colors, picked, query, canEdit }: { p
           <Link
             key={tag}
             href={hrefFor(next)}
-            aria-pressed={isOn}
+            // A link can't be "pressed" (ver_209, Lighthouse); aria-current says this tag is on.
+            aria-current={isOn ? "true" : undefined}
             title={canEdit ? `${isOn ? "Stop showing only" : "Show only"} ${tag} cases. ${sp("Right-click to change its color or rename it.")}` : undefined}
             onContextMenu={(e) => {
               if (!canEdit) return;
