@@ -135,8 +135,8 @@ export const asOfText = (d: Date, spelling: Spelling = "us") => `As of ${shortDa
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-/** Colors from Confluence's own text palette, so a paste keeps them (ver_198). */
-const CF_BAR: Partial<Record<ResultStatus, string>> = { PASSED: "#57D9A3", FAILED: "#BF2600", BLOCKED: "#172B4D", SKIPPED: "#97A0AF" };
+/** Colors from the top two rows of Confluence's text palette, so a paste keeps them (ver_198). The light green #57D9A3 came through black. */
+const CF_BAR: Partial<Record<ResultStatus, string>> = { PASSED: "#36B37E", FAILED: "#BF2600", BLOCKED: "#172B4D", SKIPPED: "#97A0AF" };
 const CF_EMPTY = "#97A0AF";
 export const CF_BAR_WIDTH = 20;
 

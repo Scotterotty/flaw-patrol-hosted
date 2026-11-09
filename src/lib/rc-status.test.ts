@@ -44,6 +44,11 @@ describe("Release status card (ver_182)", () => {
 });
 
 describe("Copy for Confluence look (ver_198)", () => {
+  it("paints passed blocks green, which Confluence keeps on paste", () => {
+    const html = confluenceHtml("RC 23", [col({ label: "Web", total: 2, done: 2, counts: { PASSED: 2 } })], []);
+    expect(html).toContain('<span style="color:#36B37E">█');
+    expect(html).not.toContain("#57D9A3");
+  });
   it("drops the platform tag and cuts bug titles to one line", () => {
     expect(shortTitle("[UNREAL] - Annotations - Unreal crashes", "Unreal")).toBe("Annotations - Unreal crashes");
     expect(shortTitle("(WEB)(Scripts) Assets affected", "Web")).toBe("(Scripts) Assets affected");
