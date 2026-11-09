@@ -3,6 +3,10 @@ import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
 import { standaloneProject } from "./projects";
 import { WHATS_NEW } from "../../src/content/whats-new";
+import pkg from "../../package.json";
+
+// Closing the window marks this build seen, and a build can ship without a What's new entry of its own.
+const BUILD = Number(pkg.version.split(".").pop());
 
 // ver_88: the What's new window after sign-in, the bug box's + Add menu (captures
 // from other steps, Take screenshot, Upload a file), and GitHub repos with no
@@ -76,12 +80,12 @@ test("What's new opens once after a new version, filtered by role, and can be op
   await expect(win.getByText("Once email is set up, adding someone emails them an invite")).toHaveCount(0);
   await win.getByRole("button", { name: "Got it" }).click();
   await expect(win).toBeHidden();
-  await expect.poll(async () => await setSeenRead("tester@example.com")).toBe(WHATS_NEW[0].version);
+  await expect.poll(async () => await setSeenRead("tester@example.com")).toBe(BUILD);
 });
 
 // Whatever happens above, don't leave the window open for the specs that run after this one.
 test.afterAll(async () => {
-  for (const email of ["admin@example.com", "tester@example.com"]) await setSeen(email, WHATS_NEW[0].version);
+  for (const email of ["admin@example.com", "tester@example.com"]) await setSeen(email, BUILD);
 });
 
 async function setSeenRead(email: string) {
