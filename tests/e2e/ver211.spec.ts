@@ -91,12 +91,12 @@ test("Board shows every bug on the Jira board, and the bug panel shows the ticke
   await expect(board.getByRole("region", { name: "Open / Reopen" }).getByText("Jordan", { exact: true })).toBeVisible();
 
   // Filters.
-  await board.getByRole("button", { name: "Found in testing" }).click();
+  await board.getByRole("button", { name: "Found in testing", exact: true }).click();
   await expect(board.getByTestId("board-card")).toHaveCount(1);
-  await board.getByRole("button", { name: "Clear filters" }).click();
-  await board.getByRole("button", { name: "Mine" }).click();
+  await board.getByRole("button", { name: "Clear filters", exact: true }).click();
+  await board.getByRole("button", { name: "Mine", exact: true }).click();
   await expect(board.getByTestId("board-card")).toHaveText([/BB-3/]);
-  await board.getByRole("button", { name: "Clear filters" }).click();
+  await board.getByRole("button", { name: "Clear filters", exact: true }).click();
   await board.getByLabel("Search bugs").fill("typing indicator");
   await expect(board.getByTestId("board-card")).toHaveText([/BB-4/]);
   await board.getByLabel("Search bugs").fill("");

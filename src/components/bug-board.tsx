@@ -375,7 +375,7 @@ function FoundAtBox({ f }: { f: FoundAt }) {
       <p className="text-sm">
         <span className="font-mono text-xs text-slate-600">{f.caseKey}</span> <span className="font-medium text-slate-900">{f.caseTitle}</span>
       </p>
-      <p className="mb-2 text-xs text-slate-600">{[f.run, f.by && `Found by ${f.by}`].filter(Boolean).join(" · ")}</p>
+      <p className="mb-2 text-xs text-slate-600">{[f.run, f.by && `Found by ${f.by.trim().split(/\s+/)[0]}`].filter(Boolean).join(" · ")}</p>
       {f.steps.length > 0 && (
         <ol className="flex flex-col gap-1 text-sm">
           {f.steps.map((s, i) => (
