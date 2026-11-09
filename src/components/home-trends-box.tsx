@@ -588,9 +588,10 @@ function Chart({ points, split, kind, data, platforms, mode, g }: { points: Tren
           <rect
             key={p.key}
             data-testid="trends-point"
-            x={x(i) - step / 2}
+            // Kept inside the chart: with few weeks a full step reached past its edge and covered the case lists beside it.
+            x={Math.max(0, x(i) - step / 2)}
             y={PAD.t}
-            width={step}
+            width={Math.min(W, x(i) + step / 2) - Math.max(0, x(i) - step / 2)}
             height={H - PAD.t - PAD.b}
             fill="transparent"
             className="cursor-pointer"

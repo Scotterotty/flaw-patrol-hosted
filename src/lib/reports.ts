@@ -66,7 +66,12 @@ export function runWhere(scope: ReportScope, f: ReportFilters): Prisma.TestRunWh
   if (f.runKind) w.kind = f.runKind === "none" ? "" : f.runKind;
   if (f.runNumber) w.number = f.runNumber;
   else {
-    if (!f.release) w.createdAt = { gte: f.from, lte: f.to };
+    // A run counts in the dates if it started in them, or had a result saved in them,
+    // so an older run tested this week still shows in this week's report.
+    if (!f.release) {
+      const dates = { gte: f.from, lte: f.to };
+      w.OR = [{ createdAt: dates }, { results: { some: { createdAt: dates } } }];
+    }
     if (f.suiteId) w.suiteId = f.suiteId;
     if (f.release) w.release = f.release;
   }
