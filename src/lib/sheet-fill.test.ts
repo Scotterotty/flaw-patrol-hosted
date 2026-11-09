@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { colLetter, describeFill, fillConfigSchema, findLayout, matchEntries, planCells, sheetWord, type FillEntry, type SheetGrid } from "./sheet-fill";
+import { colLetter, describeFill, fillConfigSchema, findLayout, matchEntries, planCells, sheetName, sheetWord, type FillEntry, type SheetGrid } from "./sheet-fill";
 
 const pad = (row: string[], n = 11) => [...row, ...Array(Math.max(0, n - row.length)).fill("")];
 
@@ -155,5 +155,21 @@ describe("words and letters", () => {
   });
   it("names columns like Sheets does", () => {
     expect([1, 26, 27, 52].map(colLetter)).toEqual(["A", "Z", "AA", "AZ"]);
+  });
+});
+
+describe("sheetName", () => {
+  const list = ["—", "Scott", "Ryan", "Katie Lafaw", "Jord"];
+  it("uses the sheet's own spelling of a tester's name", () => {
+    expect(sheetName("Scott Smith", list)).toBe("Scott");
+    expect(sheetName("scott", list)).toBe("Scott");
+    expect(sheetName("Katie", list)).toBe("Katie Lafaw");
+    expect(sheetName("Katie Lafaw", ["katie lafaw"])).toBe("katie lafaw");
+    expect(sheetName("Scott Smith", ["Scott S.", "Scott J."])).toBe("Scott S.");
+  });
+  it("keeps the name when the sheet has no match, or more than one", () => {
+    expect(sheetName("Priya Patel", list)).toBe("Priya Patel");
+    expect(sheetName("Katie Jones", list)).toBe("Katie Jones");
+    expect(sheetName("Scott", ["Scott S.", "Scott J."])).toBe("Scott");
   });
 });

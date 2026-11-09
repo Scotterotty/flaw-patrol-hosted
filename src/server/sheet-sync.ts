@@ -150,7 +150,7 @@ export async function buildRunSheet(runId: string) {
   return { name: run.name, header, rows, merges, caseEnds, caseStarts, testers: ["—", ...names] };
 }
 
-type SheetReply = { ok?: boolean; error?: string; url?: string; version?: number; values?: string[][]; lists?: (string[] | null)[]; filled?: number; kept?: number };
+type SheetReply = { ok?: boolean; error?: string; url?: string; version?: number; values?: string[][]; lists?: (string[] | null)[]; filled?: number; kept?: number; refused?: number; refusedWords?: string[] };
 
 /** Posts to the sheet's script and returns its answer, or throws an error in plain words. */
 async function callSheet(hook: string, body: Record<string, unknown>): Promise<SheetReply> {
@@ -254,6 +254,10 @@ async function fillRunSheet(runId: string, hook: string, tab: string, secret: st
   const reply = await callSheet(hook, { secret, action: "fill", tab, cells });
   const parts = [`${plural(reply.filled ?? 0, "cell")} filled`];
   if (reply.kept) parts.push(`${plural(reply.kept, "typed cell")} kept`);
+  if (reply.refused) {
+    const words = (reply.refusedWords ?? []).map((w) => `"${w}"`).join(", ");
+    parts.push(`${plural(reply.refused, "cell")} left as is because the sheet's dropdown doesn't have ${words || "that word"}`);
+  }
   if (match.unmatched.length) parts.push(`${plural(match.unmatched.length, "case")} not in the sheet`);
   return { url: reply.url, note: parts.join(", ") };
 }

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { sheetScript } from "./sheet-script";
 
 // A small stand-in for Google Sheets: one tab of plain values, enough for the script's read and fill.
-function fakeGoogle(values: string[][], lists: Record<number, string[]> = {}) {
+function fakeGoogle(values: string[][], lists: Record<number, string[]> = {}, strict: number[] = []) {
   const props: Record<string, string> = {};
   const links: Record<string, { from: number; to: number; url: string }[]> = {};
   const VALUE_IN_LIST = "VALUE_IN_LIST";
@@ -17,9 +17,13 @@ function fakeGoogle(values: string[][], lists: Record<number, string[]> = {}) {
     getDisplayValues: () => Array.from({ length: nr }, (_, i) => Array.from({ length: nc }, (_, j) => get(r + i, c + j))),
     getDataValidations: () =>
       Array.from({ length: nr }, () =>
-        Array.from({ length: nc }, (_, j) => (lists[c + j] ? { getCriteriaType: () => VALUE_IN_LIST, getCriteriaValues: () => [lists[c + j]] } : null)),
+        Array.from({ length: nc }, (_, j) => (lists[c + j] ? { getCriteriaType: () => VALUE_IN_LIST, getCriteriaValues: () => [lists[c + j]], getAllowInvalid: () => !strict.includes(c + j) } : null)),
       ),
-    setValue: (v: string) => set(r, c, v.charAt(0) === "'" ? v.slice(1) : v),
+    setValue: (v: string) => {
+      // Like Google: a dropdown set to reject other words stops the script.
+      if (strict.includes(c) && v && !lists[c].includes(v)) throw new Error(`The data you entered in cell ${r}:${c} violates the data validation rules set on this cell.`);
+      set(r, c, v.charAt(0) === "'" ? v.slice(1) : v);
+    },
     setRichTextValue: (t: { text: string; links: { from: number; to: number; url: string }[] }) => {
       set(r, c, t.text);
       links[`${r}:${c}`] = t.links;
@@ -33,7 +37,11 @@ function fakeGoogle(values: string[][], lists: Record<number, string[]> = {}) {
     getRange: range,
     getSheetId: () => 7,
   };
-  const book = { getSheetByName: (n: string) => (n === "Checklist" ? sheet : null), getUrl: () => "https://docs.google.com/spreadsheets/d/x/edit" };
+  const book = {
+    getSheetByName: (n: string) => {
+      if (n === "Broken") throw new Error("Service Spreadsheets failed while accessing document.");
+      return n === "Checklist" ? sheet : null;
+    }, getUrl: () => "https://docs.google.com/spreadsheets/d/x/edit" };
   const rich = () => {
     const t = { text: "", links: [] as { from: number; to: number; url: string }[] };
     const b = {
@@ -109,5 +117,34 @@ describe("the sheet's script", () => {
     g.post({ action: "fill", tab: "Checklist", cells: [{ r: 2, c: 3, v: "'=1+1" }] });
     expect(g.values[1][2]).toBe("=1+1");
     expect(g.post({ action: "fill", tab: "Checklist", cells: [{ r: 2, c: 3, v: "" }] })).toMatchObject({ filled: 1, kept: 0 });
+  });
+
+  it("leaves a cell alone when the sheet's dropdown would refuse the word, and fills the rest", () => {
+    const g = fakeGoogle(
+      [
+        ["Test", "Result", "Executed By"],
+        ["Alpha", "", ""],
+        ["Bravo", "", ""],
+      ],
+      { 3: ["—", "Scott", "Katie"] },
+      [3],
+    );
+    const r = g.post({
+      action: "fill",
+      tab: "Checklist",
+      cells: [
+        { r: 2, c: 2, v: "Pass" },
+        { r: 2, c: 3, v: "Scott" },
+        { r: 3, c: 2, v: "Fail" },
+        { r: 3, c: 3, v: "Jordan Lee" },
+      ],
+    });
+    expect(r).toMatchObject({ ok: true, filled: 3, refused: 1, refusedWords: ["Jordan Lee"] });
+    expect(g.values.map((row) => row[2])).toEqual(["Executed By", "Scott", ""]);
+  });
+
+  it("answers with Google's own words when Google refuses", () => {
+    const g = fakeGoogle([["Test"]]);
+    expect(g.post({ action: "read", tab: "Broken" })).toEqual({ ok: false, error: "Google said: Service Spreadsheets failed while accessing document." });
   });
 });

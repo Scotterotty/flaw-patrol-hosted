@@ -231,6 +231,33 @@ export function sheetWord(status: ResultStatus, vocab: string[]): string {
   return DEFAULT_WORD[status];
 }
 
+/**
+ * The sheet's own name for a tester, from its dropdown or what's already in the column:
+ * "Scott Smith" becomes "Scott" or "scott smith" when that's how the sheet writes it.
+ * A sheet whose dropdown only takes its own names would refuse anything else.
+ */
+export function sheetName(tester: string, vocab: string[]): string {
+  const want = norm(tester);
+  if (!want) return tester;
+  const exact = vocab.find((w) => norm(w) === want);
+  if (exact) return exact;
+  const [first, ...rest] = want.split(" ");
+  const last = rest.at(-1)?.[0];
+  const one = (hits: string[]) => (hits.length === 1 ? hits[0] : undefined);
+  return (
+    // The sheet uses first names ("Scott").
+    one(vocab.filter((w) => norm(w) === first)) ??
+    // Same first name, and the last names don't disagree ("Scott S.", or the sheet's full name when Flaw Patrol has a first name only).
+    one(
+      vocab.filter((w) => {
+        const [f, ...r] = norm(w).split(" ");
+        return f === first && r.length > 0 && (!last || r.at(-1)![0] === last);
+      }),
+    ) ??
+    tester
+  );
+}
+
 /** Words a column already uses: its dropdown, plus what's written in it and in other columns of the same kind. */
 export function vocabulary(grid: SheetGrid, layout: SheetLayout, role: FillRole): string[] {
   const cols = new Set(layout.sets.map((s) => s.cols[role]).filter((c): c is number => !!c));
@@ -282,7 +309,7 @@ export function planCells(grid: SheetGrid, layout: SheetLayout, config: FillConf
       stepStatus: on("stepStatus"),
     };
     if (col.result) cells.push({ r: row, c: col.result, v: sheetWord(e.status, vocab.result) });
-    if (col.executedBy) cells.push({ r: row, c: col.executedBy, v: tested ? e.tester : vocab.executedBy.includes("—") ? "—" : "" });
+    if (col.executedBy) cells.push({ r: row, c: col.executedBy, v: tested ? sheetName(e.tester, vocab.executedBy) : vocab.executedBy.includes("—") ? "—" : "" });
     if (col.bug) {
       const keys = tested ? e.bugs.map((b) => b.key) : [];
       const links = tested ? e.bugs.filter((b) => b.url).map((b) => ({ text: b.key, url: b.url! })) : [];

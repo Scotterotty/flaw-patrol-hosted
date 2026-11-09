@@ -13,6 +13,15 @@ const KEY = "${secret}";
 const FREE = ["", "untested", "—", "-", "not tested"];
 
 function doPost(e) {
+  // Anything Google refuses comes back in its own words, not as an error page.
+  try {
+    return handle(e);
+  } catch (err) {
+    return reply({ ok: false, error: "Google said: " + (err && err.message ? err.message : String(err)) });
+  }
+}
+
+function handle(e) {
   const body = JSON.parse(e.postData.contents);
   if (body.secret !== KEY) return reply({ ok: false, error: "This sheet's script has a different key. Copy the script from Flaw Patrol again." });
   if (body.action === "read") return readTab(body);
@@ -106,12 +115,21 @@ function readTab(body) {
   for (let c = 0; c < cols; c++) {
     let list = null;
     for (let r = 0; r < rules.length && !list; r++) {
-      const v = rules[r][c];
-      if (v && v.getCriteriaType() === SpreadsheetApp.DataValidationCriteria.VALUE_IN_LIST) list = v.getCriteriaValues()[0];
+      if (rules[r][c]) list = listOf(rules[r][c]);
     }
     lists.push(list);
   }
   return reply({ ok: true, version: 2, values: values, lists: lists, url: url });
+}
+
+// A dropdown's choices, whether typed into the rule or taken from a range of cells.
+function listOf(rule) {
+  const type = rule.getCriteriaType();
+  if (type === SpreadsheetApp.DataValidationCriteria.VALUE_IN_LIST) return rule.getCriteriaValues()[0];
+  if (type === SpreadsheetApp.DataValidationCriteria.VALUE_IN_RANGE) {
+    return [].concat.apply([], rule.getCriteriaValues()[0].getDisplayValues()).filter(function (w) { return w !== ""; });
+  }
+  return null;
 }
 
 // Fills the cells Flaw Patrol sent, but only ones that are empty or still hold what
@@ -129,14 +147,23 @@ function fillTab(body) {
     body.cells.forEach(function (x) { maxR = Math.max(maxR, x.r); maxC = Math.max(maxC, x.c); });
     if (sheet.getMaxRows() < maxR || sheet.getMaxColumns() < maxC) return reply({ ok: false, error: "The " + body.tab + " tab changed size. Look at the sheet again in Flaw Patrol." });
     const now = sheet.getRange(1, 1, maxR, maxC).getDisplayValues();
+    const rules = sheet.getRange(1, 1, maxR, maxC).getDataValidations();
     const save = {};
-    let filled = 0, kept = 0;
+    let filled = 0, kept = 0, refused = 0;
+    const words = [];
     body.cells.forEach(function (x) {
       const id = "fp:" + body.tab + "!" + x.r + ":" + x.c;
       const was = now[x.r - 1][x.c - 1];
       const shown = x.v.charAt(0) === "'" ? x.v.slice(1) : x.v;
       const ours = FREE.indexOf(was.trim().toLowerCase()) >= 0 || mine[id] === was.slice(0, 100);
       if (!ours) { if (was !== shown) kept++; return; }
+      // A dropdown that rejects other words would stop the whole fill, so leave that cell as it is.
+      const rule = rules[x.r - 1][x.c - 1];
+      const list = rule && shown && !rule.getAllowInvalid() ? listOf(rule) : null;
+      if (list && list.indexOf(shown) < 0) {
+        if (was !== shown) { refused++; if (words.indexOf(shown) < 0 && words.length < 3) words.push(shown); }
+        return;
+      }
       save[id] = shown.slice(0, 100);
       if (was === shown) return;
       const cell = sheet.getRange(x.r, x.c);
@@ -153,7 +180,7 @@ function fillTab(body) {
       filled++;
     });
     props.setProperties(save);
-    return reply({ ok: true, version: 2, filled: filled, kept: kept, url: book.getUrl() + "#gid=" + sheet.getSheetId() });
+    return reply({ ok: true, version: 2, filled: filled, kept: kept, refused: refused, refusedWords: words, url: book.getUrl() + "#gid=" + sheet.getSheetId() });
   } finally {
     lock.releaseLock();
   }
