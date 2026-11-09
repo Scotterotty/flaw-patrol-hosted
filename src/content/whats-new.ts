@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 206,
+    date: "2026-11-09",
+    items: [
+      {
+        kind: "fix",
+        title: "Nobody is left needing help on a finished quest",
+        text: "When the team reaches the end of a quest map, anyone still stuck in trouble walks out at the finish on their own. Before, if no teammate saved a case after them in Flaw Patrol (for example, the rest came from a sheet), they kept the Needs help tag forever.",
+        game: true,
+      },
+    ],
+  },
+  {
     version: 203,
     date: "2026-11-08",
     items: [

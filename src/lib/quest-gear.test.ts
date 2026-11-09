@@ -63,6 +63,20 @@ describe("quest gear", () => {
     expect(teamwork(map, done(people.slice(0, t.step + 1)), 30).find((e) => e.step === t.step)!.helper).toBeNull();
   });
 
+  it("frees anyone still stuck when someone else's import takes the final step", () => {
+    const { map } = troubled();
+    const t = map.troubles[map.troubles.length - 1];
+    // Zed saves up to the trouble, Jo lands in it and saves the rest live, then a sheet import by Zed finishes the run.
+    const people = Array.from({ length: 30 }, (_, i) => (i < t.step - 1 || i === 29 ? "zed" : "jo"));
+    const order = done(people).map((c, i) => (i === 29 ? { ...c, imported: true } : c));
+    const ev = teamwork(map, order, 30).find((e) => e.step === t.step)!;
+    expect(ev.self).toBe(true);
+    expect(ev.helper?.userId).toBe("jo");
+    expect(rescueFinds([ev], order)).toHaveLength(0);
+    // Not finished: still waiting for a teammate.
+    expect(teamwork(map, order.slice(0, 29), 30).find((e) => e.step === t.step)!.helper).toBeNull();
+  });
+
   it("walks the party evenly behind the leader, and always shows you", () => {
     const order = done(["a", "b", "a", "c", "d", "e", "f", "g"]);
     const party = partyOf(order);

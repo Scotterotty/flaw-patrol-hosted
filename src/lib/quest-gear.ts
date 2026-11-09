@@ -131,7 +131,7 @@ export type TeamworkEvent = {
 /**
  * How each trouble played out. The rescuer is whoever saves the next case after
  * the victim's and isn't the victim. With no one else before the end, the victim
- * who finishes the run rescues themselves.
+ * rescues themselves when the run finishes, whoever takes the final step.
  */
 export function teamwork(map: QuestMap, done: Completion[], steps: number): TeamworkEvent[] {
   const out: TeamworkEvent[] = [];
@@ -142,9 +142,11 @@ export function teamwork(map: QuestMap, done: Completion[], steps: number): Team
     const later = done.slice(t.step);
     let helper = later.find((c) => !c.imported && !same(c)) ?? null;
     let self = false;
-    if (!helper && done.length >= steps && later.length && earner(done[done.length - 1]) && same(done[done.length - 1])) {
-      helper = done[done.length - 1];
-      self = true;
+    // Once the quest reaches the end, nobody is left stuck: anyone no teammate came
+    // back for walks out at the finish on their own (no thank-you find).
+    if (!helper && done.length >= steps) {
+      helper = done.slice(t.step - 1).filter((c) => !c.imported && same(c)).pop() ?? null;
+      self = !!helper;
     }
     const g = helper?.gear ?? {};
     out.push({ step: t.step, trouble: t, victim, helper, self, itemId: helper ? (self ? (g.head ?? g.charm) : (g.offhand ?? g.charm)) : undefined });
