@@ -48,6 +48,9 @@ describe("Copy for Confluence look (ver_198)", () => {
     const html = confluenceHtml("RC 23", [col({ label: "Web", total: 2, done: 2, counts: { PASSED: 2 } })], []);
     expect(html).toContain('<span style="color:#36B37E">█');
     expect(html).not.toContain("#57D9A3");
+    const mixed = confluenceHtml("RC 23", [col({ label: "Unreal", total: 4, done: 3, counts: { PASSED: 1, FAILED: 1, SKIPPED: 1 } })], []);
+    expect(mixed).toContain('<span style="color:#6554C0">█'); // skipped purple, not the not-run gray
+    expect(mixed).toContain('<span style="color:#97A0AF">░');
   });
   it("drops the platform tag and cuts bug titles to one line", () => {
     expect(shortTitle("[UNREAL] - Annotations - Unreal crashes", "Unreal")).toBe("Annotations - Unreal crashes");
