@@ -187,7 +187,9 @@ const badgeColor = (label: string) => (label === "DONE" ? "green" : label === "I
  */
 export function confluenceHtml(release: string, columns: RcColumn[], bugs: RcBug[], now = new Date(), spelling: Spelling = "us", scale: SeverityScale = AE_SCALE) {
   const auto = hasAutomation(columns);
-  const row = (f: (c: RcColumn) => string) => `<tr>${columns.map((c) => `<td style="vertical-align:top">${f(c)}</td>`).join("")}</tr>`;
+  // Asks a printed page not to break inside a row; browsers keep it, Confluence may drop it (ver_213).
+  const TR = `<tr style="break-inside:avoid;page-break-inside:avoid">`;
+  const row = (f: (c: RcColumn) => string) => `${TR}${columns.map((c) => `<td style="vertical-align:top">${f(c)}</td>`).join("")}</tr>`;
   const badge = (c: RcColumn) => {
     const st = stateOf(c);
     return `<span style="background-color:${st.chip.fill};color:${st.chip.text}" data-node-type="status" data-color="${badgeColor(st.label)}" data-style=""><strong>${esc(st.label)}</strong></span>`;
@@ -197,7 +199,7 @@ export function confluenceHtml(release: string, columns: RcColumn[], bugs: RcBug
       .map((p) => `<span style="color:${p.status ? CF_BAR[p.status] : CF_EMPTY}">${(p.status ? "█" : "░").repeat(p.blocks)}</span>`)
       .join("");
   const link = (b: { key: string; url: string | null; title?: string }) => (b.url ? `<a href="${esc(b.url)}">${esc(b.key)}</a>` : esc(b.key));
-  const head = `<tr>${columns.map((c) => `<th>${esc(c.label)}</th>`).join("")}</tr>`;
+  const head = `${TR}${columns.map((c) => `<th>${esc(c.label)}</th>`).join("")}</tr>`;
   const builds = row(
     (c) =>
       `<p><span style="color:#626F86">${esc(buildLine(release, c))}</span></p>${
