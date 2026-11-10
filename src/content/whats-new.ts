@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 213,
+    date: "2026-11-09",
+    items: [
+      {
+        kind: "better",
+        title: "Release status prints cleanly from Confluence",
+        text: "Copy for Confluence now pastes a shorter bar and puts each bug on its own row. When you save the Confluence page as a PDF, the bar stays on one line and a new page starts between two bugs. Paste a fresh copy to get the new layout.",
+        link: "/g/{umbrella}/rc",
+      },
+    ],
+  },
+  {
     version: 212,
     date: "2026-11-09",
     items: [
