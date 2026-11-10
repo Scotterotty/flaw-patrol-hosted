@@ -89,7 +89,7 @@ export async function planRc(homeId: string, input: PlanInput) {
     const homeRow = await db.project.findUniqueOrThrow({ where: { id: h.id }, select: { id: true, hubOf: { select: { id: true } } } });
     const cycles = homeRow.hubOf ? await db.project.findMany({ where: { groupId: homeRow.hubOf.id, archivedAt: null, id: { not: h.id } }, select: { id: true } }) : [];
     const inPlace = (id: string) => id === h.id || cycles.some((c) => c.id === id);
-    const target = data.runId ? await db.testRun.findUnique({ where: { id: data.runId }, select: { id: true, projectId: true, state: true, automated: true, number: true, description: true } }) : null;
+    const target = data.runId ? await db.testRun.findUnique({ where: { id: data.runId }, select: { id: true, projectId: true, state: true, automated: true, number: true, description: true, clients: true } }) : null;
     if (data.runId && (!target || !inPlace(target.projectId) || target.state !== "ACTIVE" || target.automated)) throw new UserError("That run is closed or gone. Pick another one.");
     const cycleId = target?.projectId ?? data.cycleId;
     if (!inPlace(cycleId)) throw new UserError("Pick a test cycle for the run.");
@@ -141,7 +141,7 @@ export async function planRc(homeId: string, input: PlanInput) {
           const have = await tx.runEntry.findMany({ where: { runId: target.id }, select: { caseId: true, position: true } });
           const ids = [...new Set([...toRun, ...made])].filter((id) => !have.some((e) => e.caseId === id));
           if (!ids.length) throw new UserError("That run already has all of these cases.");
-          const entries = await buildEntries(tx, library, ids, null);
+          const entries = await buildEntries(tx, library, ids, null, { clients: target.clients });
           const start = have.reduce((m, e) => Math.max(m, e.position), -1) + 1;
           const addedNote = `Added from the Risk board by ${by}`;
           await tx.runEntry.createMany({ data: entries.map(({ assigneeId, ...e }, i) => (void assigneeId, { ...e, position: start + i, runId: target.id, addedNote })) });

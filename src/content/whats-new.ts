@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 214,
+    date: "2026-11-10",
+    items: [
+      {
+        kind: "new",
+        title: "See each client's result in a dry run",
+        text: "Give a test cycle a list of clients, like Web, Unreal and Unity iOS, in its Settings. Runs started after that show a grid with a column for each client, so you see at a glance which clients passed and which failed. Click a client's box to mark it or write a bug for just that client. In the runner each client gets a tab, and picking a result opens the next one. Flaw Patrol guesses which clients a case covers from its words; change it on the case.",
+        link: "/g/{umbrella}/settings#test-cycles",
+      },
+    ],
+  },
+  {
     version: 213,
     date: "2026-11-09",
     items: [

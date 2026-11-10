@@ -1,3 +1,4 @@
+import { ClientsSettings } from "./clients-settings";
 import type { ReactNode } from "react";
 import { ProjectDetailsForm } from "./members";
 import { CycleDigest } from "./digest-card";
@@ -20,7 +21,10 @@ export function CyclePanel({
   digest,
   restore,
   pin,
+  clients,
 }: {
+  /** Clients (ver_214): the apps or devices each case runs on in this test cycle. */
+  clients?: { projectId: string; list: string[]; canChange: boolean; cycle: string };
   restore?: ReactNode;
   /** 📌 Keep in Current; null for archived test cycles. */
   pin?: { projectId: string; on: boolean; platform: string; canChange: boolean } | null;
@@ -44,6 +48,12 @@ export function CyclePanel({
         <Card className="space-y-3 p-5">
           <h2 className="text-sm font-semibold text-slate-800">Current</h2>
           <KeepCurrentSwitch projectId={pin.projectId} on={pin.on} platform={pin.platform} disabled={!pin.canChange} />
+        </Card>
+      )}
+      {clients && (
+        <Card id={`clients-${anchor}`} className="space-y-3 p-5">
+          <h2 className="text-sm font-semibold text-slate-800">Clients</h2>
+          <ClientsSettings projectId={clients.projectId} clients={clients.list} canChange={clients.canChange} cycle={clients.cycle} />
         </Card>
       )}
       <Card className="space-y-3 p-5">

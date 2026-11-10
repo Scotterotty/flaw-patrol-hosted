@@ -92,6 +92,10 @@ export type ExpandedStep = PlainStep & {
 export function stepsToRun(steps: ExpandedStep[], title: string): ExpandedStep[] {
   if (!steps.length) return [{ number: "1", action: title, expected: "", titleOnly: true }];
   if (steps.length === 1 && !steps[0].shared && !steps[0].action.trim()) return [{ ...steps[0], action: title }];
+  // Test data or clients (ver_214): one step per row, its Step box empty, shows the title there too.
+  const rows = new Set(steps.map((s) => s.row));
+  if (steps.length > 1 && !rows.has(undefined) && rows.size === steps.length && steps.every((s) => !s.shared && !s.action.trim()))
+    return steps.map((s) => ({ ...s, action: title, ...(s.expected.trim() ? {} : { titleOnly: true }) }));
   return steps;
 }
 

@@ -774,6 +774,24 @@ export const HOW_TO: HowToTask[] = [
     next: "update-run-sheet",
   },
   {
+    // ver_214: clients, like a demo dry run on Web, Unreal and Unity iOS.
+    id: "clients",
+    group: "Run tests",
+    title: "See each client's result in a dry run",
+    sub: "Test every case on Web, Unreal, iOS or any other client, and see which passed",
+    words: "clients client platforms devices apps dry run demo grid column per client web unreal unity ios remote matrix which client failed",
+    steps: [
+      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your settings, with **Test cycles**.", target: "menu-settings" },
+      { text: "In **Test cycles**, press **Change** on the test cycle, like your dry run. (A test cycle outside an umbrella has **Clients** right on its Settings page.)", see: "What that test cycle can set for itself, with **Clients**.", target: "cycle-change" },
+      { text: "Under **Clients**, type a client, like Web, and press **Add**. Add each one.", see: "Your clients in a numbered list.", target: "client-add", type: true },
+      { text: "Press **Save clients**.", see: "✓ Saved. Runs you start from now on test each case on these clients.", target: "clients-save", saves: true },
+      { text: "Start a run in that test cycle, then open it.", see: "A grid: one row per case, one column per client. A gray **Doesn't apply** means the case isn't tested there.", target: "menu-runs" },
+      { text: "Click a client's box.", see: "**Passed**, **Failed** and **Blocked**, **Write a bug for** that client and **Open in runner**.", target: "run-clients" },
+      { text: "Or press **Start testing**.", see: "A tab for each client. Picking a result opens the next client, then the next case.", target: "run-start-testing" },
+      { text: "Flaw Patrol guesses each case's clients from its words. If a guess is wrong, open the case and press **Change** under **Clients**.", see: "The clients ticked for that case." },
+    ],
+  },
+  {
     id: "take-over",
     group: "Run tests",
     title: "Take over a case someone else is testing",
