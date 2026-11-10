@@ -165,6 +165,15 @@ test("a code on the quest map opens the hidden page, and your closed run becomes
   await expect(game.getByText(/^THE DELVE · v\d+$/)).toBeVisible();
   await expect(game.getByText(/pocket/i)).toHaveCount(0);
   await frame2.evaluate(() => (document.getElementById("charClose") as HTMLButtonElement).click());
+  // A Practice boss gives no Scrap for the Blacksmith.
+  const scrap = await frame2.evaluate(() => {
+    const w = window as unknown as { __delve: { get: () => { mons: { boss?: boolean }[]; scrapRun?: number } }; __fpDelveTest: { kill: (m: unknown) => void }; DELVE_STORE: { getItem: (k: string) => string | null } };
+    const m = w.__delve.get().mons[0];
+    m.boss = true;
+    w.__fpDelveTest.kill(m);
+    return { run: w.__delve.get().scrapRun ?? 0, kept: JSON.parse(w.DELVE_STORE.getItem("delve.meta") ?? "{}").scrap ?? 0 };
+  });
+  expect(scrap).toEqual({ run: 0, kept: 0 });
   await frame2.evaluate(() => (document.getElementById("quitBtn") as HTMLButtonElement).click());
   await expect(game.getByText("PRACTICE BANKS NO SHARDS")).toBeVisible();
 
