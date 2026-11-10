@@ -75,4 +75,12 @@ describe("Copy for Confluence look (ver_198)", () => {
     expect(html).toContain("<h1>100%</h1>");
     expect(html).toContain("No bugs filed");
   });
+  it("puts each bug on its own row so a printed page breaks between bugs (ver_213)", () => {
+    const bug = (key: string) => ({ key, url: null, title: `Bug ${key}` });
+    const html = confluenceHtml("RC 23", [col({ label: "Unity", bugList: [bug("OB-1"), bug("OB-2"), bug("OB-3")] }), col({ label: "Web", bugList: [bug("OB-9")] }), col({ label: "Unreal" })], []);
+    expect(html).toContain("<tr><td style=\"vertical-align:top\"><p>OB-1 Bug OB-1</p></td><td style=\"vertical-align:top\"><p>OB-9 Bug OB-9</p></td><td style=\"vertical-align:top\"><p><em>No bugs filed</em></p></td></tr>");
+    expect(html).toContain("<tr><td style=\"vertical-align:top\"><p>OB-3 Bug OB-3</p></td><td style=\"vertical-align:top\"></td><td style=\"vertical-align:top\"></td></tr>");
+    expect(html.match(/No bugs filed/g)).toHaveLength(1);
+    expect(CF_BAR_WIDTH).toBe(12);
+  });
 });

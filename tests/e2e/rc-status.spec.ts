@@ -99,7 +99,8 @@ test("Release status gathers each client's run of a release, ready for Confluenc
   expect(html).toContain("Upload button missing");
   // ver_198: a Confluence status badge and a bar of blocks; nothing run yet, so the bar is all light blocks.
   expect(html).toContain('data-node-type="status" data-color="neutral"');
-  expect(html).toContain("░".repeat(20));
+  expect(html).toContain("░".repeat(12)); // 12 blocks since ver_213, so the bar fits one line when printed
+  expect(html).not.toContain("░".repeat(13));
 
   // Image (PNG) gives a picture.
   const download = page.waitForEvent("download");

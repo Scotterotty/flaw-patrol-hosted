@@ -138,7 +138,8 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 /** Colors from the top two rows of Confluence's text palette, so a paste keeps them (ver_198). The light green #57D9A3 came through black. They match the app: passed green, failed red, blocked dark slate, skipped purple. */
 const CF_BAR: Partial<Record<ResultStatus, string>> = { PASSED: "#36B37E", FAILED: "#BF2600", BLOCKED: "#172B4D", SKIPPED: "#6554C0" };
 const CF_EMPTY = "#97A0AF";
-export const CF_BAR_WIDTH = 20;
+/** 12 blocks fit one line in a third of a printed page; 20 wrapped onto a second line in a PDF (ver_213). */
+export const CF_BAR_WIDTH = 12;
 
 /**
  * The card's bar as runs of block characters: passed, failed, blocked and
@@ -209,9 +210,15 @@ export function confluenceHtml(release: string, columns: RcColumn[], bugs: RcBug
         auto ? `<p>${esc(automationLine(c))}</p>` : ""
       }${c.regressions ? `<p><span style="color:#BF2600"><strong>${esc(regressionLine(c))}</strong></span></p>` : ""}`,
   );
-  const bugCells = row((c) =>
-    c.bugList.length ? c.bugList.map((b) => `<p>${link(b)} ${esc(shortTitle(b.title, c.label))}</p>`).join("") : `<p><em>No bugs filed</em></p>`,
-  );
+  // One bug per row, so a printed page breaks between two bugs, never through a tall list (ver_213).
+  const bugCount = Math.max(1, ...columns.map((c) => c.bugList.length));
+  const bugCells = Array.from({ length: bugCount }, (_, i) =>
+    row((c) => {
+      const b = c.bugList[i];
+      if (b) return `<p>${link(b)} ${esc(shortTitle(b.title, c.label))}</p>`;
+      return i === 0 ? `<p><em>No bugs filed</em></p>` : "";
+    }),
+  ).join("\n");
   const bugRows = bugs
     .map(
       (b) => `<tr><td>${esc(b.clients.join(", "))}</td><td>${link(b)} ${esc(b.title)}</td><td>${
