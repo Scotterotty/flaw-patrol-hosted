@@ -10,7 +10,7 @@ import { Button, cx, Input, Select } from "./ui";
 
 /**
  * Bug board (ver_211): the Bugs page's Board view. Every bug on the team's Jira board, in the
- * board's own columns. Click a card for the bug panel: Jira's description, where a run found
+ * board's own columns. Click a card for the bug panel: Jira's description and repro steps, where a run found
  * the bug, then Comments, Attachments and Details. Read only: Jira stays the place to move bugs.
  */
 
@@ -275,6 +275,12 @@ function BugPanel({ where, issue, issueKey, nameOf, onClose }: { where: Where; i
             <h3 className="mb-1 text-[11px] font-semibold tracking-wide text-slate-600 uppercase">Description (from Jira)</h3>
             <JiraAdf doc={t.description} empty="No description in Jira." />
           </section>
+          {!!t.repro && (
+            <section className="rounded-lg border border-slate-200 p-3" data-testid="bug-panel-repro">
+              <h3 className="mb-1 text-[11px] font-semibold tracking-wide text-slate-600 uppercase">Repro steps (from Jira)</h3>
+              <JiraAdf doc={t.repro} empty="No repro steps in Jira." />
+            </section>
+          )}
           {state && "ticket" in state && state.found && <FoundAtBox f={state.found} />}
           <More title="Comments" count={t.comments.length} testid="bug-panel-comments">
             <Comments list={t.comments} />
@@ -319,6 +325,12 @@ function BugPanel({ where, issue, issueKey, nameOf, onClose }: { where: Where; i
                     <dd className="min-w-0 break-words text-slate-800">{v}</dd>
                   </div>
                 ))}
+              {t.extras.map((x) => (
+                <div key={`x-${x.name}`} className="contents">
+                  <dt className="text-slate-600">{x.name}</dt>
+                  <dd className="min-w-0 break-words text-slate-800">{x.doc ? <JiraAdf doc={x.doc} /> : <span className="whitespace-pre-wrap">{x.text}</span>}</dd>
+                </div>
+              ))}
             </dl>
           </More>
         </>

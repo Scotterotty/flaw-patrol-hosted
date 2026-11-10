@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adfText, fileSize, isMe, isQaColumn, pickBoard, priorityTone, shortNames, withoutOrder } from "./bug-board";
+import { adfText, fileSize, isMe, isQaColumn, pickBoard, priorityTone, shortNames, ticketExtras, withoutOrder } from "./bug-board";
 
 describe("bug board (ver_211)", () => {
   it("outlines the columns QA works from", () => {
@@ -60,5 +60,21 @@ describe("bug board (ver_211)", () => {
     expect(fileSize(3 * 1024 * 1024)).toBe("3.0 MB");
     const doc = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Hello " }, { type: "mention", attrs: { text: "@Sam" } }] }] };
     expect(adfText(doc)).toBe("Hello @Sam");
+  });
+
+  it("finds the team's repro steps field and its other filled-in fields (ver_212)", () => {
+    const doc = { type: "doc", version: 1, content: [{ type: "paragraph", content: [{ type: "text", text: "Open the space." }] }] };
+    const { repro, extras } = ticketExtras(
+      { summary: "x", customfield_1: doc, customfield_2: "4.20.1", customfield_3: null, customfield_4: "0|i0001:", customfield_5: [{ value: "Web" }, { value: "Unity" }], customfield_6: { type: "doc", content: [] } },
+      { customfield_1: "Repro Steps", customfield_2: "Build #", customfield_3: "Bug Impact", customfield_4: "Rank", customfield_5: "Client/SKUs", customfield_6: "OKO Space Link" },
+      { customfield_4: { custom: "com.pyxis.greenhopper.jira:gh-lexo-rank" } },
+    );
+    expect(repro).toBe(doc);
+    expect(extras.map((x) => [x.name, x.text])).toEqual([
+      ["Build #", "4.20.1"],
+      ["Client/SKUs", "Web, Unity"],
+    ]);
+    for (const n of ["Steps to Reproduce", "Reproduction steps", "repro steps"]) expect(ticketExtras({ customfield_9: "a" }, { customfield_9: n }).repro, n).toBe("a");
+    expect(ticketExtras({ customfield_9: "a" }, { customfield_9: "Repro Rate" }).repro).toBeNull();
   });
 });

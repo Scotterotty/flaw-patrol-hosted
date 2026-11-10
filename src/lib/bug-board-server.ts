@@ -4,7 +4,7 @@ import { caseKey } from "./format";
 import { JiraError, jiraFor, type JiraClient } from "./jira";
 import { runTitle } from "./run-label";
 import { loadUmbrella } from "./umbrella";
-import { isQaColumn, pickBoard, withoutOrder, type BoardColumn, type BoardData, type BoardIssue, type FoundAt, type TicketDetail } from "./bug-board";
+import { isQaColumn, pickBoard, ticketExtras, withoutOrder, type BoardColumn, type BoardData, type BoardIssue, type FoundAt, type TicketDetail } from "./bug-board";
 
 /**
  * Bug board (ver_211): reads the Jira board's columns and every bug on it. Read only.
@@ -122,6 +122,8 @@ export function forgetBugBoard(jiraProjectId: string) {
 
 type RawTicket = {
   key: string;
+  names?: Record<string, string>;
+  schema?: Record<string, { custom?: string }>;
   fields: {
     summary?: string;
     status?: { name?: string };
@@ -141,9 +143,10 @@ type RawTicket = {
 
 /** One ticket's full view for the bug panel: description, comments, attachments and fields. */
 export async function loadTicket(client: JiraClient, key: string): Promise<TicketDetail> {
-  const fields = ["summary", "status", "priority", "assignee", "reporter", "labels", "versions", "fixVersions", "components", "created", "description", "comment", "attachment"];
-  const t = await client.read<RawTicket>(`/rest/api/3/issue/${encodeURIComponent(key)}?fields=${fields.join(",")}`);
+  // Every field with its name, so the team's own fields (OB's Repro Steps, Build #…) show too (ver_212).
+  const t = await client.read<RawTicket>(`/rest/api/3/issue/${encodeURIComponent(key)}?fields=*all&expand=names,schema`);
   const f = t.fields;
+  const own = ticketExtras(f as unknown as Record<string, unknown>, t.names ?? {}, t.schema ?? {});
   return {
     key: t.key,
     title: f.summary ?? "",
@@ -158,6 +161,8 @@ export async function loadTicket(client: JiraClient, key: string): Promise<Ticke
     components: names(f.components),
     created: f.created ?? "",
     description: f.description ?? null,
+    repro: own.repro,
+    extras: own.extras,
     // Newest first, like reading a chat from the bottom.
     comments: (f.comment?.comments ?? [])
       .map((c) => ({ id: String(c.id), author: c.author?.displayName ?? "Someone", created: c.created ?? "", body: c.body ?? null }))

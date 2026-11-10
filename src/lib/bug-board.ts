@@ -46,6 +46,10 @@ export type TicketDetail = {
   created: string;
   /** Jira's description as Atlassian Document Format, or null. */
   description: unknown;
+  /** The team's own repro steps field (OB: "Repro Steps"), as ADF or text, or null (ver_212). */
+  repro: unknown;
+  /** The team's other filled-in Jira fields, like Build # and Bug Impact, for Details (ver_212). */
+  extras: { name: string; text: string; doc?: unknown }[];
   comments: { id: string; author: string; created: string; body: unknown }[];
   attachments: { id: string; name: string; size: number; type: string }[];
 };
@@ -145,4 +149,52 @@ export function adfText(node: unknown): string {
   if (n.type === "inlineCard") return String(n.attrs?.url ?? "");
   const inner = (n.content ?? []).map(adfText).join(n.type === "doc" || n.type === "bulletList" || n.type === "orderedList" ? "\n" : "");
   return inner;
+}
+
+/** A Jira field that holds repro steps, by its name: "Repro Steps", "Steps to Reproduce"… */
+export const isReproField = (name: string) => /^\s*(repro(duction)?\s+steps|steps\s+to\s+repro(duce)?)\s*$/i.test(name);
+
+const isAdf = (v: unknown): v is { type: "doc"; content?: unknown[] } => !!v && typeof v === "object" && (v as { type?: string }).type === "doc";
+
+/** One field value as short readable text: text, numbers, picks, people, lists of those. */
+function fieldText(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "string") return v.trim();
+  if (typeof v === "number") return String(v);
+  if (typeof v === "boolean") return v ? "Yes" : "No";
+  if (Array.isArray(v)) return v.map(fieldText).filter(Boolean).join(", ");
+  if (isAdf(v)) return adfText(v).trim();
+  if (typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    const s = o.value ?? o.name ?? o.displayName;
+    const child = o.child ? fieldText(o.child) : "";
+    if (typeof s === "string") return child ? `${s} / ${child}` : s;
+  }
+  return "";
+}
+
+// Jira Software's own bookkeeping fields: rank, sprints, dev panel, charts. Never a team's words.
+const PLUMBING = /gh-lexo-rank|gh-sprint|gh-epic|devsummary|jira-charting|vp-origin|sd-|servicedesk|jpo-|atlassian-team/i;
+
+/**
+ * The team's own Jira fields on one ticket (ver_212): the repro steps field for its own box,
+ * and every other filled-in custom field for Details, by the names Jira gives them.
+ */
+export function ticketExtras(fields: Record<string, unknown>, names: Record<string, string>, schema: Record<string, { custom?: string }> = {}) {
+  let repro: unknown = null;
+  const extras: { name: string; text: string; doc?: unknown }[] = [];
+  for (const [id, v] of Object.entries(fields)) {
+    if (!id.startsWith("customfield_")) continue;
+    const name = names[id]?.trim();
+    if (!name || PLUMBING.test(schema[id]?.custom ?? "")) continue;
+    const text = fieldText(v);
+    if (!text) continue;
+    if (repro === null && isReproField(name)) {
+      repro = v;
+      continue;
+    }
+    extras.push({ name, text: text.length > 2000 ? `${text.slice(0, 2000)}…` : text, ...(isAdf(v) ? { doc: v } : {}) });
+  }
+  extras.sort((a, b) => a.name.localeCompare(b.name));
+  return { repro, extras };
 }

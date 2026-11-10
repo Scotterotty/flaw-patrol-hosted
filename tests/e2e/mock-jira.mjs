@@ -150,6 +150,14 @@ issues.get("BB-3").description = adf(
   { type: "heading", attrs: { level: 3 }, content: [{ type: "text", text: "Steps to reproduce" }] },
   { type: "orderedList", content: ["Open a space with two users signed in.", "User B renames any material."].map((t) => ({ type: "listItem", content: [p_(t)] })) },
 );
+// Like OB: repro steps in their own field, plus Build # and an empty Bug Impact (ver_212).
+Object.assign(issues.get("BB-3").fields, {
+  customfield_11323: adf({ type: "orderedList", content: ["Sign in as two users in the same space.", "As User B, rename any material.", "Look at User A's material list."].map((t) => ({ type: "listItem", content: [p_(t)] })) }),
+  customfield_11489: "4.20.1",
+  customfield_11490: "3/3",
+  customfield_11494: null,
+  customfield_10019: "0|i0001:",
+});
 bb(4, "Typing indicator shows for the wrong user", "Blocked", "Low", { labels: ["UE_Materials"] });
 bb(5, "Old crash on exit", "Closed", "High");
 // 55 open bugs in New, so the board shows 50 and Show more.
@@ -374,11 +382,12 @@ http
       if (Object.keys(rest).length) i.fields = { ...(i.fields ?? {}), ...rest };
       return send(res, 204);
     }
-    if (one && url.searchParams.get("expand") === "names") {
+    if (one && (url.searchParams.get("expand") ?? "").split(",").includes("names")) {
       if (!issues.has(one[1])) return send(res, 404, { errorMessages: ["Issue does not exist"] });
-      const names = Object.fromEntries([...OB_FIELDS, ...BASIC_FIELDS].map((f) => [f.fieldId, f.name]));
+      const names = { ...Object.fromEntries([...OB_FIELDS, ...BASIC_FIELDS].map((f) => [f.fieldId, f.name])), ...(one[1].startsWith("BB-") ? { customfield_10019: "Rank" } : {}) };
+      const schema = { customfield_10019: { type: "any", custom: "com.pyxis.greenhopper.jira:gh-lexo-rank" } };
       const r = raw(one[1]);
-      return send(res, 200, { ...r, fields: { project: { key: one[1].split("-")[0] }, ...r.fields }, names });
+      return send(res, 200, { ...r, fields: { project: { key: one[1].split("-")[0] }, ...r.fields }, names, schema });
     }
     if (one) return issues.has(one[1]) ? send(res, 200, raw(one[1])) : send(res, 404, { errorMessages: ["Issue does not exist"] });
     send(res, 404, { errorMessages: [`Not mocked: ${req.method} ${p}`] });

@@ -111,6 +111,10 @@ test("Board shows every bug on the Jira board, and the bug panel shows the ticke
   await expect(panel.getByRole("link", { name: "Open in Jira ↗" })).toHaveAttribute("href", `${JIRA}/browse/BB-3`);
   await expect(panel.getByTestId("bug-panel-description")).toContainText("Steps to reproduce");
   await expect(panel.getByTestId("bug-panel-description")).toContainText("User B renames any material.");
+  // ver_212: the team's own Repro Steps field, right under the description.
+  const repro = panel.getByTestId("bug-panel-repro");
+  await expect(repro.getByRole("heading", { name: "Repro steps (from Jira)" })).toBeVisible();
+  await expect(repro.locator("li")).toHaveText(["Sign in as two users in the same space.", "As User B, rename any material.", "Look at User A's material list."]);
   const found = panel.getByTestId("bug-panel-found");
   await expect(found).toContainText("Where the bug was found");
   await expect(found).toContainText("Materials sync");
@@ -133,10 +137,17 @@ test("Board shows every bug on the Jira board, and the bug panel shows the ticke
   await details.locator("summary").click();
   await expect(details).toContainText("Fix version");
   await expect(details).toContainText("2.4.3");
+  // The team's other filled-in fields; empty ones and Jira's own bookkeeping stay out.
+  await expect(details).toContainText("Build #");
+  await expect(details).toContainText("4.20.1");
+  await expect(details).toContainText("Repro Rate");
+  await expect(details).not.toContainText("Bug Impact");
+  await expect(details).not.toContainText("Rank");
   // A bug no run found has no "Where the bug was found".
   await board.getByRole("region", { name: "Blocked / NMI" }).getByTestId("board-card").first().click();
   await expect(panel.getByTestId("bug-panel-description")).toBeVisible();
   await expect(panel.getByTestId("bug-panel-found")).toHaveCount(0);
+  await expect(panel.getByTestId("bug-panel-repro")).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(panel).toHaveCount(0);
 

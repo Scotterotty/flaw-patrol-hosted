@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 212,
+    date: "2026-11-09",
+    items: [
+      {
+        kind: "better",
+        title: "Repro steps in the bug panel",
+        text: "Click a card on the Bugs Board to see the bug's Repro steps from Jira, right under its description. Fields like Build # and Repro Rate are under + Details.",
+        link: "/g/{umbrella}/bugs?view=board",
+      },
+    ],
+  },
+  {
     version: 211,
     date: "2026-11-09",
     items: [
