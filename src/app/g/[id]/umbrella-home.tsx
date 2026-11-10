@@ -8,6 +8,8 @@ import { StartRunBox } from "@/components/start-run-box";
 import { HowToLink } from "@/components/how-to-link";
 import { AllSetCard, StartHereCard } from "@/components/first-day";
 import { firstDay } from "@/lib/first-day";
+import { myPractice } from "@/lib/practice-data";
+import { PracticeOffer } from "@/components/practice";
 import { anyGo, RunsInProgressList, type ProgressRun } from "@/components/runs-in-progress";
 import { NOT_BASH_RUN } from "@/lib/bash-cases";
 import { parseRunKinds, shownKind } from "@/lib/run-kinds";
@@ -73,6 +75,10 @@ export async function UmbrellaHome({ u, user, welcome = false }: { u: Umbrella; 
   // ver_216: Start here can be hidden for now (Getting started in the account menu brings it back).
   const prefs = firstDay(meRow?.openCards);
   const myFirst = (meRow?.name || meRow?.email || "").trim().split(/\s+/)[0];
+  // Practice run (ver_217): offered at the top of Start here; Continue once you've started one.
+  const practiceOn = runsOn && can(u.who, "run:execute") && !archived;
+  const practice = practiceOn ? await myPractice(user.id) : null;
+  const practiceOffer = practiceOn ? <PracticeOffer resume={practice} /> : null;
   const allSet = !!myFirstResult && !prefs.setSeen && !!myEarliest && Date.now() - myEarliest.createdAt.getTime() < 7 * 24 * 3600 * 1000;
   // Straight from an invite (ver_187): who added you, once, at the top.
   const hello = welcome
@@ -254,6 +260,7 @@ export async function UmbrellaHome({ u, user, welcome = false }: { u: Umbrella; 
 
       {!isAdminHere && runsOn && canExecute && !archived && !myFirstResult && !prefs.startHidden && (
         <StartHereCard testId="member-start-here" progress="hides after your first saved result">
+          {practiceOffer}
           <ol className="space-y-1.5">
             {[
               {
@@ -303,6 +310,7 @@ export async function UmbrellaHome({ u, user, welcome = false }: { u: Umbrella; 
               </Link>
             </p>
           )}
+          {(!myFirstResult || practice) && practiceOffer}
           <ol className="space-y-1.5">
             {setup.map((s, i) => (
               <li key={s.label} className="flex items-center gap-2.5 text-sm">

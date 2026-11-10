@@ -58,6 +58,7 @@ import { loadBugTemplates } from "@/lib/bug-templates-data";
 import { ToolsPanel } from "@/components/tools";
 import { toolHoldings } from "@/lib/tools-data";
 import { everything, toolsLine, TOOL_IDS, type ToolId } from "@/lib/tools";
+import { NOT_PRACTICE } from "@/lib/practice";
 
 export const metadata = { title: "Settings" };
 
@@ -143,7 +144,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
       groupManagerP.then((ok) =>
         ok
           ? db.project.findMany({
-              where: { hubOf: null, ...(user.isAdmin ? {} : { members: { some: { userId: user.id } } }) },
+              where: { hubOf: null, ...NOT_PRACTICE, ...(user.isAdmin ? {} : { members: { some: { userId: user.id } } }) },
               include: { members: { where: { userId: user.id } }, group: { select: { name: true } } },
               orderBy: { name: "asc" },
             })

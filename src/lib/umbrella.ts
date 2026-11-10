@@ -8,6 +8,7 @@ import type { Prisma, Role } from "@prisma/client";
 import { db } from "./db";
 import { can, parseRoleRules, type Who } from "./permissions";
 import { toolsOn, type ToolId } from "./tools";
+import { NOT_PRACTICE } from "@/lib/practice";
 
 // Umbrella projects. An umbrella is a project group with a hub project:
 // the hub holds the shared library (cases, suites, shared steps, personas), the
@@ -289,6 +290,7 @@ export async function looseProjects(user: Viewer) {
     where: {
       hubOf: null,
       archivedAt: null,
+      ...NOT_PRACTICE,
       OR: [{ groupId: null }, { group: { hubProjectId: null } }],
       ...(user.isAdmin ? {} : { members: { some: { userId: user.id, role: { in: ["ADMIN", "LEAD"] } } } }),
     },
