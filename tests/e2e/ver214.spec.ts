@@ -62,8 +62,8 @@ test("a dry run tests each case on its clients and shows them in a grid", async 
   const box = page.getByTestId("clients-settings");
   await expect(box.getByText("No clients. Each case runs once, as usual.")).toBeVisible();
   for (const c of ["Web", "Unreal", "Unity iOS", "Web (remote user)"]) {
-    await box.getByLabel("Client name").fill(c);
-    await box.getByRole("button", { name: "Add", exact: true }).click();
+    await box.getByLabel("New client").fill(c);
+    await box.getByRole("button", { name: "Add client" }).click();
   }
   await box.getByRole("button", { name: "Move Unreal up" }).click();
   await box.getByRole("button", { name: "Move Unreal down" }).click();

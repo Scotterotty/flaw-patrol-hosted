@@ -783,7 +783,7 @@ export const HOW_TO: HowToTask[] = [
     steps: [
       { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your settings, with **Test cycles**.", target: "menu-settings" },
       { text: "In **Test cycles**, press **Change** on the test cycle, like your dry run. (A test cycle outside an umbrella has **Clients** right on its Settings page.)", see: "What that test cycle can set for itself, with **Clients**.", target: "cycle-change" },
-      { text: "Under **Clients**, type a client, like Web, and press **Add**. Add each one.", see: "Your clients in a numbered list.", target: "client-add", type: true },
+      { text: "Under **Clients**, type a client, like Web, and press **Add client**. Add each one.", see: "Your clients in a numbered list.", target: "client-add", type: true },
       { text: "Press **Save clients**.", see: "✓ Saved. Runs you start from now on test each case on these clients.", target: "clients-save", saves: true },
       { text: "Start a run in that test cycle, then open it.", see: "A grid: one row per case, one column per client. A gray **Doesn't apply** means the case isn't tested there.", target: "menu-runs" },
       { text: "Click a client's box.", see: "**Passed**, **Failed** and **Blocked**, **Write a bug for** that client and **Open in runner**.", target: "run-clients" },

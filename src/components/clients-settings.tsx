@@ -90,11 +90,11 @@ export function ClientsSettings({ projectId, clients, canChange, cycle }: { proj
           }}
         >
           <label className="sr-only" htmlFor={`client-add-${projectId}`}>
-            Client name
+            New client
           </label>
           <Input id={`client-add-${projectId}`} value={typed} maxLength={MAX_CLIENT_NAME} onChange={(e) => setTyped(e.target.value)} placeholder="Add a client, like Web" className="w-56" data-howto="client-add" />
           <Button type="submit" size="sm" disabled={!typed.trim()}>
-            Add
+            Add client
           </Button>
           <Button size="sm" variant="primary" className="ml-auto" disabled={!changed || pending} onClick={save} data-howto="clients-save">
             {pending ? "Saving…" : "Save clients"}
