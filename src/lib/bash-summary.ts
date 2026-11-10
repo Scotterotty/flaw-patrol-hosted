@@ -3,6 +3,8 @@ import { bugsByPlatform, cleanPlatforms, parseAreas, parseLinks, phaseOf, platfo
 import { dayName, type Spelling } from "./spelling";
 import { parseCharter } from "./charter";
 import { findTemplate } from "./bash-template";
+import { askIds, withOko } from "./bash-oko";
+import { bashOkoFor } from "./bash-oko-data";
 import { loadBugTemplates } from "./bug-templates-data";
 import { db } from "./db";
 import { severityScaleFor } from "./severity-server";
@@ -29,6 +31,8 @@ export async function loadBashFull(bashId: string) {
   const entries = bash.run ? await db.runEntry.findMany({ where: { runId: bash.run.id, caseId: { in: areas.map((a) => a.caseId) } }, select: { id: true, caseId: true } }) : [];
   const entryOf = Object.fromEntries(areas.flatMap((a) => { const e = entries.find((x) => x.caseId === a.caseId); return e ? [[a.id, e.id] as const] : []; }));
   // Additions and answers hang off the find they add to.
+  // A cycle that files OKO bugs (ver_220): plain bugs are seen with the OKO layout.
+  const oko = bash.run ? await bashOkoFor(bash.run.projectId) : null;
   const addsOf = (id: string) => bash.items.filter((a) => a.kind === "add" && a.replyToId === id).reverse().map((a) => ({ id: a.id, byId: a.byId, byName: a.byName, text: a.text, at: a.createdAt }));
   const items = bash.items.filter((i) => i.kind !== "add").map((i) => ({
     id: i.id,
@@ -42,11 +46,12 @@ export async function loadBashFull(bashId: string) {
     platform: i.platform,
     plusOnes: plusOnesOf(i.plusOnes),
     review: i.review,
+    reviewReason: i.reviewReason,
     fileError: i.fileError,
     mergedIntoId: i.mergedIntoId,
     at: i.createdAt,
     attachments: i.attachments,
-    template: findTemplate(i, i.attachments),
+    template: findTemplate(withOko(i, oko), i.attachments),
     bug: i.defectId ? (defectOf.get(i.defectId) ?? null) : null,
     adds: addsOf(i.id),
   }));
@@ -57,6 +62,7 @@ export async function loadBashFull(bashId: string) {
     bash,
     bugTemplates: choices,
     bugTemplate: choices.find((t) => t.id === bash.bugTemplateId) ?? null,
+    oko,
     phase: phaseOf(bash),
     areas: areas.map((a) => ({ ...a, charter: charterOf.get(a.caseId) ?? null, people: bash.people.filter((p) => p.areaId === a.id).map((p) => ({ id: p.userId, name: p.name })) })),
     items,
@@ -152,6 +158,8 @@ export function bashView(full: BashFull, me: { id: string; canManage: boolean; l
     collectFirst: bash.collectFirst,
     bugTemplates: full.bugTemplates,
     bugTemplateId: full.bugTemplate?.id ?? null,
+    // The cycle files OKO bugs (ver_220): the log box's Add for Jira boxes, by heading id.
+    okoAsk: full.oko ? askIds(full.oko.layout) : null,
     funExtras: bash.funExtras,
     homeKey: bash.project.key,
     entryOf: full.entryOf,
