@@ -22,6 +22,28 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 218,
+    date: "2026-11-10",
+    items: [
+      {
+        kind: "fix",
+        title: "Jira errors now name only what's really missing",
+        text: "When Jira wants a field you left empty, you see one short line like \"Jira needs Bug Impact\". Before, Flaw Patrol took out everything you had filled in and tried again, so the error listed every field, twice.",
+      },
+      {
+        kind: "fix",
+        title: "One OKO bug form everywhere",
+        text: "Write a bug with the OKO bug layout now shows the same form as Report a bug in a run: Web, Unity and Unreal buttons, Repro steps that number themselves, and Take screenshot and Record screen under + Add. Repro steps, Bug impact, Workaround, Build # and OKO Space Link go into Jira's own fields.",
+        link: "/g/{umbrella}/bugs?write=1",
+      },
+      {
+        kind: "better",
+        title: "Take screenshot and Record screen in Write a bug",
+        text: "Every template in Write a bug can now take a screenshot or record your screen, right next to + Attach files.",
+      },
+    ],
+  },
+  {
     version: 213,
     date: "2026-11-09",
     items: [
