@@ -124,7 +124,7 @@ export function PasswordSignIn({
             <Input id="name" name="name" autoComplete="name" />
           </Field>
           <Field
-            label="New password"
+            label="Choose a password"
             htmlFor="password"
             hint="At least 8 characters. A short phrase is easy to remember."
           >

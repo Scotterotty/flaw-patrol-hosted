@@ -972,8 +972,8 @@ export function Runner({
             </span>
           </p>
         ) : resumed && draft && entry.draftBy && (
-          <p className="mb-4 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
-            Picked up where {entry.draftBy.mine ? "you" : entry.draftBy.name} left off {entry.draftBy.ago}.{" "}
+          <p className="mb-4 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-700 sm:py-2 sm:text-sm">
+            Picked up where {entry.draftBy.mine ? "you" : entry.draftBy.name} left off<span className="hidden sm:inline"> {entry.draftBy.ago}</span>.{" "}
             {draft.stepResults.filter((s) => s.status !== "UNTESTED").length} of {n} steps have results.
           </p>
         )}

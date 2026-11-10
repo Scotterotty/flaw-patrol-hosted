@@ -6,6 +6,8 @@ import { Card, cx, EmptyState, InfoTip, LinkButton } from "@/components/ui";
 import { StartBashButton } from "@/components/bash-start";
 import { StartRunBox } from "@/components/start-run-box";
 import { HowToLink } from "@/components/how-to-link";
+import { AllSetCard, StartHereCard } from "@/components/first-day";
+import { firstDay } from "@/lib/first-day";
 import { anyGo, RunsInProgressList, type ProgressRun } from "@/components/runs-in-progress";
 import { NOT_BASH_RUN } from "@/lib/bash-cases";
 import { parseRunKinds, shownKind } from "@/lib/run-kinds";
@@ -62,7 +64,16 @@ export async function UmbrellaHome({ u, user, welcome = false }: { u: Umbrella; 
   ]);
   // Members' own "Start here" (ver_187): hides once they've saved a result anywhere in this umbrella.
   const isAdminHere = can(u.who, "members:manage");
-  const myFirstResult = isAdminHere ? null : await db.testResult.findFirst({ where: { testerId: user.id, run: { projectId: { in: [u.hub.id, ...u.projects.map((p) => p.id)] } } }, select: { id: true } });
+  const [myFirstResult, meRow, myEarliest] = await Promise.all([
+    db.testResult.findFirst({ where: { testerId: user.id, run: { projectId: { in: [u.hub.id, ...u.projects.map((p) => p.id)] } } }, select: { id: true } }),
+    db.user.findUnique({ where: { id: user.id }, select: { openCards: true, name: true, email: true } }),
+    // Your very first saved result anywhere: the "You're set" card is for new people, not everyone after an update.
+    db.testResult.findFirst({ where: { testerId: user.id, imported: false }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }),
+  ]);
+  // ver_216: Start here can be hidden for now (Getting started in the account menu brings it back).
+  const prefs = firstDay(meRow?.openCards);
+  const myFirst = (meRow?.name || meRow?.email || "").trim().split(/\s+/)[0];
+  const allSet = !!myFirstResult && !prefs.setSeen && !!myEarliest && Date.now() - myEarliest.createdAt.getTime() < 7 * 24 * 3600 * 1000;
   // Straight from an invite (ver_187): who added you, once, at the top.
   const hello = welcome
     ? await (async () => {
@@ -73,6 +84,14 @@ export async function UmbrellaHome({ u, user, welcome = false }: { u: Umbrella; 
         return { first, by: by ? by.name || by.email : null };
       })()
     : null;
+  // Who starts runs, for a Member's Start here when there are none yet (ver_216): whoever invited them, or an Admin.
+  const starter =
+    !isAdminHere && runsOn && !firstRun
+      ? (hello?.by ??
+        (await db.projectMember
+          .findFirst({ where: { projectId: u.hub.id, role: "ADMIN", userId: { not: user.id } }, orderBy: { createdAt: "asc" }, select: { user: { select: { name: true, email: true } } } })
+          .then((m) => (m ? m.user.name || m.user.email : null))))
+      : null;
   const firstOpen = firstRun ? await db.testRun.count({ where: { projectId: firstRun.project.id, state: "ACTIVE", bugBash: { is: null } } }) : 0;
   // One Create a run button: it asks the kind of run and can make the test cycle too.
   const canRun = can(u.who, "run:create") && !archived && runsOn && (u.current.length > 0 || canAddCycle);
@@ -122,7 +141,7 @@ export async function UmbrellaHome({ u, user, welcome = false }: { u: Umbrella; 
   // "Start here" (ver_178): the core loop first, the optional extras last.
   const isAdmin = can(u.who, "members:manage");
   const allSetup = [
-    { done: u.counts.cases > 0, tool: "cases" as ToolId, label: "Add your test cases (import a file or write them)", note: plural(u.counts.cases, "case"), href: `${hub}/import`, action: "Import cases" },
+    { done: u.counts.cases > 0, tool: "cases" as ToolId, label: "Add your test cases (import a file or write them)", note: plural(u.counts.cases, "case"), href: `${hub}/import`, action: "Import cases", task: "import-cases" },
     {
       done: !!firstRun,
       tool: "runs" as ToolId,
@@ -130,12 +149,13 @@ export async function UmbrellaHome({ u, user, welcome = false }: { u: Umbrella; 
       note: firstRun ? `${firstRun.project.name} is ${firstOpen ? "in progress" : "done"}` : "",
       href: `${g}?start=run`,
       action: "Create a run",
+      task: "create-run",
     },
     ...(runsOn
       ? []
       : [
-          { done: bashCount > 0, tool: "bashes" as ToolId, label: "Start your first bug bash", note: plural(bashCount, "bug bash").replace("bashs", "bashes"), href: `${hub}/bashes?bash=start`, action: "Start a bug bash" },
-          { done: ratings > 0, tool: "risk" as ToolId, label: "Look over the risk board", note: "", href: `${hub}/risk`, action: "Open it", tip: "Rate which requirements in a release are most likely to break, and how much it would hurt." },
+          { done: bashCount > 0, tool: "bashes" as ToolId, label: "Start your first bug bash", note: plural(bashCount, "bug bash").replace("bashs", "bashes"), href: `${hub}/bashes?bash=start`, action: "Start a bug bash", task: "start-bash" },
+          { done: ratings > 0, tool: "risk" as ToolId, label: "Look over the risk board", note: "", href: `${hub}/risk`, action: "Open it", task: "risk-board", tip: "Rate which requirements in a release are most likely to break, and how much it would hurt." },
         ]),
     // Who's on the team is for Admins only (ver_168), so only they get the Invite step. Choosing what
     // roles can do comes first, as a link on the same step (Members also asks before the first invite).
@@ -147,14 +167,15 @@ export async function UmbrellaHome({ u, user, welcome = false }: { u: Umbrella; 
             note: plural(memberCount, "person").replace("persons", "people"),
             href: `${g}/settings#members`,
             action: "Invite",
+            task: "invite",
             first: u.group.rolesChosenAt ? undefined : { label: "Choose what roles can do first", href: `${g}/settings#roles` },
           },
         ]
       : []),
-    { done: !!jira, label: on("stories") ? "Connect Jira" : "Connect Jira (optional)", note: "", href: `${g}/settings#jira`, action: "Connect" },
+    { done: !!jira, label: on("stories") ? "Connect Jira" : "Connect Jira (optional)", note: "", href: `${g}/settings#jira`, action: "Connect", task: "connect-jira" },
     // Optional: runs work without a suite, so it never keeps the list open. A team that already ran tests has it ticked.
-    { done: u.counts.suites > 0 || !!firstRun, tool: "cases" as ToolId, label: "Make a suite (optional)", note: u.counts.suites ? plural(u.counts.suites, "suite") : "", href: `${hub}/suites/new`, action: "Make a suite", tip: "A saved list of cases you run together, like Smoke or Full regression. You can also run the whole Case library or pick cases." },
-    { done: slackCount > 0, label: "Send alerts to Slack (optional)", note: plural(slackCount, "channel"), href: `${g}/settings#slack`, action: "Add channels", tip: "Post regressions, serious bugs and finished runs to Slack channels. Every test cycle follows them." },
+    { done: u.counts.suites > 0 || !!firstRun, tool: "cases" as ToolId, label: "Make a suite (optional)", note: u.counts.suites ? plural(u.counts.suites, "suite") : "", href: `${hub}/suites/new`, action: "Make a suite", task: "make-suite", tip: "A saved list of cases you run together, like Smoke or Full regression. You can also run the whole Case library or pick cases." },
+    { done: slackCount > 0, label: "Send alerts to Slack (optional)", note: plural(slackCount, "channel"), href: `${g}/settings#slack`, action: "Add channels", task: "alerts", tip: "Post regressions, serious bugs and finished runs to Slack channels. Every test cycle follows them." },
   ];
   const setup = allSetup.filter((s) => !("tool" in s) || !s.tool || on(s.tool));
   // A second release means the first one happened, so the list hides then too.
@@ -229,15 +250,19 @@ export async function UmbrellaHome({ u, user, welcome = false }: { u: Umbrella; 
       )}
 
       {/* Members get three steps of their own (ver_187): the setup list is admin work. */}
-      {!isAdminHere && runsOn && canExecute && !archived && !myFirstResult && (
-        <Card className="mb-6 p-4" data-testid="member-start-here">
-          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="font-semibold text-slate-900">Start here</h2>
-            <span className="text-xs text-slate-500">hides after your first saved result</span>
-          </div>
+      {allSet && <AllSetCard first={myFirst} />}
+
+      {!isAdminHere && runsOn && canExecute && !archived && !myFirstResult && !prefs.startHidden && (
+        <StartHereCard testId="member-start-here" progress="hides after your first saved result">
           <ol className="space-y-1.5">
             {[
-              { label: "Open a run and test a case", task: "test-case", go: waiting[0] ? { href: `/p/${waiting[0].projectKey}/runs/${waiting[0].number}/execute`, label: "Start testing" } : { href: `${g}/runs`, label: "Test runs" } },
+              {
+                label: "Open a run and test a case",
+                task: "test-case",
+                // ver_216: with no run yet, say who starts one instead of sending you to an empty page.
+                go: waiting[0] ? { href: `/p/${waiting[0].projectKey}/runs/${waiting[0].number}/execute`, label: "Start testing" } : firstRun ? { href: `${g}/runs`, label: "Test runs" } : null,
+                wait: waiting[0] || firstRun ? null : starter ? `No runs yet. ${starter} will start one.` : "No runs yet. An admin will start one.",
+              },
               { label: "Report a bug from a failed step", task: "report-bug" },
               ...(can(u.who, "case:edit") && on("cases") ? [{ label: "Write a test case", task: "write-case" }] : []),
             ].map((s, i) => (
@@ -245,27 +270,30 @@ export async function UmbrellaHome({ u, user, welcome = false }: { u: Umbrella; 
                 <span aria-hidden className="grid size-5 flex-none place-items-center rounded-full border border-slate-300 text-[11px] font-semibold text-slate-500">
                   {i + 1}
                 </span>
-                <span className="flex-1 text-slate-800">{s.label}</span>
+                <span className="flex-1 text-slate-800">
+                  {s.label}
+                  {"wait" in s && s.wait && (
+                    <span className="block text-xs text-slate-600" data-testid="member-no-runs">
+                      {s.wait}
+                    </span>
+                  )}
+                </span>
                 {"go" in s && s.go && (
                   <LinkButton size="sm" href={s.go.href} data-testid="member-start-testing">
                     {s.go.label}
                   </LinkButton>
                 )}
-                <HowToLink task={s.task} testId={`member-show-${s.task}`} className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                <HowToLink task={s.task} testId={`member-show-${s.task}`} className="rounded-md border border-slate-200 bg-surface px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
                   Show me
                 </HowToLink>
               </li>
             ))}
           </ol>
-        </Card>
+        </StartHereCard>
       )}
 
-      {!ready && canManage && isAdminHere && (
-        <Card className="mb-6 p-4">
-          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="font-semibold text-slate-900">Start here</h2>
-            <span className="text-xs text-slate-500">{setup.filter((s) => s.done).length} of {setup.length} done · hides when finished</span>
-          </div>
+      {!ready && canManage && isAdminHere && !prefs.startHidden && (
+        <StartHereCard testId="admin-start-here" progress={`${setup.filter((s) => s.done).length} of ${setup.length} done · hides when finished`}>
           {/* The first-time welcome on a new umbrella, for admins until roles are chosen. */}
           {can(u.who, "members:manage") && !u.group.rolesChosenAt && memberCount <= 1 && (
             <p className="mb-2 text-sm text-slate-600" data-testid="umbrella-welcome">
@@ -295,17 +323,23 @@ export async function UmbrellaHome({ u, user, welcome = false }: { u: Umbrella; 
                   )}
                 </span>
                 {!s.done && (
-                  <LinkButton size="sm" href={s.href}>
+                  <LinkButton size="sm" href={s.href} data-howto={s.task === "invite" ? "start-invite" : undefined}>
                     {s.action}
                   </LinkButton>
+                )}
+                {/* ver_216: every step can show you how, like the Members' list. */}
+                {!s.done && s.task && (
+                  <HowToLink task={s.task} testId={`admin-show-${s.task}`} className="rounded-md border border-slate-200 bg-surface px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                    Show me
+                  </HowToLink>
                 )}
               </li>
             ))}
           </ol>
-          <p className="mt-3 text-xs text-slate-500">
+          <p className="mt-3 text-xs text-slate-600">
             New here? <HowToLink className="text-accent-700 hover:underline">Open the How-to guide</HowToLink> for step-by-step help with Show me.
           </p>
-        </Card>
+        </StartHereCard>
       )}
 
       {left.length > 0 && canManage && on("cases") && (

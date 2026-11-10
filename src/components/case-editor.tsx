@@ -14,6 +14,7 @@ import { caseKey, PRIORITIES, PRIORITY_LABEL } from "@/lib/format";
 import { placeholdersIn, type CaseStepItem, type SharedStepDef } from "@/lib/steps";
 import { hasExpected, isSectionTitle } from "@/lib/step-checks";
 import { saveCase } from "@/server/cases";
+import { rememberCaseDetails } from "@/server/first-day";
 import { skipAreaWord } from "@/server/tags";
 import { linkStory } from "@/server/stories";
 import Link from "next/link";
@@ -64,6 +65,8 @@ export type CaseEditorProps = {
   queue?: { story: string; at: number; total: number; next: string | null; back: string };
   /** A new case made from a requirement: linked to it once created. */
   linkTo?: string;
+  /** A new case: More details starts open because this person left it open last time (ver_216). */
+  detailsOpen?: boolean;
 };
 
 let uidCounter = 0;
@@ -154,6 +157,11 @@ export function CaseEditor(props: CaseEditorProps) {
   const focusUid = useRef<string | null>(null);
   // After Create and new: the case just made, so it can be opened.
   const [made, setMade] = useState<{ number: number; title: string } | null>(null);
+  // ver_216: a brand-new case (not a charter) shows Title, then Steps, then Folder; the rest folds under More details.
+  const compact = !caseId && initial.type !== "EXPLORATORY";
+  const [detailsOpen, setDetailsOpen] = useState(!!props.detailsOpen);
+  // Tips for writing steps open on request instead of always showing.
+  const [tipsOpen, setTipsOpen] = useState(false);
   // Type, automation ID and persona fold away unless a case already uses one.
   const [moreFields, setMoreFields] = useState(initial.type === "AUTOMATED" || !!initial.automationId || !!initial.personaId);
 
@@ -296,89 +304,8 @@ export function CaseEditor(props: CaseEditorProps) {
     (i) => i.kind === "step" && selected.has(i.uid),
   );
 
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        save();
-      }}
-      className="mx-auto max-w-4xl"
-    >
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold tracking-tight">
-          {caseId && number ? (
-            <>
-              <span className="font-mono text-base text-slate-500">
-                {caseKey(projectKey, number)}
-              </span>{" "}
-              {isCharter ? "Edit charter" : "Edit case"}
-            </>
-          ) : isCharter ? (
-            "New charter"
-          ) : (
-            "New test case"
-          )}
-        </h1>
-        <div className="flex items-center gap-2">
-          <span className="hidden text-xs text-slate-400 sm:inline">
-            <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>S</kbd> saves
-            {!caseId && (
-              <>
-                {" "}
-                · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> saves and starts another
-              </>
-            )}
-          </span>
-          <Button onClick={() => router.back()}>Cancel</Button>
-          {!caseId && (
-            <Button disabled={pending} onClick={() => save(true)}>
-              Create and new
-            </Button>
-          )}
-          <Button type="submit" variant="primary" disabled={pending}>
-            {pending
-              ? "Saving…"
-              : props.queue
-                ? props.queue.next
-                  ? "Save and next case"
-                  : "Save and back to Requirements"
-                : caseId
-                ? "Save new version"
-                : isCharter
-                  ? "Create charter"
-                  : "Create case"}
-          </Button>
-        </div>
-      </div>
-
-      {props.queue && (
-        <p role="status" className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-sm text-accent-900" data-testid="writing-queue">
-          <span className="flex-1">
-            Writing {props.queue.at} of {props.queue.total} new {props.queue.total === 1 ? "case" : "cases"} for <span className="font-mono font-medium">{props.queue.story}</span>.
-          </span>
-          {props.queue.next && (
-            <Link href={props.queue.next} className="font-medium text-accent-700 hover:underline">
-              Skip to next
-            </Link>
-          )}
-          <Link href={props.queue.back} className="font-medium text-accent-700 hover:underline">
-            Back to Requirements
-          </Link>
-        </p>
-      )}
-      <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
-      {made && (
-        <p role="status" className="flex flex-wrap items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-          <span className="flex-1">
-            ✓ {caseKey(projectKey, made.number)} &ldquo;{made.title}&rdquo; created. Folder, priority, type and tags kept for this one.
-          </span>
-          <a href={`/p/${projectKey}/cases/${made.number}`} className="font-medium text-emerald-800 underline">
-            Open {caseKey(projectKey, made.number)}
-          </a>
-        </p>
-      )}
-
-      <div className="mt-3 space-y-4 rounded-lg border border-slate-200 bg-surface p-5 shadow-sm">
+  // ver_216: a new case asks for Title, then Steps; everything else waits under More details.
+  const titleField = (
         <Field label="Title" htmlFor="title">
           {/* Type [WEB] at the start and it turns into a tag pill; Backspace at the start turns the last pill back into text. */}
           <div className="flex min-h-10 flex-wrap items-center gap-1 rounded-md border border-slate-300 bg-surface px-2 shadow-sm focus-within:border-accent-500 focus-within:ring-2 focus-within:ring-accent-500/20">
@@ -439,7 +366,7 @@ export function CaseEditor(props: CaseEditorProps) {
               placeholder={
                 isCharter
                   ? "Explore checkout with a flaky connection"
-                  : tags.length ? "Checkout succeeds with a saved card" : "Checkout succeeds with a saved card (start with [WEB] to tag it)"
+                  : "What this case checks"
               }
               className="min-w-40 flex-1 border-0 bg-transparent py-1.5 text-base font-medium outline-none"
             />
@@ -473,12 +400,8 @@ export function CaseEditor(props: CaseEditorProps) {
             </p>
           )}
         </Field>
-        <div
-          className={cx(
-            "grid gap-4 sm:grid-cols-2",
-            isCharter ? "lg:grid-cols-3" : moreFields ? "lg:grid-cols-5" : "lg:grid-cols-3",
-          )}
-        >
+  );
+  const folderField = (
           <Field label="Folder" htmlFor="folder">
             <Select
               id="folder"
@@ -497,6 +420,16 @@ export function CaseEditor(props: CaseEditorProps) {
               ))}
             </Select>
           </Field>
+  );
+  const detailFields = (
+    <>
+        <div
+          className={cx(
+            "grid gap-4 sm:grid-cols-2",
+            isCharter ? "lg:grid-cols-3" : moreFields ? "lg:grid-cols-5" : "lg:grid-cols-3",
+          )}
+        >
+          {!compact && folderField}
           <Field label="Priority" htmlFor="priority">
             <Select
               id="priority"
@@ -643,6 +576,102 @@ export function CaseEditor(props: CaseEditorProps) {
             }
           />
         </Field>
+    </>
+  );
+  const testDataBox = (
+          <TestDataBox
+            value={testData}
+            onChange={setTestData}
+            plainTexts={items.flatMap((it, i) => (it.kind === "step" ? [{ step: i + 1, text: `${it.action}\n${it.expected}` }] : []))}
+            sharedBlanks={[...new Set(items.flatMap((it) => (it.kind === "shared" ? (defs.get(it.sharedStepId)?.parameters.map((p) => p.name) ?? []) : [])))]}
+          />
+  );
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        save();
+      }}
+      className="mx-auto max-w-4xl"
+    >
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold tracking-tight">
+          {caseId && number ? (
+            <>
+              <span className="font-mono text-base text-slate-500">
+                {caseKey(projectKey, number)}
+              </span>{" "}
+              {isCharter ? "Edit charter" : "Edit case"}
+            </>
+          ) : isCharter ? (
+            "New charter"
+          ) : (
+            "New test case"
+          )}
+        </h1>
+        <div className="flex items-center gap-2">
+          <span className="hidden text-xs text-slate-400 sm:inline">
+            <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>S</kbd> saves
+            {!caseId && (
+              <>
+                {" "}
+                · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> saves and starts another
+              </>
+            )}
+          </span>
+          <Button onClick={() => router.back()}>Cancel</Button>
+          {!caseId && (
+            <Button disabled={pending} onClick={() => save(true)}>
+              Create and new
+            </Button>
+          )}
+          <Button type="submit" variant="primary" disabled={pending}>
+            {pending
+              ? "Saving…"
+              : props.queue
+                ? props.queue.next
+                  ? "Save and next case"
+                  : "Save and back to Requirements"
+                : caseId
+                ? "Save new version"
+                : isCharter
+                  ? "Create charter"
+                  : "Create case"}
+          </Button>
+        </div>
+      </div>
+
+      {props.queue && (
+        <p role="status" className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-sm text-accent-900" data-testid="writing-queue">
+          <span className="flex-1">
+            Writing {props.queue.at} of {props.queue.total} new {props.queue.total === 1 ? "case" : "cases"} for <span className="font-mono font-medium">{props.queue.story}</span>.
+          </span>
+          {props.queue.next && (
+            <Link href={props.queue.next} className="font-medium text-accent-700 hover:underline">
+              Skip to next
+            </Link>
+          )}
+          <Link href={props.queue.back} className="font-medium text-accent-700 hover:underline">
+            Back to Requirements
+          </Link>
+        </p>
+      )}
+      <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+      {made && (
+        <p role="status" className="flex flex-wrap items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+          <span className="flex-1">
+            ✓ {caseKey(projectKey, made.number)} &ldquo;{made.title}&rdquo; created. Folder, priority, type and tags kept for this one.
+          </span>
+          <a href={`/p/${projectKey}/cases/${made.number}`} className="font-medium text-emerald-800 underline">
+            Open {caseKey(projectKey, made.number)}
+          </a>
+        </p>
+      )}
+
+      <div className="mt-3 space-y-4 rounded-lg border border-slate-200 bg-surface p-5 shadow-sm">
+        {titleField}
+        {!compact && detailFields}
       </div>
 
       {isCharter ? (
@@ -771,7 +800,8 @@ export function CaseEditor(props: CaseEditorProps) {
                   <span className="text-sm font-semibold text-slate-500">
                     {numbering[index]}
                   </span>
-                  {props.canManageShared && item.kind === "step" && (
+                  {/* On a new case the tick waits until there are 2 steps, where the line above says what it's for. */}
+                  {props.canManageShared && item.kind === "step" && (!compact || items.filter((i) => i.kind === "step").length > 1) && (
                     <input
                       type="checkbox"
                       data-howto="case-step-tick"
@@ -922,18 +952,45 @@ export function CaseEditor(props: CaseEditorProps) {
             >
               + Insert shared step
             </Button>
+            <button type="button" aria-expanded={tipsOpen} onClick={() => setTipsOpen(!tipsOpen)} className="ml-auto text-sm text-accent-700 hover:underline" data-testid="case-tips-toggle">
+              Tips
+            </button>
           </div>
-          <p className="mt-2 text-xs text-slate-500">
-            <span className="font-medium text-slate-700">Tip:</span> a short name with no expected result, like SIGN IN STEPS or Space Lists, becomes a section
-            title for the steps below it. So does any short line with a dash or N/A as its expected result.
-          </p>
-          <TestDataBox
-            value={testData}
-            onChange={setTestData}
-            plainTexts={items.flatMap((it, i) => (it.kind === "step" ? [{ step: i + 1, text: `${it.action}\n${it.expected}` }] : []))}
-            sharedBlanks={[...new Set(items.flatMap((it) => (it.kind === "shared" ? (defs.get(it.sharedStepId)?.parameters.map((p) => p.name) ?? []) : [])))]}
-          />
+          {tipsOpen && (
+            <p className="mt-2 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600" data-testid="case-tips">
+              A short line with no expected result, like Sign in or Payment, becomes a section title for the steps below it. So does a short line with a dash or
+              N/A as its expected result. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> in a step adds one below.
+            </p>
+          )}
+          {!compact && testDataBox}
         </>
+      )}
+
+      {compact && (
+        <div className="mt-6 space-y-4 rounded-lg border border-slate-200 bg-surface p-5 shadow-sm" data-testid="case-details-box">
+          <div className="max-w-sm">{folderField}</div>
+          <button
+            type="button"
+            aria-expanded={detailsOpen}
+            aria-controls="case-more-details"
+            onClick={() => {
+              const next = !detailsOpen;
+              setDetailsOpen(next);
+              // Remembered for this person (ver_216): people who always write preconditions skip this click.
+              void rememberCaseDetails(next);
+            }}
+            className="text-sm font-medium text-accent-700 hover:underline"
+            data-testid="case-more-details"
+          >
+            {detailsOpen ? "▾" : "▸"} More details: priority, tags, preconditions, test data
+          </button>
+          {detailsOpen && (
+            <div id="case-more-details" className="space-y-4">
+              {detailFields}
+              {testDataBox}
+            </div>
+          )}
+        </div>
       )}
 
       {caseId && (

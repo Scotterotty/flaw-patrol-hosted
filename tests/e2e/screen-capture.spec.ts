@@ -195,7 +195,9 @@ test("the recording bar stays in sight in the bug box and on a phone", async ({ 
   const menu = (await page.locator("nav.fp-bar.fixed").boundingBox())!;
   expect((await bar.boundingBox())!.y + (await bar.boundingBox())!.height).toBeLessThanOrEqual(menu.y + 1);
   // Recording takes the case, and its "Stop testing" bar grows the page; scroll once it's in.
-  await expect(page.getByTestId("stop-testing-help")).toBeVisible();
+  // ver_216: on a phone the bar is one short line (the help text is on wider screens and the button's tooltip).
+  await expect(page.getByRole("button", { name: "Stop testing" })).toBeVisible();
+  await expect(page.getByTestId("stop-testing-help")).toBeHidden();
   await page.mouse.wheel(0, 10000);
   await page.waitForTimeout(400);
   const save = (await page.getByRole("button", { name: /^Save and (next|finish)$/ }).boundingBox())!;

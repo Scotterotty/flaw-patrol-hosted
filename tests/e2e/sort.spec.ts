@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openMoreDetails } from "./case-form";
 import { signIn } from "./auth";
 import { standaloneProject } from "./projects";
 
@@ -10,6 +11,7 @@ test("suites, runs and the runner can list cases by priority", async ({ page }) 
   for (const [title, priority] of [["Lowly", "LOW"], ["Urgent", "CRITICAL"], ["Middling", "MEDIUM"]]) {
     await page.goto(`/p/${KEY}/cases/new`);
     await page.getByLabel("Title").fill(title);
+    await openMoreDetails(page);
     await page.getByLabel("Priority").selectOption(priority);
     await page.getByLabel("Step 1 action").fill("Do it");
     await page.getByRole("button", { name: "Create case" }).first().click();

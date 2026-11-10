@@ -22,6 +22,34 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 216,
+    date: "2026-11-10",
+    items: [
+      {
+        kind: "better",
+        title: "New cases start with Title, then Steps",
+        text: "A new case asks for its title and steps first, in the folder you came from. Priority, tags, preconditions and test data wait under More details, which stays open next time if you leave it open. Tips for writing steps open from Tips.",
+        link: "/g/{umbrella}",
+      },
+      {
+        kind: "better",
+        title: "Start here leads you from step to step",
+        text: "Every Start here step has Show me. After an import, Next: run these cases opens Create a run. Press Hide for now to put Start here away, and Getting started under your name brings it back.",
+        link: "/g/{umbrella}",
+      },
+      {
+        kind: "better",
+        title: "Import shows only the columns that matter",
+        text: "Match your columns shows the columns we matched and names any we didn't. Show all columns has the rest.",
+      },
+      {
+        kind: "fix",
+        title: "Bug titles say \"does not go up\"",
+        text: "An automatic bug title for an expected result like \"Cart count goes up\" said \"does not goe up\". It now says \"does not go up\".",
+      },
+    ],
+  },
+  {
     version: 213,
     date: "2026-11-09",
     items: [
