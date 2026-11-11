@@ -117,7 +117,8 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 .card .k{font:8px var(--display);color:var(--muted)}
 .card.armed,.card.armed:hover,.card.armed:focus-visible{border-color:var(--gold)!important;box-shadow:0 0 16px rgba(242,193,78,.45)!important}
 .card.armed .k{color:var(--gold);font-size:8px;line-height:1.5;text-align:center;max-width:52px}
-.card:hover,.card:focus-visible{border-color:var(--glow);outline:none;box-shadow:0 0 14px rgba(57,226,210,.3)}
+.card:focus-visible{border-color:var(--glow);outline:none;box-shadow:0 0 14px rgba(57,226,210,.3)}
+@media (hover:hover){.card:hover{border-color:var(--glow);box-shadow:0 0 14px rgba(57,226,210,.3)}}
 .lvl-up{font:22px/1.4 var(--display);color:var(--gold);text-shadow:0 0 18px rgba(242,193,78,.5)}
 .wrap{width:100%;max-width:420px;display:grid;gap:8px;text-align:left}
 .arm{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
@@ -192,6 +193,22 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 @media (min-width:760px){#app{border-left:1px solid var(--line);border-right:1px solid var(--line)}}
 .ver{font:8px/1.6 var(--display);color:var(--muted);text-align:center;opacity:.75;margin-top:4px}
 .card.herocard{border-color:#b98cff;background:linear-gradient(135deg,#241a3a,var(--panel2))}.htag{font:7px var(--display);color:#1a0f2e;background:#c8b6ff;border-radius:3px;padding:2px 4px;vertical-align:2px}.hcard.feat .c{color:#c8b6ff;font:600 11px var(--body);line-height:1.3}
+.ait{position:relative}.ait.r1{border-color:#3f8a5c}.ait.r2{border-color:#3f6fb8}.ait.r3{border-color:#b8902e;box-shadow:inset 0 0 10px rgba(242,193,78,.25)}
+.ait.sel.r1,.ait.sel.r2,.ait.sel.r3{border-color:var(--glow)}
+.ait .st{position:absolute;top:3px;right:4px;font:11px var(--display);color:var(--gold);letter-spacing:-1px}
+.rar{font:7px/1.4 var(--display);letter-spacing:.5px}.rar.r0{color:#9fb3ba}.rar.r1{color:#6fe39b}.rar.r2{color:#7fb2ff}.rar.r3{color:#f2c14e}
+.ait.glow img{filter:drop-shadow(0 0 6px rgba(242,193,78,.9))}
+.forge{display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;background:linear-gradient(135deg,#2a1a10,var(--panel2) 70%);border:2px solid #7a4a22;border-radius:10px;padding:10px;color:var(--fg);font:inherit;text-align:left;cursor:pointer;width:100%}
+.forge img{width:48px;height:48px;object-fit:contain}
+.forge .t{font-weight:700}.forge .d{font-size:12px;color:var(--muted)}
+.forge .pr{font:9px/1.7 var(--display);color:var(--gold);text-align:center;white-space:nowrap}
+.forge.armed{border-color:var(--gold);box-shadow:0 0 14px rgba(242,193,78,.45)}
+.forge.cant,.forge.max{opacity:.6;cursor:default}
+.smith{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;margin-top:6px}
+.smith small{font:8px/1.6 var(--display);color:#ffb070}
+.smith .q{font-size:12px;font-style:italic;color:var(--fg);margin-top:4px}
+.smith-art{width:70px;height:auto;image-rendering:pixelated;filter:drop-shadow(0 0 10px rgba(255,150,60,.35))}
+.camp{width:100%;max-width:420px;height:auto;border-radius:10px;border:1px solid var(--line);flex:0 0 auto}
 </style>
 
 <div id="app">
@@ -223,8 +240,10 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
       <b>Tap</b><span>a backpack item to use it</span>
       <b>Watch out</b><span>for badges: <b style="color:var(--gold)">»</b> charges in, <b style="color:#ff5a4a">◎</b> shoots. Step out of a red line!</span>
       <b>Spikes</b><span>hurt whoever steps on them. Lure monsters in!</span>
+      <b>Wanderers</b><span><b style="color:#8fd8ff">?</b> roam the halls and know where the spikes are. Get close and one spots you <b style="color:var(--gold)">!</b> Then it chases you and forgets to look down.</span>
       <b>Stairs</b><span>take you one floor deeper</span>
       <b>Vaults</b><span>are locked. A monster with a gold key over its head has the key. Squash it, then bump the door.</span>
+      <b>Blacksmith</b><span>Bosses drop <b>Scrap</b>. Spend it with Shards in the Armory to forge your weapon stronger.</span>
       <b>Level up</b><span>by squashing bugs. Pick 1 of 3 cards each level.</span>
       <b>One life</b><span>fall and your levels are gone. Shards and every weapon and shield you found are kept.</span>
     </div>
@@ -275,9 +294,10 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
   </div>
 
   <div class="screen tall" id="loadScreen" hidden>
-    <h2>ARMORY</h2>
+    <img class="camp" src="sp/camp.webp" alt="Your camp: a campfire, a bedroll, a forge and an anvil">
+    <h2>CAMP · ARMORY</h2>
     <p>Every weapon and shield you find is kept here forever. Pick one of each to bring. <b>Weapons</b> add to your attack, so you hit harder. <b>Shields</b> add to your defense, so monsters hit you for less. Strong gear starts at +1 and grows by +1 each level until it's at full power.</p>
-    <div class="wrap"><div class="sec">WEAPON</div><div class="arm" id="armW"></div><div class="sec">SHIELD</div><div class="arm" id="armS"></div></div>
+    <div class="wrap"><div class="sec">WEAPON</div><div class="arm" id="armW"></div><div class="smith"><img class="smith-art" src="sp/smith.webp" alt="The Blacksmith"><div><div class="sec">⚒ BLACKSMITH</div><small id="smithBank"></small><div class="q">&ldquo;Bring me Scrap from the bosses and I&rsquo;ll make that blade sing.&rdquo;</div></div></div><div id="forgeBox"></div><div class="sec">SHIELD</div><div class="arm" id="armS"></div></div>
     <div class="btns"><button class="btn p" id="goBtn">Delve</button><button class="btn" id="loadBack">Back</button></div>
   </div>
 
@@ -337,7 +357,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 (function(){
 "use strict";
 // ---------- BUILD VERSION: bump this by 1 on every publish (shown at the bottom of the stats page) ----------
-var VERSION="v40";
+var VERSION="v49";
 // ---------- data ----------
 var REDUCE = matchMedia("(prefers-reduced-motion: reduce)").matches;
 var S = function(id){ return "sp/"+id+".webp"; };
@@ -360,6 +380,13 @@ var WEAP = [ // [sprite,name,atk]
  ["w33","Battle Axe",5],["w22","Amethyst Mace",5],["w10","Dragon Fang",5],["w05","Flame Blade",6],["w21","Laser Edge",6],
  ["w15","Sunsteel Sword",6],["w25","Cosmic Blade",7],["w00","Shadow Blade",7],["w34","Void Reaver",8]
 ];
+// ---------- Blacksmith: weapon rarity comes from its power. Forging adds +1 per star, up to the next rarity's power. ----------
+var RARITY=["Common","Uncommon","Rare","Legendary"], FORGE_MAX=[1,2,1,1], FORGE_COST=[[40,1],[80,2]];
+function rarOf(i){ var p=WEAP[i][2]; return p<=2?0:p<=4?1:p<=6?2:3; }
+function sRarOf(i){ var p=SHLD[i][2]; return p<=1?0:p<=3?1:p<=5?2:3; }
+function stars(i){ return (meta&&meta.forge&&meta.forge[i])||0; }
+function wFull(i){ return WEAP[i][2]+stars(i); }
+function starTxt(i){ var n=stars(i); return n? new Array(n+1).join("★") : ""; }
 var SHLD = [
  ["s20","Bandaged Board",1],["s03","Vine Shield",1],["s32","Jester Shield",1],["s13","Bone Shield",1],["s24","Spiked Buckler",2],
  ["s33","Viking Round",2],["s14","Coral Shield",2],["s02","Royal Crest",2],["s11","Steam Shield",2],["s23","Biohazard Guard",3],
@@ -368,22 +395,25 @@ var SHLD = [
  ["s25","Cosmic Orb",6],["s00","Shadow Guard",6],["s34","Void Bulwark",6]
 ];
 var ITEMS = {
- potion:{desc:"Heals 6 HP.",img:"i00",name:"Health Potion",use:true,w:20},
- bandage:{desc:"Heals 3 HP.",img:"i33",name:"Bandage",use:true,w:18},
- bomb:{desc:"Hits every monster next to you for 6.",img:"i32",name:"Bomb",use:true,w:10},
- dagger:{desc:"Tap to aim: gold tiles show the range. Then tap a monster up to 4 tiles away to throw. Hits for your attack.",img:"i40",name:"Throwing Daggers",use:true,w:9},
- fire:{desc:"Hits every monster you can see for 5.",img:"i24",name:"Fire Scroll",use:true,w:7},
- ice:{desc:"Freezes every monster you can see for 4 turns.",img:"i25",name:"Ice Scroll",use:true,w:7},
- map:{desc:"Shows the whole floor and the stairs.",img:"i15",name:"Map",use:true,w:6},
- strength:{desc:"+2 attack until you take the stairs.",img:"i02",name:"Strength Potion",use:true,w:6},
- tome:{desc:"Read on the spot: pick one more level-up card.",img:"i20",name:"Old Tome",use:true,w:3},
- ring:{img:"i22",name:"Ring of Mending",w:2},
- gems:{img:"i14",name:"Bag of Shards",w:22},
- heart:{img:"i21",name:"Heart Crystal",w:3},
- lantern:{img:"i31",name:"Lantern",w:3},
- chalice:{img:"i35",name:"Chalice of Green Builds",w:2},
- vchest:{img:"i11",name:"Vault Chest",w:0}
+ potion:{desc:"Heals 6 HP.",img:"i00",name:"Health Potion",use:true,r:0},
+ bandage:{desc:"Heals 3 HP.",img:"i33",name:"Bandage",use:true,r:0},
+ bomb:{desc:"Hits every monster next to you for 6.",img:"i32",name:"Bomb",use:true,r:0},
+ dagger:{desc:"Tap to aim: gold tiles show the range. Then tap a monster up to 4 tiles away to throw. Hits for your attack.",img:"i40",name:"Throwing Daggers",use:true,r:0},
+ fire:{desc:"Hits every monster you can see for 5.",img:"i24",name:"Fire Scroll",use:true,r:1},
+ ice:{desc:"Freezes every monster you can see for 4 turns.",img:"i25",name:"Ice Scroll",use:true,r:1},
+ map:{desc:"Shows the whole floor and the stairs.",img:"i15",name:"Map",use:true,r:1},
+ strength:{desc:"+2 attack until you take the stairs.",img:"i02",name:"Strength Potion",use:true,r:1},
+ tome:{desc:"Read on the spot: pick one more level-up card.",img:"i20",name:"Old Tome",use:true,r:2},
+ ring:{img:"i22",name:"Ring of Mending",r:3},
+ gems:{img:"i14",name:"Bag of Shards",r:2},
+ heart:{img:"i21",name:"Heart Crystal",r:2},
+ lantern:{img:"i31",name:"Lantern",r:2},
+ chalice:{img:"i35",name:"Chalice of Green Builds",r:3},
+ vchest:{img:"i11",name:"Vault Chest",r:-1}
 };
+// v46: drop weight comes from rarity (TUNE.itemW: Common, Uncommon, Rare, Legendary)
+var ITEM_W=[11,6,2.5,1]; Object.keys(ITEMS).forEach(function(k){ var r=ITEMS[k].r; ITEMS[k].w= r<0?0:ITEM_W[r]; });
+function rarTag(r){ return ' <span class="rar r'+r+'">'+RARITY[r].toUpperCase()+'</span>'; }
 var BAG_ORDER = ["potion","bandage","strength","bomb","dagger","fire","ice","tome","map"];
 // ---------- TUNE: main balance numbers in one place. Change here, then run the balance bot. ----------
 var TUNE={
@@ -392,7 +422,14 @@ var TUNE={
   elite:{from:4,hpMul:1.6,atk:1},
   heal:{potion:6,potionPer:2, bandage:3,bandagePer:4, levelUp:.25, stairs:3, fountain:.5},
   hit:{heroCrit:.1, monMiss:.1, steadyMiss:.25},  // rulings: hero crit 1 in 10, monster miss 1 in 10
-  rareOdds:.2
+  rareOdds:.2,
+  // gear pacing (v42): chance a chest holds a weapon/shield drops with each one already found on this floor.
+  // Boss and vault chests always hold gear (and count). Normal finds sit around your floor; boss/vault finds sit above it.
+  loot:{gear:[.5,.2,.06], tierW:1.0, tierS:1.1, spread:[-3,1], bossUp:[1,2], vaultUp:[2,4],
+    // v46 gear rarity odds [Common,Uncommon,Rare,Legendary] at B1 and at B12 (blends in between). Legendary only from boss and vault chests.
+    rar:{chest:[[92,8,0,0],[55,35,10,0]], boss:[[60,40,0,0],[10,50,35,5]], vault:[[30,60,10,0],[0,45,45,10]]}, legFrom:6},
+  // v46 Shard income: Bags are Uncommon now, melting and stairs pay less
+  shard:{stairs:.5, melt:[1,3], boss:5, kill:1}
 };
 // Level-up cards. img "@w"/"@s" = your current weapon/shield.
 var CARDS = [
@@ -445,7 +482,7 @@ function KM(id){ id=id||slots.cur; return id==="1"?"delve.meta":"delve.meta."+id
 function KR(id){ id=id||slots.cur; return id==="1"?"delve.run":"delve.run."+id; }
 function loadMeta(id){
   var m=load(KM(id),{bank:0,unlocked:["knight"],hero:"knight",best:0,runs:0});
-  m.armory=m.armory||{w:[0],s:[0]}; m.loadout=m.loadout||{w:0,s:0}; m.log=m.log||{}; return m;
+  m.armory=m.armory||{w:[0],s:[0]}; m.loadout=m.loadout||{w:0,s:0}; m.log=m.log||{}; m.forge=m.forge||{}; m.scrap=m.scrap||0; return m;
 }
 var meta = loadMeta();
 
@@ -486,8 +523,8 @@ function migrate(g){
   keepGear(true,g.weapon); keepGear(false,g.shield); if(g.bag&&g.bag.tome){ g.pending=(g.pending||0)+g.bag.tome; g.tp=(g.tp||0)+g.bag.tome; delete g.bag.tome; } return g;
 }
 function nextFloor(){
-  G.floor++; G.curse=0; G.hunt=0;
-  if(G.floor>1){ G.shards+=G.floor-1; gainXp(4*G.floor); }
+  G.floor++; G.curse=0; G.hunt=0; G.gf=0;
+  if(G.floor>1){ G.shards+=stairSh(); gainXp(4*G.floor); }
   G.str=0; AIM=null;
   var f=G.floor, t=new Array(W*H).fill(1), rooms=[], tries=0;
   while(rooms.length<10 && tries<400){
@@ -558,10 +595,11 @@ function nextFloor(){
   placeSpikes(rooms); // last, so it can steer clear of everything else
   G.rpx=G.px; G.rpy=G.py;
   computeFov();
-  say(f===1? "You enter the dungeon. Find the stairs." : (f%3===0? "Floor "+f+". A boss guards the stairs." : "Floor "+f+". +"+(f-1)+" Shards for going deeper."));
+  say(f===1? "You enter the dungeon. Find the stairs." : (f%3===0? "Floor "+f+". A boss guards the stairs." : "Floor "+f+". +"+stairSh()+" Shards for going deeper."));
   persist();
 }
 
+function stairSh(){ return Math.max(1,Math.round((G.floor-1)*TUNE.shard.stairs)); }
 function tinkStock(f){
   var u=["bomb","dagger","fire","ice","map","strength","tome"][ri(0,6)], sp=TINK_SP[ri(0,TINK_SP.length-1)], h=Math.ceil(f/2);
   return [{k:"potion",n:1,p:4+h},{k:u,n:u==="dagger"?3:1,p:(u==="tome"?10:6)+h},{s:sp.id,p:sp.p+f}];
@@ -611,7 +649,7 @@ function revealMimic(it){
 // two chest rolls, with the pop-ups shown one after another
 function openOld(){
   var q=[], t0=toast; toast=function(a,b){ q.push([a,b]); };
-  try{ openChest(); openChest(); } finally { toast=t0; }
+  try{ openChest(); openChest("supply"); } finally { toast=t0; }
   q.forEach(function(x){ abToast(x[0],x[1]); });
 }
 
@@ -657,7 +695,7 @@ function los(x0,y0,x1,y1){
 
 // ---------- stats ----------
 // Gear you bring from the Armory hits like your level until your level reaches its power. Gear found this run is full strength.
-function wPow(){ var p=WEAP[G.weapon][2]; return G.weapon===G.bw? Math.min(p,G.lvl) : p; }
+function wPow(){ var p=wFull(G.weapon); return G.weapon===G.bw? Math.min(p,G.lvl) : p; }
 function sPow(){ var p=SHLD[G.shield][2]; return G.shield===G.bs? Math.min(p,G.lvl) : p; }
 function atk(){ return G.baseAtk+wPow()+(G.str||0)+(G.batk||0); }
 function def(){ return G.baseDef+sPow()+(G.bdef||0); }
@@ -721,19 +759,19 @@ function attack(m){
 function killMon(m){
   var i=G.mons.indexOf(m); if(i<0) return 0;
   G.mons.splice(i,1); G.kills++; puff(m.x,m.y,m.boss?26:14);
-  var gain=m.boss?10:(m.tier>=12?2:1); G.shards+=gain;
+  var gain=m.boss?TUNE.shard.boss:TUNE.shard.kill; G.shards+=gain;
   gainXp((m.boss? 15+G.floor*2 : 3+Math.floor(m.tier/3)+G.floor)*(m.elite||m.mimic?2:1)*(G.hunt?2:1));
   if(G.perks.vamp && G.hp<G.maxHp){ var v=G.perks.vamp; G.hp=Math.min(G.maxHp,G.hp+v); float(G.px,G.py,"+"+v,"#6fe39b"); }
   meta.log[m.id]=(meta.log[m.id]||0)+1; save(KM(),meta);
   if(meta.log[m.id]===1){ G.newLog.push(m.id); toast(m.id,"New in your Bug Log: <b>"+m.name+"</b>"); }
   if(m.mimic){ var mg=3+Math.floor(G.floor/2); G.shards+=mg; gain+=mg; if(meta.log[m.id]===1) abToast(m.id,"New in your Bug Log: <b>"+m.name+"</b>"); abToast("mimic","Mimic squashed! It coughs up +"+mg+"◆ and its treasure."); openOld(); }
-  else if(m.boss){ toast(m.id,m.name+" defeated! The stairs are open."); if(Math.random()<.9) dropGear(m.x,m.y); }
+  else if(m.boss){ toast(m.id,m.name+" defeated! The stairs are open."); dropGear(m.x,m.y); meta.scrap=(meta.scrap||0)+1; G.scrapRun=(G.scrapRun||0)+1; save(KM(),meta); abToast("w33","<b>+1 Scrap</b> for the Blacksmith. It's yours to keep, even if you fall."); }
   else if(m.elite){ G.items.push({x:m.x,y:m.y,k:"chest"}); toast(m.id,"Elite squashed! It dropped a chest."); }
   else if(Math.random()<.12) G.items.push({x:m.x,y:m.y,k:Math.random()<.5?"potion":"gems"});
   if(m.key) gotKey(m);
   return gain;
 }
-function dropGear(x,y){ G.items.push({x:x,y:y,k:"chest"}); }
+function dropGear(x,y){ G.items.push({x:x,y:y,k:"chest",boss:1}); }
 function endTurn(){
   // monsters act
   var list=G.mons.slice(), wait=(struck?.3:.06)+RW, fs=firstSwing||[]; struck=false; firstSwing=null; RW=0;
@@ -759,7 +797,7 @@ function endTurn(){
     for(var o=0;o<opts.length;o++){ var nx=m.x+opts[o][0], ny=m.y+opts[o][1]; if(!wall(nx,ny)&&!shrineAt(nx,ny)&&!monAt(nx,ny)&&!npcAt(nx,ny)&&!fountAt(nx,ny)&&!(nx===G.px&&ny===G.py)){ m.x=nx; m.y=ny; break; } }
     if((m.x!==mox||m.y!==moy)&&springSpikes(m.x,m.y,m)&&G.mons.indexOf(m)<0) continue;
     // move OR attack: a monster that just stepped next to you waits until next turn to swing, unless it Charges
-    if(ab==="charge" && Math.abs(G.px-m.x)+Math.abs(G.py-m.y)===1){ monHit(m,wait,"charge"); wait+=.26; if(G.hp<=0) break; }
+    if(ab==="charge" && Math.abs(G.px-m.x)+Math.abs(G.py-m.y)===1){ if(!REDUCE) wait+=.16; (function(c){ later(wait,function(){ float(c.x,c.y-.35,"» CHARGE","#f2c14e"); }); })(m); monHit(m,wait,"charge"); wait+=.26; if(G.hp<=0) break; }
   }
   computeFov();
   if(G.hp<=0){ die(); return; }
@@ -777,12 +815,12 @@ function shoot(x0,y0,x1,y1,kind){ if(!REDUCE) PJ.push({x0:x0,y0:y0,x1:x1,y1:y1,k
 function monHit(m,delay,how){
   var px=G.px, py=G.py, msg, fx;
   if(Math.random()<TUNE.hit.monMiss || (G.perks.steady && Math.random()<TUNE.hit.steadyMiss)){
-    msg="<b>"+m.name+"</b> misses you."; fx=function(){ SL.push({k:"whiff",x:px,y:py,big:m.boss,t:0}); };
+    msg="<b>"+m.name+"</b> "+(how==="charge"?"charges in but misses you.":"misses you."); fx=function(){ SL.push({k:"whiff",x:px,y:py,big:m.boss,t:0}); };
   } else {
     var d=Math.max(0,m.atk+(G.curse||0)-def()+ri(-1,1)-(how==="shot"?1:0));
     if(d===0 && Math.random()<.3) d=1;
     if(d>0&&G.ward>0){ G.ward--; var wl=G.ward; msg="Guardian Light blocks <b>"+m.name+"</b>."+(wl?" ("+wl+" left)":" It fades."); fx=function(){ SL.push({k:"block",x:px,y:py,t:0}); sparks(px,py,["#7ff5e6","#e6fffb"],10,.9); float(px,py,"warded","#7ff5e6"); }; }
-    else if(d===0){ msg="Your shield blocks <b>"+m.name+"</b>."; fx=function(){ SL.push({k:"block",x:px,y:py,t:0}); sparks(px,py,["#8fd8ff","#e6f7ff"],8,.8); float(px,py,"block","#8fd8ff"); }; }
+    else if(d===0){ msg=how==="charge"? "<b>"+m.name+"</b> charges in. Your shield blocks it." : "Your shield blocks <b>"+m.name+"</b>."; fx=function(){ SL.push({k:"block",x:px,y:py,t:0}); sparks(px,py,["#8fd8ff","#e6f7ff"],8,.8); float(px,py,"block","#8fd8ff"); }; }
     else {
       if(hpView==null) hpView=G.hp;
       G.hp-=d; msg="<b>"+m.name+"</b> "+(how==="charge"?"charges in and hits":how==="shot"?"shoots you for":"hits you for")+(how==="charge"?" you for ":" ")+d+".";
@@ -803,7 +841,7 @@ function later(delay,f){ var t=performance.now()+delay*1000; VQ.push({t:t,f:f});
 function runVQ(){ var now=performance.now(); for(var i=0;i<VQ.length;i++){ if(VQ[i].t<=now){ var q=VQ.splice(i,1)[0]; i--; q.f(); } } if(!VQ.length&&hpView!=null){ hpView=null; if(G) hud(); } }
 function pickup(it){
   var k=it.k;
-  if(k==="chest"){ G.items.splice(G.items.indexOf(it),1); openChest(); return; }
+  if(k==="chest"){ G.items.splice(G.items.indexOf(it),1); openChest(it.boss?"boss":false); return; }
   if(k==="vchest"){ G.items.splice(G.items.indexOf(it),1); sparks(it.x,it.y,["#f2c14e","#fff3c4"],18,1.1); openChest(true); return; }
   if(k==="oldchest"){ G.items.splice(G.items.indexOf(it),1); openOld(); say("Phew, just treasure! This chest had <b>double loot</b>."); return; }
   var def0=ITEMS[k];
@@ -812,12 +850,12 @@ function pickup(it){
     if(k!=="tome" && !G.bag[k] && types.length>=7){ openSwap(it); return; }
     var nn=it.n||(k==="dagger"?3:1); G.bag[k]=(G.bag[k]||0)+nn;
     if(k==="dagger") say("You pick up "+nn+" <b>Throwing Daggers</b>. Tap them, then tap a monster.");
-    else say("You pick up "+(nn>1?nn+" ":"a ")+"<b>"+def0.name+"</b>.");
+    else say("You pick up "+(nn>1?nn+" ":"a ")+"<b>"+def0.name+"</b>."+(def0.r>0?rarTag(def0.r):""));
   } else if(k==="gems"){ var g=ri(2,4)+Math.floor(G.floor/2); G.shards+=g; float(G.px,G.py,"+"+g+"◆","#39e2d2"); say("<b>+"+g+" Shards.</b>"); }
-  else if(k==="heart"){ G.maxHp+=2; G.hp+=2; toast("i21","Heart Crystal: +2 max HP"); say("Max HP is now "+G.maxHp+"."); }
-  else if(k==="ring"){ G.rings=(G.rings||0)+1; toast("i22","Ring of Mending: heal 1 HP every "+Math.max(3,Math.round(8/G.rings))+" steps"); }
-  else if(k==="lantern"){ G.sight++; toast("i31","Lantern: you see farther"); }
-  else if(k==="chalice"){ G.hp=G.maxHp; toast("i35","Chalice of Green Builds: fully healed"); }
+  else if(k==="heart"){ G.maxHp+=2; G.hp+=2; toast("i21","Heart Crystal: +2 max HP"+rarTag(2)); say("Max HP is now "+G.maxHp+"."); }
+  else if(k==="ring"){ G.rings=(G.rings||0)+1; toast("i22","Ring of Mending: heal 1 HP every "+Math.max(3,Math.round(8/G.rings))+" steps"+rarTag(3)); }
+  else if(k==="lantern"){ G.sight++; toast("i31","Lantern: you see farther"+rarTag(2)); }
+  else if(k==="chalice"){ G.hp=G.maxHp; toast("i35","Chalice of Green Builds: fully healed"+rarTag(3)); }
   G.items.splice(G.items.indexOf(it),1);
 }
 // full backpack: offer to swap something out (the dropped stack stays on the floor)
@@ -828,22 +866,33 @@ function openSwap(it){
   el("swapList").innerHTML=BAG_ORDER.filter(function(k){return G.bag[k];}).map(function(k){ return '<button class="card" style="padding:8px 12px" data-drop="'+k+'"><img src="'+S(ITEMS[k].img)+'" alt=""><div><div class="t">Drop '+ITEMS[k].name+' ×'+G.bag[k]+'</div><div class="d">'+ITEMS[k].desc+'</div></div><div class="k"></div></button>'; }).join("");
   later(0,function(){ show("swapScreen"); });
 }
-function openChest(vault){
-  var f=G.floor;
-  if(vault||Math.random()<.7){
-    var isW=Math.random()<.5, list=isW?WEAP:SHLD, cur=isW?G.weapon:G.shield;
-    var idx=clamp(Math.round((isW? f*1.1+ri(-2,2) : f*1.3+ri(-2,1))+(vault?ri(2,4):0)),0,list.length-1);
+// kind: true = vault chest, "boss" = boss drop (both always gear), "supply" = never gear (an Old Chest's second roll)
+function openChest(kind){
+  var f=G.floor, L=TUNE.loot, vault=kind===true, sure=vault||kind==="boss";
+  if(sure||(kind!=="supply"&&Math.random()<L.gear[Math.min(G.gf||0,L.gear.length-1)])){
+    G.gf=(G.gf||0)+1;
+    var isW=Math.random()<.5, list=isW?WEAP:SHLD, cur=isW?G.weapon:G.shield, up=vault?L.vaultUp:kind==="boss"?L.bossUp:[0,0];
+    var idx=gearRoll(isW,vault?"vault":kind==="boss"?"boss":"chest");
     var fresh=keepGear(isW,idx); if(fresh) G.newGear.push((isW?"w":"s")+idx);
-    if(list[idx][2]>list[cur][2]){
+    var gp=function(j){ return isW?wFull(j):list[j][2]; };
+    if(gp(idx)>gp(cur)){
       if(isW) G.weapon=idx; else G.shield=idx;
-      toast(list[idx][0],"Found <b>"+list[idx][1]+"</b> ("+(isW?"⚔ +":"⛨ +")+list[idx][2]+")"+(fresh?". Kept in your Armory.":""));
+      toast(list[idx][0],"Found <b>"+list[idx][1]+(isW&&stars(idx)?" "+starTxt(idx):"")+"</b> ("+(isW?RARITY[rarOf(idx)]+", ⚔ +"+wFull(idx):RARITY[sRarOf(idx)]+", ⛨ +"+list[idx][2])+")"+(fresh?". Kept in your Armory.":""));
       say("You equip the <b>"+list[idx][1]+"</b>.");
-    } else if(fresh){ toast(list[idx][0],"<b>"+list[idx][1]+"</b> is kept in your Armory for later runs."); }
-    else { var g=(2+Math.floor(f/2))*(vault?2:1); G.shards+=g; toast(list[idx][0],list[idx][1]+": you have one. Melted for +"+g+"◆"); }
+    } else if(fresh){ toast(list[idx][0],"<b>"+list[idx][1]+"</b>"+(isW?" ("+RARITY[rarOf(idx)]+", ⚔ +"+wFull(idx)+")":" ("+RARITY[sRarOf(idx)]+", ⛨ +"+list[idx][2]+")")+" is kept in your Armory for later runs."); }
+    else { var g=(TUNE.shard.melt[0]+Math.floor(f/TUNE.shard.melt[1]))*(vault?2:1); G.shards+=g; toast(list[idx][0],list[idx][1]+" ("+RARITY[isW?rarOf(idx):sRarOf(idx)]+")"+": you have one. Melted for +"+g+"◆"); }
   } else {
     var a=pickW({potion:ITEMS.potion,bomb:ITEMS.bomb,dagger:ITEMS.dagger,fire:ITEMS.fire,ice:ITEMS.ice,map:ITEMS.map,strength:ITEMS.strength,tome:ITEMS.tome}), na=a==="dagger"?3:1;
     G.bag[a]=(G.bag[a]||0)+na; toast(ITEMS[a].img,"Chest: <b>"+(na>1?na+" ":"")+ITEMS[a].name+"</b>");
   }
+}
+function gearRoll(isW,src){
+  var L=TUNE.loot, T=L.rar[src], t=clamp((G.floor-1)/11,0,1), w=[0,1,2,3].map(function(r){ return T[0][r]+(T[1][r]-T[0][r])*t; });
+  if(G.floor<L.legFrom){ w[2]+=w[3]; w[3]=0; }
+  var tot=w[0]+w[1]+w[2]+w[3], x=Math.random()*tot, r=0; while(r<3&&x>=w[r]){ x-=w[r]; r++; }
+  var ro=isW?rarOf:sRarOf, list=isW?WEAP:SHLD, ids=[];
+  for(var i=0;i<list.length;i++) if(ro(i)===r) ids.push(i);
+  return ids[ri(0,ids.length-1)];
 }
 function healAmt(k){ var f=G?G.floor:1, T=TUNE.heal; return k==="potion"? T.potion+Math.floor(f/T.potionPer) : T.bandage+Math.floor(f/T.bandagePer); }
 function useItem(k){
@@ -961,6 +1010,7 @@ function die(won){
     more+='<div>Level <b>'+G.lvl+'</b> '+(won?'reached.':'lost.'+(G.lvl>1?' You start at level 1 next run.':''))+'</div>';
     if(G.newGear.length) more+='<div>Kept forever in your Armory:</div><div class="row">'+G.newGear.map(function(g){ var it=(g.charAt(0)==="w"?WEAP:SHLD)[+g.slice(1)]; return '<img src="'+S(it[0])+'" alt="'+it[1]+'" title="'+it[1]+'">'; }).join("")+'</div>';
     if(G.newLog.length) more+='<div><b>'+G.newLog.length+'</b> new in your Bug Log</div>';
+    if(G.scrapRun) more+='<div><b>+'+G.scrapRun+' Scrap</b> for the Blacksmith ('+meta.scrap+' total)</div>';
     more+='<div>Your best: <b>B'+meta.best+'</b>'+(meta.wins?' · beat The Delve ×'+meta.wins:'')+'</div>';
     if(G.daily) more+='<div style="color:var(--glow)">Daily Dungeon '+G.daily+': '+(dNew?'<b>new best B'+meta.daily.best+'!</b>':'your best today is <b>B'+meta.daily.best+'</b>')+'</div>';
     el("deadMore").innerHTML=more;
@@ -1099,7 +1149,7 @@ function openShrine(){
   if(!s.offer){ var pool=SHRINE.map(function(c){return c.id;}), pick=[]; while(pick.length<3) pick.push(pool.splice(ri(0,pool.length-1),1)[0]); s.offer=pick; persist(); }
   if(window.__delveFast){ var ok=s.offer.filter(function(id){ return !shDef(id).can(); }); if(ok.length) pray(ok[ri(0,ok.length-1)]); else s.used=true; return; }
   armedSh=null; renderShrine(); show("shrineScreen");
-  setTimeout(function(){ var b=el("shrineList").querySelector(".card:not(.off)"); if(b&&!el("shrineScreen").hidden) b.focus({preventScroll:true}); },30);
+  try{ if(document.activeElement&&document.activeElement.blur) document.activeElement.blur(); }catch(e){}
 }
 function renderShrine(){
   el("shrineList").innerHTML=G.shrine.offer.map(function(id,n){ var c=shDef(id), why=c.can(), arm=armedSh===id;
@@ -1265,21 +1315,39 @@ el("heroGrid").addEventListener("click",function(e){
 });
 function beginRun(){ over=false; newRun(); show(null); render(); }
 function openLoad(){
-  if(meta.armory.w.length<2 && meta.armory.s.length<2){ beginRun(); return; }
+  if(meta.armory.w.length<2 && meta.armory.s.length<2 && !meta.scrap && !Object.keys(meta.forge||{}).length){ beginRun(); return; }
   if(meta.armory.w.indexOf(meta.loadout.w)<0) meta.loadout.w=0;
   if(meta.armory.s.indexOf(meta.loadout.s)<0) meta.loadout.s=0;
   function tiles(list,ids,cur,kind){
-    return ids.slice().sort(function(a,b){ return list[a][2]-list[b][2]||a-b; }).map(function(i){ var it=list[i];
-      return '<button class="ait'+(i===cur?" sel":"")+'" data-kind="'+kind+'" data-i="'+i+'" aria-pressed="'+(i===cur)+'"><img src="'+S(it[0])+'" alt=""><div class="n">'+it[1]+'</div><div class="v">+'+it[2]+(kind==="w"?" attack":" defense")+'</div><div class="f">'+(it[2]>1?"+1 at Lv 1, +"+it[2]+" by Lv "+it[2]:"full power from the start")+'</div></button>'; }).join("");
+    var pw=function(i){ return kind==="w"?wFull(i):list[i][2]; };
+    return ids.slice().sort(function(a,b){ return pw(a)-pw(b)||a-b; }).map(function(i){ var it=list[i], p=pw(i), r=kind==="w"?rarOf(i):sRarOf(i), st=kind==="w"?stars(i):0;
+      return '<button class="ait'+(i===cur?" sel":"")+(r>0?" r"+r:"")+(r===3&&st?" glow":"")+'" data-kind="'+kind+'" data-i="'+i+'" aria-pressed="'+(i===cur)+'">'+(st?'<span class="st">'+starTxt(i)+'</span>':'')+'<img src="'+S(it[0])+'" alt=""><div class="n">'+it[1]+'</div>'+(r>=0?'<div class="rar r'+r+'">'+RARITY[r].toUpperCase()+'</div>':'')+'<div class="v">+'+p+(kind==="w"?" attack":" defense")+'</div><div class="f">'+(p>1?"+1 at Lv 1, +"+p+" by Lv "+p:"full power from the start")+'</div></button>'; }).join("");
   }
   el("armW").innerHTML=tiles(WEAP,meta.armory.w,meta.loadout.w,"w");
   el("armS").innerHTML=tiles(SHLD,meta.armory.s,meta.loadout.s,"s");
+  renderForge();
   show("loadScreen");
 }
 el("loadScreen").addEventListener("click",function(e){
-  var b=e.target.closest(".ait"); if(!b) return; meta.loadout[b.dataset.kind]=+b.dataset.i; save(KM(),meta); openLoad();
+  var b=e.target.closest(".ait"); if(!b) return; forgeArmed=false; meta.loadout[b.dataset.kind]=+b.dataset.i; save(KM(),meta); openLoad();
 });
 el("goBtn").onclick=beginRun;
+// ---------- Blacksmith (camp only, so weapons never change mid-run) ----------
+var forgeArmed=false;
+function forgeInfo(i){ var st=stars(i), r=rarOf(i), mx=FORGE_MAX[r]; if(st>=mx) return {max:true,st:st,mx:mx,r:r}; var c=FORGE_COST[st]; return {st:st,mx:mx,r:r,sh:c[0],sc:c[1],ok:meta.bank>=c[0]&&(meta.scrap||0)>=c[1]}; }
+function renderForge(){
+  var i=meta.loadout.w, w=WEAP[i], f=forgeInfo(i), box=el("forgeBox"); if(!box) return;
+  el("smithBank").textContent="◆"+meta.bank+" · SCRAP "+(meta.scrap||0);
+  if(f.max){ forgeArmed=false; box.innerHTML='<div class="forge max"><img src="'+S(w[0])+'" alt=""><div><div class="t">'+w[1]+' '+starTxt(i)+'</div><div class="d">Forged all the way. '+RARITY[f.r]+' weapons max out at '+new Array(f.mx+1).join("★")+'.</div></div><div class="pr">MAX</div></div>'; return; }
+  var why=f.ok?"":(meta.bank<f.sh?"Need more Shards.":"Beat a boss for Scrap.");
+  box.innerHTML='<button class="forge'+(f.ok?"":" cant")+(forgeArmed&&f.ok?" armed":"")+'" id="forgeBtn"><img src="'+S(w[0])+'" alt=""><div><div class="t">Forge '+w[1]+' '+new Array(f.st+2).join("★")+'</div><div class="d">'+(forgeArmed&&f.ok?'Tap again to forge. ':'')+'⚔ +'+wFull(i)+' → <b style="color:var(--fg)">+'+(wFull(i)+1)+'</b> forever. '+RARITY[f.r]+': up to '+new Array(f.mx+1).join("★")+'. '+why+'</div></div><div class="pr">◆'+f.sh+'<br>SCRAP '+f.sc+'</div></button>';
+}
+function forgeNow(i){ if(i==null) i=meta.loadout.w; var f=forgeInfo(i); if(f.max||!f.ok) return false; meta.bank-=f.sh; meta.scrap-=f.sc; meta.forge[i]=f.st+1; save(KM(),meta); return true; }
+el("loadScreen").addEventListener("click",function(e){
+  var b=e.target.closest("#forgeBtn"); if(!b) return; var i=meta.loadout.w, f=forgeInfo(i); if(f.max||!f.ok) return;
+  if(!forgeArmed){ forgeArmed=true; renderForge(); return; }
+  forgeArmed=false; forgeNow(i); toast(WEAP[i][0],"Forged! <b>"+WEAP[i][1]+" "+starTxt(i)+"</b> is now ⚔ +"+wFull(i)+"."); openLoad();
+});
 // Seeded maps: every run gets a seed, and each floor's layout (rooms, monsters, loot, events) comes from
 // seed + floor number. Fights stay random. The Daily Dungeon uses today's date as the seed, so the whole
 // family plays the same floors today.
@@ -1323,7 +1391,8 @@ function maybeLevel(){
   el("cards").innerHTML=G.offer.map(function(id,n){ var c=CARDS.find(function(x){return x.id===id;}), im=c.img==="@w"?WEAP[G.weapon][0]:c.img==="@s"?SHLD[G.shield][0]:c.img, have=G.perks[id]||0;
     return '<button class="card'+(c.rare?" rare":"")+'" data-c="'+id+'" data-n="'+(n+1)+'"><img src="'+S(im)+'" alt=""><div><div class="t">'+(c.rare?'<span class="rtag">RARE</span> ':"")+c.n+(have?" "+["","II","III","IV","V","VI","VII","VIII","IX","X"][have]:"")+'</div><div class="d">'+c.d+'</div></div><div class="k">'+(n+1)+'</div></button>'; }).join("");
   armedCard=null; show("levelScreen");
-  setTimeout(function(){ var b=el("cards").querySelector(".card"); if(b&&!el("levelScreen").hidden) b.focus({preventScroll:true}); },30);
+  // v49: nothing is picked out when the cards open (Scott). Keys 1/2/3 still pick out a card.
+  try{ if(document.activeElement&&document.activeElement.blur) document.activeElement.blur(); }catch(e){}
 }
 function pickCard(id){
   if(!G||!G.offer||G.offer.indexOf(id)<0) return;
@@ -1424,7 +1493,7 @@ function openShop(){
   armedBuy=-1; if(!G.npc.met){ G.npc.met=true; persist(); }
   el("shopQuip").textContent="\u201C"+TINK_QUIP[ri(0,TINK_QUIP.length-1)]+"\u201D";
   renderShop(); show("shopScreen");
-  setTimeout(function(){ var b=el("shopList").querySelector(".card:not(.sold)"); if(b&&!el("shopScreen").hidden) b.focus({preventScroll:true}); },30);
+  try{ if(document.activeElement&&document.activeElement.blur) document.activeElement.blur(); }catch(e){}
 }
 // the original 8 heroes; once they are all bought, the Tinker also takes banked Shards
 var BASE_HEROES=["knight","plague","viking","frost","samurai","shroom","void","paladin"];
@@ -1467,7 +1536,7 @@ function openFount(){
   if(!G||!G.fount||over) return;
   if(G.fount.used){ say("The fountain is dry."); return; }
   armedF=-1; renderFount(); show("fountScreen");
-  setTimeout(function(){ var b=el("fountList").querySelector(".card:not(.cant)"); if(b&&!el("fountScreen").hidden) b.focus({preventScroll:true}); },30);
+  try{ if(document.activeElement&&document.activeElement.blur) document.activeElement.blur(); }catch(e){}
 }
 function renderFount(){
   el("fountList").innerHTML=fountOpts().map(function(o,i){ var arm=armedF===i;
@@ -1905,8 +1974,8 @@ function openSheet(){
    '<div class="top"><img src="'+S(hd.img)+'" alt=""><div><div class="nm">'+hd.name+'</div><div class="pk">'+hd.perk+'</div><div class="pk" style="color:var(--gold)">Level '+G.lvl+' · '+G.xp+'/'+need(G.lvl)+' XP</div></div></div>'+
    '<div class="stats"><div><span>HP</span><b>'+G.hp+'/'+G.maxHp+'</b></div><div><span>Attack</span><b>'+atk()+'</b></div><div><span>Defense</span><b>'+def()+'</b></div><div><span>Sight</span><b>'+G.sight+'</b></div></div>'+
    '<div class="sec">EQUIPPED</div><div class="gear">'+
-   '<div class="g"><img src="'+S(w[0])+'" alt=""><div><div class="t">'+w[1]+'</div><div class="d">Weapon. Attack = '+G.baseAtk+' base + '+wp+' from this.'+(wp<w[2]?' Full +'+w[2]+' at Lv '+w[2]+'.':'')+'</div></div><div class="v">⚔+'+wp+'</div></div>'+
-   '<div class="g"><img src="'+S(sh[0])+'" alt=""><div><div class="t">'+sh[1]+'</div><div class="d">Shield. Defense = '+G.baseDef+' base + '+sp+' from this.'+(sp<sh[2]?' Full +'+sh[2]+' at Lv '+sh[2]+'.':'')+'</div></div><div class="v">⛨+'+sp+'</div></div>'+
+   '<div class="g"><img src="'+S(w[0])+'" alt=""><div><div class="t">'+w[1]+(stars(G.weapon)?' '+starTxt(G.weapon):'')+' <span class="rar r'+rarOf(G.weapon)+'">'+RARITY[rarOf(G.weapon)].toUpperCase()+'</span></div><div class="d">Weapon. Attack = '+G.baseAtk+' base + '+wp+' from this.'+(wp<wFull(G.weapon)?' Full +'+wFull(G.weapon)+' at Lv '+wFull(G.weapon)+'.':'')+'</div></div><div class="v">⚔+'+wp+'</div></div>'+
+   '<div class="g"><img src="'+S(sh[0])+'" alt=""><div><div class="t">'+sh[1]+' <span class="rar r'+sRarOf(G.shield)+'">'+RARITY[sRarOf(G.shield)].toUpperCase()+'</span></div><div class="d">Shield. Defense = '+G.baseDef+' base + '+sp+' from this.'+(sp<sh[2]?' Full +'+sh[2]+' at Lv '+sh[2]+'.':'')+'</div></div><div class="v">⛨+'+sp+'</div></div>'+
    '</div>'+(Object.keys(G.perks).length?'<div class="sec">CARDS</div><div class="perks">'+Object.keys(G.perks).map(function(id){ var c=CARDS.find(function(x){return x.id===id;}), im=c.img==="@w"?w[0]:c.img==="@s"?sh[0]:c.img; return '<button data-p="'+id+'"><img src="'+S(im)+'" alt="">'+c.n+(G.perks[id]>1?" ×"+G.perks[id]:"")+'</button>'; }).join("")+'</div><div class="perktip" id="perkTip">Tap a card to see what it does.</div>':'')+
    shrineSheet()+'<div class="sec">BACKPACK</div><div class="gear">'+bag+'</div>'+
    '<div class="sec">THIS RUN</div><div class="run"><span>Floor <b>B'+G.floor+'</b></span><span><b>'+G.kills+'</b> squashed</span><span><b>'+G.shards+'</b> ◆ found</span><span><b>'+G.steps+'</b> steps</span></div>'+
@@ -2246,16 +2315,238 @@ drawMini=function(){
   G.items.forEach(function(it){ if(it.k==="chest"||it.k==="oldchest"||it.k==="vchest"){ mctx.fillStyle="#f2c14e"; mctx.fillRect(it.x*c+c*.2,it.y*rr+rr*.2,c*.6,rr*.6); } });
   G.mons.forEach(function(m){ if(!VIS[m.y*W+m.x]){ mctx.fillStyle="rgba(255,107,90,.7)"; mctx.fillRect(m.x*c+c*.2,m.y*rr+rr*.2,c*.6,rr*.6); } });
 };
+
+// ----- wandering monsters (v43): some monsters roam room to room instead of sleeping in place.
+// Lore: they've lived down here forever, so they know every spike trap and walk around them.
+// They hunt you the moment they're in your sight (the "!" pops up), so nothing jumps you from the dark.
+// A monster that's hunting you is too angry to watch its feet, so luring onto spikes still works.
+// No extra monsters: wanderers are picked from the monsters a floor already has.
+TUNE.wander={share:.3, deep:.45, deepFrom:4, retarget:4, notice:3}; // notice: how close (tiles) a wanderer you can see gets before it spots you
+var WDIR=[[1,0],[-1,0],[0,1],[0,-1]];
+function wanderBlock(x,y){ return wall(x,y)||!!trapAt(x,y)||shrineAt(x,y)||npcAt(x,y)||fountAt(x,y); }
+// steps from every tile to (tx,ty), going around walls and traps
+function wanderMap(tx,ty){
+  var d=new Int16Array(W*H).fill(-1), q=[tx,ty]; d[ty*W+tx]=0;
+  for(var i=0;i<q.length;i+=2){ var x=q[i],y=q[i+1],v=d[y*W+x];
+    for(var k=0;k<4;k++){ var nx=x+WDIR[k][0], ny=y+WDIR[k][1]; if(wanderBlock(nx,ny)) continue; var j=ny*W+nx; if(d[j]>=0) continue; d[j]=v+1; q.push(nx,ny); } }
+  return d;
+}
+// pick somewhere in a room (3+ open sides), a fair walk away
+function wanderGoal(m,rnd){ rnd=rnd||Math.random;
+  for(var k=0;k<80;k++){ var x=Math.floor(rnd()*W), y=Math.floor(rnd()*H); if(wanderBlock(x,y)) continue;
+    var open=0; for(var o=0;o<4;o++) if(!wall(x+WDIR[o][0],y+WDIR[o][1])) open++; if(open<3) continue;
+    if(Math.abs(x-m.x)+Math.abs(y-m.y)<6) continue;
+    m.wan={x:x,y:y,stuck:0}; return; }
+  m.wan={x:m.x,y:m.y,stuck:0};
+}
+function wanderStep(){
+  if(!G||!G.mons) return;
+  G.mons.forEach(function(m){
+    if(m.awake||!m.wan||m.boss||m.frozen>0) return;
+    var w=m.wan; if((m.x===w.x&&m.y===w.y)||w.stuck>=TUNE.wander.retarget){ wanderGoal(m); w=m.wan; }
+    var d=wanderMap(w.x,w.y), here=d[m.y*W+m.x], bd=here<0?1e9:here, best=null;
+    var dirs=WDIR.slice().sort(function(){ return Math.random()-.5; });
+    for(var k=0;k<4;k++){ var nx=m.x+dirs[k][0], ny=m.y+dirs[k][1];
+      if(wanderBlock(nx,ny)||monAt(nx,ny)||(nx===G.px&&ny===G.py)) continue;
+      var v=d[ny*W+nx]; if(v>=0&&v<bd){ bd=v; best=[nx,ny]; } }
+    if(best){ m.x=best[0]; m.y=best[1]; w.stuck=0; } else w.stuck++;
+  });
+}
+// wanderers move at the start of the monster turn; then the normal turn wakes any that walked into your sight
+var endTurnW=endTurn0;
+endTurn0=function(){ if(G&&!over) wanderStep(); endTurnW(); };
+// pick this floor's wanderers (seeded, so Daily Dungeon floors match). Done on the floor's first sight check,
+// so a run saved before wanderers existed gets them too.
+function pickWanderers(){
+  G.wanDone=1; var T=TUNE.wander, share=G.floor>=T.deepFrom?T.deep:T.share, rnd=G.seed!=null? mulberry(hashStr(G.seed+":wander:"+G.floor)) : Math.random;
+  G.mons.forEach(function(m){ if(m.boss||m.awake||m.mimic) return; if(rnd()<share) wanderGoal(m,rnd); });
+}
+var nextFloorW=nextFloor;
+nextFloor=function(){ if(G) G.wanDone=0; nextFloorW(); };
+// v46: you can SEE a wanderer roaming (blue "?") before it sees you. It only spots you when it's within TUNE.wander.notice tiles
+// (1 less for stealthy heroes), or when you hit it. Sleepers still wake the moment you see them.
+var fovW=computeFov0;
+computeFov0=function(){
+  if(G&&!G.wanDone) pickWanderers();
+  var was=G? G.mons.filter(function(m){ return m.wan&&!m.awake; }) : [];
+  fovW(); if(!G) return;
+  var hd=HD(), R=Math.max(1,TUNE.wander.notice-(hd.stealth?1:0)), hit=null;
+  was.forEach(function(m){ if(!m.awake) return; var dx=m.x-G.px, dy=m.y-G.py;
+    if(dx*dx+dy*dy>(R+.5)*(R+.5)){ m.awake=false; m.alert=0; } else if(!hit) hit=m; });
+  if(!meta.wanSeen){ var sw=G.mons.find(function(m){ return m.wan&&!m.awake&&VIS[m.y*W+m.x]; });
+    if(sw){ meta.wanSeen=1; save(KM(),meta); abToast(sw.id,"That <b>"+sw.name+"</b> is <b>wandering</b> <span style='color:#8fd8ff'>?</span> It hasn't seen you yet. Get close and it will!"); } }
+  if(hit&&!meta.wanTold){ meta.wanTold=1; save(KM(),meta); abToast(hit.id,"<b>"+hit.name+"</b> spotted you! Wanderers know where the spikes are, but chasers forget to look down."); }
+};
+// a blue "?" over a wanderer you can see that hasn't spotted you yet
+var drawMarksW=drawMarks;
+drawMarks=function(P,unit,dt){
+  drawMarksW(P,unit,dt); if(!G) return;
+  G.mons.forEach(function(m){ if(m.awake||!m.wan||!VIS[m.y*W+m.x]) return;
+    var c=P(m.rx,m.ry), b=REDUCE?0:Math.sin(last/320+m.x)*unit*.06, y=(GL? c[1]-(m._h||.95)*unit : c[1]-unit*.45)+b;
+    ctx.save(); ctx.textAlign="center"; ctx.font="bold "+Math.round(unit*.55)+"px Inter, system-ui, sans-serif"; ctx.lineWidth=4; ctx.strokeStyle="#000";
+    ctx.strokeText("?",c[0],y); ctx.fillStyle="#8fd8ff"; ctx.fillText("?",c[0],y); ctx.restore(); });
+};
 if(!G&&!el("title").hidden) renderTitle(); // boot title ran before these heroes existed
 window.__delveHeroes={list:HERO2,cards:HCARDS,feat:featCheck,hc:HC,pud:pudAt};
 
-window.__fpDelveHook&&window.__fpDelveHook({get G(){return G;},set G(v){G=v;},get meta(){return meta;},set meta(v){meta=v;},get slots(){return slots;},set slots(v){slots=v;},get over(){return over;},set over(v){over=v;},get wantDaily(){return wantDaily;},set wantDaily(v){wantDaily=v;},get SCREENS(){return SCREENS;},set SCREENS(v){SCREENS=v;},get MON(){return MON;},set MON(v){MON=v;},get BOSS(){return BOSS;},set BOSS(v){BOSS=v;},get REDUCE(){return REDUCE;},set REDUCE(v){REDUCE=v;},get HEROES(){return HEROES;},set HEROES(v){HEROES=v;},get KM(){return KM;},set KM(v){KM=v;},get KR(){return KR;},set KR(v){KR=v;},get load(){return load;},set load(v){load=v;},get save(){return save;},set save(v){save=v;},get drop(){return drop;},set drop(v){drop=v;},get el(){return el;},set el(v){el=v;},get show(){return show;},set show(v){show=v;},get say(){return say;},set say(v){say=v;},get esc(){return esc;},set esc(v){esc=v;},get S(){return S;},set S(v){S=v;},get toast(){return toast;},set toast(v){toast=v;},get newRun(){return newRun;},set newRun(v){newRun=v;},get nextFloor(){return nextFloor;},set nextFloor(v){nextFloor=v;},get die(){return die;},set die(v){die=v;},get killMon(){return killMon;},set killMon(v){killMon=v;},get bossCard(){return bossCard;},set bossCard(v){bossCard=v;},get renderLog(){return renderLog;},set renderLog(v){renderLog=v;},get renderTitle(){return renderTitle;},set renderTitle(v){renderTitle=v;},get openLoad(){return openLoad;},set openLoad(v){openLoad=v;},get switchSlot(){return switchSlot;},set switchSlot(v){switchSlot=v;},get loadMeta(){return loadMeta;},set loadMeta(v){loadMeta=v;},get saveSlots(){return saveSlots;},set saveSlots(v){saveSlots=v;},get persist(){return persist;},set persist(v){persist=v;},get hashStr(){return hashStr;},set hashStr(v){hashStr=v;},get curSlot(){return curSlot;},set curSlot(v){curSlot=v;},get render(){return render;},set render(v){render=v;},get beginRun(){return beginRun;},set beginRun(v){beginRun=v;}});
+// ----- Beast Knight (v48): tames a monster that fights beside you. Scott's art (sp/h50). -----
+// Tame: a monster next to you at half HP or less, or a wandering "?" up to 2 tiles away that hasn't spotted you (any HP).
+// Never bosses, Elites or Mimics. Taming takes your turn and gives no XP. One pet at a time.
+// The pet acts after you and before the monsters, and moves OR attacks (a tamed Charger loses its charge; a tamed Shooter shoots).
+// It follows you, knows the spikes, comes down the stairs. Walk into it to swap places. Monsters go for you first and hit
+// the pet only when it's the only thing next to them. Pet squashes count as yours.
+TUNE.pet={wanderReach:2, follow:2, hunt:4, stairsHeal:3, bondAtk:2};
+HEROES.push({id:"beast",img:"h50",name:"Beast Knight",perk:"Tame: a monster next to you at half HP or less (or a wandering ? up to 2 tiles away) fights for you. 11 HP, -1 attack.",cost:220,hp:11,atk:-1,tame:1});
+img("h50");
+HCARDS.beast=["Pack Bond","Your pet hits 2 harder and heals to full on every new floor."];
+(function(){ var h=HEROES[HEROES.length-1], c={id:"hc_beast",n:HCARDS.beast[0],d:HCARDS.beast[1],img:h.img,hero:h.id};
+  Object.defineProperty(c,"max",{get:function(){ return (G&&G.hero==="beast"&&G.lvl>=3)?1:0; }}); CARDS.push(c); })();
+function petAt(x,y){ var p=G&&G.pet; return !!(p&&p.x===x&&p.y===y); }
+var npcAtP=npcAt; npcAt=function(x,y){ return npcAtP(x,y)||petAt(x,y); }; // the pet blocks monsters, wanderers and dashes like the Tinker does
+function tameable(m){
+  if(!G||!HD().tame||m.boss||m.elite||m.mimic) return false;
+  var d=Math.abs(m.x-G.px)+Math.abs(m.y-G.py);
+  if(d===1&&m.hp<=m.max/2) return true;
+  return !m.awake&&!!m.wan&&VIS[m.y*W+m.x]&&d<=TUNE.pet.wanderReach&&los(G.px,G.py,m.x,m.y);
+}
+function tameList(){ return G&&!over? G.mons.filter(tameable) : []; }
+function tame(m){
+  if(!G||over||lvWait||!screensClosed()) return false;
+  m=m||tameList().sort(function(a,b){ return a.hp/a.max-b.hp/b.max; })[0]; if(!m||!tameable(m)) return false;
+  if(AIM) AIM=null;
+  var old=G.pet; G.mons.splice(G.mons.indexOf(m),1);
+  G.pet={id:m.id,name:m.name,x:m.x,y:m.y,rx:m.x,ry:m.y,hp:m.max,max:m.max,atk:m.atk,def:m.def,tier:m.tier,ab:ABIL[m.id]||null,flash:0};
+  if(m.x!==G.px) G.face=m.x>G.px?1:-1;
+  meta.log[m.id]=meta.log[m.id]||0; if(!meta.log[m.id]){ meta.log[m.id]=1; G.newLog.push(m.id); } save(KM(),meta);
+  sparks(m.x,m.y,["#6fe39b","#c8ffd8","#f2c14e"],20,1.1); float(m.x,m.y,"♥ TAMED","#6fe39b");
+  if(m.key) gotKey(m);
+  toast(m.id,"<b>"+m.name+"</b> is your pet now!"+(old?" Your <b>"+old.name+"</b> runs off home.":"")+(G.pet.ab==="shoot"?" It shoots for you.":""));
+  say("You tame <b>"+m.name+"</b>. It fights beside you. ("+G.pet.hp+"/"+G.pet.max+")");
+  if(!meta.tameTold){ meta.tameTold=1; save(KM(),meta); abToast("h50","Pets follow you and fight. Walk into yours to swap places."); }
+  endTurn(); return true;
+}
+function petAtk(){ var p=G.pet; return p.atk+(HC("beast")?TUNE.pet.bondAtk:0); }
+function petHits(m,how){
+  var p=G.pet, d=Math.max(1,petAtk()-m.def+ri(-1,1)-(how==="shot"?1:0));
+  if(how==="shot") shoot(p.x,p.y,m.x,m.y,"shot"); else { p.rx=p.x+(m.x-p.x)*.4; p.ry=p.y+(m.y-p.y)*.4; SL.push({k:"slash",x:m.x,y:m.y,dir:m.x>p.x?1:-1,big:false,t:0}); }
+  sparks(m.x,m.y,["#c8ffd8","#6fe39b"],8,.8); struck=true;
+  var nm=m.name; dmg(m,d);
+  if(G.mons.indexOf(m)<0) say("Your <b>"+p.name+"</b> squashes <b>"+nm+"</b>!"); else say("Your <b>"+p.name+"</b> "+(how==="shot"?"shoots":"bites")+" <b>"+nm+"</b> for "+d+".");
+}
+function petLine(p,m){ // a tamed Shooter: straight line, up to 3 tiles, nothing in the way
+  var dx=m.x-p.x, dy=m.y-p.y; if(dx&&dy) return false; var n=Math.abs(dx+dy); if(n<2||n>3) return false; var sx=Math.sign(dx), sy=Math.sign(dy);
+  for(var r=1;r<n;r++){ var x=p.x+sx*r, y=p.y+sy*r; if(wall(x,y)||monAt(x,y)||(x===G.px&&y===G.py)) return false; } return true;
+}
+function petTurn(){
+  var p=G&&G.pet; if(!p||over) return;
+  if(p.frozen>0){ p.frozen--; return; }
+  var foes=G.mons.filter(function(m){ return m.awake&&VIS[m.y*W+m.x]; });
+  var adj=foes.filter(function(m){ return Math.abs(m.x-p.x)+Math.abs(m.y-p.y)===1; });
+  if(adj.length){ adj.sort(function(a,b){ return (Math.abs(a.x-G.px)+Math.abs(a.y-G.py))-(Math.abs(b.x-G.px)+Math.abs(b.y-G.py))||a.hp-b.hp; }); petHits(adj[0]); return; }
+  if(p.ab==="shoot"){ var tg=foes.find(function(m){ return petLine(p,m); }); if(tg){ petHits(tg,"shot"); return; } }
+  var dh=Math.abs(p.x-G.px)+Math.abs(p.y-G.py), goal=null;
+  var near=foes.filter(function(m){ return Math.abs(m.x-G.px)+Math.abs(m.y-G.py)<=TUNE.pet.hunt; }).sort(function(a,b){ return (Math.abs(a.x-p.x)+Math.abs(a.y-p.y))-(Math.abs(b.x-p.x)+Math.abs(b.y-p.y)); })[0];
+  if(dh>TUNE.pet.follow+2) goal=[G.px,G.py]; else if(near) goal=[near.x,near.y]; else if(dh>TUNE.pet.follow) goal=[G.px,G.py];
+  if(!goal) return;
+  var d=wanderMap(goal[0],goal[1]), here=d[p.y*W+p.x], bd=here<0?1e9:here, best=null;
+  for(var k=0;k<4;k++){ var nx=p.x+WDIR[k][0], ny=p.y+WDIR[k][1];
+    if(wanderBlock(nx,ny)||monAt(nx,ny)||(nx===G.px&&ny===G.py)||(G.vault&&G.vault.x===nx&&G.vault.y===ny)) continue;
+    var v=d[ny*W+nx]; if(v>=0&&v<bd){ bd=v; best=[nx,ny]; } }
+  if(best){ p.x=best[0]; p.y=best[1]; }
+}
+function petHurt(m,delay){
+  var p=G.pet; if(!p) return;
+  if(Math.random()<TUNE.hit.monMiss){ later(delay,function(){ if(G&&G.pet===p) float(p.x,p.y,"miss","#9fb3b9"); }); return; }
+  var d=Math.max(1,m.atk-p.def+ri(-1,1)); p.hp-=d; var nm=m.name, pn=p.name, x=p.x, y=p.y, dead=p.hp<=0;
+  if(dead){ G.pet=null; G.petLost=(G.petLost||0)+1; }
+  later(delay,function(){ m.rx=m.x+(x-m.x)*.4; m.ry=m.y+(y-m.y)*.4; SL.push({k:"claw",x:x,y:y,big:false,t:0}); float(x,y,"-"+d,"#ff9a8a"); if(dead){ puff(x,y,14); say("<b>"+nm+"</b> took down your <b>"+pn+"</b>. Tame another!"); } else { p.flash=1; say("<b>"+nm+"</b> hits your <b>"+pn+"</b> for "+d+"."); } if(G) hud(); });
+}
+// the monster turn: your pet first, then the monsters; a monster that stood still next to your pet (and not next to you) hits the pet
+var endTurnB=endTurn;
+endTurn=function(){
+  if(!G||over||!G.pet) return endTurnB();
+  petTurn();
+  var before=new Map(); G.mons.forEach(function(m){ before.set(m,{x:m.x,y:m.y,frozen:m.frozen>0,aim:!!m.aim,awake:m.awake}); });
+  endTurnB(); if(!G||over||!G.pet) return;
+  var wait=.35, hit=false;
+  G.mons.slice().forEach(function(m){ var b=before.get(m), p=G.pet; if(!b||!p||G.mons.indexOf(m)<0) return;
+    if(b.frozen||!b.awake||!m.awake||b.aim||m.aim||m.x!==b.x||m.y!==b.y) return;
+    if(Math.abs(m.x-G.px)+Math.abs(m.y-G.py)===1||Math.abs(m.x-p.x)+Math.abs(m.y-p.y)!==1) return;
+    petHurt(m,wait); wait+=.22; hit=true; });
+  if(hit){ persist(); render(); }
+};
+// walk into your pet to swap places (a normal step)
+var actB=act;
+act=function(dx,dy){
+  var p=G&&G.pet;
+  if(p&&!over&&!lvWait&&screensClosed()&&(dx||dy)&&p.x===G.px+dx&&p.y===G.py+dy){ p.x=G.px; p.y=G.py; p.rx=p.x; p.ry=p.y; }
+  return actB(dx,dy);
+};
+// the pet comes down the stairs with you and lands next to you
+var nextFloorB=nextFloor;
+nextFloor=function(){
+  var p=G&&G.pet; if(G) G.pet=null; // keep it off the map while the new floor is built (Daily floors stay the same)
+  nextFloorB(); if(!p||!G) return;
+  if(HC("beast")) p.hp=p.max; else p.hp=Math.min(p.max,p.hp+TUNE.pet.stairsHeal); p.frozen=0;
+  var spot=null; for(var r=1;r<=3&&!spot;r++) for(var oy=-r;oy<=r&&!spot;oy++) for(var ox=-r;ox<=r&&!spot;ox++){ var x=G.px+ox, y=G.py+oy;
+    if((ox||oy)&&!wall(x,y)&&!trapAt(x,y)&&!monAt(x,y)&&!itemAt(x,y)&&!npcAtP(x,y)&&!fountAt(x,y)&&!shrineAt(x,y)&&!(x===G.sx&&y===G.sy)) spot=[x,y]; }
+  if(!spot) spot=[G.px,G.py]; p.x=p.rx=spot[0]; p.y=p.ry=spot[1]; G.pet=p; persist();
+};
+// Beast Knight smells like the dungeon: wanderers only notice him right next to him
+var fovB=computeFov0;
+computeFov0=function(){
+  var was=G? G.mons.filter(function(m){ return m.wan&&!m.awake; }) : [];
+  fovB(); if(!G||!HD().tame) return;
+  was.forEach(function(m){ if(!m.awake) return; var dx=m.x-G.px, dy=m.y-G.py; if(dx*dx+dy*dy>2.25){ m.awake=false; m.alert=0; } });
+};
+// HUD: a TAME button next to WAIT when something can be tamed
+var hudB=hud;
+hud=function(){ hudB(); if(!G||!HD().tame) return; var n=tameList().length, w=el("waitBtn"); if(!w||!n) return;
+  w.insertAdjacentHTML("beforebegin",'<button class="wait tame" id="tameBtn" aria-label="Tame a monster">♥ TAME</button>'); };
+el("bag").addEventListener("click",function(e){ var b=e.target.closest("#tameBtn"); if(b){ e.stopPropagation(); tame(); } },true);
+addEventListener("keydown",function(e){ if((e.key==="t"||e.key==="T")&&screensClosed()&&!(e.target&&e.target.tagName==="INPUT")) tame(); });
+(function(){ var st=document.createElement("style"); st.textContent=".wait.tame{color:#06210f;background:#6fe39b;border-color:#6fe39b;font-size:8px}"; document.head.appendChild(st); })();
+// drawing: the pet (2D and 3D), a green heart + green HP bar over it, a pulsing heart over monsters you can tame
+function petLerp(dt){ var p=G.pet, k=REDUCE?1:Math.min(1,dt*20); p.rx=lerp(p.rx==null?p.x:p.rx,p.x,k); p.ry=lerp(p.ry==null?p.y:p.ry,p.y,k); p.flash=Math.max(0,(p.flash||0)-dt*5); }
+var drawShrine2dB=drawShrine2d, petDt=0;
+drawShrine2d=function(){ drawShrine2dB(); var p=G&&G.pet; if(!p) return; petLerp(petDt);
+  ctx.fillStyle="rgba(0,0,0,.35)"; ctx.beginPath(); ctx.ellipse(camX+p.rx*TS+TS/2,camY+p.ry*TS+TS*.88,TS*.32,TS*.1,0,0,7); ctx.fill();
+  ctx.save(); if(!REDUCE){ ctx.shadowColor="#6fe39b"; ctx.shadowBlur=14; } var bx=spr(IMG[p.id],camX+(p.rx+.5)*TS,camY+(p.ry+.94)*TS,TS*.95); ctx.restore();
+  if(p.flash>0&&bx){ ctx.globalAlpha=p.flash*.7; ctx.globalCompositeOperation="lighter"; ctx.drawImage(IMG[p.id],bx.x,bx.y,bx.w,bx.h); ctx.globalCompositeOperation="source-over"; ctx.globalAlpha=1; } };
+var drawB=draw; draw=function(dt){ petDt=dt; drawB(dt); };
+var vault3dB=vault3d;
+vault3d=function(){ vault3dB(); var p=G&&G.pet;
+  if(!GL.petS){ if(!p) return; GL.petS=mkSprite(); }
+  if(!p){ GL.petS.visible=GL.petS.userData.sh.visible=false; return; }
+  petLerp(petDt3); p._h=setSprite(GL.petS,p.id,.95,p.rx,p.ry,false,true); var f=p.flash>0?1+p.flash*2:1; GL.petS.material.color.setRGB(.9*f,1.2*f,.92*f); };
+var petDt3=0, draw3dB=draw3d; draw3d=function(dt){ petDt3=dt; draw3dB(dt); };
+function heart(x,y,r,col,a){ ctx.save(); ctx.globalAlpha=a==null?1:a; ctx.fillStyle=col; ctx.strokeStyle="#062010"; ctx.lineWidth=2; ctx.beginPath();
+  ctx.moveTo(x,y+r*.9); ctx.bezierCurveTo(x-r*1.4,y-r*.1,x-r*.6,y-r*1.1,x,y-r*.35); ctx.bezierCurveTo(x+r*.6,y-r*1.1,x+r*1.4,y-r*.1,x,y+r*.9); ctx.closePath(); ctx.stroke(); ctx.fill(); ctx.restore(); }
+var drawMarksB=drawMarks;
+drawMarks=function(P,unit,dt){ drawMarksB(P,unit,dt); if(!G) return; var p=G.pet;
+  if(p){ var c=P(p.rx,p.ry), top=GL? c[1]-(p._h||.95)*unit : c[1]-unit*.5, bw=unit*.8;
+    ctx.fillStyle="#0f2a18"; ctx.fillRect(c[0]-bw/2,top-6,bw,4); ctx.fillStyle="#6fe39b"; ctx.fillRect(c[0]-bw/2,top-6,bw*Math.max(0,p.hp)/p.max,4);
+    heart(c[0]-unit*.4,top+unit*.16,Math.max(5,unit*.13),"#6fe39b"); }
+  if(HD().tame&&!over) tameList().forEach(function(m){ var c=P(m.rx,m.ry), top=GL? c[1]-(m._h||.95)*unit : c[1]-unit*.5, b=REDUCE?0:Math.sin(last/200)*.25;
+    heart(c[0],top-unit*.32,Math.max(6,unit*.16),"#6fe39b",.75+b); });
+};
+var drawMiniB=drawMini;
+drawMini=function(){ drawMiniB(); var p=G&&G.pet; if(!p) return; var c=mini.width/W, rr=mini.height/H; mctx.fillStyle="#6fe39b"; mctx.beginPath(); mctx.arc((p.x+.5)*c,(p.y+.5)*rr,Math.max(2,c*.6),0,7); mctx.fill(); };
+// the stats page shows your pet
+var openSheetB=openSheet;
+openSheet=function(){ openSheetB(); var p=G&&G.pet; if(!p||el("charScreen").hidden) return; var g=el("sheet").querySelector(".gear"); if(!g) return;
+  g.insertAdjacentHTML("afterend",'<div class="sec">PET</div><div class="gear"><div class="g"><img src="'+S(p.id)+'" alt=""><div><div class="t">'+p.name+'</div><div class="d">HP '+p.hp+'/'+p.max+' · hits for about '+petAtk()+(p.ab==="shoot"?" · shoots from 3 tiles":"")+'</div></div><div class="v">♥</div></div></div>'); };
+var BEAST={tame:tame,list:tameList,pet:function(){ return G&&G.pet; },turn:petTurn};
+window.__fpDelveHook&&window.__fpDelveHook({get G(){return G;},set G(v){G=v;},get meta(){return meta;},set meta(v){meta=v;},get slots(){return slots;},set slots(v){slots=v;},get over(){return over;},set over(v){over=v;},get wantDaily(){return wantDaily;},set wantDaily(v){wantDaily=v;},get SCREENS(){return SCREENS;},set SCREENS(v){SCREENS=v;},get MON(){return MON;},set MON(v){MON=v;},get BOSS(){return BOSS;},set BOSS(v){BOSS=v;},get REDUCE(){return REDUCE;},set REDUCE(v){REDUCE=v;},get HEROES(){return HEROES;},set HEROES(v){HEROES=v;},get KM(){return KM;},set KM(v){KM=v;},get KR(){return KR;},set KR(v){KR=v;},get load(){return load;},set load(v){load=v;},get save(){return save;},set save(v){save=v;},get drop(){return drop;},set drop(v){drop=v;},get el(){return el;},set el(v){el=v;},get show(){return show;},set show(v){show=v;},get say(){return say;},set say(v){say=v;},get esc(){return esc;},set esc(v){esc=v;},get S(){return S;},set S(v){S=v;},get toast(){return toast;},set toast(v){toast=v;},get newRun(){return newRun;},set newRun(v){newRun=v;},get nextFloor(){return nextFloor;},set nextFloor(v){nextFloor=v;},get die(){return die;},set die(v){die=v;},get killMon(){return killMon;},set killMon(v){killMon=v;},get bossCard(){return bossCard;},set bossCard(v){bossCard=v;},get renderLog(){return renderLog;},set renderLog(v){renderLog=v;},get renderTitle(){return renderTitle;},set renderTitle(v){renderTitle=v;},get openLoad(){return openLoad;},set openLoad(v){openLoad=v;},get switchSlot(){return switchSlot;},set switchSlot(v){switchSlot=v;},get loadMeta(){return loadMeta;},set loadMeta(v){loadMeta=v;},get saveSlots(){return saveSlots;},set saveSlots(v){saveSlots=v;},get persist(){return persist;},set persist(v){persist=v;},get hashStr(){return hashStr;},set hashStr(v){hashStr=v;},get curSlot(){return curSlot;},set curSlot(v){curSlot=v;},get render(){return render;},set render(v){render=v;},get beginRun(){return beginRun;},set beginRun(v){beginRun=v;},get abToast(){return abToast;},set abToast(v){abToast=v;},get stairSh(){return stairSh;},set stairSh(v){stairSh=v;}});
 window.__delve={version:VERSION,get:function(){return G;},meta:function(){return meta;},act:act,use:useItem,aim:function(){return AIM;},aimTap:aimTap,newRun:function(){ over=false; newRun(); show(null); render(); }};
 window.__delve.shrine={open:openShrine,pray:pray,leave:leaveShrine,at:shrineAt,place:function(){ var r=[{x:G.px-3,y:G.py-3,w:7,h:7}]; for(var i=0;i<40&&!(G.shrine);i++){ var x=G.px+ri(-2,2), y=G.py+ri(-2,2); if(!wall(x,y)&&!monAt(x,y)&&!itemAt(x,y)&&!(x===G.px&&y===G.py)&&!(typeof npcAt==="function"&&npcAt(x,y))&&!(typeof fountAt==="function"&&fountAt(x,y))) G.shrine={x:x,y:y,used:false,offer:null,seen:false}; } computeFov(); render(); return G.shrine; }};
+window.__delve.forge={info:forgeInfo,now:forgeNow,rar:rarOf,srar:sRarOf,roll:gearRoll,full:wFull,open:openLoad};
 window.__delve.tinker={open:openShop,buy:buyItem,leave:leaveShop,at:npcAt};
 window.__delve.fount={open:openFount,pick:pickFount,leave:leaveFount,at:fountAt};
 window.__delve.spikes={at:trapAt,dmg:spkDmg,frame:spkFrame,place:function(x,y){ G.traps=G.traps||[]; G.traps.push({x:x,y:y}); computeFov(); render(); return G.traps; }};
+window.__delve.wander={step:wanderStep,goal:wanderGoal,list:function(){ return G?G.mons.filter(function(m){ return m.wan&&!m.awake; }):[]; }};
 window.__delve.vault={at:vaultAt,shut:vaultShut,open:tryVault,get:function(){ return G&&G.vault; }};
+window.__delve.beast=BEAST;
 })();
 </script>
 
