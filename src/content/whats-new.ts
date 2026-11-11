@@ -22,7 +22,7 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
-    version: 218,
+    version: 219,
     date: "2026-11-10",
     items: [
       {
@@ -40,7 +40,7 @@ export const WHATS_NEW: WhatsNewEntry[] = [
     ],
   },
   {
-    version: 217,
+    version: 218,
     date: "2026-11-10",
     items: [
       {
@@ -64,6 +64,18 @@ export const WHATS_NEW: WhatsNewEntry[] = [
         kind: "fix",
         title: "Bug titles say \"does not go up\"",
         text: "An automatic bug title for an expected result like \"Cart count goes up\" said \"does not goe up\". It now says \"does not go up\".",
+      },
+    ],
+  },
+  {
+    version: 215,
+    date: "2026-11-10",
+    items: [
+      {
+        kind: "fix",
+        title: "Security update",
+        text: "A newer version of the part that reads uploaded test results closes a low-severity security alert. Nothing changes in how you use it.",
+        who: "workspace",
       },
     ],
   },
