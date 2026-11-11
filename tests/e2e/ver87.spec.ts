@@ -83,6 +83,10 @@ test("invite message, Test cycles label, roomier runner, underlined links and Sk
   await expect(nav.getByText("Test cycles · 4.2")).toBeVisible();
   await expect(nav.getByRole("link", { name: "Web", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(nav.getByRole("link", { name: "iOS", exact: true })).toBeVisible();
+  // ver_222: this release's platforms share one line as small buttons, so Testing takes less room.
+  const webBox = (await nav.getByRole("link", { name: "Web", exact: true }).boundingBox())!;
+  const iosBox = (await nav.getByRole("link", { name: "iOS", exact: true }).boundingBox())!;
+  expect(Math.abs(webBox.y - iosBox.y)).toBeLessThan(4);
   await expect(nav.getByRole("link", { name: "Test cycle settings" })).toHaveCount(0);
   const settingsLinks = await nav.getByRole("list").last().getByRole("link").allTextContents();
   // ver_117: one Settings link; each test cycle is a row in it.
