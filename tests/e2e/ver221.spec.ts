@@ -73,3 +73,17 @@ test("leaving a look you didn't change puts back the usual fonts", async ({ page
     await db.$disconnect();
   }
 });
+
+test("case titles use the Heading font, so changing Text font leaves them alone", async ({ page }) => {
+  const db = new PrismaClient();
+  try {
+    await db.user.update({ where: { email: EMAIL }, data: { look: "retro", fontBody: "chakra-petch", fontHeading: "bungee" } });
+  } finally {
+    await db.$disconnect();
+  }
+  await signIn(page, EMAIL);
+  await page.goto("/p/SHOP/cases/1");
+  const title = page.getByRole("heading", { level: 1 });
+  await expect(title).toBeVisible();
+  expect(await title.evaluate((e) => getComputedStyle(e).fontFamily)).toMatch(/^"?Bungee/);
+});
