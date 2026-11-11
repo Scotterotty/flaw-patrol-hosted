@@ -22,6 +22,23 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 223,
+    date: "2026-11-10",
+    items: [
+      {
+        kind: "better",
+        title: "Hints in the bug form",
+        text: "Write a bug no longer says \"from run\" or \"from case\" when there's no run. Empty boxes show a gray hint of what goes there, like Client Version or xx.xx.x for CSP.",
+        link: "/how-to?task=write-bug",
+      },
+      {
+        kind: "better",
+        title: "Repro rate and Build # fill themselves in",
+        text: "In the OKO bug form, Repro rate copies Repros, and Build # takes the version numbers from Client and CSP (Version 4.21.0 - CSP 7.1.0). Type in either one to set it yourself.",
+      },
+    ],
+  },
+  {
     version: 222,
     date: "2026-11-10",
     items: [

@@ -9,7 +9,7 @@ import { JIRA_FILE_LIMIT, mbText, tooBigForJira } from "@/lib/jira-files";
 import type { Severity } from "@prisma/client";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { buildLine } from "@/lib/bug-template";
+import { buildLine, stamp } from "@/lib/bug-template";
 import { CURRENT_ID, deviceCell, nowCell, PLAIN_ID, plainLayout, startAnswers, usualAnswersLine, type Answer, type BugLayout, type UsualAnswers } from "@/lib/bug-layout";
 import { defaultSeverityOf, type SeverityScale } from "@/lib/severity";
 import { bugTemplateChoices } from "@/server/bug-templates";
@@ -128,7 +128,7 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
       const before = draftRef.current;
       const real = layout ?? plainLayout();
       const typed = new Map((before?.answers ?? []).filter((a) => a.text.trim()).map((a) => [a.heading.trim().toLowerCase(), a] as const));
-      const answers = startAnswers(real, res.fill, { ...res.auto, now: nowCell(), device: deviceCell(navigator.userAgent) }).map((a) => {
+      const answers = startAnswers(real, res.fill, { ...res.auto, now: real.oko ? stamp() : nowCell(), device: deviceCell(navigator.userAgent) }).map((a) => {
         const old = typed.get(a.heading.trim().toLowerCase());
         return old && !a.rows && !a.files ? { ...a, text: old.text } : a;
       });
@@ -326,6 +326,8 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
               {draft.layout.oko ? (
                 // The same OKO form as a run's Report a bug: one OKO form wherever it appears.
                 <BugTemplateForm
+                  // Opened again when the test cycle, template or usual answers change, so its tags match what filled the boxes.
+                  key={`${projectId}-${draft.templateId}-${useUsual}`}
                   bug={draftToOko(draft)}
                   setBug={(fn) => setDraft((d) => (d ? okoIntoDraft(d, fn(draftToOko(d))) : d))}
                   options={{
@@ -346,6 +348,7 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
                   uploading={uploading}
                   capture={capture}
                   jiraLimit={toJira ? JIRA_FILE_LIMIT : null}
+                  from="written"
                 />
               ) : (
                 <TemplatedForm projectId={projectId} draft={draft} setDraft={(fn) => setDraft((d) => (d ? fn(d) : d))} severity={severity} setSeverity={setSeverity} scale={scale} setError={setError} />

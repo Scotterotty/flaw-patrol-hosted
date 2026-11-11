@@ -19,7 +19,7 @@ import { missingLine, TemplatedForm, TemplatePicker, type TemplateChoice, type T
 import { uploadAttachment } from "@/server/results";
 import { BugFiles, type BugCapture, type BugFile } from "./bug-files";
 import { JIRA_FILE_LIMIT, tooBigForJira } from "@/lib/jira-files";
-import { BugTemplateForm, type TemplateOptions } from "./bug-template-form";
+import { BugTemplateForm, type BugFrom, type TemplateOptions } from "./bug-template-form";
 import { PriorityLine } from "./jira-priority";
 import { RecordingBar, takeScreenshot, useCaptureSupport, useScreenRecorder } from "./screen-capture";
 import { Modal } from "./modal";
@@ -44,6 +44,7 @@ export function BugDialog({
   entryId,
   stepIndex,
   stepLabel,
+  from = "run",
   actual,
   attachments,
   others = [],
@@ -83,6 +84,8 @@ export function BugDialog({
   entryId: string;
   stepIndex: number | null;
   stepLabel: string;
+  /** A run's Report a bug, or a bug bash's File this bug: the OKO form's tags say which. */
+  from?: Exclude<BugFrom, "written">;
   actual: string;
   attachments: Attached[];
   /** Files taken elsewhere in this case (other steps, the whole case): offered in + Add ▾ › From this case. */
@@ -528,6 +531,7 @@ export function BugDialog({
                     onPick={pick}
                     capture={capture}
                     jiraLimit={jiraLimit}
+                    from={from}
                   />
                   {foundBox}
                 </>
