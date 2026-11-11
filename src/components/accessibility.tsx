@@ -179,9 +179,8 @@ export function EasyReadFont({ body, heading }: { body: string; heading: string 
   const pick = (id: string) => {
     setMine(id);
     document.documentElement.dataset.fontBody = id;
-    // High contrast and Blueprint looks set their own text font (ver_202).
-    if (!["hc", "blue"].includes(document.documentElement.dataset.look ?? ""))
-      for (const [k, v] of Object.entries(fontVars(id, heading))) document.documentElement.style.setProperty(k, v);
+    // Your text font shows in every look (ver_221).
+    for (const [k, v] of Object.entries(fontVars(id, heading))) document.documentElement.style.setProperty(k, v);
     start(async () => {
       const res = await updateMyBodyFont(id);
       setError(res.ok ? null : res.error);
