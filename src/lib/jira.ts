@@ -80,6 +80,28 @@ export function jiraValue(f: MetaField, v: FieldValue): unknown {
   return undefined;
 }
 
+/**
+ * Jira's complaint as one line, each thing said once. Jira often says the same thing
+ * twice, as "Team: Team is required." and again as "Team is required." for the field.
+ */
+export function jiraMessage(errorMessages: string[], errors: Record<string, string>): string {
+  const perField = Object.values(errors).map((m) => m.trim()).filter(Boolean);
+  const said = [...errorMessages.map((m) => m.trim()).filter((m) => m && !perField.some((f) => m.endsWith(f) || m.endsWith(`${f}.`))), ...perField];
+  return [...new Set(said)].join(" ");
+}
+
+/** "Bug Impact is required." -> "Bug Impact"; null when Jira's complaint isn't about a missing value. */
+export function requiredName(message: string): string | null {
+  const m = /^(?:[^:]+:\s*)?(.+?) is required\.?$/i.exec(message.trim());
+  return m ? m[1].trim() : null;
+}
+
+/** "Jira needs Team and Bug Impact. Fill them in and try again." */
+export function needsMessage(names: string[]): string {
+  const list = names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return `Jira needs ${list} before it will take this bug. Fill ${names.length === 1 ? "it" : "them"} in and try again.`;
+}
+
 export const UNREADABLE_TOKEN =
   "The saved Jira API token can't be read here. It was saved with a different AUTH_SECRET (from another copy of Flaw Patrol, or an older .env). Paste the API token again in Settings → Jira, and give every copy that shares this database the same AUTH_SECRET.";
 
@@ -197,7 +219,7 @@ export class JiraClient {
     if (res.status === 404) throw new JiraError("Not found in Jira.");
     if (!res.ok) {
       const body = (await res.json().catch(() => null)) as { errorMessages?: string[]; errors?: Record<string, string> } | null;
-      const msg = [...(body?.errorMessages ?? []), ...Object.values(body?.errors ?? {})].join(" ");
+      const msg = jiraMessage(body?.errorMessages ?? [], body?.errors ?? {});
       throw new JiraError(`Jira said: ${msg || res.statusText}`, body?.errors ?? {});
     }
     // Jira answers some writes (like issueLink's 201) with no body at all.
@@ -643,6 +665,18 @@ export class JiraClient {
         return { key, reporterSet, dropped: names, foundSet };
       } catch (e) {
         if (!(e instanceof JiraError) || /rejected|reach/.test(e.message)) throw e;
+        // A field Jira says is required is never dropped: that only made it refuse every other field too.
+        const required = Object.entries(e.fields).filter(([, m]) => requiredName(m));
+        // Filled in but held for the Edit screen: send it while creating instead.
+        const moved = required.filter(([id]) => later.has(id) && !dropped.has(id));
+        for (const [id] of moved) later.delete(id);
+        if (moved.length) continue;
+        const missing = [
+          ...required.map(([id, m]) => meta?.find((f) => f.id === id)?.name ?? requiredName(m)!),
+          // Jira sometimes names a missing field only in its general messages.
+          ...e.message.replace(/^Jira said:\s*/, "").split(/(?<=\.)\s+/).map(requiredName).filter((n): n is string => !!n),
+        ];
+        if (missing.length) throw new JiraError(needsMessage(missing.filter((n, i) => missing.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i)), e.fields);
         const blamed = Object.keys(e.fields);
         const before = dropped.size + Number(reporterSet);
         if (blamed.includes("reporter")) reporterSet = false;
