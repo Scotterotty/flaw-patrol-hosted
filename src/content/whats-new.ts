@@ -22,7 +22,7 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
-    version: 214,
+    version: 215,
     date: "2026-11-10",
     items: [
       {
@@ -30,6 +30,28 @@ export const WHATS_NEW: WhatsNewEntry[] = [
         title: "See each client's result in a dry run",
         text: "Give a test cycle a list of clients, like Web, Unreal and Unity iOS, in its Settings. Runs started after that show a grid with a column for each client, so you see at a glance which clients passed and which failed. Click a client's box to mark it or write a bug for just that client. In the runner each client gets a tab, and picking a result opens the next one. Flaw Patrol guesses which clients a case covers from its words; change it on the case.",
         link: "/g/{umbrella}/settings#test-cycles",
+      },
+    ],
+  },
+  {
+    version: 214,
+    date: "2026-11-10",
+    items: [
+      {
+        kind: "fix",
+        title: "Jira errors now name only what's really missing",
+        text: "When Jira wants a field you left empty, you see one short line like \"Jira needs Bug Impact\". Before, Flaw Patrol took out everything you had filled in and tried again, so the error listed every field, twice.",
+      },
+      {
+        kind: "fix",
+        title: "One OKO bug form everywhere",
+        text: "Write a bug with the OKO bug layout now shows the same form as Report a bug in a run: Web, Unity and Unreal buttons, Repro steps that number themselves, and Take screenshot and Record screen under + Add. Repro steps, Bug impact, Workaround, Build # and OKO Space Link go into Jira's own fields.",
+        link: "/g/{umbrella}/bugs?write=1",
+      },
+      {
+        kind: "better",
+        title: "Take screenshot and Record screen in Write a bug",
+        text: "Every template in Write a bug can now take a screenshot or record your screen, right next to + Attach files.",
       },
     ],
   },

@@ -28,7 +28,7 @@ const Section = ({ children, note }: { children: string; note?: string }) => (
 );
 
 /** Pick any number of a Jira field's options, as chips. */
-function Chips({ label, options, value, onChange }: { label: string; options: string[]; value: string[]; onChange: (v: string[]) => void }) {
+export function Chips({ label, options, value, onChange }: { label: string; options: string[]; value: string[]; onChange: (v: string[]) => void }) {
   const all = [...options, ...value.filter((v) => !options.includes(v))];
   return (
     <div role="group" aria-label={label} className="flex flex-wrap gap-1.5">
@@ -52,14 +52,14 @@ function Chips({ label, options, value, onChange }: { label: string; options: st
 }
 
 // Which clients it takes to see the bug: one, or a mix (a Web user and an Unreal user in one space).
-const REPRO_CLIENTS = ["Web", "Unity", "Unreal"];
+export const REPRO_CLIENTS = ["Web", "Unity", "Unreal"];
 
 /**
  * Carry a numbered list for the typist: Enter after "3. foo" starts "4. ",
  * Enter on an empty "4. " ends the list, and the numbers below renumber. Plain
  * text is left to the textarea.
  */
-function autoNumber(e: React.KeyboardEvent<HTMLTextAreaElement>, onChange: (v: string) => void) {
+export function autoNumber(e: React.KeyboardEvent<HTMLTextAreaElement>, onChange: (v: string) => void) {
   if (e.key !== "Enter" || e.shiftKey) return;
   const el = e.currentTarget;
   const { selectionStart, selectionEnd, value } = el;
