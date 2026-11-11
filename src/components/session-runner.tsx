@@ -317,7 +317,7 @@ export function SessionRunner({
             </Link>{" "}
             · version {entry.caseVersion}
           </p>
-          <h1 className="fp-name text-xl tracking-tight text-slate-900">{entry.title}</h1>
+          <h1 className="text-xl tracking-tight text-slate-900">{entry.title}</h1>
         </div>
         <div className="flex items-center gap-3 text-sm">
           <TypeBadge type="EXPLORATORY" />
