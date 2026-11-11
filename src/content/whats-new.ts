@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 225,
+    date: "2026-11-11",
+    items: [
+      {
+        kind: "better",
+        title: "Invite people to a bug bash any time",
+        text: "Press Invite people next to the timer on a bug bash for the join link, Copy link and a QR code. It's there the whole time the bash is on, not just right after Start.",
+      },
+    ],
+  },
+  {
     version: 224,
     date: "2026-11-10",
     items: [

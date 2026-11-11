@@ -12,6 +12,7 @@ import type { BashView } from "@/lib/bash-summary";
 import { clock } from "@/lib/charter";
 import { startsIn, whenLabel } from "@/lib/bash-schedule";
 import { AddToCalendar, ScheduleControls } from "./bash-schedule";
+import { JoinLink } from "./bash-start";
 import { bashBugFiled, coverBashPrompt, endBashEarly, fillBashItem, joinBash, logBashItem, mergeBashItems, plusOneBash, reviewBashItem, setBashTemplate, wrapUpBash } from "@/server/bashes";
 import { bashAnswers, isNeedsLine, isShot, needsOf, valuesOf, type BashValues } from "@/lib/bash-template";
 import { listWords } from "@/lib/bug-layout";
@@ -744,6 +745,14 @@ export function BashBoard({ bash, openJoin = false, openFind = null }: { bash: B
   const [kind, setKind] = useState<"all" | FindKind>("all");
   const [pending, start] = useTransition();
   const [ending, setEnding] = useState(false);
+  // Invite people (ver_225): the join link stays one tap away while the bash is on. Anyone in
+  // the bash sees it, since anyone with the link can already join.
+  const canInvite = bash.phase === "scheduled" || bash.phase === "live";
+  const [inviting, setInviting] = useState(false);
+  // Opened from Who's where further down: bring the box into view.
+  useEffect(() => {
+    if (inviting) document.getElementById("bash-invite-box")?.scrollIntoView({ block: "nearest" });
+  }, [inviting]);
   // The open find (click a row). A link with ?find= opens that one straight away.
   const [openId, setOpenId] = useState<string | null>(() => (openFind && bash.items.some((i) => i.id === openFind) ? openFind : null));
   const [done, setDone] = useState<string | null>(null);
@@ -785,6 +794,11 @@ export function BashBoard({ bash, openJoin = false, openFind = null }: { bash: B
           <Countdown bash={bash} className="mr-2 text-2xl font-semibold text-slate-900" />
           {bash.phase === "scheduled" && <AddToCalendar bash={{ id: bash.id, name: bash.name, startsAt: bash.startsAt, endsAt: bash.endsAt, areas: bash.areas.map((a) => a.name), by: bash.createdBy, homeKey: bash.homeKey }} />}
           {bash.phase === "scheduled" && bash.isOwner && <ScheduleControls bashId={bash.id} startsAt={bash.startsAt} homeKey={bash.homeKey} />}
+          {canInvite && (
+            <Button variant="primary" aria-expanded={inviting} aria-controls="bash-invite-box" onClick={() => setInviting((v) => !v)} data-howto="bash-invite-open">
+              Invite people
+            </Button>
+          )}
           {bash.isOwner && bash.phase === "live" && !ending && (
             <Button disabled={pending} onClick={() => setEnding(true)} data-howto="bash-end-early">
               End early
@@ -814,6 +828,17 @@ export function BashBoard({ bash, openJoin = false, openFind = null }: { bash: B
           )}
         </div>
       </div>
+      {canInvite && inviting && (
+        <section id="bash-invite-box" aria-label="Invite people" className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-surface px-4 py-3" data-testid="board-invite">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-slate-900">Invite people</h2>
+            <Button size="sm" onClick={() => setInviting(false)}>
+              Close
+            </Button>
+          </div>
+          <JoinLink bashId={bash.id} homeKey={bash.homeKey} howto="bash-invite-copy" note="Send it in chat or email. They pick an area and they're in." />
+        </section>
+      )}
       {canJoin && !joining && (
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-lg border border-slate-200 bg-surface px-4 py-3" data-testid="join-strip">
           <ol className="flex min-w-0 flex-1 flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600">
@@ -967,11 +992,20 @@ export function BashBoard({ bash, openJoin = false, openFind = null }: { bash: B
                     <button type="button" className="font-medium text-accent-700 hover:underline" onClick={() => setJoining(true)}>
                       Join
                     </button>{" "}
-                    and share the link.
+                    and{" "}
+                    <button type="button" className="font-medium text-accent-700 hover:underline" onClick={() => setInviting(true)}>
+                      invite people
+                    </button>
+                    .
                   </>
-                ) : (
-                  "Share the link."
-                )}
+                ) : canInvite ? (
+                  <>
+                    <button type="button" className="font-medium text-accent-700 hover:underline" onClick={() => setInviting(true)}>
+                      Invite people
+                    </button>
+                    .
+                  </>
+                ) : null}
               </p>
             ) : (
               <ul className="space-y-1.5 text-sm">
