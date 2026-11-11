@@ -104,8 +104,8 @@ const HISTORY: { key: keyof History; label: string; rows: number; tags?: Tags; h
   { key: "dateTime", label: "Date & time", rows: 2, tags: { run: "now", bash: "now", written: "now" }, hint: "2026/11/10" },
   { key: "client", label: "Client", rows: 2, tags: { run: "run build", bash: "bash build", written: "test cycle build" }, hint: "Client Version" },
   { key: "csp", label: "CSP", rows: 2, tags: { run: "run CSP", bash: "bash CSP" }, hint: "xx.xx.x" },
-  { key: "context", label: "Context", rows: 4, tags: { run: "remembered", bash: "remembered", written: "your browser" }, hint: "Browser\nGraphics Driver\nDevice\nOS", wide: true },
-  { key: "user", label: "User name & ID", rows: 3, tags: { run: "remembered", bash: "remembered", written: "your name" }, hint: "Display Name & ID", wide: true },
+  { key: "context", label: "Context", rows: 4, tags: { run: "remembered", bash: "remembered", written: "remembered" }, hint: "Browser\nGraphics Driver\nDevice\nOS", wide: true },
+  { key: "user", label: "User name & ID", rows: 3, tags: { run: "remembered", bash: "remembered", written: "remembered" }, hint: "Display Name & ID", wide: true },
   { key: "envTenant", label: "Env & tenant", rows: 3, tags: { run: "run env", bash: "bash env", written: "test cycle env" }, hint: "Env.\nTenant" },
   { key: "repros", label: "Repros", rows: 1, hint: "x/x" },
 ];
@@ -123,6 +123,9 @@ const T = {
 
 /** Was this box filled in when the form opened? Lists count when they have anything in them. */
 const hasValue = (v: unknown) => (Array.isArray(v) ? v.length > 0 : typeof v === "string" && v.trim() !== "");
+
+/** Text boxes in the bug form start roomy and grow with what you type (roomier bug form, Nov 10). */
+export const GROW = "field-sizing-content max-h-[60vh]";
 
 /**
  * The team bug template (OB-5292) as a form: the title in three parts, the
@@ -264,7 +267,7 @@ export function BugTemplateForm({
           <L htmlFor="t-what" auto={tag(T.what, opened.current.what)}>
             What happened
           </L>
-          <Textarea id="t-what" rows={3} value={bug.what} onChange={(e) => set("what", e.target.value)} placeholder="What went wrong, and what you expected instead" />
+          <Textarea id="t-what" rows={4} className={cx("min-h-28", GROW)} value={bug.what} onChange={(e) => set("what", e.target.value)} placeholder="What went wrong, and what you expected instead" />
         </div>
         <div>
           <L htmlFor="t-slack">Slack thread (optional)</L>
@@ -280,26 +283,34 @@ export function BugTemplateForm({
 
       <div className="space-y-2">
         <Section note={from === "written" ? "type what you know" : "filled in for you, edit anything"}>REPRODUCTION HISTORY</Section>
-        <div className="grid gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-4">
-          {HISTORY.map((h) => (
-            <div key={h.key} className={cx(h.wide && "sm:col-span-2")}>
-              <L htmlFor={`h-${h.key}`} auto={tag(h.tags, opened.current.history[h.key])}>
-                {h.label}
-              </L>
-              <Textarea id={`h-${h.key}`} rows={h.rows} value={bug.history[h.key]} onChange={(e) => setH(h.key, e.target.value)} placeholder={h.hint} className="text-[13px]" />
+        {/* Laid out by the box's own width, never a sideways scroll: 4 across in a wide box, 2 in a narrow one, 1 on a phone (roomier bug form, Nov 10). */}
+        <div className="@container rounded-lg border border-slate-200 p-3">
+          <div className="grid gap-3 @md:grid-cols-2 @3xl:grid-cols-4" data-testid="repro-history">
+            {HISTORY.map((h) => (
+              <div key={h.key} className={cx("min-w-0", h.wide && "@md:col-span-2")}>
+                <L htmlFor={`h-${h.key}`} auto={tag(h.tags, opened.current.history[h.key])}>
+                  {h.label}
+                </L>
+                <Textarea
+                  id={`h-${h.key}`}
+                  rows={2}
+                  value={bug.history[h.key]}
+                  onChange={(e) => setH(h.key, e.target.value)}
+                  placeholder={h.hint}
+                  className={cx("min-h-16 text-sm", GROW)}
+                />
+              </div>
+            ))}
+            <div>
+              <p className="mb-1 text-xs font-semibold text-slate-600">Attachments</p>
+              <p className={cx("py-1 text-sm", listed ? "text-slate-700" : "text-slate-500")}>{listed ? `${listed} file${listed === 1 ? "" : "s"}, linked` : "Inline Attachments"}</p>
             </div>
-          ))}
-          <div>
-            <p className="mb-1 text-xs font-semibold text-slate-600">Attachments</p>
-            <p className={cx("py-1 text-[13px]", listed ? "text-slate-700" : "text-slate-500")}>{listed ? `${listed} file${listed === 1 ? "" : "s"}, linked` : "Inline Attachments"}</p>
           </div>
         </div>
-        {from !== "written" && (
-          <p className="text-xs text-slate-500">
-            Context and User name &amp; ID are yours to type. Whatever you use is remembered for this client and filled in next time; change it whenever your
-            machine or account changes.
-          </p>
-        )}
+        <p className="text-xs text-slate-500">
+          Context and User name &amp; ID are yours to type. Whatever you use is remembered and filled in next time (User name &amp; ID for each environment);
+          change it whenever your machine or account changes.
+        </p>
       </div>
 
       <div className="space-y-3">
@@ -313,7 +324,7 @@ export function BugTemplateForm({
             onChange={(e) => set("reproSteps", e.target.value)}
             onKeyDown={(e) => autoNumber(e, (v) => set("reproSteps", v))}
             placeholder="Describe the steps to reproduce. Type 1. and press Enter to start a numbered list."
-            className="font-mono text-[12.5px]"
+            className={cx("min-h-48 font-mono text-[12.5px]", GROW)}
           />
         </div>
         <div className="grid gap-3.5 sm:grid-cols-2">
@@ -333,11 +344,11 @@ export function BugTemplateForm({
           </div>
           <div>
             <L htmlFor="t-impact">Bug impact</L>
-            <Textarea id="t-impact" rows={2} value={bug.impact} onChange={(e) => set("impact", e.target.value)} placeholder="Who is hurt, how badly" />
+            <Textarea id="t-impact" rows={3} className={cx("min-h-20", GROW)} value={bug.impact} onChange={(e) => set("impact", e.target.value)} placeholder="Who is hurt, how badly" />
           </div>
           <div>
             <L htmlFor="t-workaround">Bug workaround</L>
-            <Textarea id="t-workaround" rows={2} value={bug.workaround} onChange={(e) => set("workaround", e.target.value)} placeholder="None known" />
+            <Textarea id="t-workaround" rows={3} className={cx("min-h-20", GROW)} value={bug.workaround} onChange={(e) => set("workaround", e.target.value)} placeholder="None known" />
           </div>
         </div>
         <div>

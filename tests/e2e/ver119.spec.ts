@@ -110,7 +110,7 @@ test("make a bug template, report a bug with it, and add a row with I saw it aga
   await expect(filled).toContainText("crash.txt");
   await expect(dialog.getByTestId("template-missing")).toHaveCount(0);
   // The table: automatic cells filled in and still editable (ver_188), Repros typed.
-  const table = filled.getByRole("table", { name: "Repro history" });
+  const table = filled.getByRole("group", { name: "Repro history", exact: true });
   await expect(table.getByLabel("User name & ID")).toHaveValue("Demo Admin");
   await table.getByLabel("User name & ID").fill("Demo Admin (QA)");
   await table.getByLabel("Repros").fill("3/3");
