@@ -46,6 +46,7 @@ import { attempt, UserError } from "./result";
 import { jiraConfigFor } from "@/lib/umbrella";
 import { entryRegression } from "@/lib/regression-data";
 import { bugContext } from "@/lib/bug-context";
+import { draftToOko } from "@/lib/oko-draft";
 import { answersText, CURRENT_ID, layoutFromImported, layoutFromSettings, layoutTitle, listWords, missing, parseAnswers, parseLayout, PLAIN_ID, plainLayout, SAVED_ID, withFileNames, type Answer, type BugLayout, type RunFill } from "@/lib/bug-layout";
 import { currentLayout, templateHome } from "@/lib/bug-templates-data";
 import { FOUND_IN_FIELDS, foundInDraft, foundInRelease, matchVersion, parseFoundIn, type FoundInDraft } from "@/lib/found-in";
@@ -1131,7 +1132,9 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
     const summary = layoutTitle(layout.title, { platform: data.platform, area: data.area, build: data.build, summary: data.summary });
     const notes = data.notes.filter((n) => n.text.trim());
     // A written bug (no run entry) is marked in its saved layout, for the "Not from a run" chip.
-    const keep = { templateName: name, layout: (entryId ? layout : { ...layout, written: true }) as unknown as Prisma.InputJsonValue, answers: answers as unknown as Prisma.InputJsonValue, description: [answersText(answers), ...notes.map((n) => `${n.name}\n${n.text}`)].filter(Boolean).join("\n\n").slice(0, 60000) };
+    // The OKO layout keeps its Jira fields' answers (Team, Client/SKUs, Oly Environment) for Send to Jira later.
+    const kept = layout.oko ? { ...layout, fields: layout.fields.map((f) => ({ ...f, value: data.fields[f.id]?.length ? data.fields[f.id] : f.value })) } : layout;
+    const keep = { templateName: name, layout: (entryId ? kept : { ...kept, written: true }) as unknown as Prisma.InputJsonValue, answers: answers as unknown as Prisma.InputJsonValue, description: [answersText(answers), ...notes.map((n) => `${n.name}\n${n.text}`)].filter(Boolean).join("\n\n").slice(0, 60000) };
     const client = data.jira || local ? await jiraFor(projectId) : null;
     if (!client) {
       if (local) throw new UserError("Jira isn't connected for this test cycle.");
@@ -1171,21 +1174,28 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
     if (missingRequired.length) throw new UserError(`Fill in ${listWords(missingRequired.map((f) => f.name))} for Jira.`);
     const valueOf = new Map(layout.fields.map((f) => [f.name, (data.fields[f.id] ?? []).join(", ")]));
     const trace = traceOf(ctx);
-    const { key, reporterSet } = await client.createIssue({
-      summary,
-      description: (left) =>
-        answersAdf(answers, {
-          reportedBy: account && left.reporterSet ? null : tester,
-          extra: [...notes, ...extra, ...left.dropped.filter((n) => valueOf.get(n)).map((n) => ({ name: n, text: valueOf.get(n)! }))],
-          trace,
-        }),
-      severity: data.severity,
-      reporterId: account?.accountId,
-      fields,
-    });
+    let key: string, reporterSet: boolean;
     let attachError: string | null = null;
     let linkError: string | null = null;
-    attachError = (await client.attachEach(key, allFiles.map((f) => ({ fileName: f.fileName, contentType: f.contentType, data: f.data })))).note;
+    if (kept.oko) {
+      // The OKO layout files exactly as the OKO form does: every answer into Jira's own field.
+      const bug = draftToOko({ platform: data.platform, area: data.area, summary: data.summary, answers, fields: kept.fields });
+      ({ key, reporterSet, attachError, linkError } = await fileTemplateBug(client, bug, data.severity, account, tester, allFiles, trace));
+    } else {
+      ({ key, reporterSet } = await client.createIssue({
+        summary,
+        description: (left) =>
+          answersAdf(answers, {
+            reportedBy: account && left.reporterSet ? null : tester,
+            extra: [...notes, ...extra, ...left.dropped.filter((n) => valueOf.get(n)).map((n) => ({ name: n, text: valueOf.get(n)! }))],
+            trace,
+          }),
+        severity: data.severity,
+        reporterId: account?.accountId,
+        fields,
+      }));
+      attachError = (await client.attachEach(key, allFiles.map((f) => ({ fileName: f.fileName, contentType: f.contentType, data: f.data })))).note;
+    }
     const reporterNote =
       account && !reporterSet ? `Jira wouldn't let Flaw Patrol set you as the reporter of ${key}, so your name is in its description instead. Ask a Flaw Patrol admin to check Settings → Jira.` : null;
     const issue = await client.getIssue(key).catch(() => ({ key, summary, status: "", category: "new", url: `${client.creds.siteUrl}/browse/${key}`, severity: null, priority: "", type: "", parent: null, foundIn: null as string | null }));
