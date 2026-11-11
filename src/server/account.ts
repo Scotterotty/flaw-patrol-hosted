@@ -2,7 +2,7 @@
 
 import { cleanSpinners } from "@/lib/spinners";
 import { isRiskLook } from "@/lib/risk-looks";
-import { isLook } from "@/lib/looks";
+import { fontsAfterLook, isLook } from "@/lib/looks";
 import { isVision } from "@/lib/vision";
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -114,9 +114,12 @@ export async function updateMyLook(look: string) {
   return attempt(async () => {
     if (!isLook(look)) throw new UserError("Pick one of the looks in the list.");
     const user = await requireUser();
-    await db.user.update({ where: { id: user.id }, data: { look } });
+    // The look's own fonts fill in Text font and Heading font; your own picks stay (ver_221).
+    const me = await db.user.findUniqueOrThrow({ where: { id: user.id }, select: { look: true, fontBody: true, fontHeading: true } });
+    const fonts = fontsAfterLook(me.look, look, me);
+    await db.user.update({ where: { id: user.id }, data: { look, ...fonts } });
     revalidatePath("/", "layout");
-    return {};
+    return fonts;
   });
 }
 

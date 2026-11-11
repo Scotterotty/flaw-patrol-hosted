@@ -81,7 +81,7 @@ export default async function CaseVersionPage({ params, searchParams }: { params
       </nav>
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="fp-name text-xl tracking-tight">{v.title}</h1>
+          <h1 className="text-xl tracking-tight">{v.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
             Version {v.version} of {c.currentVersion} · {v.authorName || "Unknown"} · {dateTime(v.createdAt, await mySpelling(), await viewerZone())}
             {v.changeNote && ` · ${v.changeNote}`}

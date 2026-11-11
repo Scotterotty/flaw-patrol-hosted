@@ -959,7 +959,7 @@ export function Runner({
               · version {entry.caseVersion}
               {entry.folderPath && ` · ${entry.folderPath}`}
             </p>
-            <h1 className="fp-name text-xl tracking-tight text-slate-900">
+            <h1 className="text-xl tracking-tight text-slate-900">
               {entry.tags.length > 0 && (
                 <span className="mr-1.5 inline-flex gap-1 align-[3px]">
                   <TagPills tags={entry.tags} colors={tagColors} />

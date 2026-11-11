@@ -13,7 +13,7 @@ test.describe.configure({ mode: "serial" });
 const reset = async () => {
   const db = new PrismaClient();
   try {
-    await db.user.update({ where: { email: EMAIL }, data: { look: "classic", riskLook: null, fontBody: "poppins" } });
+    await db.user.update({ where: { email: EMAIL }, data: { look: "classic", riskLook: null, fontBody: "poppins", fontHeading: "bungee" } });
   } finally {
     await db.$disconnect();
   }
@@ -60,6 +60,8 @@ test("80s retrowave: its own dark screen, Righteous titles, a hint about the tex
   await expect.poll(() => html.evaluate((e) => getComputedStyle(e).getPropertyValue("--font-head"))).toContain("Righteous");
   await expect.poll(() => html.evaluate((e) => getComputedStyle(e).getPropertyValue("--font-body"))).toContain("Poppins");
   await expect(page.getByLabel("Text font")).toHaveValue("poppins");
+  // The look's title font shows in Heading font, where it can be changed (ver_221).
+  await expect(page.getByLabel("Heading font")).toHaveValue("righteous");
   // The sun and grid never take clicks.
   for (const pseudo of ["::before", "::after"]) {
     expect(await page.evaluate((p) => getComputedStyle(document.body, p).pointerEvents, pseudo)).toBe("none");
