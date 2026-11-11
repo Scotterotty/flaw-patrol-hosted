@@ -1,6 +1,6 @@
 {
   "name": "flaw-patrol",
-  "version": "0.3.0-alpha.216",
+  "version": "0.3.0-alpha.217",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -65,7 +65,7 @@
     "@prisma/client": "^6.19.3",
     "@types/qrcode": "^1.5.5",
     "exceljs": "^4.4.0",
-    "fast-xml-parser": "^5.11.2",
+    "fast-xml-parser": "^5.12.0",
     "html-to-image": "^1.11.11",
     "jszip": "^3.10.1",
     "next": "^15.5.28",
