@@ -1,7 +1,8 @@
 "use client";
 
 import type { Severity } from "@prisma/client";
-import { isDxdiag, isMedia, templateTitle, type History, type TemplateBug } from "@/lib/bug-template";
+import { useRef } from "react";
+import { isDxdiag, isMedia, templateTitle, withHistory, type History, type TemplateBug } from "@/lib/bug-template";
 import { AE_SCALE, type SeverityScale } from "@/lib/severity";
 import { AddMenu, FileTicks, type BugCapture, type BugFile } from "./bug-files";
 import { cx, Input, Select, Textarea } from "./ui";
@@ -143,13 +144,9 @@ export function BugTemplateForm({
   jiraLimit?: number | null;
 }) {
   const set = <K extends keyof TemplateBug>(k: K, v: TemplateBug[K]) => setBug((b) => ({ ...b, [k]: v }));
-  const setH = (k: keyof History, v: string) =>
-    setBug((b) => ({
-      ...b,
-      history: { ...b.history, [k]: v },
-      // Repro Rate follows Repros until it's changed by hand.
-      ...(k === "repros" && b.reproRate === b.history.repros ? { reproRate: v } : {}),
-    }));
+  // Repro rate follows Repros until it's typed in by hand; emptying it makes it follow again.
+  const rateByHand = useRef(false);
+  const setH = (k: keyof History, v: string) => setBug((b) => withHistory(b, k, v, rateByHand.current));
   const media = files.filter((f) => isMedia(f.contentType));
   const logs = files.filter((f) => !isMedia(f.contentType));
   const listed = files.filter((f) => include.has(f.id) && !isDxdiag(f.fileName)).length;
@@ -293,7 +290,11 @@ export function BugTemplateForm({
             <L htmlFor="t-rate" auto="from Repros">
               Repro rate
             </L>
-            <Input id="t-rate" value={bug.reproRate} onChange={(e) => set("reproRate", e.target.value)} />
+            <Input id="t-rate" value={bug.reproRate} onChange={(e) => {
+                rateByHand.current = e.target.value.trim() !== "";
+                set("reproRate", e.target.value);
+              }}
+            />
           </div>
           <div>
             <L htmlFor="t-impact">Bug impact</L>

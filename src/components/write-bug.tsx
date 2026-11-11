@@ -9,7 +9,7 @@ import { JIRA_FILE_LIMIT, mbText, tooBigForJira } from "@/lib/jira-files";
 import type { Severity } from "@prisma/client";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { CURRENT_ID, deviceCell, nowCell, PLAIN_ID, plainLayout, startAnswers, usualAnswersLine, type BugLayout, type UsualAnswers } from "@/lib/bug-layout";
+import { CURRENT_ID, deviceCell, nowCell, PLAIN_ID, plainLayout, startAnswers, usualAnswersLine, type Answer, type BugLayout, type UsualAnswers } from "@/lib/bug-layout";
 import { defaultSeverityOf, type SeverityScale } from "@/lib/severity";
 import { bugTemplateChoices } from "@/server/bug-templates";
 import { fileTemplatedBug, startTemplatedBug } from "@/server/jira";
@@ -23,6 +23,14 @@ import { RecordingBar, takeScreenshot, useCaptureSupport, useScreenRecorder } fr
 import type { CurrentLayout } from "@/lib/bug-templates-data";
 import { missingLine, TemplatedForm, TemplatePicker, type TemplateChoice, type TemplatedDraft } from "./templated-bug-form";
 import { Button, cx, ErrorText, Input, Select } from "./ui";
+
+/** An empty Repro rate, or an empty Repros cell in the Reproduction History row, starts at 1/1. */
+function startOneOfOne(a: Answer): Answer {
+  if (a.heading === "Repro rate") return a.text ? a : { ...a, text: "1/1" };
+  const col = a.columns?.findIndex((c) => c.name.trim().toLowerCase() === "repros") ?? -1;
+  if (col < 0 || !a.rows?.[0] || a.rows[0][col]) return a;
+  return { ...a, rows: [a.rows[0].map((v, i) => (i === col ? "1/1" : v)), ...a.rows.slice(1)] };
+}
 
 export type WriteBugCycle = { id: string; name: string };
 
@@ -112,8 +120,8 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
         const old = typed.get(a.heading.trim().toLowerCase());
         return old && !a.rows && !a.files ? { ...a, text: old.text } : a;
       });
-      // The OKO form starts Repro rate at 1/1, as in a run.
-      const started = real.oko ? answers.map((a) => (a.heading === "Repro rate" && !a.text ? { ...a, text: "1/1" } : a)) : answers;
+      // The OKO form starts Repros and Repro rate at 1/1, as in a run, so the two match from the start.
+      const started = real.oko ? answers.map(startOneOfOne) : answers;
       const fresh: TemplatedDraft = { templateId, layout: real, platform: before?.platform ?? "", area: before?.area ?? "", build: before?.build ?? "", summary: before?.summary ?? "", answers: started, fields: res.fields };
       const u = usualRef.current;
       setDraft(templateId === CURRENT_ID && u.usual && u.on ? withUsual(fresh, u.usual, true) : fresh);

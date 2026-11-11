@@ -219,6 +219,14 @@ export const QUIET_FIELDS = new Set<string>([FIELD.lastReproduced, FIELD.toBeAut
 
 export type History = { dateTime: string; client: string; csp: string; context: string; user: string; envTenant: string; repros: string };
 
+/**
+ * One Reproduction History box changed. Repro rate copies Repros (Scott, Nov 10: "take the repro
+ * rate from the Reproduction History box to save time") until Repro rate is typed in by hand.
+ */
+export function withHistory(b: TemplateBug, k: keyof History, v: string, rateByHand: boolean): TemplateBug {
+  return { ...b, history: { ...b.history, [k]: v }, ...(k === "repros" && !rateByHand ? { reproRate: v } : {}) };
+}
+
 /** Everything the tester can edit in the dialog before filing. */
 export type TemplateBug = {
   clientTag: string;
