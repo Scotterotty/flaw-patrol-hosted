@@ -65,7 +65,8 @@ export async function submitResult(projectId: string, entryId: string, input: Re
     if (!stepCountFits(stepCount, data.stepResults.length)) throw new UserError("The steps changed. Reload the page.");
 
     const sharedFiles = parseDraft(entry.draft)?.attachments.map((a) => a.id) ?? [];
-    const quests = user.gameEnabled && user.questMap;
+    // No quest map in a practice run (ver_217).
+    const quests = user.gameEnabled && user.questMap && !project.practiceFor;
     const worn = parseGear(user.questGear);
     const gear = quests && Object.keys(worn).length ? worn : null;
     const result = await db.$transaction(async (tx) => {

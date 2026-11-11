@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/session";
 import { attempt } from "./result";
 import { cleanQuery, ENOUGH_EXACT, matchKind } from "@/lib/fuzzy";
 import { toolById, toolsOn, type ToolId } from "@/lib/tools";
+import { NOT_PRACTICE } from "@/lib/practice";
 
 const CLOSE_MAX = 5;
 /** Close matches among candidates the exact search didn't find. */
@@ -37,6 +38,7 @@ async function scopeOf(user: { id: string; isAdmin: boolean }, groupId: string |
   const projects = await db.project.findMany({
     where: {
       ...(user.isAdmin ? {} : { members: { some: { userId: user.id } } }),
+      ...NOT_PRACTICE,
       ...(archived ? {} : { archivedAt: null }),
       ...(group ? { OR: [{ id: group.hubProjectId! }, { groupId: group.id }] } : {}),
     },

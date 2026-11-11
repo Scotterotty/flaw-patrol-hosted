@@ -58,6 +58,8 @@ export const projectAccessOrGuest = cache(async (key: string) => {
     },
   });
   if (!row) notFound();
+  // A practice run (ver_217) is only ever for the person trying it, admins included.
+  if (row.practiceFor && row.practiceFor !== user.id) notFound();
   const { hubOf, group, ...project } = row;
   const frame = { hubOf: hubOf?.id ?? null, group: group && { id: group.id, name: group.name, archivedAt: group.archivedAt, hubProjectId: group.hubProjectId } };
   const memberRole = project.members[0]?.role ?? null;
@@ -107,6 +109,7 @@ export async function requireProjectAction(projectId: string, action: Action) {
   const role: Role | null = user.isAdmin ? "ADMIN" : (member?.role ?? null);
   if (!role) throw new Forbidden();
   const project = await db.project.findUniqueOrThrow({ where: { id: projectId } });
+  if (project.practiceFor && project.practiceFor !== user.id) throw new Forbidden();
   const who: Who = { role, rules: await roleRulesFor(project) };
   if (!can(who, action)) throw new Forbidden();
   return { user, project, role, who };

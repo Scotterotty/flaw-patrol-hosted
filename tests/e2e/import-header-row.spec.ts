@@ -47,7 +47,9 @@ test("a checklist sheet with its column names on row 23 imports with section fol
 
   // 4. Per-run columns are left out.
   await expect(page.getByTestId("per-run-columns")).toContainText("Result, Bug Ticket");
-  await expect(page.getByTestId("per-run-columns")).toContainText("This sheet has 1 result too");
+  // ver_217: the one result can come in as a finished run; unticked here, so it waits for Bring them into a run.
+  await expect(page.getByTestId("sheet-results").getByRole("heading")).toHaveText("Your sheet has results for 1 of 53 cases");
+  await page.getByTestId("sheet-results-keep").uncheck();
 
   await expect(page.getByText("Preview: 53 cases")).toBeVisible();
   await expect(page.getByTestId("import-warnings")).toHaveCount(0);

@@ -45,7 +45,7 @@ export type HowToTask = {
 
 export const HOW_TO_GROUPS = ["Start here", "Write tests", "Run tests", "Bugs", "Bug bashes", "Results", "Settings", "Make it yours"] as const;
 /** "Start here" (ver_178): the first day, in the order you'd do it. */
-export const HOW_TO_START = ["first-ten-minutes", "find-your-way", "import-cases", "write-case", "create-run", "test-case", "report-bug", "invite", "search", "start-here"];
+export const HOW_TO_START = ["first-ten-minutes", "practice-run", "find-your-way", "import-cases", "import-sheet-results", "write-case", "create-run", "test-case", "report-bug", "invite", "search", "start-here"];
 export type HowToGroup = (typeof HOW_TO_GROUPS)[number];
 
 /** Every task has Show me on the steps that have a button to point at (ver_174 did 13, ver_175 the rest). ver_176 added a task for every feature that had none (Scott: every feature goes in the guide, so a new feature adds its task in the same build). */
@@ -66,6 +66,22 @@ export const HOW_TO: HowToTask[] = [
       { text: "Invite your team: on **Start here**, press **Invite**. (Only Admins invite people.)", see: "**Settings**, open at **Members**, where you add people by email.", target: "start-invite" },
     ],
     next: "find-your-way",
+  },
+  // ver_217: a private practice run, so the first run isn't real work.
+  {
+    id: "practice-run",
+    group: "Start here",
+    title: "Try a practice run",
+    sub: "3 sample cases only you see, to learn the runner and bugs",
+    words: "practice try sample demo tutorial learn first time safe sandbox playground new",
+    steps: [
+      { text: "In the left menu, press **Overview**.", see: "**Start here** near the top, with **New here? Try a 2-minute practice run**.", target: "menu-overview" },
+      { text: "Press **Try it**. (It says **Continue** if you've started one.)", see: "The runner, with a yellow **PRACTICE** note: only you see this run. It isn't in reports, Jira or Slack.", target: "practice-offer", saves: true },
+      { text: "Mark each step: press P for Passed or F for Failed. Press **Save and next** after each case.", see: "The next sample case." },
+      { text: "In **Sign in with a sample account**, step 2 is meant to fail. Press **Failed** under it, then **Report bug**, and save the bug.", see: "The bug linked on the step. It stays in the practice run." },
+      { text: "When you're done, press **Remove practice run** in the yellow note.", see: "Your umbrella again. The practice run is gone. It also goes away on its own after 7 days.", target: "practice-banner" },
+    ],
+    next: "test-case",
   },
   {
     id: "start-here",
@@ -293,6 +309,23 @@ export const HOW_TO: HowToTask[] = [
       { text: "Press **Create case** at the bottom. To write another right away, press **Create and new** instead.", see: "The case's page, with its key (like APP-12) and **Version 1** in **Version history**.", target: "case-save", saves: true },
     ],
     next: "make-suite",
+  },
+  // ver_217: a Google Sheet's Pass, Fail and Blocked come along with its cases.
+  {
+    id: "import-sheet-results",
+    group: "Start here",
+    title: "Bring your Google Sheet, results and all",
+    sub: "Your sheet's Pass and Fail become a finished run",
+    words: "google sheet sheets results pass fail status tester notes history import keep move switch",
+    start: "In Google Sheets, press File, then Download, then Comma-separated values (.csv).",
+    steps: [
+      { text: "In the left menu, under **Library**, press **Case library**.", see: "Your cases.", target: "menu-cases" },
+      { text: "Press **Import cases** at the top right.", see: "The import page with a big drop box.", target: "cases-import" },
+      { text: "Drop your sheet's file on the box, or click the box and choose it.", see: "**Where is this file from?** says **Google Sheet** when your sheet has a Status or Result column.", target: "import-drop", type: true },
+      { text: "Under **Your sheet has results**, leave **Bring them in as a finished run** ticked and pick **When were they tested?**", see: "How many cases have a result. Notes become comments, and testers are matched to your team by name.", target: "import-results" },
+      { text: "Answer **Have these cases been run before?**, then press **Import**.", see: "✓ Imported, and how many results are in the finished run **From my sheet**.", target: "import-go", saves: true },
+    ],
+    next: "create-run",
   },
   {
     id: "import-cases",

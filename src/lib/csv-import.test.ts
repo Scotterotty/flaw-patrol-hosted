@@ -484,3 +484,57 @@ describe("one Expected result per test goes on the last step", () => {
     expect(steps("Open the app", "It opens")).toEqual([{ action: "Open the app", expected: "It opens" }]);
   });
 });
+
+// ver_217: a Google Sheet's results come along with its cases.
+import { caseResults, resultColumns, guessMapping as guessFor, rowsToCases as toCases, detectSource as detect } from "./csv-import";
+import { PRACTICE_CASES, practiceExpired } from "./practice";
+
+describe("sheet results (ver_217)", () => {
+  const rows = [
+    ["Test Case", "Steps", "Expected Result", "Status", "Tester", "Notes"],
+    ["Sign in with email", "1. Open the app\n2. Press Sign in", "You land on the home screen", "Pass", "Sam", ""],
+    ["Add item to cart", "1. Open a product\n2. Press Add to cart", "Cart count goes up by one", "Fail", "Sam", "Count stayed at 0"],
+    ["Checkout with card", "1. Open cart", "Order confirmation shows", "", "", ""],
+    ["Apply promo code", "1. Enter SAVE10", "Total drops 10%", "Blocked", "Jo", "Promo service down"],
+    ["Sign out", "1. Open menu", "You are back at sign in", "Select", "—", ""],
+  ];
+
+  it("finds Status, Tester and Notes, which no case field uses", () => {
+    expect(detect(rows[0])).toBe("other");
+    const mapping = guessFor(rows[0], "gsheet");
+    expect(Object.keys(mapping).sort()).toEqual(["expected", "steps", "title"]);
+    expect(resultColumns(rows[0], mapping, "gsheet")).toEqual({ status: 3, tester: 4, notes: 5 });
+  });
+
+  it("reads each case's result from its first row, leaving blanks and Select out", () => {
+    const mapping = guessFor(rows[0], "gsheet");
+    const cases = toCases(rows, mapping, "gsheet").cases;
+    const res = caseResults(rows, cases, resultColumns(rows[0], mapping, "gsheet")!);
+    expect(res).toEqual([
+      { status: "PASSED", tester: "Sam", notes: "" },
+      { status: "FAILED", tester: "Sam", notes: "Count stayed at 0" },
+      null,
+      { status: "BLOCKED", tester: "Jo", notes: "Promo service down" },
+      null,
+    ]);
+  });
+
+  it("leaves tool exports and sheets with no status column alone", () => {
+    expect(resultColumns(rows[0], {}, "qtest")).toBeNull();
+    expect(resultColumns(["Title", "Steps", "Notes"], { title: 0, steps: 1 }, "other")).toBeNull();
+    // A column already matched to a case field isn't a result column.
+    expect(resultColumns(["Title", "Status"], { title: 0, tags: 1 }, "other")).toBeNull();
+  });
+});
+
+describe("practice run (ver_217)", () => {
+  it("has three sample cases, and case 1's step 2 is the one to fail", () => {
+    expect(PRACTICE_CASES).toHaveLength(3);
+    expect(PRACTICE_CASES[0].steps[1].expected).toMatch(/Mark this step Failed/);
+  });
+  it("expires after 7 days", () => {
+    const now = Date.UTC(2026, 10, 10);
+    expect(practiceExpired(new Date(now - 6 * 86400000), now)).toBe(false);
+    expect(practiceExpired(new Date(now - 8 * 86400000), now)).toBe(true);
+  });
+});

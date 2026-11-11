@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { areaOf } from "@/lib/feedback";
 import { requireUser } from "@/lib/session";
 import { viewerZone } from "@/lib/zone-server";
+import { NOT_PRACTICE } from "@/lib/practice";
 
 export const metadata = { title: "Feedback" };
 
@@ -48,7 +49,7 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
       select: { project: { select: { id: true, key: true, name: true, groupId: true, platform: true } } },
     }),
     // Turn into a bug: the test cycles a workspace admin can file it on.
-    user.isAdmin ? db.project.findMany({ where: { archivedAt: null }, orderBy: { name: "asc" }, select: { id: true, key: true, name: true }, take: 500 }) : [],
+    user.isAdmin ? db.project.findMany({ where: { archivedAt: null, ...NOT_PRACTICE }, orderBy: { name: "asc" }, select: { id: true, key: true, name: true }, take: 500 }) : [],
   ]);
   const when = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: zone, timeZoneName: "short" });
   const items: FeedbackRow[] = rows.map((r) => ({

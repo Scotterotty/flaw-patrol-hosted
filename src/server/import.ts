@@ -131,6 +131,8 @@ export async function importCases(projectId: string, folderId: string | null, ra
         const platformNames = await knownTagNamesFor(projectId);
         const areaCtx = await areaContextFor(projectId);
         areaCtx.known.push(...area.words);
+        // The new cases' ids in the file's order, so the sheet's results can follow (ver_217).
+        const ids: string[] = [];
         for (const raw of cases) {
           const split = splitBracketTitle(raw.title, { platforms: platformNames });
           // With no platforms, only the [bracket] tag leads, as in the preview.
@@ -146,7 +148,8 @@ export async function importCases(projectId: string, folderId: string | null, ra
             if (!sharedStepId) throw new UserError("A shared step in the file is missing. Load the file again.");
             return { kind: "shared" as const, sharedStepId, params: {} };
           });
-          await tx.testCase.create({
+          const made = await tx.testCase.create({
+            select: { id: true },
             data: {
               projectId,
               number,
@@ -178,8 +181,9 @@ export async function importCases(projectId: string, folderId: string | null, ra
               },
             },
           });
+          ids.push(made.id);
         }
-        return cases.length;
+        return ids;
       },
       { timeout: 120_000 },
     );
@@ -191,6 +195,6 @@ export async function importCases(projectId: string, folderId: string | null, ra
       await db.project.update({ where: { id: projectId }, data: { areaSkip: all.slice(-500) } });
     }
     revalidatePath(`/p/${project.key}`, "layout");
-    return { created, shared: sharedDefs.length, folderId: targetFolderId };
+    return { created: created.length, caseIds: created, shared: sharedDefs.length, folderId: targetFolderId };
   });
 }
