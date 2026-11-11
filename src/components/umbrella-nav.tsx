@@ -18,7 +18,8 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
   const c = u.cycle;
   const cb = c ? `/p/${c.key}` : "";
   // The current test cycles get their own label so they don't read as runs. When they all test
-  // the same RC on different platforms, the label names the RC once and each row just names its platform.
+  // the same RC on different platforms, the label names the RC once and each just names its platform,
+  // as small buttons on one line (ver_222: one row each made Testing too tall).
   const rcs = new Set(u.current.map((p) => p.rc));
   const sameRc = u.current.length > 1 && rcs.size === 1 && !rcs.has("") && u.current.every((p) => p.platform);
   const shortName = (p: { key: string; name: string }) => (sameRc ? (u.current.find((x) => x.key === p.key)?.platform ?? p.name) : p.name);
@@ -30,7 +31,7 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
   const cycleHeading: MenuItem[] = u.current.length ? [{ href: `${g}#test-cycles`, label: sameRc ? `Test cycles · ${[...rcs][0]}` : "Test cycles", sub: true, heading: true }] : [];
   const cycleLinks: MenuItem[] = c
     ? [
-        { href: cb, id: c.older ? undefined : cycleKey(c.key), label: c.older ? c.name : shortName(c), dot: c.color, sub: true, onBar: true },
+        { href: cb, id: c.older ? undefined : cycleKey(c.key), label: c.older ? c.name : shortName(c), dot: c.color, sub: true, onBar: true, chip: sameRc && !c.older },
         ...(c.quests && u.tools.includes("quest") ? [{ href: `${cb}/quests`, label: "Quest map", inner: true, onBar: true }] : []),
         // Cases from before the test cycle joined the umbrella stay reachable until they're moved up.
         ...(c.ownCases ? [{ href: `${cb}/cases`, label: "Cases left here", count: c.ownCases, inner: true }] : []),
@@ -61,8 +62,8 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
           ? [
               { href: `${g}/runs`, id: "runs", label: "Test runs", count: u.counts.activeRuns ? `${u.counts.activeRuns} active` : undefined },
               ...cycleHeading,
-              ...u.current.flatMap((p) => (c && p.key === c.key ? cycleLinks : [{ href: `/p/${p.key}`, id: cycleKey(p.key), label: shortName(p), dot: p.color, sub: true, tip: p.name }])),
-              ...(u.older ? [{ href: `${g}/projects`, howto: "older-cycles", label: "Older test cycles", count: u.older, sub: true }] : []),
+              ...u.current.flatMap((p) => (c && p.key === c.key ? cycleLinks : [{ href: `/p/${p.key}`, id: cycleKey(p.key), label: shortName(p), dot: p.color, sub: true, tip: p.name, chip: sameRc }])),
+              ...(u.older ? [{ href: `${g}/projects`, howto: "older-cycles", label: "Older test cycles", count: u.older, sub: true, small: true }] : []),
               // An older test cycle shows under Older test cycles while you're in it.
               ...(c?.older ? cycleLinks : []),
             ]
@@ -80,15 +81,12 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
         ...(u.counts.repos ? [{ href: `${g}/repos`, id: "repos", tool: "auto" as const, label: "Repositories", count: u.counts.repos, tip: "Test health of each connected GitHub repo" }] : []),
       ],
     },
-    {
-      label: "Settings",
-      // One link: the umbrella's Settings, where each test cycle has its own row under Test cycles.
-      items: [
-        { href: `${g}/settings`, id: "settings", label: "Settings", tip: runsOn ? `${u.name} and its test cycles` : `${u.name}'s settings` },
-        ...(u.canTools && !everything(u.tools) ? [{ href: `${g}/settings#tools`, label: "+ Add tools", sub: true, tip: "Turn on tools this umbrella doesn't use yet" }] : []),
-        howToItem(),
-      ],
-    },
+  ];
+  // Settings and How-to guide sit at the bottom of the menu, by Arrange menu order (ver_222: their own section made the menu too tall).
+  const footer: MenuItem[] = [
+    { href: `${g}/settings`, id: "settings", label: "Settings", tip: runsOn ? `${u.name} and its test cycles` : `${u.name}'s settings` },
+    ...(u.canTools && !everything(u.tools) ? [{ href: `${g}/settings#tools`, label: "+ Add tools", sub: true, tip: "Turn on tools this umbrella doesn't use yet" }] : []),
+    howToItem(),
   ];
   const groups: MenuGroup[] = all.map((grp) => ({ ...grp, items: grp.items.filter((i) => !i.tool || on(i.tool as ToolId)) })).filter((grp) => grp.items.length);
   const under = (href: string) => path === href || path.startsWith(`${href}/`);
@@ -105,12 +103,13 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
       label={`${u.name} umbrella`}
       head={<MenuHead href={g} name={u.name} kind={u.archived ? "Umbrella · Archived" : "Umbrella"} icon={<UmbrellaIcon className="size-5" />} />}
       groups={groups}
+      footer={footer}
       active={active}
     />
   );
 }
 
-/** How-to guide: under Settings in every left menu. It opens the guide panel instead of a page. */
+/** How-to guide: at the bottom of every left menu, under Settings. It opens the guide panel instead of a page. */
 export function howToItem(): MenuItem {
   return { href: "#how-to-guide", label: "How-to guide", action: "how-to", isNew: new Date().toISOString().slice(0, 10) < HOW_TO_NEW_UNTIL, tip: "Step-by-step help for every task, with Show me" };
 }

@@ -35,7 +35,12 @@ const glow = (page: Page) => page.locator(".fp-howto-glow");
 async function openTask(page: Page, task: HowToTask) {
   // Close any box left open, so the menu and the guide can be clicked.
   for (let n = 0; n < 3 && (await page.locator("dialog[open]").count()); n++) await page.keyboard.press("Escape");
-  if (!(await panel(page).isVisible())) await page.getByTestId("menu-how-to").first().click();
+  // Right after a page change the guide can be missing for a moment and then come back open by itself,
+  // so a click then closes it again. Click until it stays open.
+  await expect(async () => {
+    if (!(await panel(page).isVisible())) await page.getByTestId("menu-how-to").first().click();
+    await expect(panel(page)).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 30_000 });
   const back = panel(page).getByRole("button", { name: "‹ All tasks" });
   if (await back.isVisible()) await back.click();
   await panel(page).getByLabel("Search the How-to guide").fill(task.title);

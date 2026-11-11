@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 222,
+    date: "2026-11-10",
+    items: [
+      {
+        kind: "better",
+        title: "A shorter left menu",
+        text: "This release's test cycles now sit side by side as small buttons under Test runs, like Web, Unity and Unreal. Settings and How-to guide moved to the bottom of the menu, next to Arrange menu order. Everything else is where it was, and the menu is about a quarter shorter.",
+        link: "/g/{umbrella}",
+      },
+    ],
+  },
+  {
     version: 221,
     date: "2026-11-10",
     items: [

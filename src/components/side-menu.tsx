@@ -15,6 +15,7 @@ import { toggleHowTo } from "./how-to-guide";
  * One menu link. `sub` indents it under the link above; `inner` indents it one more step (under the test cycle you're in).
  * `heading` makes it a small label (not a link) over the `sub` links that follow, like "Test cycles · 4.2".
  * `id` lets people move it with Arrange menu order; test cycle rows use "cycle:<platform>".
+ * `chip` rows that follow each other share one line as small buttons (ver_222), like Web · Unity · Unreal.
  */
 export type MenuItem = {
   href: string;
@@ -32,6 +33,10 @@ export type MenuItem = {
   tip?: string;
   onBar?: boolean;
   heading?: boolean;
+  /** A small button sharing one line with the chips next to it, instead of a row of its own (ver_222: the menu was too tall). */
+  chip?: boolean;
+  /** Slightly smaller text, for a link that isn't used often, like Older test cycles. */
+  small?: boolean;
   /** The umbrella tool it belongs to; the item leaves the menu while that tool is off. */
   tool?: string;
   /** A small + at the end of the row that's always showing, like Write a bug next to Bugs. */
@@ -76,14 +81,45 @@ function ordered(groups: MenuGroup[], order: NavOrder) {
   }));
 }
 
+type Line = { i: MenuItem; d: Dragging | null };
+/**
+ * Chip rows next to each other become one line of small buttons. The links under the one you're in
+ * (its Quest map) come right after that line, so nothing goes missing.
+ */
+function bundled(lines: Line[]): ({ line: Line } | { chips: MenuItem[] })[] {
+  const out: ({ line: Line } | { chips: MenuItem[] })[] = [];
+  let chips: MenuItem[] | null = null;
+  let after: Line[] = [];
+  const close = () => {
+    out.push(...after.map((line) => ({ line })));
+    chips = null;
+    after = [];
+  };
+  for (const l of lines) {
+    if (l.i.chip) {
+      if (!chips) {
+        chips = [];
+        out.push({ chips });
+      }
+      chips.push(l.i);
+    } else if (chips && l.i.inner) after.push(l);
+    else {
+      if (chips) close();
+      out.push({ line: l });
+    }
+  }
+  if (chips) close();
+  return out;
+}
+
 const flat = (units: Unit[]) => units.flatMap((u) => [u.item, ...u.children.flatMap((c) => [c.item, ...c.inner])]);
 
 /**
- * The left menu every page uses: a name card on top, grouped links, and an optional link
- * pinned to the bottom. On phones it becomes a bottom bar that scrolls sideways.
+ * The left menu every page uses: a name card on top, grouped links, and Settings and How-to guide
+ * at the bottom (ver_222; they used to have a section of their own). On phones it becomes a bottom bar that scrolls sideways.
  * Arrange menu order at the bottom lets each person drag links into their own order.
  */
-export function SideMenu({ label, head, groups, footer, active }: { label: string; head: ReactNode; groups: MenuGroup[]; footer?: MenuItem; active: (i: MenuItem) => boolean }) {
+export function SideMenu({ label, head, groups, footer = [], active }: { label: string; head: ReactNode; groups: MenuGroup[]; footer?: MenuItem[]; active: (i: MenuItem) => boolean }) {
   const path = usePathname();
   const router = useRouter();
   const bar = useRef<HTMLElement>(null);
@@ -179,7 +215,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
       data-howto={guideName(i)}
       className={cx(
         "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm",
-        i.inner && "py-1 text-[13px]",
+        (i.inner || i.small) && "py-1 text-[13px]",
         active(i)
           ? "bg-accent-100 font-semibold text-accent-700 ring-1 ring-accent-500 ring-inset"
           : i.sub || i.inner
@@ -193,6 +229,22 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
       {i.tag && <span className="flex-none rounded-full bg-slate-100 px-1.5 text-[11px] font-medium text-slate-500 ring-1 ring-slate-200 ring-inset" data-testid="menu-tag">{i.tag}</span>}
       {i.note && <span className="size-2 flex-none rounded-full bg-accent-600" title="New answer to your question" aria-label="New answer to your question" data-testid="menu-note" />}
       {i.count !== undefined && <span className="text-xs font-normal text-slate-400 tabular-nums">{i.count}</span>}
+    </Link>
+  );
+  /** A test cycle as a small button on a shared line: its colored dot and platform. */
+  const chip = (i: MenuItem) => (
+    <Link
+      href={i.href}
+      aria-current={active(i) ? "page" : undefined}
+      title={i.tip}
+      data-howto={guideName(i)}
+      className={cx(
+        "flex min-h-6 max-w-full items-center gap-1 rounded-full px-1.5 py-0.5 text-xs ring-1 ring-inset focus-visible:outline-2 focus-visible:outline-accent-500",
+        active(i) ? "bg-accent-100 font-semibold text-accent-700 ring-accent-500" : "text-slate-700 ring-slate-200 hover:bg-slate-100",
+      )}
+    >
+      {i.dot && <span aria-hidden className="size-1.5 flex-none rounded-full" style={{ background: i.dot }} />}
+      <span className="min-w-0 truncate">{i.label}</span>
     </Link>
   );
   /** A menu row that does something on this page instead of opening one, like How-to guide. */
@@ -316,7 +368,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
                 }}
               >
                 {grp.label && (
-                  <p className="flex cursor-default items-center gap-[7px] px-2.5 pt-[18px] pb-1.5 text-[12.5px] font-semibold text-slate-900 select-none after:ml-[3px] after:h-px after:flex-1 after:bg-slate-200 after:content-['']">
+                  <p className="flex cursor-default items-center gap-[7px] px-2.5 pt-2.5 pb-1 text-[12.5px] font-semibold text-slate-900 select-none after:ml-[3px] after:h-px after:flex-1 after:bg-slate-200 after:content-['']">
                     <SectionIcon name={grp.label} />
                     <span>{grp.label}</span>
                   </p>
@@ -329,7 +381,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
                 <ul className="space-y-0.5">
                   {grp.units.flatMap((u) => {
                     const unitDrag: Dragging | null = arranging && grp.label && u.item.id ? { group: grp.label, id: u.item.id, kind: "unit" } : null;
-                    const lines: { i: MenuItem; d: Dragging | null }[] = [
+                    const lines: Line[] = [
                       { i: u.item, d: unitDrag },
                       ...u.children.flatMap((c) => {
                         const id = cycleId(c);
@@ -337,8 +389,24 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
                         return [{ i: c.item, d: childDrag }, ...c.inner.map((i) => ({ i, d: null }))];
                       }),
                     ];
-                    return lines.map(({ i, d }, n) => {
-                      const prev = lines[n - 1]?.i;
+                    // While arranging, every test cycle keeps its own row so it can be dragged.
+                    const pieces = arranging && grp.label ? lines.map((line) => ({ line })) : bundled(lines);
+                    return pieces.map((piece, n) => {
+                      if ("chips" in piece)
+                        return (
+                          <li key={`chips:${piece.chips[0].href}`} className="ml-3 border-l border-slate-200 pl-1">
+                            <ul className="flex flex-wrap gap-1 py-1 pl-0.5">
+                              {piece.chips.map((i) => (
+                                <li key={i.href} className="max-w-full">
+                                  {chip(i)}
+                                </li>
+                              ))}
+                            </ul>
+                          </li>
+                        );
+                      const { i, d } = piece.line;
+                      const last = pieces[n - 1];
+                      const prev = last && ("line" in last ? last.line.i : last.chips[0]);
                       return (
                         <li key={i.href + i.label} className={cx((i.sub || i.inner) && "ml-3 border-l border-slate-200 pl-2", i.sub && !prev?.sub && !prev?.inner && "mt-0.5")}>
                           {i.heading ? (
@@ -359,7 +427,15 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
             );
           })}
           <div className="mt-auto pt-3">
-            {footer && <div className="border-t border-slate-200 pt-2">{row(footer)}</div>}
+            {footer.length > 0 && (
+              <ul className="space-y-0.5 border-t border-slate-200 pt-2">
+                {footer.map((i) => (
+                  <li key={i.href + i.label} className={cx(i.sub && "ml-3 border-l border-slate-200 pl-2")}>
+                    {row(i)}
+                  </li>
+                ))}
+              </ul>
+            )}
             {arranging ? (
               <div className="mt-2 grid gap-1.5 border-t border-slate-200 pt-2">
                 <Button size="sm" variant="primary" onClick={() => setArranging(false)} data-howto="arrange-done">
@@ -394,7 +470,7 @@ export function SideMenu({ label, head, groups, footer, active }: { label: strin
         aria-label={label}
         className="fp-bar fixed inset-x-0 bottom-0 z-20 flex items-center gap-1 overflow-x-auto overflow-y-hidden border-t border-slate-200 bg-surface px-2 py-1.5 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden"
       >
-        {[...shown.map((g) => ({ label: g.label, items: flat(g.units) })), ...(footer ? [{ label: "Footer", items: [footer] }] : [])].map((grp, n) => (
+        {[...shown.map((g) => ({ label: g.label, items: flat(g.units) })), ...(footer.length ? [{ label: "Footer", items: footer }] : [])].map((grp, n) => (
           <Fragment key={grp.label || "top"}>
             {n > 0 && <span aria-hidden className="mx-0.5 h-4 w-px shrink-0 bg-slate-200" />}
             {grp.items.filter(onBar).map((i) => i.action ? <Fragment key={i.href + i.label}>{actionButton(i, true)}</Fragment> : (
