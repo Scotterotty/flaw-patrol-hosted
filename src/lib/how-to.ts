@@ -1055,6 +1055,20 @@ export const HOW_TO: HowToTask[] = [
       { text: "Press **Start bug bash** (or **Schedule bug bash**).", see: "\"Your bash is live. Invite people.\" with the join link.", target: "bash-go", saves: true },
       { text: "Press **Copy link** and send it in chat or email, then press **Open the bash**.", see: "The live board, with the time left.", target: "bash-copy" },
     ],
+    next: "invite-bash",
+  },
+  {
+    id: "invite-bash",
+    group: "Bug bashes",
+    title: "Add people to a bug bash that's on",
+    sub: "Get the join link again after Start",
+    words: "bug bash add more people late join link copy qr code share send running started live",
+    steps: [
+      { text: "In the left menu, under **Testing**, press **Bug bashes**.", see: "The live bash at the top.", target: "menu-bashes" },
+      { text: "Open the bash.", see: "The bash board, with the time left." },
+      { text: "Press **Invite people** next to the timer.", see: "The join link, **Copy link** and **Show QR code**.", target: "bash-invite-open" },
+      { text: "Press **Copy link** and send it in chat or email.", see: "**Copied**. They pick an area and they're in.", target: "bash-invite-copy" },
+    ],
     next: "join-bash",
   },
   {

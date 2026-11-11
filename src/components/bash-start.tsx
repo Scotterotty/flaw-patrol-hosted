@@ -5,7 +5,7 @@ import { prefetchOn, useLazy } from "@/lib/use-lazy";
 import { BoxWait } from "./box-wait";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { LENGTHS, releaseHint, type BashLink } from "@/lib/bash";
 import type { StartBoxData } from "@/lib/bash-data";
 import { startBoxFor, startBugBash } from "@/server/bashes";
@@ -498,18 +498,42 @@ function StartBashForm({
 /** Your bash is live: copy the link, the Slack post, a QR code for the room. */
 function Invite({ bashId, homeKey, posted, later, onClose }: { bashId: string; homeKey: string; posted: string[]; later: CalendarBash | null; onClose: () => void }) {
   const zone = useZone();
+  return (
+    <div className="space-y-4" data-testid="bash-invite">
+      <h2 className="text-lg font-semibold text-slate-900">{later ? `Your bash is scheduled for ${whenLabel(later.startsAt, zone).replace(" · ", " at ")}. Invite people.` : "Your bash is live. Invite people."}</h2>
+      <JoinLink
+        bashId={bashId}
+        homeKey={homeKey}
+        howto="bash-copy"
+        extra={later && <AddToCalendar bash={later} />}
+        note={posted.length && later ? `Posted a heads-up to ${posted.map((p) => `#${p.replace(/^#/, "")}`).join(", ")} in Slack. It posts again with a Join button when the bash starts.` : posted.length ? `Posted to ${posted.map((p) => `#${p.replace(/^#/, "")}`).join(", ")} in Slack, with a Join the bash button.` : later ? "Add it to your calendar, then send the link or the calendar invite to people." : "Share the link in chat or email. Joining takes one click: pick an area and go."}
+      />
+      <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
+        <Button onClick={onClose}>Close</Button>
+        <Link href={`/p/${homeKey}/bashes/${bashId}`} onClick={onClose} className="inline-flex h-9 items-center rounded-md bg-accent-600 px-3 text-sm font-medium text-white hover:bg-accent-700">
+          Open the bash
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The join link with Copy link and a QR code (ver_225): in the box after Start, and behind
+ * Invite people on the bash board, so the link is there for the whole bash.
+ */
+export function JoinLink({ bashId, homeKey, howto, extra, note }: { bashId: string; homeKey: string; howto: string; extra?: ReactNode; note: ReactNode }) {
   const [copied, setCopied] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
   const [link, setLink] = useState("");
   useEffect(() => setLink(`${window.location.origin}/p/${homeKey}/bashes/${bashId}?join=1`), [homeKey, bashId]);
   return (
-    <div className="space-y-4" data-testid="bash-invite">
-      <h2 className="text-lg font-semibold text-slate-900">{later ? `Your bash is scheduled for ${whenLabel(later.startsAt, zone).replace(" · ", " at ")}. Invite people.` : "Your bash is live. Invite people."}</h2>
+    <>
       <div className="flex flex-wrap items-center gap-2">
         <Input readOnly value={link} aria-label="Join link" className="min-w-0 flex-1 font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
         <Button
           variant="primary"
-          data-howto="bash-copy"
+          data-howto={howto}
           onClick={() => {
             void navigator.clipboard?.writeText(link);
             setCopied(true);
@@ -517,16 +541,16 @@ function Invite({ bashId, homeKey, posted, later, onClose }: { bashId: string; h
         >
           {copied ? "Copied" : "Copy link"}
         </Button>
-        {later && <AddToCalendar bash={later} />}
+        {extra}
       </div>
-      <p className="text-sm text-slate-600">{posted.length && later ? `Posted a heads-up to ${posted.map((p) => `#${p.replace(/^#/, "")}`).join(", ")} in Slack. It posts again with a Join button when the bash starts.` : posted.length ? `Posted to ${posted.map((p) => `#${p.replace(/^#/, "")}`).join(", ")} in Slack, with a Join the bash button.` : later ? "Add it to your calendar, then send the link or the calendar invite to people." : "Share the link in chat or email. Joining takes one click: pick an area and go."}</p>
+      <p className="text-sm text-slate-600">{note}</p>
       {qr ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={qr} alt="QR code for the join link" className="size-48 rounded border border-slate-200 bg-white p-2" />
       ) : (
         <button
           type="button"
-          className="text-sm font-medium text-accent-700 hover:underline"
+          className="self-start text-sm font-medium text-accent-700 hover:underline"
           onClick={async () => {
             const QR = await import("qrcode");
             setQr(await QR.toDataURL(link, { margin: 1, width: 384 }));
@@ -535,12 +559,6 @@ function Invite({ bashId, homeKey, posted, later, onClose }: { bashId: string; h
           Show QR code
         </button>
       )}
-      <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
-        <Button onClick={onClose}>Close</Button>
-        <Link href={`/p/${homeKey}/bashes/${bashId}`} onClick={onClose} className="inline-flex h-9 items-center rounded-md bg-accent-600 px-3 text-sm font-medium text-white hover:bg-accent-700">
-          Open the bash
-        </Link>
-      </div>
-    </div>
+    </>
   );
 }
