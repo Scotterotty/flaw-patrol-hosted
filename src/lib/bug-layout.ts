@@ -65,6 +65,8 @@ export type BugLayout = {
   fields: ImportedTemplate["fields"];
   /** The Jira bug the layout was copied from, if any. */
   from: string;
+  /** The detailed OKO layout: shown with the same OKO form as a run's Report a bug, and filed into Jira's own fields. */
+  oko?: boolean;
 };
 
 const str = (v: unknown, max = 200) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -143,7 +145,7 @@ export function parseLayout(v: unknown): BugLayout {
     }))
     .filter((f) => f.id && f.name)
     .slice(0, 60);
-  return { title: { platform: t.platform !== false, area: t.area !== false, build: t.build === true }, sections, shot: o.shot === true, fields, from: str(o.from, 40) };
+  return { title: { platform: t.platform !== false, area: t.area !== false, build: t.build === true }, sections, shot: o.shot === true, fields, from: str(o.from, 40), ...(o.oko === true && { oko: true }) };
 }
 
 /** Which headings can be "Must have before reporting": the ones a person fills in. */
@@ -202,6 +204,9 @@ export function readyMadeLayout(): BugLayout {
   };
 }
 
+/** Headings the OKO layout keeps for the OKO form's Jira fields that aren't headings on the bug. */
+export const OKO_EXTRA = ["OKO Space Link", "Repro rate", "Build #"] as const;
+
 /** A layout copied from an example Jira bug (Settings → Import), as a template anyone can change. */
 export function layoutFromImported(t: ImportedTemplate): BugLayout {
   const map: Record<string, Source> = { steps: "steps", expected: "expected", actual: "actual", env: "env", tester: "text", empty: "empty" };
@@ -227,9 +232,12 @@ export function layoutFromSettings(t: TemplateSettings): BugLayout | null {
   if (kind === "plain") return null;
   const layout = kind === "imported" && t.imported ? layoutFromImported(t.imported) : readyMadeLayout();
   const blankField = (name: string) => ({ id: name, name, required: false, source: "tester" as const, value: [] as string[] });
+  // The OKO layout also keeps what the OKO form has beyond the headings, so nothing typed is lost.
+  const sections = kind === "imported" ? layout.sections : [...layout.sections, ...OKO_EXTRA.map((h) => blankSection("text", h))];
   return {
     ...layout,
-    sections: layout.sections.map((s, i) => ({ ...s, id: `current-${i}` })),
+    ...(kind !== "imported" && { oko: true }),
+    sections: sections.map((s, i) => ({ ...s, id: `current-${i}` })),
     fields: kind === "imported" ? layout.fields.map((f) => (f.source === "default" ? { ...f, source: "tester" as const, value: [] } : f)) : [blankField(FIELD.team), blankField(FIELD.clients), blankField(FIELD.olyEnv)],
   };
 }
