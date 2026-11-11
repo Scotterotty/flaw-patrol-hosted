@@ -2,7 +2,7 @@
 
 import type { Severity } from "@prisma/client";
 import { useRef } from "react";
-import { isDxdiag, isMedia, templateTitle, withHistory, type History, type TemplateBug } from "@/lib/bug-template";
+import { isDxdiag, isMedia, templateTitle, withHistory, type ByHand, type History, type TemplateBug } from "@/lib/bug-template";
 import { AE_SCALE, type SeverityScale } from "@/lib/severity";
 import { AddMenu, FileTicks, type BugCapture, type BugFile } from "./bug-files";
 import { cx, Input, Select, Textarea } from "./ui";
@@ -144,9 +144,9 @@ export function BugTemplateForm({
   jiraLimit?: number | null;
 }) {
   const set = <K extends keyof TemplateBug>(k: K, v: TemplateBug[K]) => setBug((b) => ({ ...b, [k]: v }));
-  // Repro rate follows Repros until it's typed in by hand; emptying it makes it follow again.
-  const rateByHand = useRef(false);
-  const setH = (k: keyof History, v: string) => setBug((b) => withHistory(b, k, v, rateByHand.current));
+  // Repro rate follows Repros, and Build # follows Client and CSP, until typed in by hand; emptying one makes it follow again.
+  const byHand = useRef<ByHand>({ reproRate: false, build: false });
+  const setH = (k: keyof History, v: string) => setBug((b) => withHistory(b, k, v, byHand.current));
   const media = files.filter((f) => isMedia(f.contentType));
   const logs = files.filter((f) => !isMedia(f.contentType));
   const listed = files.filter((f) => include.has(f.id) && !isDxdiag(f.fileName)).length;
@@ -291,7 +291,7 @@ export function BugTemplateForm({
               Repro rate
             </L>
             <Input id="t-rate" value={bug.reproRate} onChange={(e) => {
-                rateByHand.current = e.target.value.trim() !== "";
+                byHand.current.reproRate = e.target.value.trim() !== "";
                 set("reproRate", e.target.value);
               }}
             />
@@ -306,10 +306,17 @@ export function BugTemplateForm({
           </div>
         </div>
         <div>
-          <L htmlFor="t-build" auto="from run">
+          <L htmlFor="t-build" auto="from Client & CSP">
             Build #
           </L>
-          <Input id="t-build" value={bug.build} onChange={(e) => set("build", e.target.value)} />
+          <Input
+            id="t-build"
+            value={bug.build}
+            onChange={(e) => {
+              byHand.current.build = e.target.value.trim() !== "";
+              set("build", e.target.value);
+            }}
+          />
         </div>
         <div>
           <p className="mb-1 text-xs font-semibold text-slate-600">

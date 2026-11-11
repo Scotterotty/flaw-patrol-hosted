@@ -9,6 +9,7 @@ import { JIRA_FILE_LIMIT, mbText, tooBigForJira } from "@/lib/jira-files";
 import type { Severity } from "@prisma/client";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { buildLine } from "@/lib/bug-template";
 import { CURRENT_ID, deviceCell, nowCell, PLAIN_ID, plainLayout, startAnswers, usualAnswersLine, type Answer, type BugLayout, type UsualAnswers } from "@/lib/bug-layout";
 import { defaultSeverityOf, type SeverityScale } from "@/lib/severity";
 import { bugTemplateChoices } from "@/server/bug-templates";
@@ -30,6 +31,17 @@ function startOneOfOne(a: Answer): Answer {
   const col = a.columns?.findIndex((c) => c.name.trim().toLowerCase() === "repros") ?? -1;
   if (col < 0 || !a.rows?.[0] || a.rows[0][col]) return a;
   return { ...a, rows: [a.rows[0].map((v, i) => (i === col ? "1/1" : v)), ...a.rows.slice(1)] };
+}
+
+/** An empty Build # starts from the Client and CSP boxes' version numbers, as the form does when they change. */
+function withBuild(answers: Answer[]): Answer[] {
+  const table = answers.find((a) => a.columns && a.rows?.[0]);
+  const cell = (name: string) => {
+    const i = table?.columns?.findIndex((c) => c.name.trim().toLowerCase() === name) ?? -1;
+    return i < 0 ? "" : (table?.rows?.[0][i] ?? "");
+  };
+  const line = buildLine(cell("client version"), cell("csp"));
+  return line ? answers.map((a) => (a.heading === "Build #" && !a.text ? { ...a, text: line } : a)) : answers;
 }
 
 export type WriteBugCycle = { id: string; name: string };
@@ -121,7 +133,7 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
         return old && !a.rows && !a.files ? { ...a, text: old.text } : a;
       });
       // The OKO form starts Repros and Repro rate at 1/1, as in a run, so the two match from the start.
-      const started = real.oko ? answers.map(startOneOfOne) : answers;
+      const started = real.oko ? withBuild(answers.map(startOneOfOne)) : answers;
       const fresh: TemplatedDraft = { templateId, layout: real, platform: before?.platform ?? "", area: before?.area ?? "", build: before?.build ?? "", summary: before?.summary ?? "", answers: started, fields: res.fields };
       const u = usualRef.current;
       setDraft(templateId === CURRENT_ID && u.usual && u.on ? withUsual(fresh, u.usual, true) : fresh);
