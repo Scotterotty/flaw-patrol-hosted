@@ -22,6 +22,27 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 220,
+    date: "2026-11-10",
+    items: [
+      {
+        kind: "new",
+        title: "Bug bash bugs ready for Jira",
+        text: "When your bugs use the OKO bug layout, Flaw Patrol fills in Team, Client/SKUs, Build # and OKO Space Link for you. At wrap-up each bug says Ready for Jira or Needs 2, and only ready bugs go to Jira. Fill in opens the same OKO form as everywhere else, then the next bug that needs something.",
+      },
+      {
+        kind: "new",
+        title: "Add for Jira while you log",
+        text: "Under your one line, Add for Jira (3) has Repro steps, Bug impact and Bug workaround. They're optional and never stop you logging. Anyone can add them later from Live finds.",
+      },
+      {
+        kind: "new",
+        title: "Not a bug, with a reason",
+        text: "At wrap-up, each find is File it or Not a bug. Pick why: Works as designed, Can't reproduce, Duplicate or your own words. The report says \"Not a bug · Works as designed\" instead of \"Left out\". Can't reproduce lets you ask the person who found it for steps, and they can answer right there.",
+      },
+    ],
+  },
+  {
     version: 219,
     date: "2026-11-10",
     items: [

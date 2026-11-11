@@ -1,6 +1,8 @@
 import "server-only";
 import { ITEM_KINDS, parseAreas, parseLinks, phaseOf, plusOnesOf } from "./bash";
 import { findTemplate } from "./bash-template";
+import { withOko } from "./bash-oko";
+import { bashOkoFor } from "./bash-oko-data";
 import { db } from "./db";
 
 // Live finds: what the Log a bug page's panel polls every 2 seconds, apart from the
@@ -17,12 +19,12 @@ export async function bashFinds(bashId: string) {
       wrappedAt: true,
       areas: true,
       links: true,
-      run: { select: { build: true, environment: true } },
+      run: { select: { build: true, environment: true, projectId: true } },
       people: { select: { userId: true, name: true, areaId: true } },
       items: {
         where: { kind: { in: [...ITEM_KINDS, "add"] }, mergedIntoId: null },
         orderBy: { createdAt: "desc" },
-        select: { id: true, areaId: true, kind: true, replyToId: true, text: true, details: true, severity: true, byId: true, byName: true, plusOnes: true, defectId: true, templateName: true, layout: true, answers: true, platform: true, createdAt: true, attachments: { select: { id: true, fileName: true, contentType: true, size: true } } },
+        select: { id: true, areaId: true, kind: true, replyToId: true, text: true, details: true, severity: true, byId: true, byName: true, plusOnes: true, defectId: true, templateName: true, layout: true, answers: true, platform: true, build: true, review: true, reviewReason: true, createdAt: true, attachments: { select: { id: true, fileName: true, contentType: true, size: true } } },
       },
     },
   });
@@ -30,6 +32,7 @@ export async function bashFinds(bashId: string) {
   const defects = await db.defect.findMany({ where: { id: { in: bash.items.map((i) => i.defectId).filter((x): x is string => !!x) } }, select: { id: true, number: true, externalKey: true, externalUrl: true } });
   const keyOf = new Map(defects.map((d) => [d.id, { key: d.externalKey ?? `D-${d.number}`, url: d.externalUrl }]));
   const adds = bash.items.filter((i) => i.kind === "add");
+  const oko = bash.run ? await bashOkoFor(bash.run.projectId) : null;
   return {
     projectId: bash.projectId,
     phase: phaseOf(bash),
@@ -53,7 +56,8 @@ export async function bashFinds(bashId: string) {
         at: i.createdAt.toISOString(),
         attachments: i.attachments,
         // Its bug template: what it still needs, so anyone can add it.
-        template: findTemplate(i, i.attachments),
+        template: findTemplate(withOko(i, oko), i.attachments),
+        notABug: i.kind === "bug" && i.review === "skip" ? i.reviewReason : null,
         bug: i.defectId ? (keyOf.get(i.defectId) ?? null) : null,
         adds: adds
           .filter((a) => a.replyToId === i.id)

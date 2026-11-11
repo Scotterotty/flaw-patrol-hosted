@@ -17,6 +17,9 @@ import { bashAnswers, isNeedsLine, isShot, needsOf, valuesOf, type BashValues } 
 import { listWords } from "@/lib/bug-layout";
 import { TemplatePicker } from "./templated-bug-form";
 import { AnswerTables, FilledForYou, NeedsTag, seenHere, TemplateFields } from "./bash-template";
+import { AskedOfYou, AskFinder, FileOrNot, FilledLine, OkoFill, ReadyLine } from "./bash-oko";
+import { ASK_FOR_JIRA, CANT_REPRODUCE, notABugLine } from "@/lib/bash-oko";
+import { autoNumber } from "./bug-template-form";
 import { FIND_LABEL, FindCounts, FindDetail, KindTag, LinkChips, LiveFinds, NewTag, SetupStrip, useLiveFinds, useNewArea, WhatYoureTesting, type FindKind, type LiveData } from "./bash-live";
 import { uploadAttachment } from "@/server/results";
 import { BugDialog } from "./bug-dialog";
@@ -357,6 +360,10 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
   const tplId = tplPick ?? bash.bugTemplateId ?? "";
   const tpl = kind === "bug" ? (bash.bugTemplates.find((t) => t.id === tplId) ?? null) : null;
   const [values, setValues] = useState<BashValues>({});
+  // A cycle that files OKO bugs (ver_220): Add for Jira's three boxes, optional, folded.
+  const okoAsk = kind === "bug" && !tpl ? bash.okoAsk : null;
+  const [askOpen, setAskOpen] = useState(false);
+  const [asked, setAsked] = useState<Record<string, string>>({});
   const needs = tpl ? needsOf(tpl.layout, bashAnswers(tpl.layout, values, { env: "", actual: "-" }, { now: "", build: "", env: "", device: "", who: "" }), files.filter(isShot)).words : [];
   const [different, setDifferent] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
@@ -428,7 +435,7 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
     start(async () => {
       setError(null);
       const sent = text;
-      const r = await logBashItem(bash.id, { kind, text, details, severity, attachmentIds: files.map((f) => f.id), templateId: tpl?.id ?? null, values: tpl ? values : {}, seen: seenHere() });
+      const r = await logBashItem(bash.id, { kind, text, details, severity, attachmentIds: files.map((f) => f.id), templateId: tpl?.id ?? null, values: tpl ? values : okoAsk ? Object.fromEntries(Object.entries(asked).filter(([, t]) => t.trim() && !/^\d+\.$/.test(t.trim())).map(([id, text]) => [id, { text, files: [] }])) : {}, seen: seenHere() });
       if (!r.ok) return setError(r.error);
       // Only clear what was sent: anything typed while it saved stays.
       setText((t) => (t === sent ? "" : t));
@@ -436,6 +443,8 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
       setShowDetails(false);
       setFiles([]);
       setValues({});
+      setAsked({});
+      setAskOpen(false);
       // Always say it worked, not only when it was filed too.
       const said = r.needs.length && !r.filed ? `${KIND_LABEL[kind]} logged. It's at the top of Live finds, marked Needs ${r.needs.length}.` : `${KIND_LABEL[kind]} logged. It's at the top of Live finds.`;
       setNote(r.filed ? (r.filed.startsWith("Logged") ? r.filed : `${said} Filed as ${r.filed}.`) : said);
@@ -581,10 +590,16 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
               </button>
             </span>
           ))}
-          {!tpl && (
-            <button type="button" className="ml-auto font-medium text-accent-700 hover:underline" aria-expanded={showDetails} onClick={() => setShowDetails((v) => !v)}>
-              Add steps and details
+          {okoAsk ? (
+            <button type="button" className="ml-auto font-medium text-accent-700 hover:underline" aria-expanded={askOpen} onClick={() => setAskOpen((v) => !v)} data-howto="bash-add-for-jira">
+              Add for Jira ({ASK_FOR_JIRA.length}) {askOpen ? "▴" : "▾"}
             </button>
+          ) : (
+            !tpl && (
+              <button type="button" className="ml-auto font-medium text-accent-700 hover:underline" aria-expanded={showDetails} onClick={() => setShowDetails((v) => !v)}>
+                Add steps and details
+              </button>
+            )
           )}
         </div>
         {tpl && needs.length > 0 && text.trim() && (
@@ -592,7 +607,32 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
             Still needed before it&apos;s filed: <b className="font-semibold">{listWords(needs)}</b>. You can log it now and add {needs.length === 1 ? "it" : "them"} later.
           </p>
         )}
-        {showDetails && !tpl && <Textarea className="mt-2" rows={3} aria-label="Steps and details" value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Steps to see it, what you expected, anything else" />}
+        {okoAsk && askOpen && (
+          <div className="mt-2 space-y-2 rounded-md border border-slate-200 p-3" data-testid="bash-add-for-jira">
+            {ASK_FOR_JIRA.map((f) => {
+              const id = okoAsk[f.heading];
+              return (
+                <div key={f.heading}>
+                  <label htmlFor={`ask-${id}`} className="mb-1 block text-xs font-semibold text-slate-700">
+                    {f.label}
+                  </label>
+                  <Textarea
+                    id={`ask-${id}`}
+                    rows={f.heading === "Repro steps" ? 3 : 2}
+                    disabled={!live}
+                    value={asked[id] ?? ""}
+                    placeholder={f.hint}
+                    onFocus={() => f.heading === "Repro steps" && !asked[id] && setAsked((a) => ({ ...a, [id]: "1. " }))}
+                    onChange={(e) => setAsked((a) => ({ ...a, [id]: e.target.value }))}
+                    onKeyDown={(e) => autoNumber(e, (text) => setAsked((a) => ({ ...a, [id]: text })))}
+                  />
+                </div>
+              );
+            })}
+            <p className="text-xs text-slate-600">Optional. Leave them for later, or anyone can add them from Live finds.</p>
+          </div>
+        )}
+        {showDetails && !tpl && !okoAsk && <Textarea className="mt-2" rows={3} aria-label="Steps and details" value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Steps to see it, what you expected, anything else" />}
         <div className="mt-3 flex items-center justify-between gap-2">
           <span className="text-xs text-slate-500">
             {bash.me.platform ? (
@@ -999,11 +1039,11 @@ export function FileBashBug({ bug, projectId, entryId, jiraConnected }: { bug: {
   );
 }
 
-/** "Not filed" with Jira's reason, or "Left out" for a bug someone unticked. */
-export function UnfiledTag({ left, why }: { left: boolean; why?: string }) {
+/** "Not filed" with Jira's reason, or "Not a bug · Works as designed" for a bug marked Not a bug (ver_220). */
+export function UnfiledTag({ left, why, reason = "" }: { left: boolean; why?: string; reason?: string }) {
   return (
     <>
-      <span className={cx("ml-1.5 rounded px-1.5 py-0.5 text-[11px] font-semibold", left ? "bg-slate-100 text-slate-600" : "bg-amber-50 text-amber-800")}>{left ? "Left out" : "Not filed"}</span>
+      <span data-testid="unfiled-tag" className={cx("ml-1.5 rounded px-1.5 py-0.5 text-[11px] font-semibold", left ? "bg-slate-100 text-slate-700" : "bg-amber-50 text-amber-800")}>{left ? notABugLine(reason) : "Not filed"}</span>
       {!left && why && <span className="block text-xs text-red-700">{why}</span>}
     </>
   );
@@ -1079,16 +1119,24 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   // A tick or severity shows at once; the server catches up on refresh.
-  const [mine, setMine] = useState<Record<string, { review?: "file" | "skip"; severity?: BashSeverity; platform?: string }>>({});
-  const bugs = useMemo(() => bash.items.filter((i) => i.kind === "bug" && !i.mergedIntoId).map((i) => ({ ...i, ...mine[i.id] })), [bash.items, mine]);
+  type Review = { review?: "file" | "skip"; reason?: string; severity?: BashSeverity; platform?: string };
+  const [mine, setMine] = useState<Record<string, Review>>({});
+  const bugs = useMemo(() => bash.items.filter((i) => i.kind === "bug" && !i.mergedIntoId).map((i) => { const m = mine[i.id] ?? {}; return { ...i, ...m, reviewReason: m.reason ?? i.reviewReason }; }), [bash.items, mine]);
   const toFile = bugs.filter((b) => b.review === "file" && !b.bug);
   const failed = toFile.filter((b) => b.fileError);
   // Held back for a template's must-haves apart from bugs Jira refused.
   const held = failed.filter((b) => isNeedsLine(b.fileError));
   const refused = failed.filter((b) => !isNeedsLine(b.fileError));
   const notReady = toFile.filter((b) => b.template?.needs.length);
+  const ready = toFile.length - notReady.length;
+  const notBugs = bugs.filter((b) => b.review === "skip" && !b.bug).length;
   const templated = bugs.some((b) => b.template);
   const [fillId, setFillId] = useState<string | null>(null);
+  // Fill in jumps on to the next bug that needs something (ver_220).
+  const nextNeeding = (id: string) => {
+    const at = toFile.findIndex((b) => b.id === id);
+    return [...toFile.slice(at + 1), ...toFile.slice(0, Math.max(0, at))].find((b) => b.template?.needs.length) ?? null;
+  };
   const [fillValues, setFillValues] = useState<BashValues>({});
   const upload = useBashUpload(bash.runProjectId, bash.id, setError);
   const tried = bugs.filter((b) => b.review === "file" && (b.bug || b.fileError));
@@ -1098,7 +1146,7 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
   const areaName = (id: string) => bash.areas.find((a) => a.id === id)?.name ?? "";
   // Clients (ver_169): the bash's platforms and any typed by people, to pick from.
   const clients = cleanPlatforms([...bash.platforms, ...bash.items.flatMap((i) => seenOn(i))]);
-  const review = (id: string, data: { review?: "file" | "skip"; severity?: BashSeverity; platform?: string }) => {
+  const review = (id: string, data: Review) => {
     setMine((m) => ({ ...m, [id]: { ...m[id], ...data } }));
     start(async () => {
       const r = await reviewBashItem(id, data);
@@ -1119,18 +1167,20 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
       window.location.assign(`/p/${bash.homeKey}/bashes/${bash.id}/report`);
     });
   const plural = (n: number) => `${n} ${n === 1 ? "bug" : "bugs"}`;
-  const label = pending ? "Filing…" : toFile.length ? `File ${plural(toFile.length)}${jiraConnected ? " to Jira" : ""} and wrap up` : "Wrap up";
+  // Only bugs that are ready go; the ones that need something stay on this screen.
+  const label = pending ? "Filing…" : ready ? `File ${plural(ready)}${jiraConnected ? " to Jira" : ""} and wrap up` : "Wrap up";
   if (!bash.isOwner)
     return (
       <Card className="p-5 text-sm text-slate-700">
         The bash is over. {bash.createdBy} is wrapping it up and filing the bugs. The report shows here once that&apos;s done.
+        <AskedOfYou bash={bash} />
       </Card>
     );
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-4">
         {[
-          [toFile.length, "Bugs to file"],
+          [ready, jiraConnected ? "Ready for Jira" : "Ready to file"],
           [plusOnes, "+1s rolled in"],
           [people, "People"],
           [byArea?.n ? `${byArea.name}` : "None", byArea?.n ? `Most bugs (${byArea.n})` : "Most bugs"],
@@ -1142,6 +1192,8 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
         ))}
       </div>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+      {/* Anyone who can wrap up may also be the finder someone asked for steps. */}
+      <AskedOfYou bash={bash} />
       {held.length > 0 && (
         <div role="alert" className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="bash-held">
           <p className="font-semibold">
@@ -1161,7 +1213,11 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
       <Card>
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-4 py-3">
           <h2 className="text-sm font-semibold text-slate-800">Review {plural(bugs.length)}</h2>
-          {bugs.length > 0 && <span className="mr-auto text-xs text-slate-500">Untick a bug to leave it out</span>}
+          {bugs.length > 0 && (
+            <span className="mr-auto text-xs text-slate-600" data-testid="wrap-counts">
+              {[`${ready} ready${jiraConnected ? " for Jira" : ""}`, notReady.length && `${notReady.length} ${notReady.length === 1 ? "needs" : "need"} something`, notBugs && `${notBugs} not a bug`].filter(Boolean).join(" · ")}
+            </span>
+          )}
           <Button
             size="sm"
             className={cx(bugs.length === 0 && "ml-auto")}
@@ -1181,15 +1237,16 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
         {bugs.length === 0 ? (
           <p className="px-4 py-6 text-center text-sm text-slate-500">No bugs were logged. Wrap up to save everyone&apos;s notes and close the run.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
+          <div className="sm:overflow-x-auto">
+            {/* On a phone each row becomes a card (ver_220). */}
+            <table className="w-full text-sm max-sm:block max-sm:[&_tbody]:block max-sm:[&_td]:block max-sm:[&_td]:py-1 max-sm:[&_tr]:flex max-sm:[&_tr]:flex-col max-sm:[&_tr]:py-2">
+              <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 max-sm:hidden">
                 <tr>
                   <th className="w-8 px-3 py-2 font-medium">Merge</th>
-                  <th className="px-3 py-2 font-medium">File it</th>
+                  <th className="px-3 py-2 font-medium">File it?</th>
                   <th className="px-3 py-2 font-medium">Bug</th>
                   <th className="px-3 py-2 font-medium">Client</th>
-                  {templated && <th className="px-3 py-2 font-medium">Ready?</th>}
+                  {templated && <th className="px-3 py-2 font-medium">{jiraConnected ? "Ready for Jira?" : "Ready?"}</th>}
                   <th className="px-3 py-2 font-medium">Area</th>
                   <th className="px-3 py-2 font-medium">Severity</th>
                   <th className="px-3 py-2 font-medium">Seen by</th>
@@ -1198,10 +1255,11 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
               <tbody className="divide-y divide-slate-100">
                 {bugs.map((b) => {
                   const left = b.review === "skip" && !b.bug;
+                  const oko = !!b.template?.layout.oko;
                   return (
                     <Fragment key={b.id}>
                     <tr className={cx(left && "text-slate-400")}>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 max-sm:hidden">
                         <input type="checkbox" aria-label={`Select ${b.text} to merge`} disabled={!!b.bug} checked={ticked.has(b.id)} onChange={(e) => setTicked((t) => { const n = new Set(t); if (e.target.checked) n.add(b.id); else n.delete(b.id); return n; })} />
                       </td>
                       <td className="px-3 py-2 text-xs">
@@ -1210,16 +1268,16 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
                             Filed · <span className="font-mono">{b.bug.externalKey ?? `D-${b.bug.number}`}</span>
                           </span>
                         ) : (
-                          <label className="inline-flex cursor-pointer items-center gap-1.5 font-medium text-slate-700">
-                            <input type="checkbox" data-howto="wrap-file-it" className="size-4 accent-accent-600" checked={b.review === "file"} disabled={pending} onChange={(e) => review(b.id, { review: e.target.checked ? "file" : "skip" })} aria-label={`File ${b.text}`} />
-                            File it
-                          </label>
+                          <>
+                            <FileOrNot b={b} disabled={pending} onChoose={(data) => review(b.id, data)} />
+                            {left && b.reviewReason === CANT_REPRODUCE && <AskFinder b={b} meId={bash.me.id} setError={setError} />}
+                          </>
                         )}
                       </td>
-                      <td className="px-3 py-2">
-                        <span className="block">
+                      <td className="px-3 py-2 max-sm:order-first">
+                        <span className="block font-medium sm:font-normal">
                           {b.text}
-                          {(left || b.fileError) && !b.bug && <UnfiledTag left={left} why={isNeedsLine(b.fileError) ? undefined : b.fileError} />}
+                          {(left || b.fileError) && !b.bug && <UnfiledTag left={left} reason={b.reviewReason} why={isNeedsLine(b.fileError) ? undefined : b.fileError} />}
                         </span>
                         <span className="block text-xs text-slate-500">
                           {[b.attachments.length && `${b.attachments.length} ${b.attachments.length === 1 ? "file" : "files"}`, b.details && "has details"].filter(Boolean).join(" · ") || "Only one line"}
@@ -1235,10 +1293,12 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
                       </td>
                       {templated && (
                         <td className="px-3 py-2 text-xs">
-                          {b.template && !b.bug ? (
+                          {b.template && !b.bug && left ? (
+                            <span className="text-slate-500">Not filed</span>
+                          ) : b.template && !b.bug ? (
                             <>
-                              <NeedsTag t={b.template} />
-                              <span className="mt-0.5 block text-slate-500">{b.template.name}</span>
+                              {oko ? <ReadyLine t={b.template} jira={jiraConnected} /> : <NeedsTag t={b.template} />}
+                              {oko ? <FilledLine t={b.template} platform={b.platform} /> : <span className="mt-0.5 block text-slate-500">{b.template.name}</span>}
                               <Button
                                 size="sm"
                                 className="mt-1"
@@ -1276,7 +1336,21 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
                         {b.plusOnes.length > 0 && <span className="text-slate-500" title={b.plusOnes.map((p) => p.name).join(", ")}> +{b.plusOnes.length}</span>}
                       </td>
                     </tr>
-                    {fillId === b.id && b.template && (
+                    {fillId === b.id && b.template && oko && (
+                      <tr>
+                        <td colSpan={8} className="bg-accent-50 px-4 py-3">
+                          <OkoFill
+                            key={b.id}
+                            bash={bash}
+                            b={{ ...b, template: b.template }}
+                            next={nextNeeding(b.id)}
+                            setError={setError}
+                            onDone={(goNext) => setFillId(goNext ? (nextNeeding(b.id)?.id ?? null) : null)}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                    {fillId === b.id && b.template && !oko && (
                       <tr>
                         <td colSpan={8} className="bg-accent-50 px-4 py-3">
                           <div className="max-w-2xl space-y-2.5" data-testid="bash-fill-in">
@@ -1323,8 +1397,8 @@ export function WrapUp({ bash, jiraConnected }: { bash: BashView; jiraConnected:
             <InfoTip text="Under the hood the bash is a test run. It shows on Test runs, stays out of every pass rate, and joins a report through + Attach wrap-ups." />
           </p>
           {notReady.length > 0 && failed.length === 0 && (
-            <span className="text-xs text-amber-800" data-testid="bash-not-ready">
-              {plural(notReady.length)} still {notReady.length === 1 ? "needs" : "need"} something and {notReady.length === 1 ? "stays" : "stay"} here when you file the rest.
+            <span className="text-xs text-amber-900" data-testid="bash-not-ready">
+              {notReady.length === 1 ? "The one that needs something stays" : `The ${notReady.length} that need something stay`} here. Fill {notReady.length === 1 ? "it" : "them"} in now, or wrap up and file {notReady.length === 1 ? "it" : "them"} later from the report.
             </span>
           )}
           {failed.length > 0 ? (

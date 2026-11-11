@@ -103,18 +103,17 @@ test("a bug bash with a bug template: log now, fill in later, file when ready", 
   await page.getByRole("button", { name: "End early" }).click();
   await page.getByRole("button", { name: "Yes, end it" }).click();
   await expect(page.getByRole("columnheader", { name: "Ready?" })).toBeVisible();
-  await expect(page.getByTestId("bash-not-ready")).toContainText("1 bug still needs something");
-  await page.getByRole("button", { name: "File 2 bugs and wrap up" }).click();
-  await expect(page.getByTestId("bash-held")).toContainText("1 bug still needs something");
-  await expect(page.getByRole("button", { name: "Wrap up anyway" })).toBeVisible();
+  // ver_220: only ready bugs count on the button; the other stays until it's filled in.
+  await expect(page.getByTestId("bash-not-ready")).toContainText("The one that needs something stays here");
+  await expect(page.getByRole("button", { name: "File 1 bug and wrap up" })).toBeVisible();
 
-  // Fill in, Save, and the rest files.
+  // Fill in, Save, and both file.
   await page.getByRole("button", { name: "Fill in" }).click();
   const fill = page.getByTestId("bash-fill-in");
   await fill.getByLabel(/Steps to see it/).fill("1. Type a code\n2. Watch the box");
   await fill.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByTestId("bash-held")).toHaveCount(0);
-  await page.getByRole("button", { name: "File 1 bug and wrap up" }).click();
+  await expect(page.getByTestId("bash-not-ready")).toHaveCount(0);
+  await page.getByRole("button", { name: "File 2 bugs and wrap up" }).click();
   await expect(page).toHaveURL(/\/report$/, { timeout: 30_000 });
 
   // Both went to the bug list with the template's headings and where they were found.

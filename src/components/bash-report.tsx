@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Severity } from "@prisma/client";
 import { postBashReport } from "@/server/bashes";
 import { FileBashBug, SevChip, UnfiledTag } from "./bash";
+import { notABugLine } from "@/lib/bash-oko";
 import { copyRich, saveImage, tableClip } from "./export-menu";
 import { MoreMenu } from "./more-menu";
 import type { BashLink } from "@/lib/bash";
@@ -27,6 +28,8 @@ export type ReportBug = {
   /** Not in Jira: the filing failed, or someone left it out at wrap-up. */
   unfiled: "not-filed" | "left" | null;
   why: string;
+  /** Not a bug's reason (ver_220), or "". */
+  reason: string;
   attachments: { id: string; fileName: string; contentType: string }[];
 };
 export type ReportFind = {
@@ -42,6 +45,8 @@ export type ReportFind = {
   key: string;
   url: string | null;
   left: boolean;
+  /** Not a bug's reason (ver_220), or "". */
+  reason: string;
   details: string;
   answers: Answer[];
   attachments: { id: string; fileName: string; contentType: string }[];
@@ -262,7 +267,7 @@ export function BashReportView({ r }: { r: ReportData }) {
                     {b.key && (b.url ? <a href={b.url} target="_blank" rel="noreferrer" className="font-mono text-xs text-accent-700 hover:underline">{b.key}</a> : <span className="font-mono text-xs">{b.key}</span>)}
                     <span className="min-w-0 flex-1 truncate">
                       {b.text}
-                      {b.unfiled && <UnfiledTag left={b.unfiled === "left"} />}
+                      {b.unfiled && <UnfiledTag left={b.unfiled === "left"} reason={b.reason} />}
                     </span>
                     {b.seen > 1 && <span className="text-xs text-slate-500">{b.seen} people</span>}
                   </li>
@@ -323,7 +328,7 @@ export function BashReportView({ r }: { r: ReportData }) {
                   <td className="px-2 py-1.5 font-mono text-xs">{b.url ? <a href={b.url} target="_blank" rel="noreferrer" className="text-accent-700 hover:underline">{b.key}</a> : b.key}</td>
                   <td className="px-2 py-1.5">
                     {b.text}
-                    {b.unfiled && <UnfiledTag left={b.unfiled === "left"} why={b.why} />}
+                    {b.unfiled && <UnfiledTag left={b.unfiled === "left"} reason={b.reason} why={b.why} />}
                   </td>
                   <td className="px-2 py-1.5 text-xs text-slate-600">
                     {area(b.areaId)}
@@ -404,7 +409,7 @@ function EverythingFound({ r }: { r: ReportData }) {
           {f.kind === "bug" && <SevChip s={f.severity} name={r.sevNames[f.severity]} />}
           {f.kind === "bug" && (
             <span className="mt-0.5 block font-mono">
-              {f.key ? f.url ? <a href={f.url} target="_blank" rel="noreferrer" className="text-accent-700 hover:underline">{f.key}</a> : f.key : f.left ? <span className="font-sans text-slate-500">Left out</span> : ""}
+              {f.key ? f.url ? <a href={f.url} target="_blank" rel="noreferrer" className="text-accent-700 hover:underline">{f.key}</a> : f.key : f.left ? <span className="font-sans text-slate-600">{notABugLine(f.reason)}</span> : ""}
             </span>
           )}
         </span>
