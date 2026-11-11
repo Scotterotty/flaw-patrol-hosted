@@ -9,6 +9,7 @@ import { acceptOf, deviceCell, fileAllowed, nowCell, type Answer, type BugLayout
 import type { BashValues, FindTemplate } from "@/lib/bash-template";
 import type { Seen } from "@/lib/bash";
 import { Button, cx } from "./ui";
+import { autoNumber } from "./bug-template-form";
 
 /** This person's own automatic table cells: their time, in their zone, and their browser. */
 export function seenHere(): Seen {
@@ -125,6 +126,7 @@ export function TemplateFields({
               disabled={disabled}
               value={v(s.id).text}
               onChange={(e) => set(s.id, { text: e.target.value })}
+              onKeyDown={(e) => autoNumber(e, (text) => set(s.id, { text }))}
               placeholder={s.hint || (s.source === "actual" ? "Leave it empty to use your one line" : s.source === "steps" ? "1. … 2. … 3. …" : "")}
               className="w-full resize-y rounded-md border border-slate-300 bg-surface px-2 py-1.5 text-sm focus:border-accent-500 focus:outline-none"
             />

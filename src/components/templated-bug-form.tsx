@@ -12,6 +12,10 @@ import type { ImportedDraft } from "@/server/jira";
 import { uploadAttachment } from "@/server/results";
 import { Sp } from "./spelling";
 import { cx, Input, Select, Textarea } from "./ui";
+import { autoNumber, Chips, REPRO_CLIENTS } from "./bug-template-form";
+
+/** Headings that name clients, answered with Web / Unity / Unreal buttons instead of a text box. */
+const CLIENT_HEADINGS = /^clients needed for repro$/i;
 
 export type TemplateChoice = { id: string; name: string; hint: string; layout: BugLayout };
 
@@ -265,10 +269,20 @@ export function TemplatedForm({
             </div>
           );
         }
+        // The detailed (OKO) layout's client headings: Web / Unity / Unreal buttons, as on the Jira bug form.
+        if (a.source === "text" && CLIENT_HEADINGS.test(a.heading.trim())) {
+          const picked = a.text.split(/\s*,\s*/).filter(Boolean);
+          return (
+            <div key={a.id}>
+              {label}
+              <Chips label={a.heading} options={REPRO_CLIENTS} value={picked} onChange={(v) => setAnswer(a.id, (x) => ({ ...x, text: REPRO_CLIENTS.filter((c) => v.includes(c)).concat(v.filter((c) => !REPRO_CLIENTS.includes(c))).join(", ") }))} />
+            </div>
+          );
+        }
         return (
           <div key={a.id}>
             <label htmlFor={`tb-${a.id}`}>{label}</label>
-            <Textarea id={`tb-${a.id}`} rows={a.source === "steps" ? 5 : 3} value={a.text} placeholder={s?.hint || (a.source === "text" ? "Write here" : "")} onChange={(e) => setAnswer(a.id, (x) => ({ ...x, text: e.target.value }))} />
+            <Textarea id={`tb-${a.id}`} rows={a.source === "steps" ? 5 : 3} value={a.text} placeholder={s?.hint || (a.source === "text" ? "Write here" : "")} onKeyDown={(e) => autoNumber(e, (v) => setAnswer(a.id, (x) => ({ ...x, text: v })))} onChange={(e) => setAnswer(a.id, (x) => ({ ...x, text: e.target.value }))} />
           </div>
         );
       })}

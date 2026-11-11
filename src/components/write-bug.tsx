@@ -16,6 +16,10 @@ import { fileTemplatedBug, startTemplatedBug } from "@/server/jira";
 import { uploadAttachment } from "@/server/results";
 import { sendWrittenBug, writeBugStart } from "@/server/write-bug";
 import { Modal } from "./modal";
+import { BugTemplateForm } from "./bug-template-form";
+import type { BugCapture } from "./bug-files";
+import { draftToOko, okoIntoDraft } from "@/lib/oko-draft";
+import { RecordingBar, takeScreenshot, useCaptureSupport, useScreenRecorder } from "./screen-capture";
 import type { CurrentLayout } from "@/lib/bug-templates-data";
 import { missingLine, TemplatedForm, TemplatePicker, type TemplateChoice, type TemplatedDraft } from "./templated-bug-form";
 import { Button, cx, ErrorText, Input, Select } from "./ui";
@@ -74,7 +78,9 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
   const [foundIn, setFoundIn] = useState("");
   const [jiraKey, setJiraKey] = useState<string | null>(null);
   const [alsoJira, setAlsoJira] = useState(true);
-  const [files, setFiles] = useState<{ id: string; fileName: string; size?: number }[]>([]);
+  const [files, setFiles] = useState<{ id: string; fileName: string; contentType: string; size?: number }[]>([]);
+  // The OKO form's file ticks: untick a file to keep it off the bug.
+  const [left, setLeft] = useState<Set<string>>(new Set());
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState<{ key: string; lines: string[] } | null>(null);
@@ -106,7 +112,9 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
         const old = typed.get(a.heading.trim().toLowerCase());
         return old && !a.rows && !a.files ? { ...a, text: old.text } : a;
       });
-      const fresh: TemplatedDraft = { templateId, layout: real, platform: before?.platform ?? "", area: before?.area ?? "", build: before?.build ?? "", summary: before?.summary ?? "", answers, fields: res.fields };
+      // The OKO form starts Repro rate at 1/1, as in a run.
+      const started = real.oko ? answers.map((a) => (a.heading === "Repro rate" && !a.text ? { ...a, text: "1/1" } : a)) : answers;
+      const fresh: TemplatedDraft = { templateId, layout: real, platform: before?.platform ?? "", area: before?.area ?? "", build: before?.build ?? "", summary: before?.summary ?? "", answers: started, fields: res.fields };
       const u = usualRef.current;
       setDraft(templateId === CURRENT_ID && u.usual && u.on ? withUsual(fresh, u.usual, true) : fresh);
     });
@@ -135,7 +143,39 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
-  const upload = async (list: FileList | null) => {
+  // Take screenshot / Record screen right here, as in a run's Report a bug box.
+  const support = useCaptureSupport();
+  const recorder = useScreenRecorder(
+    (f) => void upload([f.file]),
+    (message) => setError(message),
+  );
+  const [shooting, setShooting] = useState(false);
+  const capturing = shooting || uploading || recorder.rec !== null || recorder.picking;
+  const screenshot = async () => {
+    setShooting(true);
+    try {
+      const file = await takeScreenshot("Bug screenshot.png");
+      if (file) await upload([file]);
+    } catch {
+      setError("Couldn't take the screenshot.");
+    } finally {
+      setShooting(false);
+    }
+  };
+  const capture: BugCapture = {
+    ok: support.ok,
+    why: support.why,
+    busy: capturing,
+    area: support.area,
+    screenshot: () => void screenshot(),
+    record: () => void recorder.start({ stepIndex: null, label: "for this bug", baseName: "Bug" }),
+    recordArea: () => void recorder.start({ stepIndex: null, label: "for this bug", baseName: "Bug", area: true }),
+  };
+  // Closing the box mid-recording throws the recording away.
+  const stopRecording = recorder.stop;
+  useEffect(() => () => stopRecording(false), [stopRecording]);
+
+  const upload = async (list: FileList | File[] | null) => {
     if (!list?.length) return;
     setUploading(true);
     setError(null);
@@ -143,7 +183,7 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
       const form = new FormData();
       form.set("file", file);
       const res = await uploadAttachment(projectId, form);
-      if (res.ok) setFiles((f) => [...f, { id: res.attachment.id, fileName: res.attachment.fileName, size: res.attachment.size }]);
+      if (res.ok) setFiles((f) => [...f, { id: res.attachment.id, fileName: res.attachment.fileName, contentType: res.attachment.contentType, size: res.attachment.size }]);
       else setError(res.error);
     }
     setUploading(false);
@@ -168,7 +208,7 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
         severity,
         stepIndex: null,
         answers: draft.answers,
-        attachmentIds: files.map((f) => f.id),
+        attachmentIds: files.filter((f) => !left.has(f.id)).map((f) => f.id),
         fields: Object.fromEntries(draft.fields.map((f) => [f.id, f.value])),
         foundIn: foundIn.trim() || null,
         jira: toJira,
@@ -205,6 +245,7 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
             save();
           }}
         >
+          <RecordingBar r={recorder} inline />
           <p className="text-sm text-slate-600">For a bug you found outside a test: no test case, run or bug bash needed.</p>
           <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
           {cycles.length > 1 && (
@@ -262,19 +303,51 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
                   </p>
                 </div>
               )}
-              <TemplatedForm projectId={projectId} draft={draft} setDraft={(fn) => setDraft((d) => (d ? fn(d) : d))} severity={severity} setSeverity={setSeverity} scale={scale} setError={setError} />
+              {draft.layout.oko ? (
+                // The same OKO form as a run's Report a bug: one OKO form wherever it appears.
+                <BugTemplateForm
+                  bug={draftToOko(draft)}
+                  setBug={(fn) => setDraft((d) => (d ? okoIntoDraft(d, fn(draftToOko(d))) : d))}
+                  options={{
+                    clients: draft.fields.find((f) => f.name === "Client/SKUs")?.options ?? [],
+                    team: draft.fields.find((f) => f.name === "Team")?.options ?? [],
+                    olyEnv: draft.fields.find((f) => f.name === "Oly Environment")?.options ?? [],
+                  }}
+                  severity={severity}
+                  setSeverity={setSeverity}
+                  scale={scale}
+                  files={files.map((f) => ({ ...f, label: "Added here" }))}
+                  include={new Set(files.map((f) => f.id).filter((id) => !left.has(id)))}
+                  setInclude={(fn) => {
+                    const on = fn(new Set(files.map((f) => f.id).filter((id) => !left.has(id))));
+                    setLeft(new Set(files.map((f) => f.id).filter((id) => !on.has(id))));
+                  }}
+                  onAdd={(list) => void upload(list)}
+                  uploading={uploading}
+                  capture={capture}
+                  jiraLimit={toJira ? JIRA_FILE_LIMIT : null}
+                />
+              ) : (
+                <TemplatedForm projectId={projectId} draft={draft} setDraft={(fn) => setDraft((d) => (d ? fn(d) : d))} severity={severity} setSeverity={setSeverity} scale={scale} setError={setError} />
+              )}
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="wb-found">
                   Found in <span className="font-normal text-slate-400">(optional)</span>
                 </label>
                 <Input id="wb-found" value={foundIn} onChange={(e) => setFoundIn(e.target.value)} placeholder="A version, a build or a date" className="max-w-sm" />
               </div>
-              <div className="space-y-1.5">
+              <div className={cx("space-y-1.5", draft.layout.oko && "hidden")}>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button type="button" size="sm" onClick={() => fileInput.current?.click()} disabled={uploading}>
                     {uploading ? "Adding…" : "+ Attach files"}
                   </Button>
                   <input ref={fileInput} type="file" multiple hidden aria-label="Attach files" onChange={(e) => void upload(e.target.files)} data-testid="write-bug-files" />
+                  <Button type="button" size="sm" onClick={() => void screenshot()} disabled={!support.ok || capturing} title={support.ok ? "Take a picture of a tab, window or screen and add it" : support.why}>
+                    📷 Take screenshot
+                  </Button>
+                  <Button type="button" size="sm" onClick={() => void recorder.start({ stepIndex: null, label: "for this bug", baseName: "Bug" })} disabled={!support.ok || capturing} title={support.ok ? "Record a tab, window or screen for up to 5 minutes and add the video" : support.why}>
+                    🎥 Record screen
+                  </Button>
                   <span className="text-xs text-slate-500">Screenshots, videos or logs</span>
                 </div>
                 {files.length > 0 && (
