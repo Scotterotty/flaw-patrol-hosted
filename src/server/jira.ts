@@ -30,10 +30,11 @@ import {
   optionLike,
   orderFiles,
   parseProfile,
+  rememberedFor,
+  rememberInto,
   parseTemplateSettings,
   tagOf,
   templateTitle,
-  tenantOf,
   type TemplateBug,
   type TemplateSettings,
 } from "@/lib/bug-template";
@@ -459,7 +460,7 @@ function templateDefaults(t: TemplateSettings, entry: Entry, ctx: BugContext, me
     olyEnv: findField(meta, FIELD.olyEnv)?.options ?? [],
   };
   const envOption = optionLike(options.olyEnv, run.environment);
-  const remembered = parseProfile(profileRaw)[clientTag] ?? {};
+  const remembered = rememberedFor(parseProfile(profileRaw), clientTag, run.environment);
   const bug: TemplateBug = {
     clientTag,
     feature: featureOf(entry.title),
@@ -472,8 +473,8 @@ function templateDefaults(t: TemplateSettings, entry: Entry, ctx: BugContext, me
       dateTime: "",
       client: [clientName, run.build].filter(Boolean).join("\n"),
       csp: run.cspVersion,
-      context: remembered.context ?? "",
-      user: remembered.user ?? "",
+      context: remembered.context,
+      user: remembered.user,
       envTenant: [run.environment, remembered.tenant].filter(Boolean).join("\n"),
       repros: "1/1",
     },
@@ -691,12 +692,9 @@ export async function fileJiraBug(projectId: string, entryId: string, input: z.i
   });
 }
 
-/** Keep this tester's Context, User name & ID and tenant for their next bug on this client. */
+/** Keep this tester's Context, User name & ID and tenant for their next bug on this client (and environment). */
 async function rememberAnswers(userId: string, current: unknown, b: TemplateBug) {
-  const tag = b.clientTag.trim() || "_";
-  const profile = parseProfile(current);
-  profile[tag] = { context: b.history.context.trim(), user: b.history.user.trim(), tenant: tenantOf(b.history.envTenant) };
-  await db.user.update({ where: { id: userId }, data: { bugProfile: profile } });
+  await db.user.update({ where: { id: userId }, data: { bugProfile: rememberInto(parseProfile(current), b) } });
 }
 
 /** When Jira isn't connected: record the defect here only. */
@@ -1041,11 +1039,14 @@ export async function startTemplatedBug(projectId: string, entryId: string, step
     };
     const run = entry.run;
     const client = layout.fields.length ? await jiraFor(projectId).catch(() => null) : null;
+    const platform = tagOf(entry.title) || (ctx.titleTags?.[0] ?? "").toUpperCase() || clientIn(`${run.name} ${run.project.name}`);
     const draft = client ? importedDraft({ from: layout.from, title: { tag: false, feature: false }, sections: [], fields: layout.fields }, entry, ctx, await client.fieldMeta().catch(() => null)) : null;
     return {
       fill,
       auto: { build: [run.build, ctx.fields?.find((f) => /csp/i.test(f.name))?.value].filter(Boolean).join(" · ") || run.release || "", env: run.environment, who: user.name ?? user.email },
-      platform: tagOf(entry.title) || (ctx.titleTags?.[0] ?? "").toUpperCase() || clientIn(`${run.name} ${run.project.name}`),
+      platform,
+      // The OKO form's Context and User name & ID: what this tester typed last time on this client and environment.
+      remembered: layout.oko ? rememberedFor(parseProfile(user.bugProfile), platform.toUpperCase(), run.environment) : null,
       area: featureOf(entry.title),
       build: run.build || run.release || "",
       summary: defaultSummary({ ...ctx, titleTags: [] }),
@@ -1181,6 +1182,8 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
       // The OKO layout files exactly as the OKO form does: every answer into Jira's own field.
       const bug = draftToOko({ platform: data.platform, area: data.area, summary: data.summary, answers, fields: kept.fields });
       ({ key, reporterSet, attachError, linkError } = await fileTemplateBug(client, bug, data.severity, account, tester, allFiles, trace));
+      // Write a bug remembers Context and User name & ID too, as a run's Report a bug does.
+      await rememberAnswers(user.id, user.bugProfile, bug);
     } else {
       ({ key, reporterSet } = await client.createIssue({
         summary,
