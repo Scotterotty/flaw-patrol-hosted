@@ -116,7 +116,7 @@ test("side panels resize by dragging, safely, and remember their size", async ({
   const before = (await bug.boundingBox())!.width;
   await bug.getByRole("button", { name: "Expand this box" }).click();
   await expect(bug.getByRole("button", { name: "Shrink this box" })).toBeVisible();
-  expect((await bug.boundingBox())!.width).toBeGreaterThan(before + 200);
+  expect((await bug.boundingBox())!.width).toBeGreaterThan(before + 150);
   await bug.getByRole("button", { name: "Close" }).click();
   await page.getByRole("button", { name: "Report bug for case" }).click();
   await expect(page.getByRole("button", { name: "Shrink this box" })).toBeVisible();

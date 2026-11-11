@@ -356,12 +356,40 @@ export type Profile = Record<string, { context?: string; user?: string; tenant?:
 export function parseProfile(v: unknown): Profile {
   if (!v || typeof v !== "object") return {};
   const out: Profile = {};
-  for (const [k, e] of Object.entries(v as Record<string, unknown>).slice(0, 50)) {
+  for (const [k, e] of Object.entries(v as Record<string, unknown>).slice(0, 100)) {
     if (!e || typeof e !== "object") continue;
     const o = e as Record<string, unknown>;
     out[k] = { context: str(o.context, 500), user: str(o.user, 200), tenant: str(o.tenant, 200) };
   }
   return out;
+}
+
+/**
+ * What this tester typed last time, for a bug on this client in this environment. Context and tenant are kept
+ * per client; User name & ID per client and environment too, since it's a different account on each
+ * (Scott, Nov 10: "your OKO user name on that environment and your Swagger ID on that environment").
+ */
+export function rememberedFor(profile: Profile, clientTag: string, environment: string) {
+  const tag = clientTag.trim() || "_";
+  const own = profile[tag] ?? {};
+  const env = environment.trim() ? profile[`${tag}@${environment.trim().toLowerCase()}`] : undefined;
+  return { context: own.context ?? "", user: env?.user ?? own.user ?? "", tenant: env?.tenant ?? own.tenant ?? "" };
+}
+
+/** Keep what was typed on this bug for next time: see rememberedFor. */
+export function rememberInto(profile: Profile, b: Pick<TemplateBug, "clientTag" | "history">): Profile {
+  const tag = b.clientTag.trim() || "_";
+  const user = b.history.user.trim();
+  const tenant = tenantOf(b.history.envTenant);
+  const env = envOf(b.history.envTenant);
+  const out: Profile = { ...profile, [tag]: { context: b.history.context.trim(), user, tenant } };
+  if (env) out[`${tag}@${env.toLowerCase()}`] = { user, tenant };
+  return out;
+}
+
+/** "o2QA\nmagnopus-qa" → "o2QA": the environment line. */
+export function envOf(envTenant: string) {
+  return envTenant.split("\n")[0].trim();
 }
 
 /** "o2QA\nmagnopus-qa" → "magnopus-qa": the lines after the environment. */

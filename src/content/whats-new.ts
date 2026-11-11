@@ -22,6 +22,28 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 224,
+    date: "2026-11-10",
+    items: [
+      {
+        kind: "better",
+        title: "Drag a bug box wider or narrower",
+        text: "Write a bug, Report a bug and other big boxes have a bar on their left and right edges. Drag it to make the box wider or skinnier. Double-click the bar to put it back. Your size is remembered.",
+        link: "/how-to?task=write-bug",
+      },
+      {
+        kind: "better",
+        title: "Roomier bug form",
+        text: "The bug form opens wider, its boxes are bigger and grow as you type, and Reproduction history fits without a sideways scroll bar.",
+      },
+      {
+        kind: "better",
+        title: "Your User name & ID per environment",
+        text: "User name & ID is remembered for each environment, and Write a bug fills in what you typed last time instead of your Flaw Patrol name.",
+      },
+    ],
+  },
+  {
     version: 223,
     date: "2026-11-10",
     items: [

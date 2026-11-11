@@ -12,7 +12,7 @@ import type { ImportedDraft } from "@/server/jira";
 import { uploadAttachment } from "@/server/results";
 import { Sp } from "./spelling";
 import { cx, Input, Select, Textarea } from "./ui";
-import { autoNumber, Chips, REPRO_CLIENTS } from "./bug-template-form";
+import { autoNumber, Chips, GROW, REPRO_CLIENTS } from "./bug-template-form";
 
 /** Headings that name clients, answered with Web / Unity / Unreal buttons instead of a text box. */
 const CLIENT_HEADINGS = /^clients needed for repro$/i;
@@ -200,40 +200,33 @@ export function TemplatedForm({
           return (
             <div key={a.id}>
               {label}
-              <div className="overflow-x-auto">
-                <table className="min-w-full border border-slate-200 text-xs" aria-label={a.heading}>
-                  <thead>
-                    <tr>
-                      {a.columns.map((c, i) => (
-                        <th key={i} className="border-r border-slate-100 bg-slate-100 px-2 py-1 text-left font-semibold whitespace-nowrap text-slate-700">
+              {/* Each row is a card of labeled boxes that wrap to the box's width: no sideways scroll, and long text
+                  wraps instead of being cut off (roomier bug form, Nov 10). */}
+              <div role="group" aria-label={a.heading} className="space-y-2" data-testid="table-cards">
+                {a.rows.map((r, ri) => (
+                  <div key={ri} role="group" aria-label={a.rows!.length > 1 ? `${a.heading}, row ${ri + 1}` : undefined} className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,10rem),1fr))] gap-2.5 rounded-lg border border-slate-200 p-3">
+                    {a.columns!.map((c, i) => (
+                      <div key={i} className="min-w-0">
+                        <p className="mb-1 text-xs font-semibold text-slate-600" aria-hidden>
                           {c.name}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {a.rows.map((r, ri) => (
-                      <tr key={ri}>
-                        {a.columns!.map((c, i) => (
-                          <td key={i} className={cx("border-t border-r border-slate-100 px-1.5 py-1 align-top", c.fill === "files" && "bg-slate-50 text-slate-500")}>
-                            {c.fill === "files" ? (
-                              <span className="whitespace-nowrap">The bug&apos;s files</span>
-                            ) : (
-                              // Every cell can be changed; automatic ones start filled in (Scott, Nov 6).
-                              <input
-                                aria-label={c.name}
-                                placeholder={c.fill === "write" ? undefined : "Type it in"}
-                                className="w-full min-w-20 rounded border border-slate-300 bg-surface px-1.5 py-0.5"
-                                value={r[i] ?? ""}
-                                onChange={(e) => setAnswer(a.id, (x) => ({ ...x, rows: x.rows!.map((row, k) => (k === ri ? row.map((cell, j) => (j === i ? e.target.value : cell)) : row)) }))}
-                              />
-                            )}
-                          </td>
-                        ))}
-                      </tr>
+                        </p>
+                        {c.fill === "files" ? (
+                          <p className="py-1.5 text-sm text-slate-500">The bug&apos;s files</p>
+                        ) : (
+                          // Every cell can be changed; automatic ones start filled in (Scott, Nov 6).
+                          <Textarea
+                            aria-label={c.name}
+                            rows={2}
+                            placeholder={c.fill === "write" ? "Write here" : "Type it in"}
+                            className={cx("min-h-16 text-sm", GROW)}
+                            value={r[i] ?? ""}
+                            onChange={(e) => setAnswer(a.id, (x) => ({ ...x, rows: x.rows!.map((row, k) => (k === ri ? row.map((cell, j) => (j === i ? e.target.value : cell)) : row)) }))}
+                          />
+                        )}
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                ))}
               </div>
               <p className="mt-1 text-[11px] text-slate-500"><Sp>Some cells start filled in for you. You can change any of them. Times include the time zone.</Sp></p>
             </div>
@@ -282,7 +275,7 @@ export function TemplatedForm({
         return (
           <div key={a.id}>
             <label htmlFor={`tb-${a.id}`}>{label}</label>
-            <Textarea id={`tb-${a.id}`} rows={a.source === "steps" ? 5 : 3} value={a.text} placeholder={s?.hint || (a.source === "text" ? "Write here" : "")} onKeyDown={(e) => autoNumber(e, (v) => setAnswer(a.id, (x) => ({ ...x, text: v })))} onChange={(e) => setAnswer(a.id, (x) => ({ ...x, text: e.target.value }))} />
+            <Textarea id={`tb-${a.id}`} rows={a.source === "steps" ? 6 : 4} className={cx(a.source === "steps" ? "min-h-36" : "min-h-24", GROW)} value={a.text} placeholder={s?.hint || (a.source === "text" ? "Write here" : "")} onKeyDown={(e) => autoNumber(e, (v) => setAnswer(a.id, (x) => ({ ...x, text: v })))} onChange={(e) => setAnswer(a.id, (x) => ({ ...x, text: e.target.value }))} />
           </div>
         );
       })}

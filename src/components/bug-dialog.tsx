@@ -412,7 +412,7 @@ export function BugDialog({
     });
 
   return (
-    <Modal open={open} onClose={onClose} title={fromDefect ? `Send ${fromDefect.label} to Jira` : `Report a bug · ${stepLabel}`} wide>
+    <Modal open={open} onClose={onClose} title={fromDefect ? `Send ${fromDefect.label} to Jira` : `Report a bug · ${stepLabel}`} wide roomy>
       {filed ? (
         <div className="space-y-3" data-testid="bug-filed-notes">
           <p className="text-sm font-medium text-slate-800">Filed {filed.key} in Jira.</p>

@@ -134,7 +134,18 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
       });
       // The OKO form starts Repros and Repro rate at 1/1, as in a run, so the two match from the start.
       const started = real.oko ? withBuild(answers.map(startOneOfOne)) : answers;
-      const fresh: TemplatedDraft = { templateId, layout: real, platform: before?.platform ?? "", area: before?.area ?? "", build: before?.build ?? "", summary: before?.summary ?? "", answers: started, fields: res.fields };
+      let fresh: TemplatedDraft = { templateId, layout: real, platform: before?.platform ?? "", area: before?.area ?? "", build: before?.build ?? "", summary: before?.summary ?? "", answers: started, fields: res.fields };
+      // The OKO form: Context and User name & ID are what you typed last time on this client and environment,
+      // not your Flaw Patrol name (Scott, Nov 10). The browser stands in for Context the first time.
+      if (real.oko && res.remembered) {
+        const r = res.remembered;
+        const b = draftToOko(fresh);
+        const env = b.history.envTenant.trim();
+        fresh = okoIntoDraft(fresh, {
+          ...b,
+          history: { ...b.history, context: r.context || b.history.context, user: r.user, envTenant: r.tenant && env && !env.includes("\n") ? `${env}\n${r.tenant}` : b.history.envTenant },
+        });
+      }
       const u = usualRef.current;
       setDraft(templateId === CURRENT_ID && u.usual && u.on ? withUsual(fresh, u.usual, true) : fresh);
     });
@@ -241,7 +252,7 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
     });
 
   return (
-    <Modal open onClose={onClose} title="Write a bug" wide>
+    <Modal open onClose={onClose} title="Write a bug" wide roomy>
       {notes ? (
         <div className="space-y-3" data-testid="write-bug-notes">
           <p className="text-sm font-medium text-slate-800">Saved {notes.key}.</p>
