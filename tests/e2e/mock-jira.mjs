@@ -28,6 +28,11 @@ const OB_FIELDS = [
   { fieldId: "customfield_11494", name: "Bug Impact", required: false, schema: { type: "string", custom: "x:textarea" } },
   { fieldId: "customfield_11512", name: "Last Reproduced", required: false, schema: { type: "date", custom: "x:datepicker" } },
 ];
+// /__oko-strict/on (ver_220): the team's real Jira, where all 7 OKO fields are required.
+let okoStrict = false;
+const STRICT_REQUIRED = new Set(["customfield_11377", "customfield_11494", "customfield_11513"]);
+const WORKAROUND = { fieldId: "customfield_11513", name: "Bug Workaround", required: true, schema: { type: "string", custom: "x:textarea" } };
+const obFields = () => (okoStrict ? [...OB_FIELDS.map((f) => (STRICT_REQUIRED.has(f.fieldId) ? { ...f, required: true } : f)), WORKAROUND] : OB_FIELDS);
 // More of OB-5292's fields, also only on the Edit screen.
 const OB_EDIT = [
   ...OB_FIELDS,
@@ -221,6 +226,11 @@ http
       return res.end("ok");
     }
     if (p === "/__slack") return send(res, 200, slack);
+    const strict = /^\/__oko-strict\/(on|off)$/.exec(p);
+    if (strict) {
+      okoStrict = strict[1] === "on";
+      return send(res, 204);
+    }
     const perm = /^\/__reporter\/(on|off)$/.exec(p);
     if (perm) {
       canModifyReporter = perm[1] === "on";
@@ -261,7 +271,7 @@ http
     const meta = /^\/rest\/api\/3\/issue\/createmeta\/([^/]+)\/issuetypes(?:\/(\w+))?$/.exec(p);
     if (meta) {
       if (!meta[2]) return send(res, 200, { issueTypes: [{ id: "1", name: "Bug" }], total: 1 });
-      const fields = meta[1] === "OB" ? OB_FIELDS : BASIC_FIELDS;
+      const fields = meta[1] === "OB" ? obFields() : BASIC_FIELDS;
       return send(res, 200, { fields, total: fields.length, startAt: 0, maxResults: 200 });
     }
     // Like a Jira Cloud site: it says it takes 1 GB, while the team's really refuses files over 24 MB (ver_185).
@@ -331,11 +341,11 @@ http
         const errors = {};
         for (const [id, v] of Object.entries(fields)) {
           if (["project", "issuetype", "summary", "description", "reporter"].includes(id)) continue;
-          const f = OB_FIELDS.find((x) => x.fieldId === id);
+          const f = obFields().find((x) => x.fieldId === id);
           if (!f) errors[id] = `Field '${id}' cannot be set. It is not on the appropriate screen, or unknown.`;
           else if (f.allowedValues && ![v].flat().every((o) => f.allowedValues.some((a) => (a.value ?? a.name) === (o?.value ?? o?.name)))) errors[id] = `Specify a valid value for ${f.name}`;
         }
-        for (const f of OB_FIELDS) if (f.required && f.fieldId !== "reporter" && !fields[f.fieldId]) errors[f.fieldId] = `${f.name} is required.`;
+        for (const f of obFields()) if (f.required && f.fieldId !== "reporter" && !fields[f.fieldId]) errors[f.fieldId] = `${f.name} is required.`;
         if (Object.keys(errors).length) return send(res, 400, { errorMessages: [], errors });
       }
       const key = `${proj}-${++seq[proj]}`;

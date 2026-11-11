@@ -1243,6 +1243,8 @@ model BashItem {
   byName       String       @default("")
   plusOnes     Json         @default("[]")
   review       String       @default("file")
+  /// Not a bug (review "skip"): why, like "Works as designed" or "Can't reproduce" (ver_219). "" = no reason given.
+  reviewReason String       @default("")
   mergedIntoId String?
   defectId     String?
   /// Why filing it failed at wrap-up; cleared once it's filed.

@@ -27,8 +27,14 @@ import { bugContext } from "@/lib/bug-context";
 import { sectionText } from "@/lib/jira-format";
 import { listWords, nowCell, parseLayout, type AutoCells } from "@/lib/bug-layout";
 import { templateHome } from "@/lib/bug-templates-data";
-import { bashAnswers, itemTemplate, mergeValues, needsLine, needsOf, withoutSeenRow, withSeenRow, type BashValues } from "@/lib/bash-template";
+import { bashAnswers, isNeedsLine, itemTemplate, mergeValues, needsLine, needsOf, withoutSeenRow, withSeenRow, type BashValues } from "@/lib/bash-template";
 import { MAX_AHEAD_MS } from "@/lib/bash-schedule";
+import { CANT_REPRODUCE, OKO_FORM, okoStart, withOko, type BashOko } from "@/lib/bash-oko";
+import { bashOkoFor } from "@/lib/bash-oko-data";
+import { FIELD, optionLike, type TemplateBug } from "@/lib/bug-template";
+import { okoIntoDraft } from "@/lib/oko-draft";
+import { mailOn, sendMail } from "@/lib/mail";
+import { origin } from "@/lib/slack";
 import { attempt, UserError } from "./result";
 import { buildEntries } from "./snapshot";
 
@@ -346,16 +352,23 @@ export async function logBashItem(bashId: string, input: z.input<typeof logSchem
     if (!me) throw new UserError("Pick an area first.");
     // A bug with a bug template keeps the template as it is now, and what was typed under it.
     const tpl = data.kind === "bug" ? await bashTemplate(bash.run.projectId, data.templateId) : null;
+    // No template of its own in a cycle that files OKO bugs (ver_220): the OKO layout, with
+    // Add for Jira's boxes (all optional) and what Flaw Patrol fills in.
+    const oko = data.kind === "bug" && !tpl ? await bashOkoFor(bash.run.projectId) : null;
     let kept = {};
     if (tpl) {
       const fill = await bashFill(bash, me.areaId, nameOf(user), data.seen, me.platform);
       const answers = bashAnswers(tpl.layout, await ownFiles(data.values, bash.run.projectId, user.id), { env: fill.env, actual: data.details || data.text }, fill.auto);
       kept = { templateId: tpl.id, templateName: tpl.name, layout: tpl.layout as unknown as Prisma.InputJsonValue, answers: answers as unknown as Prisma.InputJsonValue };
+    } else if (oko) {
+      const fill = await bashFill(bash, me.areaId, nameOf(user), data.seen, me.platform);
+      const t = okoStart(oko.layout, oko.defaults, { values: await ownFiles(data.values, bash.run.projectId, user.id), actual: [data.text, data.details].filter(Boolean).join("\n\n"), build: bash.run.build, env: fill.env, auto: fill.auto });
+      kept = { templateId: null, templateName: OKO_FORM, layout: t.layout as unknown as Prisma.InputJsonValue, answers: t.answers as unknown as Prisma.InputJsonValue };
     }
     const item = await db.bashItem.create({ data: { bashId, areaId: me.areaId, kind: data.kind, text: data.text, details: data.details, severity: data.severity as Severity, byId: user.id, byName: nameOf(user), platform: me.platform, build: bash.run.build, environment: bash.run.environment, ...kept } });
     const fileIds = [...data.attachmentIds, ...Object.values(data.values).flatMap((v) => v.files.map((f) => f.id))];
     if (fileIds.length) await db.attachment.updateMany({ where: { id: { in: fileIds }, projectId: bash.run.projectId, uploadedById: user.id, resultId: null }, data: { bashItemId: item.id } });
-    const needs = tpl ? await itemNeeds(item.id) : [];
+    const needs = tpl || oko ? await itemNeeds(item.id, oko) : [];
     let filed: string | null = null;
     // Logging never waits on a template's must-haves (Scott, ver_125); filing does.
     if (!bash.collectFirst && data.kind === "bug" && needs.length) filed = `Logged. It goes to ${(await jiraConfigFor(bash.run.projectId)) ? "Jira" : "the bug list"} once ${listWords(needs)} ${needs.length === 1 ? "is" : "are"} added.`;
@@ -374,10 +387,10 @@ async function ownFiles(values: z.output<typeof valuesSchema>, projectId: string
 }
 
 /** What a templated bash bug still needs before it's filed (its files count as screenshots). */
-async function itemNeeds(itemId: string) {
-  const it = await db.bashItem.findUniqueOrThrow({ where: { id: itemId }, select: { templateName: true, layout: true, answers: true, attachments: { select: { fileName: true, contentType: true } } } });
-  const t = itemTemplate(it);
-  return t ? needsOf(t.layout, t.answers, it.attachments).words : [];
+async function itemNeeds(itemId: string, oko: BashOko | null) {
+  const it = await db.bashItem.findUniqueOrThrow({ where: { id: itemId }, select: { kind: true, text: true, details: true, build: true, platform: true, defectId: true, templateName: true, layout: true, answers: true, attachments: { select: { fileName: true, contentType: true } } } });
+  const t = itemTemplate(withOko(it, oko));
+  return t ? needsOf(t.layout, t.answers, it.attachments, it.platform).words : [];
 }
 
 /**
@@ -386,7 +399,9 @@ async function itemNeeds(itemId: string) {
  */
 export async function fillBashItem(itemId: string, input: { values: z.input<typeof valuesSchema>; attachmentIds?: string[] }) {
   return attempt(async () => {
-    const it = await db.bashItem.findUnique({ where: { id: itemId }, select: { bashId: true, kind: true, defectId: true, templateName: true, layout: true, answers: true } });
+    const raw = await db.bashItem.findUnique({ where: { id: itemId }, select: { bashId: true, kind: true, text: true, details: true, build: true, defectId: true, templateName: true, layout: true, answers: true, bash: { select: { run: { select: { projectId: true } } } } } });
+    const oko = raw?.bash.run ? await bashOkoFor(raw.bash.run.projectId) : null;
+    const it = raw ? withOko(raw, oko) : null;
     const t = it ? itemTemplate(it) : null;
     if (!it || !t) throw new UserError("That bug isn't here anymore.");
     const { bash, user } = await requireIn(it.bashId);
@@ -394,10 +409,11 @@ export async function fillBashItem(itemId: string, input: { values: z.input<type
     if (it.defectId) throw new UserError("It's already filed, so change it there.");
     const values = await ownFiles(valuesSchema.parse(input.values), bash.run.projectId, user.id);
     const answers = mergeValues(t.answers, t.layout, values);
-    await db.bashItem.update({ where: { id: itemId }, data: { answers: answers as unknown as Prisma.InputJsonValue } });
+    // A plain bug seen with the OKO layout keeps it from now on.
+    await db.bashItem.update({ where: { id: itemId }, data: { answers: answers as unknown as Prisma.InputJsonValue, ...(!raw!.templateName && { templateName: t.name, layout: t.layout as unknown as Prisma.InputJsonValue }) } });
     const ids = [...z.array(z.string().max(40)).max(10).parse(input.attachmentIds ?? []), ...Object.values(values).flatMap((v) => v.files.map((f) => f.id))];
     if (ids.length) await db.attachment.updateMany({ where: { id: { in: ids }, projectId: bash.run.projectId, uploadedById: user.id, resultId: null, defectId: null }, data: { bashItemId: itemId } });
-    const needs = await itemNeeds(itemId);
+    const needs = await itemNeeds(itemId, oko);
     // Ready now: a hold-back from wrap-up no longer applies.
     if (!needs.length) await db.bashItem.updateMany({ where: { id: itemId, fileError: { startsWith: "Needs " } }, data: { fileError: "" } });
     let filed: string | null = null;
@@ -669,16 +685,22 @@ export async function endBashEarly(bashId: string) {
   });
 }
 
-const reviewSchema = z.object({ review: z.enum(["file", "skip"]).optional(), severity: z.enum(["SHOWSTOPPER", "CRITICAL", "PROBLEMATIC", "MINOR"]).optional(), platform: z.string().max(200).optional() });
+const reviewSchema = z.object({
+  review: z.enum(["file", "skip"]).optional(),
+  /** Not a bug's reason (ver_220): Works as designed, Can't reproduce, Duplicate or one typed. */
+  reason: z.string().trim().max(120).optional(),
+  severity: z.enum(["SHOWSTOPPER", "CRITICAL", "PROBLEMATIC", "MINOR"]).optional(),
+  platform: z.string().max(200).optional(),
+});
 
-/** Wrap-up list: Will file / Skip, severity, and the client (platform) it was found on; "" clears it. */
+/** Wrap-up list: File it / Not a bug (with a reason), severity, and the client (platform) it was found on; "" clears it. */
 export async function reviewBashItem(itemId: string, input: z.input<typeof reviewSchema>) {
   return attempt(async () => {
     const item = await db.bashItem.findUnique({ where: { id: itemId }, select: { bashId: true } });
     if (!item) throw new UserError("That bug isn't here anymore.");
     const { bash } = await requireOwner(item.bashId);
     const data = reviewSchema.parse(input);
-    await db.bashItem.update({ where: { id: itemId }, data: { ...(data.review && { review: data.review }), ...(data.severity && { severity: data.severity }), ...(data.platform !== undefined && { platform: cleanPlatform(data.platform) }) } });
+    await db.bashItem.update({ where: { id: itemId }, data: { ...(data.review && { review: data.review }), ...(data.review === "file" ? { reviewReason: "" } : data.reason !== undefined && { reviewReason: data.reason }), ...(data.severity && { severity: data.severity }), ...(data.platform !== undefined && { platform: cleanPlatform(data.platform) }) } });
     refresh(bash.project.key);
     return {};
   });
@@ -722,9 +744,17 @@ function logOf(items: { id: string; kind: string; text: string; details: string;
   }));
 }
 
+/** The options Jira lists for Client/SKUs, or none when Jira can't say. */
+async function jiraClientOptions(projectId: string): Promise<string[]> {
+  const client = await jiraFor(projectId);
+  const meta = client ? await client.fieldMeta().catch(() => null) : null;
+  return meta?.find((f) => f.name.trim().toLowerCase() === FIELD.clients.toLowerCase())?.options ?? [];
+}
+
 /** File one logged bug: to Jira when connected, else as a bug here. Returns the key. */
 async function fileItem(bash: Awaited<ReturnType<typeof loadBash>>, itemId: string): Promise<string> {
-  const item = await db.bashItem.findUniqueOrThrow({ where: { id: itemId }, include: { attachments: { select: { id: true } } } });
+  const raw = await db.bashItem.findUniqueOrThrow({ where: { id: itemId }, include: { attachments: { select: { id: true } } } });
+  const item = withOko(raw, await bashOkoFor(bash.run.projectId));
   if (item.defectId) return "";
   const areas = parseAreas(bash.areas);
   const area = areas.find((a) => a.id === item.areaId);
@@ -751,9 +781,25 @@ async function fileItem(bash: Awaited<ReturnType<typeof loadBash>>, itemId: stri
   const t = itemTemplate(item);
   if (t) {
     // With its bug template: held back until it has what the template must have.
-    const needs = needsOf(t.layout, t.answers, await db.attachment.findMany({ where: { bashItemId: item.id }, select: { fileName: true, contentType: true } })).words;
+    const needs = needsOf(t.layout, t.answers, await db.attachment.findMany({ where: { bashItemId: item.id }, select: { fileName: true, contentType: true } }), item.platform).words;
     if (needs.length) throw new UserError(needsLine(needs));
+    // A plain bug filed with the OKO layout keeps it, so the filing reads it back.
+    if (!raw.templateName) await db.bashItem.update({ where: { id: item.id }, data: { templateName: t.name, layout: t.layout as unknown as Prisma.InputJsonValue, answers: t.answers as unknown as Prisma.InputJsonValue } });
     const inSections = new Set(t.answers.flatMap((a) => (a.files ?? []).map((f) => f.id)));
+    const notes = [
+      adds.length ? { name: "Added during the bash", text: adds.map((a) => `- ${a.byName}: ${a.text}`).join("\n") } : null,
+      links.some((l) => l.kind !== "jira") ? { name: "What was being tested", text: links.filter((l) => l.kind !== "jira").map((l) => `- ${l.key}${l.title ? ` ${l.title}` : ""}: ${l.url}`).join("\n") } : null,
+      { name: "Found in", text: `The bug bash ${foundIn}.` },
+    ].filter((n): n is { name: string; text: string } => !!n);
+    // The OKO layout (ver_220): Jira's own fields, as the OKO form files them. Client/SKUs follows
+    // the bug's client when nobody picked one; the bash notes go under Description.
+    let answers = t.answers;
+    let fields: Record<string, string[]> = {};
+    if (t.layout.oko) {
+      const clientOptions = item.platform && !t.layout.fields.some((f) => f.name === FIELD.clients && f.value.length) ? await jiraClientOptions(bash.run.projectId) : [];
+      fields = Object.fromEntries(t.layout.fields.map((f) => [f.id, f.name === FIELD.clients && !f.value.length && item.platform ? [optionLike(clientOptions, item.platform) || item.platform] : f.value]));
+      answers = t.answers.map((a) => (a.heading.trim().toLowerCase() === "description" ? { ...a, text: [a.text, ...notes.map((n) => `${n.name}: ${n.text}`)].filter(Boolean).join("\n\n") } : a));
+    }
     const r = await fileTemplatedBug(bash.run.projectId, entry.id, {
       templateId: item.templateId ?? "bash",
       bashItemId: item.id,
@@ -764,14 +810,11 @@ async function fileItem(bash: Awaited<ReturnType<typeof loadBash>>, itemId: stri
       severity: item.severity,
       stepIndex: null,
       actual: item.details || item.text,
-      answers: t.answers,
+      answers,
+      fields,
       attachmentIds: item.attachments.map((a) => a.id).filter((id) => !inSections.has(id)),
       stories,
-      notes: [
-        adds.length ? { name: "Added during the bash", text: adds.map((a) => `- ${a.byName}: ${a.text}`).join("\n") } : null,
-        links.some((l) => l.kind !== "jira") ? { name: "What was being tested", text: links.filter((l) => l.kind !== "jira").map((l) => `- ${l.key}${l.title ? ` ${l.title}` : ""}: ${l.url}`).join("\n") } : null,
-        { name: "Found in", text: `The bug bash ${foundIn}.` },
-      ].filter((n): n is { name: string; text: string } => !!n),
+      notes,
     });
     if (!r.ok) throw new UserError(r.error);
     defectId = r.defect.id;
@@ -824,7 +867,9 @@ export async function wrapUpBash(bashId: string, anyway = false) {
         if (it.fileError) await db.bashItem.update({ where: { id: it.id }, data: { fileError: "" } });
       } catch (e) {
         const why = e instanceof Error ? e.message : "It couldn't be filed.";
-        errors.push(`${it.text}: ${why}`);
+        // A bug that still needs something stays unfiled and doesn't stop the wrap-up (ver_220):
+        // the button said so, and it can be filed later from the report.
+        if (!isNeedsLine(why)) errors.push(`${it.text}: ${why}`);
         await db.bashItem.update({ where: { id: it.id }, data: { fileError: why.slice(0, 1000) } });
       }
     }
@@ -921,5 +966,133 @@ export async function postBashReport(bashId: string) {
     const n = await postBash(bash.run.projectId, (base) => ({ tone: "green", title: `🐞 Bug bash · ${bash.name}`, lines: [line], button: { label: "See the report", url: `${base}/p/${bash.project.key}/bashes/${bashId}/report` } }));
     if (!n) throw new UserError("This test cycle doesn't post to Slack yet. Add a channel in Settings → Slack alerts.");
     return { channels: n };
+  });
+}
+
+const okoText = (n: number) => z.string().max(n).default("");
+/** The OKO form's bug, as Fill in at wrap-up sends it (ver_220). */
+const okoBugSchema = z.object({
+  clientTag: okoText(40),
+  feature: okoText(120),
+  brief: okoText(300),
+  observedOn: okoText(1000),
+  clientsNeeded: okoText(200),
+  what: okoText(20000),
+  slack: okoText(2000),
+  history: z.object({ dateTime: okoText(200), client: okoText(500), csp: okoText(200), context: okoText(500), user: okoText(500), envTenant: okoText(500), repros: okoText(100) }),
+  reproSteps: okoText(20000),
+  spaceLink: okoText(1000),
+  impact: okoText(10000),
+  workaround: okoText(10000),
+  reproRate: okoText(100),
+  build: okoText(500),
+  clients: z.array(z.string().max(100)).max(30).default([]),
+  team: okoText(100),
+  olyEnv: z.array(z.string().max(100)).max(30).default([]),
+});
+
+/** The options Jira lists for the OKO form's pickers (Team, Client/SKUs, Oly Environment), for Fill in at wrap-up. */
+export async function bashOkoOptions(bashId: string) {
+  return attempt(async () => {
+    const { bash } = await requireIn(bashId);
+    const client = await jiraFor(bash.run.projectId);
+    const meta = client ? await client.fieldMeta().catch(() => null) : null;
+    const of = (name: string) => meta?.find((f) => f.name.trim().toLowerCase() === name.toLowerCase())?.options ?? [];
+    return { options: { clients: of(FIELD.clients), team: of(FIELD.team), olyEnv: of(FIELD.olyEnv) } };
+  });
+}
+
+/**
+ * Fill in with the OKO form (ver_220): the same form as a run's Report a bug, for a bash bug in
+ * an OKO cycle. What's typed goes back under the OKO layout's headings and Jira fields.
+ */
+export async function fillBashOko(itemId: string, input: { bug: TemplateBug; severity?: string; attachmentIds?: string[] }) {
+  return attempt(async () => {
+    const raw = await db.bashItem.findUnique({ where: { id: itemId }, select: { bashId: true, areaId: true, kind: true, text: true, details: true, build: true, platform: true, severity: true, defectId: true, templateName: true, layout: true, answers: true, bash: { select: { run: { select: { projectId: true } } } } } });
+    const oko = raw?.bash.run ? await bashOkoFor(raw.bash.run.projectId) : null;
+    const t = raw ? itemTemplate(withOko(raw, oko)) : null;
+    if (!raw || !t?.layout.oko) throw new UserError("That bug isn't here anymore.");
+    const { bash, user } = await requireIn(raw.bashId);
+    if (phaseOf(bash) === "wrapped") throw new UserError("This bash is wrapped up.");
+    if (raw.defectId) throw new UserError("It's already filed, so change it there.");
+    const bug = okoBugSchema.parse(input.bug);
+    const severity = z.enum(["SHOWSTOPPER", "CRITICAL", "PROBLEMATIC", "MINOR"]).optional().parse(input.severity);
+    const area = parseAreas(bash.areas).find((a) => a.id === raw.areaId)?.name ?? "";
+    const next = okoIntoDraft({ platform: raw.platform, area, summary: raw.text, answers: t.answers, fields: t.layout.fields }, bug);
+    const layout = { ...t.layout, fields: t.layout.fields.map((f) => ({ ...f, value: next.fields.find((x) => x.id === f.id)?.value ?? f.value })) };
+    await db.bashItem.update({
+      where: { id: itemId },
+      data: {
+        templateName: t.name,
+        layout: layout as unknown as Prisma.InputJsonValue,
+        answers: next.answers as unknown as Prisma.InputJsonValue,
+        text: next.summary.trim().slice(0, 300) || raw.text,
+        platform: cleanPlatform(next.platform),
+        ...(severity && { severity }),
+      },
+    });
+    const ids = z.array(z.string().max(40)).max(10).parse(input.attachmentIds ?? []);
+    if (ids.length) await db.attachment.updateMany({ where: { id: { in: ids }, projectId: bash.run.projectId, uploadedById: user.id, resultId: null, defectId: null }, data: { bashItemId: itemId } });
+    const needs = await itemNeeds(itemId, oko);
+    if (!needs.length) await db.bashItem.updateMany({ where: { id: itemId, fileError: { startsWith: "Needs " } }, data: { fileError: "" } });
+    refresh(bash.project.key);
+    return { needs };
+  });
+}
+
+/**
+ * Not a bug › Can't reproduce (ver_220, Scott): a note that @mentions the finder, like
+ * "@Sam, we couldn't reproduce this. Can you add steps?". It shows on the find, on the finder's
+ * screen with a box to answer, and goes to them by email when email is set up.
+ */
+export async function askBashFinder(itemId: string, note: string) {
+  return attempt(async () => {
+    const item = await db.bashItem.findUnique({ where: { id: itemId }, select: { id: true, bashId: true, areaId: true, kind: true, text: true, byId: true, byName: true } });
+    if (!item || item.kind !== "bug") throw new UserError("That bug isn't here anymore.");
+    const { bash, user } = await requireOwner(item.bashId);
+    if (phaseOf(bash) === "wrapped") throw new UserError("This bash is wrapped up.");
+    const text = addSchema.parse(note);
+    await db.bashItem.create({ data: { bashId: item.bashId, areaId: item.areaId, kind: "add", replyToId: item.id, text, byId: user.id, byName: nameOf(user) } });
+    await db.bashItem.update({ where: { id: item.id }, data: { review: "skip", reviewReason: CANT_REPRODUCE } });
+    let emailed = false;
+    const finder = item.byId && item.byId !== user.id ? await db.user.findUnique({ where: { id: item.byId }, select: { email: true } }) : null;
+    if (finder?.email && (await mailOn())) {
+      try {
+        await sendMail({
+          to: finder.email,
+          subject: `Can you add steps? · ${bash.name}`,
+          lines: [`${nameOf(user)} is wrapping up the bug bash ${bash.name} and couldn't reproduce your bug "${item.text}".`, text],
+          button: { label: "Add steps", url: `${await origin()}/p/${bash.project.key}/bashes/${bash.id}` },
+        });
+        emailed = true;
+      } catch (e) {
+        console.warn("Bug bash ask email failed", e);
+      }
+    }
+    refresh(bash.project.key);
+    return { emailed };
+  });
+}
+
+/**
+ * The finder answers Can't reproduce: their steps go on the find and, for a bug with the OKO
+ * layout or a template with Repro steps, under that heading too. Whoever wraps up sees it.
+ */
+export async function answerBashAsk(itemId: string, steps: string) {
+  return attempt(async () => {
+    const raw = await db.bashItem.findUnique({ where: { id: itemId }, select: { bashId: true, areaId: true, kind: true, text: true, details: true, build: true, defectId: true, templateName: true, layout: true, answers: true, bash: { select: { run: { select: { projectId: true } } } } } });
+    if (!raw || raw.kind !== "bug") throw new UserError("That bug isn't here anymore.");
+    const { bash, user } = await requireIn(raw.bashId);
+    if (phaseOf(bash) === "wrapped") throw new UserError("This bash is wrapped up.");
+    const text = addSchema.parse(steps);
+    await db.bashItem.create({ data: { bashId: raw.bashId, areaId: raw.areaId, kind: "add", replyToId: itemId, text, byId: user.id, byName: nameOf(user) } });
+    const t = itemTemplate(withOko(raw, raw.bash.run ? await bashOkoFor(raw.bash.run.projectId) : null));
+    const repro = t?.answers.find((a) => /^(repro steps|steps to see it|steps)$/i.test(a.heading.trim()));
+    if (t && repro && !raw.defectId) {
+      const answers = t.answers.map((a) => (a.id === repro.id ? { ...a, text: [a.text.trim(), text].filter(Boolean).join("\n") } : a));
+      await db.bashItem.update({ where: { id: itemId }, data: { answers: answers as unknown as Prisma.InputJsonValue, ...(!raw.templateName && { templateName: t.name, layout: t.layout as unknown as Prisma.InputJsonValue }) } });
+    }
+    refresh(bash.project.key);
+    return {};
   });
 }
