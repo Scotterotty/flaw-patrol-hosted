@@ -964,7 +964,7 @@ export const HOW_TO: HowToTask[] = [
       { text: "If you're asked **Is this bug about …?**, press **Yes** to fill in its usual answers (tag, Team, Client/SKUs), or **No, start blank** for a bug about another product.", see: "The answers filled in, or left blank." },
       { text: "Type a short **Summary** (**Brief summary** in the OKO bug layout) that says what's wrong.", see: "Your summary.", target: "bug-summary", type: true },
       { text: "Fill in the template's boxes (with **Plain**: **Steps to reproduce**, **What happened** and **What you expected**), then pick a **Severity**.", see: "Every box filled in. Anything still needed is listed by the save button." },
-      { text: "If the template has a table like **Reproduction history**, some cells start filled in (time, your name, browser). Click any cell to change it.", see: "The table with your changes." },
+      { text: "If the template has a table like **Reproduction history**, some cells start filled in (time, your name, browser), and empty ones show a gray hint of what goes there. With the OKO bug layout, **Repro rate** copies **Repros** and **Build #** takes the version numbers from **Client** and **CSP**. Click any cell to change it.", see: "The table with your changes, and Build # like Version 4.21.0 - CSP 7.1.0." },
       { text: "Add **Found in** and your files: **+ Attach files**, **Take screenshot** or **Record screen** (with the OKO bug layout, they're under **+ Add** in Attachments). Tick **Also file it in Jira** to send it there too.", see: "Your files listed." },
       { text: "Press **Save bug** (or **Save and file in Jira**).", see: "Saved, with the bug's key. It's on the **Bugs** page.", target: "write-bug-save", saves: true },
     ],

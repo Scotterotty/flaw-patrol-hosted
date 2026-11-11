@@ -219,6 +219,35 @@ export const QUIET_FIELDS = new Set<string>([FIELD.lastReproduced, FIELD.toBeAut
 
 export type History = { dateTime: string; client: string; csp: string; context: string; user: string; envTenant: string; repros: string };
 
+/** The first version number in a box: "Web 4.21.0" → "4.21.0". Blank when there's none. */
+export function versionIn(text: string): string {
+  return /\d+(?:\.\d+)+/.exec(text)?.[0] ?? /\d+/.exec(text)?.[0] ?? "";
+}
+
+/** Build # from the Client and CSP boxes: "Version 4.21.0 - CSP 7.1.0". Blank when both are. */
+export function buildLine(client: string, csp: string): string {
+  const v = versionIn(client);
+  const c = versionIn(csp);
+  return v || c ? `Version ${v || "x"} - CSP ${c || "x"}` : "";
+}
+
+/** Jira fields the tester typed in themselves, so the Reproduction History boxes stop filling them. */
+export type ByHand = { reproRate: boolean; build: boolean };
+
+/**
+ * One Reproduction History box changed. Repro rate copies Repros, and Build # takes the version
+ * numbers from Client and CSP (Scott, Nov 10: "to save time"), until they're typed in by hand.
+ */
+export function withHistory(b: TemplateBug, k: keyof History, v: string, byHand: ByHand): TemplateBug {
+  const history = { ...b.history, [k]: v };
+  return {
+    ...b,
+    history,
+    ...(k === "repros" && !byHand.reproRate ? { reproRate: v } : {}),
+    ...((k === "client" || k === "csp") && !byHand.build ? { build: buildLine(history.client, history.csp) } : {}),
+  };
+}
+
 /** Everything the tester can edit in the dialog before filing. */
 export type TemplateBug = {
   clientTag: string;

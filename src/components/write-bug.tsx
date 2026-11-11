@@ -9,7 +9,8 @@ import { JIRA_FILE_LIMIT, mbText, tooBigForJira } from "@/lib/jira-files";
 import type { Severity } from "@prisma/client";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { CURRENT_ID, deviceCell, nowCell, PLAIN_ID, plainLayout, startAnswers, usualAnswersLine, type BugLayout, type UsualAnswers } from "@/lib/bug-layout";
+import { buildLine, stamp } from "@/lib/bug-template";
+import { CURRENT_ID, deviceCell, nowCell, PLAIN_ID, plainLayout, startAnswers, usualAnswersLine, type Answer, type BugLayout, type UsualAnswers } from "@/lib/bug-layout";
 import { defaultSeverityOf, type SeverityScale } from "@/lib/severity";
 import { bugTemplateChoices } from "@/server/bug-templates";
 import { fileTemplatedBug, startTemplatedBug } from "@/server/jira";
@@ -23,6 +24,25 @@ import { RecordingBar, takeScreenshot, useCaptureSupport, useScreenRecorder } fr
 import type { CurrentLayout } from "@/lib/bug-templates-data";
 import { missingLine, TemplatedForm, TemplatePicker, type TemplateChoice, type TemplatedDraft } from "./templated-bug-form";
 import { Button, cx, ErrorText, Input, Select } from "./ui";
+
+/** An empty Repro rate, or an empty Repros cell in the Reproduction History row, starts at 1/1. */
+function startOneOfOne(a: Answer): Answer {
+  if (a.heading === "Repro rate") return a.text ? a : { ...a, text: "1/1" };
+  const col = a.columns?.findIndex((c) => c.name.trim().toLowerCase() === "repros") ?? -1;
+  if (col < 0 || !a.rows?.[0] || a.rows[0][col]) return a;
+  return { ...a, rows: [a.rows[0].map((v, i) => (i === col ? "1/1" : v)), ...a.rows.slice(1)] };
+}
+
+/** An empty Build # starts from the Client and CSP boxes' version numbers, as the form does when they change. */
+function withBuild(answers: Answer[]): Answer[] {
+  const table = answers.find((a) => a.columns && a.rows?.[0]);
+  const cell = (name: string) => {
+    const i = table?.columns?.findIndex((c) => c.name.trim().toLowerCase() === name) ?? -1;
+    return i < 0 ? "" : (table?.rows?.[0][i] ?? "");
+  };
+  const line = buildLine(cell("client version"), cell("csp"));
+  return line ? answers.map((a) => (a.heading === "Build #" && !a.text ? { ...a, text: line } : a)) : answers;
+}
 
 export type WriteBugCycle = { id: string; name: string };
 
@@ -108,12 +128,12 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
       const before = draftRef.current;
       const real = layout ?? plainLayout();
       const typed = new Map((before?.answers ?? []).filter((a) => a.text.trim()).map((a) => [a.heading.trim().toLowerCase(), a] as const));
-      const answers = startAnswers(real, res.fill, { ...res.auto, now: nowCell(), device: deviceCell(navigator.userAgent) }).map((a) => {
+      const answers = startAnswers(real, res.fill, { ...res.auto, now: real.oko ? stamp() : nowCell(), device: deviceCell(navigator.userAgent) }).map((a) => {
         const old = typed.get(a.heading.trim().toLowerCase());
         return old && !a.rows && !a.files ? { ...a, text: old.text } : a;
       });
-      // The OKO form starts Repro rate at 1/1, as in a run.
-      const started = real.oko ? answers.map((a) => (a.heading === "Repro rate" && !a.text ? { ...a, text: "1/1" } : a)) : answers;
+      // The OKO form starts Repros and Repro rate at 1/1, as in a run, so the two match from the start.
+      const started = real.oko ? withBuild(answers.map(startOneOfOne)) : answers;
       const fresh: TemplatedDraft = { templateId, layout: real, platform: before?.platform ?? "", area: before?.area ?? "", build: before?.build ?? "", summary: before?.summary ?? "", answers: started, fields: res.fields };
       const u = usualRef.current;
       setDraft(templateId === CURRENT_ID && u.usual && u.on ? withUsual(fresh, u.usual, true) : fresh);
@@ -306,6 +326,8 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
               {draft.layout.oko ? (
                 // The same OKO form as a run's Report a bug: one OKO form wherever it appears.
                 <BugTemplateForm
+                  // Opened again when the test cycle, template or usual answers change, so its tags match what filled the boxes.
+                  key={`${projectId}-${draft.templateId}-${useUsual}`}
                   bug={draftToOko(draft)}
                   setBug={(fn) => setDraft((d) => (d ? okoIntoDraft(d, fn(draftToOko(d))) : d))}
                   options={{
@@ -326,6 +348,7 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
                   uploading={uploading}
                   capture={capture}
                   jiraLimit={toJira ? JIRA_FILE_LIMIT : null}
+                  from="written"
                 />
               ) : (
                 <TemplatedForm projectId={projectId} draft={draft} setDraft={(fn) => setDraft((d) => (d ? fn(d) : d))} severity={severity} setSeverity={setSeverity} scale={scale} setError={setError} />

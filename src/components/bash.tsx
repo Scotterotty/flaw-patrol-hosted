@@ -1029,6 +1029,7 @@ export function FileBashBug({ bug, projectId, entryId, jiraConnected }: { bug: {
         entryId={entryId}
         stepIndex={null}
         stepLabel="bug bash"
+        from="bash"
         actual={bug.details || bug.text}
         attachments={bug.attachments.map((a) => ({ ...a, label: "From the bash" }))}
         jiraConnected={jiraConnected}

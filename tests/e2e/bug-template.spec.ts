@@ -125,6 +125,9 @@ test("bugs follow the team template", async ({ page }) => {
   await form.getByLabel("Context").fill("Windows 11\nRTX 3070");
   await form.getByLabel("User name & ID").fill("admin.qa\nusr_42");
   await form.getByLabel("Env & tenant").fill("o2QA\nmagnopus-qa");
+  // From a run, the tags still say where each box came from (ver_223 only changed Write a bug's).
+  await expect(form.locator("label[for=t-feature]")).toContainText("from case");
+  await expect(form.locator("label[for=h-client]")).toContainText("run build");
   await form.locator("#h-repros").fill("3/3");
   await expect(form.getByLabel("Repro rate")).toHaveValue("3/3");
   await form.getByLabel("Bug workaround").fill("Reload the space");

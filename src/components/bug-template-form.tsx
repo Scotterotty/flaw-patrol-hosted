@@ -1,7 +1,8 @@
 "use client";
 
 import type { Severity } from "@prisma/client";
-import { isDxdiag, isMedia, templateTitle, type History, type TemplateBug } from "@/lib/bug-template";
+import { useRef } from "react";
+import { isDxdiag, isMedia, templateTitle, withHistory, type ByHand, type History, type TemplateBug } from "@/lib/bug-template";
 import { AE_SCALE, type SeverityScale } from "@/lib/severity";
 import { AddMenu, FileTicks, type BugCapture, type BugFile } from "./bug-files";
 import { cx, Input, Select, Textarea } from "./ui";
@@ -10,6 +11,8 @@ export type TemplateOptions = { clients: string[]; team: string[]; olyEnv: strin
 type File_ = BugFile;
 
 const Auto = ({ children }: { children: string }) => <span className="ml-1.5 rounded bg-accent-50 px-1.5 py-px text-[11px] font-medium text-accent-700">{children}</span>;
+
+const AutoTag = ({ text }: { text?: string }) => (text ? <Auto>{text}</Auto> : null);
 
 function L({ htmlFor, children, auto }: { htmlFor?: string; children: string; auto?: string }) {
   return (
@@ -88,15 +91,38 @@ export function autoNumber(e: React.KeyboardEvent<HTMLTextAreaElement>, onChange
   requestAnimationFrame(() => el.setSelectionRange(caret, caret));
 }
 
-const HISTORY: { key: keyof History; label: string; rows: number; auto?: string; wide?: boolean }[] = [
-  { key: "dateTime", label: "Date & time", rows: 2, auto: "now" },
-  { key: "client", label: "Client", rows: 2, auto: "run build" },
-  { key: "csp", label: "CSP", rows: 2, auto: "run CSP" },
-  { key: "context", label: "Context", rows: 4, auto: "remembered", wide: true },
-  { key: "user", label: "User name & ID", rows: 3, auto: "remembered", wide: true },
-  { key: "envTenant", label: "Env & tenant", rows: 3, auto: "run env" },
-  { key: "repros", label: "Repros", rows: 1 },
+/** Where the form was opened: a run's Report a bug, a bug bash's File this bug, or + Write a bug. */
+export type BugFrom = "run" | "bash" | "written";
+
+/**
+ * The little tag beside a box says what filled it in. A run and a bash fill the same boxes; Write a
+ * bug has no run or case, so its tags only show on boxes that really started filled (Scott, Nov 10).
+ */
+type Tags = { run: string; bash: string; written?: string };
+
+const HISTORY: { key: keyof History; label: string; rows: number; tags?: Tags; hint: string; wide?: boolean }[] = [
+  { key: "dateTime", label: "Date & time", rows: 2, tags: { run: "now", bash: "now", written: "now" }, hint: "2026/11/10" },
+  { key: "client", label: "Client", rows: 2, tags: { run: "run build", bash: "bash build", written: "test cycle build" }, hint: "Client Version" },
+  { key: "csp", label: "CSP", rows: 2, tags: { run: "run CSP", bash: "bash CSP" }, hint: "xx.xx.x" },
+  { key: "context", label: "Context", rows: 4, tags: { run: "remembered", bash: "remembered", written: "your browser" }, hint: "Browser\nGraphics Driver\nDevice\nOS", wide: true },
+  { key: "user", label: "User name & ID", rows: 3, tags: { run: "remembered", bash: "remembered", written: "your name" }, hint: "Display Name & ID", wide: true },
+  { key: "envTenant", label: "Env & tenant", rows: 3, tags: { run: "run env", bash: "bash env", written: "test cycle env" }, hint: "Env.\nTenant" },
+  { key: "repros", label: "Repros", rows: 1, hint: "x/x" },
 ];
+
+const T = {
+  clientTag: { run: "from run", bash: "from bash", written: "usual answer" },
+  feature: { run: "from case", bash: "from bash" },
+  observedOn: { run: "from run", bash: "from bash" },
+  clientsNeeded: { run: "from run", bash: "from bash" },
+  what: { run: "your Actual result", bash: "from bash" },
+  clients: { run: "test cycle default", bash: "test cycle default", written: "usual answer" },
+  team: { run: "test cycle default", bash: "test cycle default", written: "usual answer" },
+  olyEnv: { run: "from run env", bash: "from bash env", written: "usual answer" },
+} satisfies Record<string, Tags>;
+
+/** Was this box filled in when the form opened? Lists count when they have anything in them. */
+const hasValue = (v: unknown) => (Array.isArray(v) ? v.length > 0 : typeof v === "string" && v.trim() !== "");
 
 /**
  * The team bug template (OB-5292) as a form: the title in three parts, the
@@ -120,6 +146,7 @@ export function BugTemplateForm({
   onPick = () => {},
   capture,
   jiraLimit = null,
+  from = "run",
 }: {
   bug: TemplateBug;
   setBug: (fn: (b: TemplateBug) => TemplateBug) => void;
@@ -141,15 +168,16 @@ export function BugTemplateForm({
   capture?: BugCapture;
   /** Jira's per-file limit: bigger files are flagged (ver_185). */
   jiraLimit?: number | null;
+  /** Where the form was opened, for the tags beside the boxes. The fields are the same everywhere. */
+  from?: BugFrom;
 }) {
   const set = <K extends keyof TemplateBug>(k: K, v: TemplateBug[K]) => setBug((b) => ({ ...b, [k]: v }));
-  const setH = (k: keyof History, v: string) =>
-    setBug((b) => ({
-      ...b,
-      history: { ...b.history, [k]: v },
-      // Repro Rate follows Repros until it's changed by hand.
-      ...(k === "repros" && b.reproRate === b.history.repros ? { reproRate: v } : {}),
-    }));
+  // Repro rate follows Repros, and Build # follows Client and CSP, until typed in by hand; emptying one makes it follow again.
+  const byHand = useRef<ByHand>({ reproRate: false, build: false });
+  // What the form opened with, so Write a bug only tags boxes that really started filled.
+  const opened = useRef(bug);
+  const tag = (t: Tags | undefined, start: unknown) => (!t ? undefined : from !== "written" ? t[from] : hasValue(start) ? t.written : undefined);
+  const setH = (k: keyof History, v: string) => setBug((b) => withHistory(b, k, v, byHand.current));
   const media = files.filter((f) => isMedia(f.contentType));
   const logs = files.filter((f) => !isMedia(f.contentType));
   const listed = files.filter((f) => include.has(f.id) && !isDxdiag(f.fileName)).length;
@@ -164,21 +192,22 @@ export function BugTemplateForm({
   );
 
   return (
-    <div className="space-y-5" data-testid="bug-template">
+    // Hints a shade darker than the app's usual placeholder, so they pass 4.5:1 in every look.
+    <div className="space-y-5 [&_input::placeholder]:text-slate-500 [&_textarea::placeholder]:text-slate-500" data-testid="bug-template">
       <div className="space-y-2">
         <Section>TITLE</Section>
         <div className="grid gap-2.5 sm:grid-cols-[150px_200px_minmax(0,1fr)]">
           <div>
-            <L htmlFor="t-tag" auto="from run">
+            <L htmlFor="t-tag" auto={tag(T.clientTag, opened.current.clientTag)}>
               Client(s)
             </L>
-            <Input id="t-tag" value={bug.clientTag} onChange={(e) => set("clientTag", e.target.value.toUpperCase())} />
+            <Input id="t-tag" value={bug.clientTag} onChange={(e) => set("clientTag", e.target.value.toUpperCase())} placeholder="e.g. WEB" />
           </div>
           <div>
-            <L htmlFor="t-feature" auto="from case">
+            <L htmlFor="t-feature" auto={tag(T.feature, opened.current.feature)}>
               Feature
             </L>
-            <Input id="t-feature" value={bug.feature} onChange={(e) => set("feature", e.target.value)} />
+            <Input id="t-feature" value={bug.feature} onChange={(e) => set("feature", e.target.value)} placeholder="Which feature? e.g. Avatars" />
           </div>
           <div>
             <L htmlFor="t-brief">Brief summary</L>
@@ -213,14 +242,15 @@ export function BugTemplateForm({
         <Section>DESCRIPTION</Section>
         <div className="grid gap-3.5 sm:grid-cols-2">
           <div>
-            <L htmlFor="t-observed" auto="from run">
+            <L htmlFor="t-observed" auto={tag(T.observedOn, opened.current.observedOn)}>
               Issue observed on
             </L>
-            <Input id="t-observed" value={bug.observedOn} onChange={(e) => set("observedOn", e.target.value)} />
+            <Input id="t-observed" value={bug.observedOn} onChange={(e) => set("observedOn", e.target.value)} placeholder="Where you saw it, e.g. Web 2.4.2 on Chrome" />
           </div>
           <div>
             <p className="mb-1 text-xs font-semibold text-slate-600">
-              Clients needed for repro<Auto>from run</Auto>
+              Clients needed for repro
+              <AutoTag text={tag(T.clientsNeeded, opened.current.clientsNeeded)} />
             </p>
             <Chips
               label="Clients needed for repro"
@@ -231,10 +261,10 @@ export function BugTemplateForm({
           </div>
         </div>
         <div>
-          <L htmlFor="t-what" auto="your Actual result">
+          <L htmlFor="t-what" auto={tag(T.what, opened.current.what)}>
             What happened
           </L>
-          <Textarea id="t-what" rows={3} value={bug.what} onChange={(e) => set("what", e.target.value)} />
+          <Textarea id="t-what" rows={3} value={bug.what} onChange={(e) => set("what", e.target.value)} placeholder="What went wrong, and what you expected instead" />
         </div>
         <div>
           <L htmlFor="t-slack">Slack thread (optional)</L>
@@ -249,25 +279,27 @@ export function BugTemplateForm({
       </div>
 
       <div className="space-y-2">
-        <Section note="filled in for you, edit anything">REPRODUCTION HISTORY</Section>
+        <Section note={from === "written" ? "type what you know" : "filled in for you, edit anything"}>REPRODUCTION HISTORY</Section>
         <div className="grid gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-4">
           {HISTORY.map((h) => (
             <div key={h.key} className={cx(h.wide && "sm:col-span-2")}>
-              <L htmlFor={`h-${h.key}`} auto={h.auto}>
+              <L htmlFor={`h-${h.key}`} auto={tag(h.tags, opened.current.history[h.key])}>
                 {h.label}
               </L>
-              <Textarea id={`h-${h.key}`} rows={h.rows} value={bug.history[h.key]} onChange={(e) => setH(h.key, e.target.value)} className="text-[13px]" />
+              <Textarea id={`h-${h.key}`} rows={h.rows} value={bug.history[h.key]} onChange={(e) => setH(h.key, e.target.value)} placeholder={h.hint} className="text-[13px]" />
             </div>
           ))}
           <div>
             <p className="mb-1 text-xs font-semibold text-slate-600">Attachments</p>
-            <p className="py-1 text-[13px] text-slate-700">{listed ? `${listed} file${listed === 1 ? "" : "s"}, linked` : "None"}</p>
+            <p className={cx("py-1 text-[13px]", listed ? "text-slate-700" : "text-slate-500")}>{listed ? `${listed} file${listed === 1 ? "" : "s"}, linked` : "Inline Attachments"}</p>
           </div>
         </div>
-        <p className="text-xs text-slate-500">
-          Context and User name &amp; ID are yours to type. Whatever you use is remembered for this client and filled in next time; change it whenever your
-          machine or account changes.
-        </p>
+        {from !== "written" && (
+          <p className="text-xs text-slate-500">
+            Context and User name &amp; ID are yours to type. Whatever you use is remembered for this client and filled in next time; change it whenever your
+            machine or account changes.
+          </p>
+        )}
       </div>
 
       <div className="space-y-3">
@@ -293,7 +325,11 @@ export function BugTemplateForm({
             <L htmlFor="t-rate" auto="from Repros">
               Repro rate
             </L>
-            <Input id="t-rate" value={bug.reproRate} onChange={(e) => set("reproRate", e.target.value)} />
+            <Input id="t-rate" value={bug.reproRate} onChange={(e) => {
+                byHand.current.reproRate = e.target.value.trim() !== "";
+                set("reproRate", e.target.value);
+              }}
+            />
           </div>
           <div>
             <L htmlFor="t-impact">Bug impact</L>
@@ -305,20 +341,29 @@ export function BugTemplateForm({
           </div>
         </div>
         <div>
-          <L htmlFor="t-build" auto="from run">
+          <L htmlFor="t-build" auto="from Client & CSP">
             Build #
           </L>
-          <Input id="t-build" value={bug.build} onChange={(e) => set("build", e.target.value)} />
+          <Input
+            id="t-build"
+            value={bug.build}
+            placeholder="Version x - CSP x"
+            onChange={(e) => {
+              byHand.current.build = e.target.value.trim() !== "";
+              set("build", e.target.value);
+            }}
+          />
         </div>
         <div>
           <p className="mb-1 text-xs font-semibold text-slate-600">
-            Client/SKUs<Auto>test cycle default</Auto>
+            Client/SKUs
+            <AutoTag text={tag(T.clients, opened.current.clients)} />
           </p>
           <Chips label="Client/SKUs" options={options.clients} value={bug.clients} onChange={(v) => set("clients", v)} />
         </div>
         <div className="grid gap-3.5 sm:grid-cols-2">
           <div>
-            <L htmlFor="t-team" auto="test cycle default">
+            <L htmlFor="t-team" auto={tag(T.team, opened.current.team)}>
               Team
             </L>
             {options.team.length ? (
@@ -334,7 +379,8 @@ export function BugTemplateForm({
           </div>
           <div>
             <p className="mb-1 text-xs font-semibold text-slate-600">
-              Oly Environment<Auto>from run env</Auto>
+              Oly Environment
+              <AutoTag text={tag(T.olyEnv, opened.current.olyEnv)} />
             </p>
             <Chips label="Oly Environment" options={options.olyEnv} value={bug.olyEnv} onChange={(v) => set("olyEnv", v)} />
           </div>
