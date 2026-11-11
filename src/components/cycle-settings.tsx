@@ -144,7 +144,7 @@ export function CycleSettingsTable({
                     <Chip chip={r.slack} />
                   </td>
                   <td className="px-4 py-2 text-right whitespace-nowrap">
-                    <Button size="sm" aria-expanded={isOpen} aria-label={`${isOpen ? "Hide" : canChange ? "Change" : "View"} ${r.name}`} onClick={() => toggle(r.key)}>
+                    <Button size="sm" aria-expanded={isOpen} aria-label={`${isOpen ? "Hide" : canChange ? "Change" : "View"} ${r.name}`} onClick={() => toggle(r.key)} data-howto="cycle-change">
                       {isOpen ? "Hide" : canChange ? "Change" : "View"}
                     </Button>
                     <span className="relative ml-1 inline-block" ref={menu === r.key ? menuRef : undefined}>

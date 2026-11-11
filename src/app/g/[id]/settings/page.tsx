@@ -269,6 +269,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
         umbrella={name}
         pin={p.archivedAt ? null : { projectId: p.id, on: p.keepCurrent, platform: p.platform, canChange: can(cw, "cycle:archive") }}
         details={can(cw, "project:manage") ? { projectId: p.id, name: p.name, description: p.description } : null}
+        clients={p.archivedAt ? undefined : { projectId: p.id, list: p.clients, canChange: can(cw, "project:manage"), cycle: p.name }}
         team={{
           projectId: p.id,
           separate: p.keepMembersSeparate,

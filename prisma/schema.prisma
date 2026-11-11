@@ -273,6 +273,9 @@ model Project {
   tagColors            Json              @default("{}")
   /// Area tags: words this library said No to, so they are not offered again.
   areaSkip             String[]          @default([])
+  /// Clients (ver_214): the apps or devices each case is tested on, like Web, Unreal and Unity iOS.
+  /// Runs started after this is set run each case once per client. Empty = off. See src/lib/clients.ts.
+  clients              String[]          @default([])
   /// Slack alerts: "umbrella" follows the umbrella's channels, "choose" uses
   /// slackChannelIds (ticked umbrella channels) plus its own, "off" sends nothing.
   slackMode            String            @default("umbrella")
@@ -592,6 +595,9 @@ model TestCase {
   currentVersion Int              @default(1)
   /// Rows of test data in the current version, 0 for none. For the "3 rows" tag.
   dataRows       Int              @default(0)
+  /// Clients (ver_214): the clients this case is tested on, picked by someone. Empty = Flaw Patrol
+  /// guesses from the case's words when a run starts (src/lib/clients.ts).
+  clients        String[]         @default([])
   archived       Boolean          @default(false)
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
@@ -767,6 +773,8 @@ model TestRun {
   fields         Json          @default("[]")
   environment    String        @default("")
   release        String        @default("")
+  /// Clients (ver_214): the test cycle's clients when the run started; the run page shows a client grid.
+  clients        String[]      @default([])
   state          RunState      @default(ACTIVE)
   createdById    String?
   createdBy      String        @default("")
@@ -837,6 +845,9 @@ model RunEntry {
   charter         Json?
   /// Test data the case had when the run started. Steps already hold one copy per row.
   testData        Json?
+  /// Clients (ver_214): the clients this case runs on in this run. The test data's first column
+  /// then names each row's client. Empty for runs without clients.
+  clients         String[]     @default([])
   // { name, emoji, description } of the persona when the run started.
   persona         Json?
   assigneeId      String?

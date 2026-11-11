@@ -94,7 +94,9 @@ export async function createRun(projectId: string, from: z.input<typeof source>,
           const first = new Set(carry.recheck);
           caseIds = [...caseIds.filter((id) => first.has(id)), ...caseIds.filter((id) => !first.has(id))];
         }
-        const entries = await buildEntries(tx, library, caseIds, data.assigneeId);
+        // Clients (ver_214): a test cycle with clients runs each case once per client it covers.
+        const clients = project.clients ?? [];
+        const entries = await buildEntries(tx, library, caseIds, data.assigneeId, { clients });
         if (!entries.length) throw new UserError("There are no active cases to run.");
         if (carry && !data.assigneeId) {
           const team = new Set((await tx.projectMember.findMany({ where: { projectId }, select: { userId: true } })).map((m) => m.userId));
@@ -128,6 +130,7 @@ export async function createRun(projectId: string, from: z.input<typeof source>,
             fields: typed.fields,
             environment: data.environment,
             release: data.release,
+            clients: entries.some((e) => e.clients.length) ? clients : [],
             kind: runKind,
             // Any automated-only case still here was picked or asked for.
             withAutomated: entries.some((e) => e.kind === "AUTOMATED"),
@@ -292,7 +295,7 @@ export async function removeRunEntries(projectId: string, runId: string, entryId
 export async function restoreRunEntries(projectId: string, runId: string, items: { caseId: string; position: number; assigneeId: string | null }[]) {
   return attempt(async () => {
     const { project } = await requireProjectAction(projectId, "run:manage");
-    const run = await db.testRun.findFirst({ where: { id: runId, projectId }, select: { id: true, automated: true, entries: { select: { caseId: true } } } });
+    const run = await db.testRun.findFirst({ where: { id: runId, projectId }, select: { id: true, automated: true, clients: true, entries: { select: { caseId: true } } } });
     if (!run || run.automated) throw new UserError("Run not found.");
     const have = new Set(run.entries.map((e) => e.caseId));
     const back = items.slice(0, 5000).filter((i) => !have.has(i.caseId));
@@ -301,7 +304,7 @@ export async function restoreRunEntries(projectId: string, runId: string, items:
     const library = await libraryProjectIds(project);
     const count = await db.$transaction(
       async (tx) => {
-        const entries = await buildEntries(tx, library, back.map((i) => i.caseId), null);
+        const entries = await buildEntries(tx, library, back.map((i) => i.caseId), null, { clients: run.clients });
         const at = new Map(back.map((i) => [i.caseId, i]));
         await tx.runEntry.createMany({
           data: entries.map((e) => {

@@ -44,6 +44,8 @@ import { bugsAcrossSaves, countsInHistory, filesAcrossSaves, isFlaky, onePerRun,
 import { projectAccess, mySpelling } from "@/lib/session";
 import { projectMembers } from "@/lib/suite-data";
 import { stepsToRun, type ExpandedStep } from "@/lib/steps";
+import { entryClientResults } from "@/lib/clients";
+import { clientGridEntry } from "@/lib/client-grid-data";
 import { jiraConfigFor } from "@/lib/umbrella";
 import { DEFAULT_STORIES, parseStoriesConfig, storyInfo } from "@/lib/stories";
 import { can } from "@/lib/permissions";
@@ -58,7 +60,7 @@ export default async function ExecutePage({
   searchParams,
 }: {
   params: Promise<{ key: string; number: string }>;
-  searchParams: Promise<{ entry?: string; mine?: string; only?: string; finished?: string }>;
+  searchParams: Promise<{ entry?: string; mine?: string; only?: string; finished?: string; client?: string; bug?: string; just?: string }>;
 }) {
   // FP_TIMING=1 prints how long each part took. Lookups that don't need each other run side by
   // side instead of one after another, so Save and next opens the next case sooner.
@@ -72,7 +74,7 @@ export default async function ExecutePage({
     timing.step("tags", tagColorsFor(project.id)),
     timing.step("run and its cases", db.testRun.findUnique({
     where: { projectId_number: { projectId: project.id, number: Number(number) || 0 } },
-    include: { entries: { orderBy: { position: "asc" }, select: { id: true, caseId: true, kind: true, title: true, status: true, priority: true, assigneeId: true, steps: true, draft: true, draftAt: true, draftByName: true, draftById: true, results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true, testerName: true, testerId: true, createdAt: true } }, testCase: { select: { number: true, flag: true, tags: true, project: { select: { key: true } } } } } } },
+    include: { entries: { orderBy: { position: "asc" }, select: { id: true, caseId: true, kind: true, title: true, folderPath: true, testData: true, clients: true, status: true, priority: true, assigneeId: true, steps: true, draft: true, draftAt: true, draftByName: true, draftById: true, results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true, testerName: true, testerId: true, createdAt: true } }, testCase: { select: { number: true, flag: true, tags: true, project: { select: { key: true } } } } } } },
     })),
     readCaseSort(),
     timing.step("Jira", jiraConfigFor(project.id)),
@@ -89,24 +91,34 @@ export default async function ExecutePage({
   const selection = onlyNumbers.size ? run.entries.filter((e) => onlyNumbers.has(e.testCase.number)) : null;
   const mineOnly = !selection && sp.mine === "1";
   const list = selection ?? (mineOnly ? run.entries.filter((e) => e.assigneeId === user.id) : run.entries);
-  const keep = selection ? `&only=${selection.map((e) => e.testCase.number).join(",")}` : mineOnly ? "&mine=1" : "";
+  // Clients (ver_214): "Test Unity iOS only" from the run page goes case by case on that one client.
+  const just = sp.just && run.clients.includes(sp.just) ? sp.just : null;
+  const justOpen = (e: (typeof run.entries)[number]) => {
+    if (!just || !e.clients.includes(just)) return false;
+    const g = clientGridEntry(e, "", []);
+    return entryClientResults(g, g.progress)[just] === "UNTESTED";
+  };
+  const keep = (selection ? `&only=${selection.map((e) => e.testCase.number).join(",")}` : mineOnly ? "&mine=1" : "") + (just ? `&just=${encodeURIComponent(just)}` : "");
   // Default to a case of mine that's half done, then the first untested case assigned to me, then any untested case.
   // When running a selection, start at its first unfinished case.
   const pool = selection ?? run.entries;
   const pick =
     pool.find((e) => e.id === sp.entry) ??
+    (just ? (pool.find(justOpen) ?? pool.find((e) => e.clients.includes(just))) : undefined) ??
     (selection
       ? (selection.find((e) => isOpen(e.status)) ?? selection[0])
       : (run.entries.find((e) => e.status === "IN_PROGRESS" && e.assigneeId === user.id) ??
         run.entries.find((e) => e.status === "UNTESTED" && e.assigneeId === user.id) ??
         run.entries.find((e) => e.status === "UNTESTED") ??
         run.entries[0]));
-  if (pick.id !== sp.entry) redirect(`/p/${project.key}/runs/${run.number}/execute?entry=${pick.id}${keep}`);
+  if (pick.id !== sp.entry) redirect(`/p/${project.key}/runs/${run.number}/execute?entry=${pick.id}${keep}${sp.client ? `&client=${encodeURIComponent(sp.client)}` : ""}${sp.bug ? "&bug=1" : ""}`);
 
   const idx = list.findIndex((e) => e.id === pick.id);
   const after = [...list.slice(idx + 1), ...list.slice(0, Math.max(idx, 0))];
   // A selection goes through the picked cases in order, finished ones included, since they were chosen on purpose.
-  const next = selection
+  const next = just
+    ? (after.find(justOpen) ?? null)
+    : selection
     ? (list[idx + 1] ?? null)
     : (after.find((e) => e.status === "UNTESTED" && (!e.assigneeId || e.assigneeId === user.id)) ?? after.find((e) => e.status === "UNTESTED") ?? null);
 
@@ -361,6 +373,9 @@ export default async function ExecutePage({
           news={news}
           newsHref={news?.kind === "updated" ? `/p/${entry.testCase.project.key}/cases/${entry.testCase.number}/versions/${news.version}?from=${news.since.version}` : undefined}
           knownBugs={knownBugs}
+          startClient={sp.client && entry.clients.includes(sp.client) ? sp.client : null}
+          openBug={sp.bug === "1"}
+          onlyClient={just && entry.clients.includes(just) ? just : null}
           entry={{
             id: entry.id,
             caseKey: caseKey(entry.testCase.project.key, entry.testCase.number),
@@ -374,6 +389,7 @@ export default async function ExecutePage({
             folderPath: entry.folderPath,
             steps: stepsToRun((Array.isArray(entry.steps) ? entry.steps : []) as unknown as ExpandedStep[], titleWithTags(entry.title, entry.testCase.tags).title),
             testData: parseTestData(entry.testData),
+            clients: entry.clients,
             status: entry.status,
             draft: parseDraft(entry.draft),
             stories,
