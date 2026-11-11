@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 221,
+    date: "2026-11-10",
+    items: [
+      {
+        kind: "fix",
+        title: "Each font changes only its own text",
+        text: "Your Heading font now shows on every title in every look, and Text font no longer changes case, run or shared step titles. Picking a look fills in its fonts under Appearance, and you can change them from there.",
+        who: "all",
+      },
+    ],
+  },
+  {
     version: 215,
     date: "2026-11-10",
     items: [

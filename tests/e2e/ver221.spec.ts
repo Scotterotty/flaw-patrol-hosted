@@ -19,7 +19,6 @@ const reset = async () => {
 test.beforeAll(reset);
 test.afterAll(reset);
 
-const fontOf = (sel: string) => (e: Element) => getComputedStyle(e.querySelector(sel) ?? e).fontFamily;
 
 test("a look fills in its title font, and your own Heading font then wins on every page", async ({ page }) => {
   await signIn(page, EMAIL);
@@ -35,19 +34,19 @@ test("a look fills in its title font, and your own Heading font then wins on eve
   // Scott's setup: Chakra Petch text, Bungee titles.
   await text.selectOption("chakra-petch");
   await heading.selectOption("bungee");
-  await expect.poll(() => html.evaluate(fontOf("h1"))).toMatch(/^"?Bungee/);
+  await expect.poll(() => page.locator("h1").first().evaluate((e) => getComputedStyle(e).fontFamily)).toMatch(/^"?Bungee/);
   await expect.poll(() => html.evaluate((e) => getComputedStyle(e).getPropertyValue("--font-body"))).toContain("Chakra Petch");
 
   // Drawn by the server too, on other pages.
   await page.goto("/");
   await expect(html).toHaveAttribute("data-look", "retro");
-  expect(await html.evaluate(fontOf("h1"))).toMatch(/^"?Bungee/);
-  expect(await html.evaluate(fontOf("main"))).toMatch(/^"?Chakra Petch/);
+  expect(await page.locator("h1").first().evaluate((e) => getComputedStyle(e).fontFamily)).toMatch(/^"?Bungee/);
+  expect(await page.locator("main").first().evaluate((e) => getComputedStyle(e).fontFamily)).toMatch(/^"?Chakra Petch/);
 
   // Changing the text font never touches page titles.
   await openAccount(page);
   await text.selectOption("lexend");
-  await expect.poll(() => html.evaluate(fontOf("h1"))).toMatch(/^"?Bungee/);
+  await expect.poll(() => page.locator("h1").first().evaluate((e) => getComputedStyle(e).fontFamily)).toMatch(/^"?Bungee/);
 
   // Back to Classic: fonts you picked yourself stay.
   await page.getByTestId("look-picker").getByText("Classic", { exact: true }).click();
