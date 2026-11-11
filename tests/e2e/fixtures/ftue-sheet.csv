@@ -1,0 +1,13 @@
+Test Case,Steps,Expected Result,Status,Tester,Notes
+Sign in with email,"1. Open the app
+2. Enter email and password
+3. Press Sign in",You land on the home screen,Pass,Sam,
+Add item to cart,"1. Open a product
+2. Press Add to cart",Cart count goes up by one,Fail,Sam,Count stayed at 0
+Checkout with card,"1. Open cart
+2. Press Checkout
+3. Pay with test card",Order confirmation shows,,,
+Apply promo code,"1. Open cart
+2. Enter SAVE10",Total drops 10%,Blocked,Jo,Promo service down
+Sign out,"1. Open menu
+2. Press Sign out",You are back at sign in,Pass,Jo,

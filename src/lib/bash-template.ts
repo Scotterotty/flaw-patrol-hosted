@@ -3,6 +3,7 @@
 // wrap-up. Logging never waits on it (Scott, 2026-11-01): only filing does. Pure, client-safe.
 
 import { listWords, missing, parseAnswers, parseLayout, type Answer, type AutoCells, type BugLayout } from "./bug-layout";
+import { okoNeeds } from "./bash-oko";
 
 /** What someone typed or attached under a heading, by heading id. */
 export type BashValues = Record<string, { text: string; files: { id: string; fileName: string }[] }>;
@@ -56,7 +57,9 @@ export function mergeValues(answers: Answer[], layout: BugLayout, values: BashVa
 }
 
 /** What a bash bug still needs before it's filed: the heading ids and the words to show. */
-export function needsOf(layout: BugLayout, answers: Answer[], files: { fileName: string; contentType?: string }[]) {
+export function needsOf(layout: BugLayout, answers: Answer[], files: { fileName: string; contentType?: string }[], platform = "") {
+  // The OKO layout (ver_220): what Jira's OKO fields still need, after what Flaw Patrol fills in.
+  if (layout.oko) return { ...okoNeeds(layout, answers, platform), shot: false };
   const shots = files.filter(isShot).length;
   const words = missing(layout, answers, shots);
   const ids = answers.filter((a) => words.includes(a.heading) && layout.sections.some((s) => s.id === a.id && s.must)).map((a) => a.id);
@@ -90,10 +93,10 @@ export function withoutSeenRow(answers: Answer[], who: string): Answer[] {
 }
 
 /** A bash bug's template for the screens: its layout and answers, and what it still needs. Null for a plain bug. */
-export function findTemplate(i: { templateName: string; layout: unknown; answers: unknown }, files: { fileName: string; contentType?: string }[]) {
+export function findTemplate(i: { templateName: string; layout: unknown; answers: unknown; platform?: string }, files: { fileName: string; contentType?: string }[]) {
   const t = itemTemplate(i);
   if (!t) return null;
-  const n = needsOf(t.layout, t.answers, files);
+  const n = needsOf(t.layout, t.answers, files, i.platform);
   return { name: t.name, layout: t.layout, answers: t.answers, needs: n.words, needIds: n.ids, shot: n.shot };
 }
 export type FindTemplate = NonNullable<ReturnType<typeof findTemplate>>;

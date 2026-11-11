@@ -16,8 +16,9 @@ import { mapHistorySteps, SHOW_HISTORY_EVENT, STILL_OCCURS_EVENT, type HistoryRu
 import { relativeTime } from "@/lib/format";
 import { deriveCaseStatus, SETTABLE, STATUS_HELP, STATUS_LABEL, STATUS_STYLE } from "@/lib/status";
 import { fillChecks, firstOfShared, readSteps, rollUp, withoutHeadings } from "@/lib/step-checks";
-import { stepLabel as labelOfStep, type ExpandedStep } from "@/lib/steps";
+import { stepLabel as baseStepLabel, type ExpandedStep } from "@/lib/steps";
 import { rowLabel, rowResults, rowsLine, type TestData } from "@/lib/test-data";
+import { clientRowLabel } from "@/lib/clients";
 import type { LinkedDefect } from "@/server/jira";
 import { saveDraft, submitResult, uploadAttachment } from "@/server/results";
 import { showQuestMoments } from "./quest-toast";
@@ -64,6 +65,8 @@ export type RunnerEntry = {
   steps: ExpandedStep[];
   /** Test data: the case runs once per row; each step's `row` says which. */
   testData?: TestData | null;
+  /** Clients (ver_214): the clients this case runs on. The test data's first column names each row's client. */
+  clients?: string[];
   status: ResultStatus;
   /** Results autosaved earlier and not yet saved as the case result. */
   draft: Draft | null;
@@ -119,7 +122,16 @@ export function Runner({
   knownBugs = [],
   news = null,
   newsHref,
+  startClient = null,
+  openBug = false,
+  onlyClient = null,
 }: {
+  /** Clients: open on this client's tab (from a cell on the run page's grid). */
+  startClient?: string | null;
+  /** With startClient: open Report bug for that client straight away ("Write a bug for Unreal"). */
+  openBug?: boolean;
+  /** "Test Unity iOS only": after this client, go on to the next case instead of the next client. */
+  onlyClient?: string | null;
   /** New or Updated since its last run. */
   news?: CaseNews | null;
   /** Compare with the last run's copy. */
@@ -241,7 +253,15 @@ export function Runner({
   const [statuses, setStatuses] = useState<ResultStatus[]>(() => start0?.stepResults.map((s) => s.status) ?? Array(n).fill("UNTESTED"));
   const [actuals, setActuals] = useState<string[]>(() => start0?.stepResults.map((s) => s.actual) ?? Array(n).fill(""));
   // Pick up at the first step without a result.
+  // Clients: the row each client's steps are on, so a cell on the run page opens on its client.
+  const clientIs = (i: number, c: string | null) => c !== null && !!entry.clients?.length && entry.testData?.rows[entry.steps[i]?.row ?? -1]?.[0] === c;
   const [current, setCurrent] = useState(() => {
+    const goTo = startClient ?? onlyClient;
+    if (goTo) {
+      const mine = entry.steps.flatMap((_, i) => (clientIs(i, goTo) && !heading(i) ? [i] : []));
+      const open = mine.find((i) => (start0?.stepResults[i]?.status ?? "UNTESTED") === "UNTESTED") ?? mine[0];
+      if (open !== undefined) return open;
+    }
     const at = draft ? draft.stepResults.findIndex((s, i) => s.status === "UNTESTED" && !heading(i)) : 0;
     return Math.max(0, at >= 0 && heading(at) ? stepAfter(at) : at);
   });
@@ -256,6 +276,12 @@ export function Runner({
   // Test data: the steps hold one copy per row; the runner shows one row at a time.
   const data: TestData | null = entry.testData && entry.steps.some((st) => st.row !== undefined) ? entry.testData : null;
   const activeRow = data ? (entry.steps[current]?.row ?? 0) : null;
+  // Clients (ver_214): the rows are clients, so tabs and buttons name the client instead of "Row 2".
+  const byClient = !!data && !!entry.clients?.length;
+  const rowName = (r: number) => (byClient && data ? clientRowLabel(data, r) : `Row ${r + 1}`);
+  // "Unreal, step 1" for clients; "Row 2, step 1" for test data.
+  const labelOfStep = (st: ExpandedStep | undefined) => (byClient && st?.row !== undefined ? `${rowName(st.row)}, step ${st.number}` : baseStepLabel(st));
+  const lowerLabel = (st: ExpandedStep | undefined) => (byClient ? labelOfStep(st) : labelOfStep(st).toLowerCase());
   const rowStatuses = useMemo(
     () => (data ? rowResults(entry.steps.map((st, i) => (heading(i) ? undefined : st.row)), statuses, data.rows.length) : []),
     [data, entry.steps, statuses, heading],
@@ -274,11 +300,18 @@ export function Runner({
   );
   // Save and next on a case with no step marked asks first.
   const [askSkip, setAskSkip] = useState(false);
+  // Clients: the step just marked, so the runner can move on to the next client (or case) once it shows.
+  const [advanceFrom, setAdvanceFrom] = useState<number | null>(null);
   const [passThenNext, setPassThenNext] = useState(false);
   const [comment, setComment] = useState(start0?.comment ?? "");
   const [defects, setDefects] = useState<PendingDefect[]>(start0?.defects ?? []);
   const [attachments, setAttachments] = useState<Attachment[]>(start0?.attachments ?? []);
-  const [bugFor, setBugFor] = useState<number | null | undefined>(undefined); // undefined = closed, null = whole case
+  const [bugFor, setBugFor] = useState<number | null | undefined>(() => {
+    // "Write a bug for Unreal" on the run page opens Report bug for that client's step.
+    if (!openBug || !startClient) return undefined;
+    const i = entry.steps.findIndex((_, j) => clientIs(j, startClient) && !heading(j));
+    return i >= 0 ? i : undefined;
+  }); // undefined = closed, null = whole case
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [pending, start] = useTransition();
@@ -466,7 +499,7 @@ export function Runner({
   // Test data: a bug's title says which row, like "(Safari · viewer)".
   const withRow = (title: string, i: number) => {
     const r = entry.steps[i]?.row;
-    return data && r !== undefined ? `${title} (${rowLabel(data, r)})`.slice(0, 250) : title;
+    return data && r !== undefined ? `${title} (${byClient ? clientRowLabel(data, r) : rowLabel(data, r)})`.slice(0, 250) : title;
   };
   const caseBug = (() => {
     const failed = statuses.flatMap((st, i) => (st === "FAILED" ? [i] : []));
@@ -499,13 +532,19 @@ export function Runner({
       if (checkCount(i)) setCheckResults((prev) => prev.map((c, j) => (j === i ? fillChecks(c, s) : c)));
       // A status always sets that status, never toggles it off (pressing P twice used to clear a pass). U or Clear empties it.
       else setStatuses((prev) => prev.map((x, j) => (j === i ? s : x)));
+      // Clients: one tap per client. Failed opens Report bug for that client; the rest move on.
+      if (byClient && !checkCount(i) && s !== "UNTESTED" && !runClosed) {
+        if (s === "FAILED" && !defects.some((d) => d.stepIndex === i)) setBugFor(i);
+        setAdvanceFrom(i);
+        return;
+      }
       // Move on after a pass; stay put on a problem so the tester can describe it.
       if (s === "PASSED" && stepAfter(i) >= 0) {
         setCurrent(stepAfter(i));
         setCurCheck(0);
       }
     },
-    [heading, checkCount, stepAfter],
+    [heading, checkCount, stepAfter, byClient, runClosed, defects],
   );
   /** One check's result. Pressing the one it already has clears it. Keys move on to the next check. */
   const setCheck = useCallback(
@@ -641,7 +680,7 @@ export function Runner({
 
   // Take screenshot / Record screen: the browser's own screen sharing, attached like any other file.
   const capture = useCaptureSupport();
-  const stepLabel = (i: number | null) => (i === null ? "the case" : entry.steps[i] ? labelOfStep(entry.steps[i]).toLowerCase() : `step ${i + 1}`);
+  const stepLabel = (i: number | null) => (i === null ? "the case" : entry.steps[i] ? lowerLabel(entry.steps[i]) : `step ${i + 1}`);
   const fileLabel = (i: number | null) => (i === null ? "Whole case" : `Step ${entry.steps[i]?.number ?? i + 1}`);
   const captureName = (i: number | null) => `${entry.caseKey} ${i === null ? "case" : `step ${entry.steps[i]?.number ?? i + 1}`}`;
   const [preview, setPreview] = useState<{ id: string; fileName: string; seconds: number; size: number; stepIndex: number | null } | null>(null);
@@ -787,6 +826,31 @@ export function Runner({
     submit(true);
   }, [passThenNext, caseStatus, submit]);
 
+  // Clients (ver_214): after a client's last step is marked (and its bug box closed), open the next
+  // client still to test. When every client has a result, save and open the next case.
+  useEffect(() => {
+    if (advanceFrom === null || bugFor !== undefined || !data) return;
+    setAdvanceFrom(null);
+    const row = entry.steps[advanceFrom]?.row;
+    const open = (i: number) => !heading(i) && statuses[i] === "UNTESTED";
+    const inRow = entry.steps.findIndex((st, i) => st.row === row && open(i));
+    if (inRow >= 0) {
+      setCurrent(inRow);
+      return;
+    }
+    const wanted = (i: number) => open(i) && (!onlyClient || clientIs(i, onlyClient));
+    const later = entry.steps.findIndex((_, i) => i > advanceFrom && wanted(i));
+    const next = later >= 0 ? later : entry.steps.findIndex((_, i) => wanted(i));
+    if (next >= 0) {
+      setCurrent(next);
+      setCurCheck(0);
+      return;
+    }
+    // Every client (or the one being tested) is done: on to the next case.
+    submit(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [advanceFrom, bugFor, statuses]);
+
   // Keyboard: P F B D R S mark the current step, arrows or J/K move, Ctrl+Enter saves.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -895,7 +959,7 @@ export function Runner({
               · version {entry.caseVersion}
               {entry.folderPath && ` · ${entry.folderPath}`}
             </p>
-            <h1 className="fp-name text-xl tracking-tight text-slate-900">
+            <h1 className="text-xl tracking-tight text-slate-900">
               {entry.tags.length > 0 && (
                 <span className="mr-1.5 inline-flex gap-1 align-[3px]">
                   <TagPills tags={entry.tags} colors={tagColors} />
@@ -972,8 +1036,8 @@ export function Runner({
             </span>
           </p>
         ) : resumed && draft && entry.draftBy && (
-          <p className="mb-4 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
-            Picked up where {entry.draftBy.mine ? "you" : entry.draftBy.name} left off {entry.draftBy.ago}.{" "}
+          <p className="mb-4 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-700 sm:py-2 sm:text-sm">
+            Picked up where {entry.draftBy.mine ? "you" : entry.draftBy.name} left off<span className="hidden sm:inline"> {entry.draftBy.ago}</span>.{" "}
             {draft.stepResults.filter((s) => s.status !== "UNTESTED").length} of {n} steps have results.
           </p>
         )}
@@ -997,7 +1061,7 @@ export function Runner({
               </span>
             ))}
             <kbd>U</kbd> clear <kbd>↑</kbd>
-            <kbd>↓</kbd> move{data && <> · <kbd>[</kbd> <kbd>]</kbd> row</>} · paste a screenshot to attach it
+            <kbd>↓</kbd> move{data && <> · <kbd>[</kbd> <kbd>]</kbd> {byClient ? "client" : "row"}</>} · paste a screenshot to attach it
           </span>
           {n > 0 && (
             <button
@@ -1010,7 +1074,7 @@ export function Runner({
                 setStatuses((prev) => prev.map((s, i) => (s === "UNTESTED" && here(i) && !heading(i) && !checkCount(i) ? "PASSED" : s)));
               }}
             >
-              {activeRow === null ? "Pass all remaining steps" : `Pass the rest of row ${activeRow + 1}`}
+              {activeRow === null ? "Pass all remaining steps" : byClient ? `Pass the rest of ${rowName(activeRow)}` : `Pass the rest of row ${activeRow + 1}`}
             </button>
           )}
         </div>
@@ -1018,9 +1082,15 @@ export function Runner({
         {data && activeRow !== null && (
           <div className="mb-3 grid gap-2" data-testid="test-data-rows">
             <p className="text-sm text-slate-600">
-              This case runs once for each row of test data. Values from the row show in <span className="rounded bg-blue-50 px-0.5 font-medium text-blue-800 ring-1 ring-blue-100 ring-inset">blue</span>.
+              {byClient ? (
+                <>Test this case on each client. Picking a result saves it and opens the next client.</>
+              ) : (
+                <>
+                  This case runs once for each row of test data. Values from the row show in <span className="rounded bg-blue-50 px-0.5 font-medium text-blue-800 ring-1 ring-blue-100 ring-inset">blue</span>.
+                </>
+              )}
             </p>
-            <ScrollTabs tablist label="Test data rows" className="flex gap-2 p-1">
+            <ScrollTabs tablist label={byClient ? "Clients" : "Test data rows"} className="flex gap-2 p-1">
               {data.rows.map((_, r) => (
                 <button
                   key={r}
@@ -1034,9 +1104,9 @@ export function Runner({
                   )}
                 >
                   <span className="flex items-center gap-1.5 font-medium text-slate-800">
-                    Row {r + 1} <StatusChip status={rowStatuses[r] ?? "UNTESTED"} />
+                    {byClient ? <span className="max-w-48 truncate">{rowName(r)}</span> : `Row ${r + 1}`} <StatusChip status={rowStatuses[r] ?? "UNTESTED"} />
                   </span>
-                  <span className="max-w-48 truncate text-slate-500">{rowLabel(data, r)}</span>
+                  {!byClient && <span className="max-w-48 truncate text-slate-500">{rowLabel(data, r)}</span>}
                 </button>
               ))}
             </ScrollTabs>
@@ -1299,20 +1369,20 @@ export function Runner({
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
             {activeRow < data.rows.length - 1 ? (
               <Button size="sm" variant="primary" onClick={() => goRow(activeRow + 1)}>
-                Next row ({activeRow + 2} of {data.rows.length})
+                {byClient ? `Next client: ${rowName(activeRow + 1)}` : `Next row (${activeRow + 2} of ${data.rows.length})`}
               </Button>
             ) : (
-              <span className="text-slate-600">This is the last row.</span>
+              <span className="text-slate-600">{byClient ? "This is the last client." : "This is the last row."}</span>
             )}
             {activeRow > 0 && (
               <Button size="sm" onClick={() => goRow(activeRow - 1)}>
-                Back to row {activeRow}
+                {byClient ? `Back to ${rowName(activeRow - 1)}` : `Back to row ${activeRow}`}
               </Button>
             )}
             <span className="text-slate-600" data-testid="test-data-rows-line">
-              {rowsLine(rowStatuses)}
+              {byClient ? rowsLine(rowStatuses).replace(/\brows?\b/, rowStatuses.length === 1 ? "client" : "clients") : rowsLine(rowStatuses)}
               {rowStatuses.some((x) => x === "FAILED") && `, ${rowStatuses.filter((x) => x === "FAILED").length} failed`}
-              {rowStatuses.some((x) => x === "UNTESTED" || x === "IN_PROGRESS") && `, ${rowStatuses.filter((x) => x === "UNTESTED" || x === "IN_PROGRESS").length} not finished`}. The case passes only when every row passes.
+              {rowStatuses.some((x) => x === "UNTESTED" || x === "IN_PROGRESS") && `, ${rowStatuses.filter((x) => x === "UNTESTED" || x === "IN_PROGRESS").length} not finished`}. The case passes only when every {byClient ? "client" : "row"} passes.
             </span>
           </div>
         )}
@@ -1345,7 +1415,7 @@ export function Runner({
                 <StatusChip status={caseStatus} solid />
               )}
               <span className="text-xs text-slate-500">
-                {data ? `from rows: ${rowsLine(rowStatuses)}${rowStatuses.some((x) => x === "FAILED") ? `, ${rowStatuses.filter((x) => x === "FAILED").length} failed` : ""}` : `${Object.keys(stepCounts).some((k) => k !== "UNTESTED") ? "from steps: " : ""}${
+                {data ? `from ${byClient ? "clients" : "rows"}: ${byClient ? rowsLine(rowStatuses).replace(/\brows?\b/, rowStatuses.length === 1 ? "client" : "clients") : rowsLine(rowStatuses)}${rowStatuses.some((x) => x === "FAILED") ? `, ${rowStatuses.filter((x) => x === "FAILED").length} failed` : ""}` : `${Object.keys(stepCounts).some((k) => k !== "UNTESTED") ? "from steps: " : ""}${
                   Object.entries(stepCounts)
                     .filter(([k]) => k !== "UNTESTED")
                     .map(([k, v]) => `${v} ${STATUS_LABEL[k as ResultStatus].toLowerCase()}`)
@@ -1361,7 +1431,7 @@ export function Runner({
                     setReveal((r) => ({ i: firstFailed, focus: false, n: (r?.n ?? 0) + 1 }));
                   }}
                 >
-                  Go to {labelOfStep(entry.steps[firstFailed]).toLowerCase()}
+                  Go to {lowerLabel(entry.steps[firstFailed])}
                 </button>
               )}
               {!runClosed && (
@@ -1535,7 +1605,7 @@ export function Runner({
         stepIndex={bugFor ?? null}
         known={bugFor === undefined ? [] : knownBugs.filter((b) => b.state !== "expected" && b.stepIndex === (bugFor ?? null) && checks[b.id] !== "still")}
         onKnownStill={(b) => checkKnown(b, "still")}
-        stepLabel={bugFor === null || bugFor === undefined ? "whole case" : labelOfStep(entry.steps[bugFor]).toLowerCase()}
+        stepLabel={bugFor === null || bugFor === undefined ? "whole case" : lowerLabel(entry.steps[bugFor])}
         actual={bugFor === null || bugFor === undefined ? caseBug.actual : actuals[bugFor]}
         suggested={bugFor === null || bugFor === undefined ? caseBug.suggested : withRow(bugTitle(entry.title, entry.steps[bugFor] ?? null, actuals[bugFor] ?? ""), bugFor)}
         focus={bugFor === null ? caseBug.focus : null}

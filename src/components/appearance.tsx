@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { ACCENTS, BODY_FONTS, THEMES, FONT_GROUPS, FONTS, THEME_MODES, type Accent, type BodyFont, type HeadingFont, type ThemeMode } from "@/lib/theme";
-import { LOOKS, lookAttrs, lookMode, type Look } from "@/lib/looks";
+import { fontsAfterLook, LOOKS, lookAttrs, lookMode, type Look } from "@/lib/looks";
 import { updateMyAppearance, updateMyLook } from "@/server/account";
 import { Sp } from "./spelling";
 import { cx, ErrorText, Select } from "./ui";
@@ -53,15 +53,17 @@ export function AppearancePicker({ initial, shapes = false }: { initial: Appeara
       setError(res.ok ? null : res.error);
     });
   };
+  // A look fills in its own fonts below (ver_221); the dropdowns always show what's on screen.
   const pickLook = (look: Look) => {
-    const before = a.look;
-    setA({ ...a, look });
-    applyLook(look, a, shapes);
+    const before = a;
+    const next = { ...a, look, ...(fontsAfterLook(a.look, look, a) as Pick<Appearance, "fontBody" | "fontHeading">) };
+    setA(next);
+    applyLook(look, next, shapes);
     start(async () => {
       const res = await updateMyLook(look);
       if (!res.ok) {
-        setA((x) => ({ ...x, look: before }));
-        applyLook(before, a, shapes);
+        setA(before);
+        applyLook(before.look, before, shapes);
       }
       setError(res.ok ? null : res.error);
     });

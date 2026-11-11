@@ -28,7 +28,7 @@ export default async function SharedStepPage({ params, searchParams }: { params:
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="fp-name text-xl tracking-tight">{shown?.name ?? s.name}</h1>
+            <h1 className="text-xl tracking-tight">{shown?.name ?? s.name}</h1>
             {s.archived && <Badge tone="orange">Archived</Badge>}
             {!isCurrent && <Badge tone="blue">Viewing version {shown?.version}</Badge>}
           </div>

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openMoreDetails } from "./case-form";
 import { signIn } from "./auth";
 import { standaloneProject } from "./projects";
 
@@ -36,6 +37,7 @@ test("foundation milestone end to end", async ({ page, context }) => {
   await page.goto(`/p/${KEY}/cases/new`);
   await page.getByLabel("Title").fill("Pay with saved card");
   await page.getByLabel("Folder").selectOption({ label: "Checkout" });
+  await openMoreDetails(page);
   await page.getByLabel("Priority").selectOption("CRITICAL");
   await page.getByLabel("Tags").fill("smoke,");
   await page.getByLabel("Step 1 action").fill("Open the cart");

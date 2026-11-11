@@ -2,7 +2,8 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { pathOf } from "@/lib/folders";
 import { parseTestData } from "@/lib/test-data";
-import { expandForRun, parseCaseSteps, parseParams, parsePlainSteps, sharedStepIdsIn, type SharedStepDef } from "@/lib/steps";
+import { clientsForCase, withClients } from "@/lib/clients";
+import { expandForRun, expandSteps, parseCaseSteps, parseParams, parsePlainSteps, sharedStepIdsIn, type SharedStepDef } from "@/lib/steps";
 
 type Tx = Prisma.TransactionClient;
 
@@ -11,7 +12,14 @@ type Tx = Prisma.TransactionClient;
  * expanded with the version in force right now, so the run records exactly
  * what the tester was asked to do.
  */
-export async function buildEntries(tx: Tx, projectId: string | string[], caseIds: string[], assigneeId: string | null, opts?: { wholeCase?: boolean }) {
+export async function buildEntries(
+  tx: Tx,
+  projectId: string | string[],
+  caseIds: string[],
+  assigneeId: string | null,
+  /** clients (ver_214): the test cycle's clients; each case tested by hand runs once per client it covers. */
+  opts?: { wholeCase?: boolean; clients?: string[] },
+) {
   // A project in an umbrella also runs cases from the umbrella's shared library.
   const projectIds = Array.isArray(projectId) ? projectId : [projectId];
   const cases = await tx.testCase.findMany({
@@ -37,7 +45,20 @@ export async function buildEntries(tx: Tx, projectId: string | string[], caseIds
 
   return ordered.map((c, i) => {
     // Automation results (wholeCase) give one result for the whole case, so rows are left out.
-    const data = c.type === "EXPLORATORY" || opts?.wholeCase ? null : parseTestData(c.versions[0]?.testData);
+    const own = c.type === "EXPLORATORY" || opts?.wholeCase ? null : parseTestData(c.versions[0]?.testData);
+    const folderPath = pathOf(folders, c.folderId).join(" / ");
+    // Clients: the ones picked on the case, or a guess from its words ("Web - Move an asset" is Web only).
+    const byClient = c.type === "MANUAL" && !opts?.wholeCase && opts?.clients?.length;
+    const clients = byClient
+      ? clientsForCase(
+          c.clients,
+          opts!.clients!,
+          [c.title, folderPath, ...expandSteps(items[i], defs).flatMap((s) => [s.action, s.expected])].join("\n"),
+        )
+      : [];
+    const data = clients.length ? withClients(own, clients) : own;
+    // A case with only a title still runs once per client: one step each, the title standing in for it.
+    const caseItems = clients.length && !items[i].length ? [{ kind: "step" as const, action: "", expected: "" }] : items[i];
     return {
     caseId: c.id,
     caseVersion: c.currentVersion,
@@ -45,9 +66,10 @@ export async function buildEntries(tx: Tx, projectId: string | string[], caseIds
     title: c.title,
     preconditions: c.preconditions,
     priority: c.priority,
-    folderPath: pathOf(folders, c.folderId).join(" / "),
-    steps: (c.type === "EXPLORATORY" ? [] : expandForRun(items[i], defs, data)) as unknown as Prisma.InputJsonValue,
+    folderPath,
+    steps: (c.type === "EXPLORATORY" ? [] : expandForRun(caseItems, defs, data)) as unknown as Prisma.InputJsonValue,
     testData: data ? (data as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
+    clients,
     kind: c.type,
     charter: c.type === "EXPLORATORY" ? ((c.versions[0]?.charter ?? {}) as Prisma.InputJsonValue) : Prisma.DbNull,
     persona: c.persona ? (c.persona as Prisma.InputJsonValue) : Prisma.DbNull,

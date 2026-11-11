@@ -1,7 +1,7 @@
 // App-wide looks (ver_202): one per person, under Your account → How it looks → Appearance.
 // A look only changes colors, borders and fonts; nothing moves. The CSS is in src/app/looks.css,
 // keyed on data-look on <html>. Classic is the app as it always was.
-import { ACCENTS, fontVars } from "./theme";
+import { ACCENTS, fontVars, type BodyFont, type HeadingFont } from "./theme";
 
 export const LOOKS = [
   { id: "classic", label: "Classic", sub: "Flaw Patrol as you know it" },
@@ -20,18 +20,36 @@ export const cleanLook = (v: unknown): Look => (isLook(v) ? v : "classic");
 const FIXED_MODE: Partial<Record<Look, "light" | "dark">> = { mission: "dark", blue: "dark", arcade: "dark", retro: "dark", hc: "light", white: "light" };
 export const lookMode = (look: Look) => FIXED_MODE[look];
 
-/** Fonts a look sets: body and/or heading. Handwriting and pixel fonts are on titles only. */
-const LOOK_FONTS: Partial<Record<Look, { body?: string; heading?: string }>> = {
+/**
+ * Fonts a look starts you on. Picking the look fills them into Text font and Heading font
+ * (Your account → Appearance); after that your own picks win, in every look (ver_221).
+ * Before ver_221 a look forced these over your picks, so the dropdowns didn't match the screen.
+ */
+export const LOOK_FONTS: Partial<Record<Look, { body?: BodyFont; heading?: HeadingFont }>> = {
   hc: { body: "atkinson", heading: "body" },
   white: { heading: "caveat" },
-  blue: { body: "mono", heading: "body" },
+  // Blueprint's typewriter font, on titles too (they're in capitals, see looks.css).
+  blue: { body: "jetbrains-mono", heading: "body" },
   arcade: { heading: "pixel" },
   // Titles only; the text font stays the person's own (Chakra Petch is an optional Text font, ver_208).
   retro: { heading: "righteous" },
 };
 
-// Blueprint's typewriter font isn't in the font lists; it's only for this look.
-const MONO: Record<string, string> = { "--font-body": '"JetBrains Mono"', "--font-head": '"JetBrains Mono"', "--font-head-weight": "700", "--font-head-adjust": "none" };
+/** Text font and Heading font for someone who hasn't picked their own. */
+export const DEFAULT_FONTS = { body: "poppins", heading: "bungee" } as const;
+
+/**
+ * Your fonts after switching from one look to another. The new look's own fonts are filled in;
+ * a font the old look filled in, that you never changed, goes back to the default; anything you picked yourself stays.
+ */
+export function fontsAfterLook(from: string | null | undefined, to: string, mine: { fontBody: string; fontHeading: string }) {
+  const was = LOOK_FONTS[cleanLook(from)] ?? {};
+  const next = LOOK_FONTS[cleanLook(to)] ?? {};
+  return {
+    fontBody: next.body ?? (was.body && mine.fontBody === was.body ? DEFAULT_FONTS.body : mine.fontBody),
+    fontHeading: next.heading ?? (was.heading && mine.fontHeading === was.heading ? DEFAULT_FONTS.heading : mine.fontHeading),
+  };
+}
 
 const oneColor = (accent: string) => (ACCENTS.some((a) => a.id === accent) ? accent : "violet");
 
@@ -41,13 +59,13 @@ const oneColor = (accent: string) => (ACCENTS.some((a) => a.id === accent) ? acc
  */
 export function lookAttrs(lookIn: string | null | undefined, p: { themeMode: string; accent: string; fontBody: string; fontHeading: string; shapes: boolean }) {
   const look = cleanLook(lookIn);
-  const f = LOOK_FONTS[look] ?? {};
   return {
     look,
     theme: lookMode(look) ?? p.themeMode,
     // Two- and three-color themes paint the page and bars, which would fight a look; one-color accents still tint it.
     accent: look === "classic" ? p.accent : oneColor(p.accent),
     shapes: p.shapes || look === "hc",
-    fonts: f.body === "mono" ? MONO : fontVars(f.body ?? p.fontBody, f.heading ?? p.fontHeading),
+    // Always the person's own fonts: a look only suggests fonts when it's picked (LOOK_FONTS).
+    fonts: fontVars(p.fontBody, p.fontHeading),
   };
 }

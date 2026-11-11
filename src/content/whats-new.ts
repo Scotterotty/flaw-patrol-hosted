@@ -22,6 +22,109 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 222,
+    date: "2026-11-10",
+    items: [
+      {
+        kind: "better",
+        title: "A shorter left menu",
+        text: "This release's test cycles now sit side by side as small buttons under Test runs, like Web, Unity and Unreal. Settings and How-to guide moved to the bottom of the menu, next to Arrange menu order. Everything else is where it was, and the menu is about a quarter shorter.",
+        link: "/g/{umbrella}",
+      },
+    ],
+  },
+  {
+    version: 221,
+    date: "2026-11-10",
+    items: [
+      {
+        kind: "fix",
+        title: "Each font changes only its own text",
+        text: "Your Heading font now shows on every title in every look, and Text font no longer changes case, run or shared step titles. Picking a look fills in its fonts under Appearance, and you can change them from there.",
+        who: "all",
+      },
+    ],
+  },
+  {
+    version: 220,
+    date: "2026-11-10",
+    items: [
+      {
+        kind: "new",
+        title: "Bug bash bugs ready for Jira",
+        text: "When your bugs use the OKO bug layout, Flaw Patrol fills in Team, Client/SKUs, Build # and OKO Space Link for you. At wrap-up each bug says Ready for Jira or Needs 2, and only ready bugs go to Jira. Fill in opens the same OKO form as everywhere else, then the next bug that needs something.",
+      },
+      {
+        kind: "new",
+        title: "Add for Jira while you log",
+        text: "Under your one line, Add for Jira (3) has Repro steps, Bug impact and Bug workaround. They're optional and never stop you logging. Anyone can add them later from Live finds.",
+      },
+      {
+        kind: "new",
+        title: "Not a bug, with a reason",
+        text: "At wrap-up, each find is File it or Not a bug. Pick why: Works as designed, Can't reproduce, Duplicate or your own words. The report says \"Not a bug · Works as designed\" instead of \"Left out\". Can't reproduce lets you ask the person who found it for steps, and they can answer right there.",
+      },
+    ],
+  },
+  {
+    version: 219,
+    date: "2026-11-10",
+    items: [
+      {
+        kind: "new",
+        title: "Try a practice run",
+        text: "New here? Start here has a 2-minute practice run with 3 sample cases. Only you see it, and it isn't in reports, Jira or Slack. Step 2 of the first case is meant to fail, so you can report a bug. Remove it when you're done, or it goes away on its own after 7 days.",
+        link: "/g/{umbrella}",
+      },
+      {
+        kind: "new",
+        title: "Bring your Google Sheet, results and all",
+        text: "Import a sheet with a Status or Result column and its Pass, Fail and Blocked come along as a finished run, From my sheet, on the day you pick. Notes become comments, and testers are matched to your team by name.",
+        who: "lead",
+      },
+    ],
+  },
+  {
+    version: 218,
+    date: "2026-11-10",
+    items: [
+      {
+        kind: "better",
+        title: "New cases start with Title, then Steps",
+        text: "A new case asks for its title and steps first, in the folder you came from. Priority, tags, preconditions and test data wait under More details, which stays open next time if you leave it open. Tips for writing steps open from Tips.",
+        link: "/g/{umbrella}",
+      },
+      {
+        kind: "better",
+        title: "Start here leads you from step to step",
+        text: "Every Start here step has Show me. After an import, Next: run these cases opens Create a run. Press Hide for now to put Start here away, and Getting started under your name brings it back.",
+        link: "/g/{umbrella}",
+      },
+      {
+        kind: "better",
+        title: "Import shows only the columns that matter",
+        text: "Match your columns shows the columns we matched and names any we didn't. Show all columns has the rest.",
+      },
+      {
+        kind: "fix",
+        title: "Bug titles say \"does not go up\"",
+        text: "An automatic bug title for an expected result like \"Cart count goes up\" said \"does not goe up\". It now says \"does not go up\".",
+      },
+    ],
+  },
+  {
+    version: 216,
+    date: "2026-11-10",
+    items: [
+      {
+        kind: "new",
+        title: "See each client's result in a dry run",
+        text: "Give a test cycle a list of clients, like Web, Unreal and Unity iOS, in its Settings. Runs started after that show a grid with a column for each client, so you see at a glance which clients passed and which failed. Click a client's box to mark it or write a bug for just that client. In the runner each client gets a tab, and picking a result opens the next one. Flaw Patrol guesses which clients a case covers from its words; change it on the case.",
+        link: "/g/{umbrella}/settings#test-cycles",
+      },
+    ],
+  },
+  {
     version: 215,
     date: "2026-11-10",
     items: [

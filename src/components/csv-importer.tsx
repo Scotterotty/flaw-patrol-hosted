@@ -30,7 +30,12 @@ import {
   type ImportWarning,
   type ImportField,
   type ImportSource,
+  caseResults,
+  resultColumns,
 } from "@/lib/csv-import";
+import { importSheetResults } from "@/server/sheet-results";
+import { dayIn } from "@/lib/zone";
+import { useZone } from "./spelling";
 import { count, PRIORITY_LABEL } from "@/lib/format";
 import { findAreaWords, applyAreaWord, type AreaContext } from "@/lib/area-tags";
 import { splitBracketTitle } from "@/lib/tags";
@@ -44,18 +49,29 @@ export type ImportPlace = { id: string; key: string; label: string; kind: "libra
 
 const NEW_FOLDER = "__new";
 
+/** ver_217: where a sheet's results can go as a finished run when the cases go to the Case library. */
+export type SheetRunPlaces = { cycles: { id: string; name: string }[]; newCycle: { groupId: string; name: string } | null };
+
 export function CsvImporter({
   projectId,
   places,
   initialPlaceId,
   initialFolderId,
   initialFolderPlaceId,
+  runHref,
+  sheetRun = { cycles: [], newCycle: null },
+  canImportRuns = true,
 }: {
   projectId: string;
+  sheetRun?: SheetRunPlaces;
+  /** Whether you can bring results into runs (run:import). */
+  canImportRuns?: boolean;
   places: ImportPlace[];
   initialPlaceId: string;
   initialFolderId: string | null;
   initialFolderPlaceId: string;
+  /** Where Create a run opens, for "Next: run these cases" after an import (ver_216). Null when you can't create runs. */
+  runHref?: string | null;
 }) {
   const [placeId, setPlaceId] = useState(initialPlaceId);
   const place = places.find((p) => p.id === placeId) ?? places[0];
@@ -81,6 +97,10 @@ export function CsvImporter({
   // A title with several lines: first line is the title, the rest goes to Expected. Picked for you.
   const [firstLineTitle, setFirstLineTitle] = useState(true);
   const [mapping, setMapping] = useState<ColumnMapping>({});
+  // ver_216: Match your columns shows the matched ones; the rest wait under Show all columns.
+  // A box you changed stays put, so it doesn't vanish when you set it to (Not imported).
+  const [showAllFields, setShowAllFields] = useState(false);
+  const [pinned, setPinned] = useState<ImportField[]>([]);
   const [source, setSource] = useState<ImportSource>("other");
   const [folderId, setFolderId] = useState(startFolder ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +110,21 @@ export function CsvImporter({
   // "Keep one more line in the step" in the preview: lines each step keeps, by "caseRow:stepIndex".
   const [keepLines, setKeepLines] = useState<Record<string, number>>({});
   const [openRow, setOpenRow] = useState<number | null>(null);
-  const [done, setDone] = useState<{ cases: number; shared: number; folderId: string | null; place: ImportPlace; results: number } | null>(null);
+  const [done, setDone] = useState<{
+    cases: number;
+    shared: number;
+    folderId: string | null;
+    place: ImportPlace;
+    results: number;
+    /** ver_217: the finished run the sheet's results went into, or why they didn't. */
+    sheetRun?: { number: number; projectKey: string; results: number; cycleName: string } | { error: string };
+  } | null>(null);
+  // ver_217: bring the sheet's results in as a finished run "From my sheet", tested on this day, in this test cycle.
+  const zone = useZone();
+  const [keepResults, setKeepResults] = useState(true);
+  const [testedOn, setTestedOn] = useState(() => dayIn(new Date(), zone));
+  const [runCycle, setRunCycle] = useState(sheetRun.cycles[0]?.id ?? "");
+  const [newCycleName, setNewCycleName] = useState(sheetRun.newCycle?.name ?? "");
   const [dragging, setDragging] = useState(false);
   const [pending, start] = useTransition();
 
@@ -103,8 +137,26 @@ export function CsvImporter({
   const sheetMode = headerRow > 0;
   const longTitles = useMemo(() => (rows && sheetMode ? multiLineTitles(rows, mapping, headerRow) : 0), [rows, mapping, headerRow, sheetMode]);
   const titleSplit = sheetMode && firstLineTitle && longTitles > 0;
-  const runColumns = perRunColumns(header, mapping);
+  const resultCols = useMemo(() => (rows ? resultColumns(rows[headerRow] ?? [], mapping, source) : null), [rows, headerRow, mapping, source]);
+  const runColumns = [...new Set([...perRunColumns(header, mapping), ...resultColumnList(resultCols)])].sort((a, b) => a - b);
+  // ver_216: only the boxes that matter. Title always; Expected too when it comes from the title's extra lines.
+  const fieldShown = (f: ImportField) => f === "title" || mapping[f] !== undefined || pinned.includes(f) || (f === "expected" && titleSplit && mapping.title !== undefined);
+  const shownFields = IMPORT_FIELDS.filter((f) => showAllFields || fieldShown(f));
+  const hiddenFields = IMPORT_FIELDS.filter((f) => !fieldShown(f)).length;
+  const usedCols = new Set(Object.values(mapping).filter((v): v is number => v !== undefined));
+  // Blank-named columns with nothing in them, and the ones filled in during a run, don't count as unmatched.
+  const usableCols = header.filter((h, i) => (h ?? "").trim() || usedCols.has(i)).length;
+  const matchedCols = header.filter((_, i) => usedCols.has(i)).length;
+  const unmatched = header.flatMap((h, i) => ((h ?? "").trim() && !usedCols.has(i) && !runColumns.includes(i) ? [i] : []));
   const sheetResults = useMemo(() => (rows ? sheetResultCount(rows, headerRow) : 0), [rows, headerRow]);
+  // ver_217: a Status (or Result) column with Pass and Fail in it, read per case.
+  const perCase = useMemo(() => (rows && result && resultCols ? caseResults(rows, result.cases, resultCols) : []), [rows, result, resultCols]);
+  const withResults = perCase.filter(Boolean).length;
+  // Where the run goes: this test cycle when the cases stay in it, else one of the umbrella's.
+  const runPlace: { kind: "here" } | { kind: "pick" } | { kind: "new" } | null =
+    place.kind !== "library" ? { kind: "here" } : sheetRun.cycles.length ? { kind: "pick" } : sheetRun.newCycle ? { kind: "new" } : null;
+  const offerRun = canImportRuns && withResults > 0 && runPlace !== null;
+  const bringResults = offerRun && keepResults;
   // Rows offered in "Use a different row": the first 50 that aren't blank.
   const rowChoices = useMemo(
     () => (rows ?? []).slice(0, 50).flatMap((r, i) => (r.some((c) => (c ?? "").trim()) ? [{ i, label: `Row ${i + 1}: ${rowLabel(r)}` }] : [])),
@@ -196,6 +248,7 @@ export function CsvImporter({
   const chooseSource = (next: ImportSource, head: string[]) => {
     setSource(next);
     setMapping(guessMapping(head, next));
+    setPinned([]);
     setRestoreBreaks(next === "qtest");
   };
 
@@ -204,7 +257,10 @@ export function CsvImporter({
     setHeaderRow(h);
     setKeepLines({});
     setKeepWhole([]);
-    chooseSource(detectSource(data[h] ?? []), data[h] ?? []);
+    const head = data[h] ?? [];
+    const found = detectSource(head);
+    // A plain sheet with a Status or Result column is most likely the team's Google Sheet (ver_217).
+    chooseSource(found === "other" && resultColumns(head, guessMapping(head, "gsheet"), "gsheet") ? "gsheet" : found, head);
   };
 
   const accept = (name: string, raw: string[][]) => {
@@ -259,7 +315,19 @@ export function CsvImporter({
       const area = { words: areaWords, skip: areaOn ? areaNew.filter((w) => areaOff.includes(w.word)).map((w) => w.word) : [] };
       const res = await importCases(place.id, target, cases, fileName, result.shared, newName, area, runBefore);
       if (!res.ok) return setError(res.error);
-      setDone({ cases: res.created, shared: res.shared, folderId: res.folderId, place, results: sheetResults });
+      let sheetRunDone: NonNullable<typeof done>["sheetRun"];
+      if (bringResults && runPlace) {
+        const r = await importSheetResults({
+          cycleId: runPlace.kind === "here" ? place.id : runPlace.kind === "pick" ? runCycle : null,
+          newCycle: runPlace.kind === "new" && sheetRun.newCycle ? { groupId: sheetRun.newCycle.groupId, name: newCycleName.trim() || sheetRun.newCycle.name } : null,
+          caseIds: res.caseIds,
+          results: perCase,
+          testedOn,
+          fileName,
+        });
+        sheetRunDone = r.ok ? { number: r.number, projectKey: r.projectKey, results: r.results, cycleName: r.cycleName } : { error: r.error };
+      }
+      setDone({ cases: res.created, shared: res.shared, folderId: res.folderId, place, results: sheetResults, sheetRun: sheetRunDone });
     });
 
   if (done !== null) {
@@ -272,7 +340,24 @@ export function CsvImporter({
           Each one starts at version 1 with a note naming {fileName}.
           {done.shared > 0 && ` Steps repeated in several cases became ${done.shared === 1 ? "a shared step" : `${done.shared} shared steps`}.`}
         </p>
-        <div className="mt-4 flex justify-center gap-2">
+        {/* ver_216: the next step leads on, so a first import doesn't end at "what now?". */}
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          {runHref && done.cases > 0 && (
+            <Link href={runHref} data-testid="import-next-run" className="inline-flex h-9 items-center rounded-md bg-accent-600 px-3.5 text-sm font-medium text-white hover:bg-accent-700">
+              Next: run {done.cases === 1 ? "this case" : `these ${done.cases} cases`}
+            </Link>
+          )}
+          <Link
+            href={`/p/${done.place.key}/cases${done.folderId ? `?folder=${done.folderId}` : ""}`}
+            data-howto="import-view"
+            className={
+              runHref && done.cases > 0
+                ? "inline-flex h-9 items-center rounded-md border border-slate-300 bg-surface px-3.5 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50"
+                : "inline-flex h-9 items-center rounded-md bg-accent-600 px-3.5 text-sm font-medium text-white hover:bg-accent-700"
+            }
+          >
+            View cases
+          </Link>
           <Button
             onClick={() => {
               setRows(null);
@@ -281,11 +366,22 @@ export function CsvImporter({
           >
             Import another file
           </Button>
-          <Link href={`/p/${done.place.key}/cases${done.folderId ? `?folder=${done.folderId}` : ""}`} data-howto="import-view" className="inline-flex h-9 items-center rounded-md bg-accent-600 px-3.5 text-sm font-medium text-white hover:bg-accent-700">
-            View cases
-          </Link>
         </div>
-        {done.results > 0 && rows && (
+        {done.sheetRun && "number" in done.sheetRun && (
+          <p className="mt-4 text-sm text-slate-700" data-testid="sheet-run-done">
+            ✓ {count(done.sheetRun.results, "result")} from your sheet {done.sheetRun.results === 1 ? "is" : "are"} in the finished run &ldquo;From my sheet&rdquo;
+            {done.place.kind === "library" ? ` in ${done.sheetRun.cycleName}` : ""}.{" "}
+            <Link href={`/p/${done.sheetRun.projectKey}/runs/${done.sheetRun.number}`} className="font-medium text-accent-700 underline">
+              See the run
+            </Link>
+          </p>
+        )}
+        {done.sheetRun && "error" in done.sheetRun && (
+          <p className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert" data-testid="sheet-run-error">
+            The cases are in, but the results didn&apos;t come along: {done.sheetRun.error}
+          </p>
+        )}
+        {done.results > 0 && rows && !done.sheetRun && (
           <p className="mt-4 text-sm text-slate-700" data-testid="sheet-results-link">
             This sheet has {count(done.results, "result")} too.{" "}
             <Link
@@ -612,11 +708,64 @@ export function CsvImporter({
             </div>
           </Card>
 
+          {offerRun && runPlace && (
+            <Card className="p-5" data-testid="sheet-results" data-howto="import-results">
+              <h2 className="mb-1 text-sm font-semibold text-slate-800">
+                Your sheet has results for {withResults} of {count(result.cases.length, "case")}
+              </h2>
+              <p className="mb-3 text-xs text-slate-600">From the {header[resultCols!.status] || "Status"} column. History and Reports won&apos;t start empty.</p>
+              <label className="flex items-start gap-2 text-sm text-slate-900">
+                <input type="checkbox" className="mt-0.5 size-4 accent-accent-600" checked={keepResults} onChange={(e) => setKeepResults(e.target.checked)} data-testid="sheet-results-keep" />
+                <span>
+                  <span className="font-medium">Bring them in as a finished run, &ldquo;From my sheet&rdquo;</span>
+                  <span className="ml-2 rounded-full bg-accent-100 px-2 py-0.5 text-[11px] font-medium text-accent-700">Recommended</span>
+                </span>
+              </label>
+              {keepResults && (
+                <div className="mt-3 space-y-3 pl-6">
+                  <Field label="When were they tested?" htmlFor="sheet-tested-on">
+                    <Input id="sheet-tested-on" type="date" className="h-8 w-44 text-sm" value={testedOn} max={dayIn(new Date(), zone)} onChange={(e) => setTestedOn(e.target.value)} />
+                  </Field>
+                  {runPlace.kind === "pick" && sheetRun.cycles.length > 1 && (
+                    <Field label="Which test cycle?" htmlFor="sheet-run-cycle">
+                      <Select id="sheet-run-cycle" className="h-8 w-auto max-w-full text-sm" value={runCycle} onChange={(e) => setRunCycle(e.target.value)}>
+                        {sheetRun.cycles.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                  )}
+                  {runPlace.kind === "pick" && sheetRun.cycles.length === 1 && <p className="text-xs text-slate-600">The run goes in {sheetRun.cycles[0].name}.</p>}
+                  {runPlace.kind === "new" && (
+                    <Field label="Name the test cycle it goes in" htmlFor="sheet-new-cycle" hint="Your umbrella has no test cycles yet, so this makes the first one.">
+                      <Input id="sheet-new-cycle" className="h-8 w-72 max-w-full text-sm" maxLength={100} value={newCycleName} onChange={(e) => setNewCycleName(e.target.value)} />
+                    </Field>
+                  )}
+                  <p className="text-xs text-slate-600" data-testid="sheet-results-how">
+                    {resultCols!.notes !== undefined && "Notes become comments. "}
+                    {resultCols!.tester !== undefined ? "Testers are matched to your team by name, or kept as the name in your sheet. " : ""}
+                    Cases with no result are left out of the run.
+                  </p>
+                </div>
+              )}
+            </Card>
+          )}
+
           <Card className="p-5" data-howto="import-columns">
             <h2 className="mb-1 text-sm font-semibold text-slate-800">Match your columns</h2>
-            <p className="mb-4 text-xs text-slate-500">We guessed from the header names. Only Title is required. Rows that share a case ID, as in qTest exports, become one case.</p>
+            <p className="mb-1 text-sm text-slate-700" data-testid="import-matched-count">
+              We matched {matchedCols} of your {usableCols} {usableCols === 1 ? "column" : "columns"}.
+            </p>
+            <p className="mb-4 text-xs text-slate-600">We guessed from the header names. Only Title is required. Rows that share a case ID, as in qTest exports, become one case.</p>
+            {unmatched.length > 0 && (
+              <p className="mb-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="import-not-matched">
+                Not matched: {listNames(unmatched.map((i) => header[i] || `Column ${i + 1}`))}. {unmatched.length === 1 ? "It isn't" : "They aren't"} imported unless you pick {unmatched.length === 1 ? "it" : "them"} below{showAllFields ? "" : " under Show all columns"}.
+              </p>
+            )}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {IMPORT_FIELDS.map((f: ImportField) => (
+              {shownFields.map((f: ImportField) => (
                 <Field
                   key={f}
                   label={FIELD_LABEL[f] + (f === "title" ? " *" : "")}
@@ -626,7 +775,10 @@ export function CsvImporter({
                   <Select
                     id={`map-${f}`}
                     value={mapping[f] ?? ""}
-                    onChange={(e) => setMapping((m) => ({ ...m, [f]: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                    onChange={(e) => {
+                      setMapping((m) => ({ ...m, [f]: e.target.value === "" ? undefined : Number(e.target.value) }));
+                      setPinned((p) => (p.includes(f) ? p : [...p, f]));
+                    }}
                   >
                     <option value="">
                       {f === "expected" && titleSplit && mapping.title !== undefined ? `${header[mapping.title] || "Title"} (lines under the first)` : "(Not imported)"}
@@ -640,10 +792,23 @@ export function CsvImporter({
                 </Field>
               ))}
             </div>
+            {hiddenFields > 0 && (
+              <button
+                type="button"
+                aria-expanded={showAllFields}
+                onClick={() => setShowAllFields(!showAllFields)}
+                className="mt-3 text-sm font-medium text-accent-700 hover:underline"
+                data-testid="import-show-all-columns"
+              >
+                {showAllFields ? "▾ Show only matched columns" : `▸ Show all columns (${hiddenFields} more)`}
+              </button>
+            )}
             {runColumns.length > 0 && (
               <p className="mt-4 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600" data-testid="per-run-columns">
                 {listNames(runColumns.map((i) => header[i]))} {runColumns.length === 1 ? "is" : "are"} left out. {runColumns.length === 1 ? "It's" : "They're"} filled in during a run.
-                {sheetResults > 0 && ` This sheet has ${count(sheetResults, "result")} too: after you import, you can bring them into a run with one click.`}
+                {offerRun
+                  ? " Your results can come along as a finished run: see below."
+                  : sheetResults > 0 && ` This sheet has ${count(sheetResults, "result")} too: after you import, you can bring them into a run with one click.`}
               </p>
             )}
           </Card>
@@ -985,4 +1150,9 @@ function handOffSheet(fileName: string, rows: string[][]) {
   } catch {
     // Too big or storage blocked: the import page still opens, and the file can be picked there.
   }
+}
+
+/** The columns that hold results (ver_217), to leave out of the case fields. */
+function resultColumnList(c: { status: number; tester?: number; notes?: number } | null): number[] {
+  return c ? [c.status, c.tester, c.notes].filter((i): i is number => i !== undefined) : [];
 }

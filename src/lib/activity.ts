@@ -48,6 +48,8 @@ export async function logActivity(input: ActivityInput) {
   try {
     const actor = input.actor;
     const place = await whereLabel(input);
+    // A practice run (ver_217) is only for the person trying it: nothing goes in the log.
+    if (place.projectId && !place.groupId && (await db.project.count({ where: { id: place.projectId, practiceFor: { not: null } } }))) return;
     await db.activityEntry.create({
       data: {
         actorId: actor && "id" in actor ? actor.id : null,

@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./db";
+import { NOT_PRACTICE } from "@/lib/practice";
 
 type Viewer = { id: string; isAdmin: boolean };
 
@@ -16,7 +17,7 @@ export async function canManageGroups(user: Viewer) {
  */
 export async function canMakeUmbrellas(user: Viewer) {
   if (user.isAdmin) return true;
-  const roles = await db.projectMember.findMany({ where: { userId: user.id }, select: { role: true }, distinct: ["role"] });
+  const roles = await db.projectMember.findMany({ where: { userId: user.id, project: NOT_PRACTICE }, select: { role: true }, distinct: ["role"] });
   return !roles.length || roles.some((r) => r.role === "ADMIN" || r.role === "LEAD");
 }
 

@@ -10,8 +10,8 @@ export const MAX_DUNGEONS = 30;
 /** Floors named after cases, and bugs named as monsters, per dungeon. */
 export const MAX_ROOMS = 12;
 export const MAX_BUGS = 40;
-/** Paid once per run, the first time its B12 boss falls. The same for every run, whatever its size. */
-export const FIRST_CLEAR_BONUS = 30;
+/** Paid once per run, the first time its B12 boss falls. The same for every run, whatever its size (cut from 30 with the game's v47 Shard trim). */
+export const FIRST_CLEAR_BONUS = 18;
 /** Saves bigger than this are refused (a full save with a run in progress is about 20 KB). */
 export const MAX_SAVE_BYTES = 512 * 1024;
 

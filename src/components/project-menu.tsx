@@ -8,7 +8,7 @@ import { roleRulesFor } from "@/lib/session";
 import { liveBashOf, loadUmbrella, navOf, openBugCount, platformColor, umbrellaOf, type Umbrella } from "@/lib/umbrella";
 
 type Viewer = { id: string; isAdmin: boolean; gameEnabled: boolean; questMap: boolean };
-type MenuProject = { id: string; key: string; name: string; groupId: string | null; platform: string };
+type MenuProject = { id: string; key: string; name: string; groupId: string | null; platform: string; practiceFor?: string | null };
 
 /**
  * The left menu for a test cycle: inside an umbrella it's the umbrella's own menu with this
@@ -16,7 +16,7 @@ type MenuProject = { id: string; key: string; name: string; groupId: string | nu
  * A test cycle on its own gets the same shape of menu, about itself.
  */
 export async function ProjectMenu({ project, user, umbrella }: { project: MenuProject; user: Viewer; umbrella?: Umbrella | null }) {
-  const quests = user.gameEnabled && user.questMap;
+  const quests = user.gameEnabled && user.questMap && !project.practiceFor;
   // Glossary: one list for everyone, in every menu, with a dot when your question got answered.
   // Asked together: the glossary, the umbrella, and the test cycle's own cases.
   const ownCasesP = project.groupId ? db.testCase.count({ where: { projectId: project.id, archived: false, ...NOT_BASH_CASE } }).catch(() => 0) : Promise.resolve(0);

@@ -58,6 +58,7 @@ import { loadBugTemplates } from "@/lib/bug-templates-data";
 import { ToolsPanel } from "@/components/tools";
 import { toolHoldings } from "@/lib/tools-data";
 import { everything, toolsLine, TOOL_IDS, type ToolId } from "@/lib/tools";
+import { NOT_PRACTICE } from "@/lib/practice";
 
 export const metadata = { title: "Settings" };
 
@@ -143,7 +144,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
       groupManagerP.then((ok) =>
         ok
           ? db.project.findMany({
-              where: { hubOf: null, ...(user.isAdmin ? {} : { members: { some: { userId: user.id } } }) },
+              where: { hubOf: null, ...NOT_PRACTICE, ...(user.isAdmin ? {} : { members: { some: { userId: user.id } } }) },
               include: { members: { where: { userId: user.id } }, group: { select: { name: true } } },
               orderBy: { name: "asc" },
             })
@@ -269,6 +270,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
         umbrella={name}
         pin={p.archivedAt ? null : { projectId: p.id, on: p.keepCurrent, platform: p.platform, canChange: can(cw, "cycle:archive") }}
         details={can(cw, "project:manage") ? { projectId: p.id, name: p.name, description: p.description } : null}
+        clients={p.archivedAt ? undefined : { projectId: p.id, list: p.clients, canChange: can(cw, "project:manage"), cycle: p.name }}
         team={{
           projectId: p.id,
           separate: p.keepMembersSeparate,

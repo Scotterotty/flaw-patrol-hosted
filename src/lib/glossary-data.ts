@@ -6,6 +6,7 @@ import { badgeOf } from "./game";
 import { type GlossaryLite, type GlossaryRights } from "./glossary";
 import { can } from "./permissions";
 import { roleRulesFor } from "./session";
+import { NOT_PRACTICE } from "@/lib/practice";
 
 type Viewer = { id: string; isAdmin: boolean };
 
@@ -16,7 +17,7 @@ type Viewer = { id: string; isAdmin: boolean };
  */
 export const glossaryRights = cache(async (user: Viewer): Promise<GlossaryRights> => {
   if (user.isAdmin) return { edit: true, deleteAny: true };
-  const memberships = await db.projectMember.findMany({ where: { userId: user.id }, select: { role: true, project: { select: { id: true, groupId: true, roleRules: true } } } });
+  const memberships = await db.projectMember.findMany({ where: { userId: user.id, project: NOT_PRACTICE }, select: { role: true, project: { select: { id: true, groupId: true, roleRules: true } } } });
   let edit = false;
   let deleteAny = false;
   for (const m of memberships) {
@@ -42,8 +43,8 @@ export const glossaryMenu = cache(async (userId: string) => {
 
 /** Projects whose cases and bugs this person can see, for "Used in". */
 async function visibleProjectIds(user: Viewer) {
-  if (user.isAdmin) return (await db.project.findMany({ where: { archivedAt: null }, select: { id: true } })).map((p) => p.id);
-  return (await db.projectMember.findMany({ where: { userId: user.id, project: { archivedAt: null } }, select: { projectId: true } })).map((m) => m.projectId);
+  if (user.isAdmin) return (await db.project.findMany({ where: { archivedAt: null, ...NOT_PRACTICE }, select: { id: true } })).map((p) => p.id);
+  return (await db.projectMember.findMany({ where: { userId: user.id, project: { archivedAt: null, ...NOT_PRACTICE } }, select: { projectId: true } })).map((m) => m.projectId);
 }
 
 /** A term's names as one Postgres word-boundary pattern: \m(rc|release candidate)\M. */

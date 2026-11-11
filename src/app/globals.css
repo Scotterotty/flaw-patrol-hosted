@@ -55,7 +55,8 @@
   --font-head-adjust: none;
 }
 
-/* Page and card titles use the heading font; small all-caps labels stay in the text font. */
+/* Page and card titles use the heading font; small all-caps labels stay in the text font.
+   Case, run and shared step titles are page titles too (ver_221; they used the text font from ver_201). */
 h1,
 h2:not(.uppercase),
 h3:not(.uppercase),
@@ -65,18 +66,6 @@ h3:not(.uppercase),
      Small or very wide display fonts are evened out to a similar letter height. */
   font-weight: var(--font-head-weight);
   font-size-adjust: var(--font-head-adjust);
-}
-
-/* Names people typed (case titles, run names, shared steps) read better in the text font,
-   bold and as typed, even when the heading font is all caps like Bungee (ver_201). Page names keep the heading font. */
-h1.fp-name,
-h2.fp-name,
-h3.fp-name,
-.fp-name {
-  font-family: var(--font-sans);
-  font-weight: 700;
-  font-size-adjust: none;
-  text-transform: none;
 }
 
 /* Accent colors, as oklch hues. Keep in sync with ACCENTS in src/lib/theme.ts. */
@@ -1977,4 +1966,14 @@ a[href]:is(.text-accent-600, .text-accent-700).hover\:underline {
   text-decoration-line: underline;
   text-decoration-thickness: from-font;
   text-underline-offset: 2px;
+}
+
+/* ver_216: the "You're set" check mark pops once, only when motion isn't reduced. */
+@keyframes fp-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  70% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html:not([data-motion="reduce"]) .fp-pop { animation: fp-pop 400ms ease-out; }
 }

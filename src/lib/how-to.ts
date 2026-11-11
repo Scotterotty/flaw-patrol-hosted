@@ -1,6 +1,6 @@
 /**
  * The How-to guide (ver_174): every task in Flaw Patrol, written end to end in plain words.
- * Opened from "How-to guide" under Settings in the left menu, or by typing "how do I" in Search.
+ * Opened from "How-to guide" at the bottom of the left menu, or by typing "how do I" in Search.
  * It never opens by itself.
  *
  * Each step says what to do and what you should see after it. A step with a `target`
@@ -45,12 +45,60 @@ export type HowToTask = {
 
 export const HOW_TO_GROUPS = ["Start here", "Write tests", "Run tests", "Bugs", "Bug bashes", "Results", "Settings", "Make it yours"] as const;
 /** "Start here" (ver_178): the first day, in the order you'd do it. */
-export const HOW_TO_START = ["find-your-way", "import-cases", "write-case", "create-run", "test-case", "report-bug", "invite", "search"];
+export const HOW_TO_START = ["first-ten-minutes", "practice-run", "find-your-way", "import-cases", "import-sheet-results", "write-case", "create-run", "test-case", "report-bug", "invite", "search", "start-here"];
 export type HowToGroup = (typeof HOW_TO_GROUPS)[number];
 
 /** Every task has Show me on the steps that have a button to point at (ver_174 did 13, ver_175 the rest). ver_176 added a task for every feature that had none (Scott: every feature goes in the guide, so a new feature adds its task in the same build). */
 export const HOW_TO: HowToTask[] = [
   // ───────────── Get started ─────────────
+  // ver_216: the empty workspace's Show me how it works opens this one, since there's no left menu yet.
+  {
+    id: "first-ten-minutes",
+    group: "Start here",
+    title: "Your first 10 minutes",
+    sub: "Make your umbrella, bring cases, run them, invite your team",
+    words: "first time new start begin setup getting started empty workspace first day",
+    steps: [
+      { text: "Press **Flaw Patrol** at the top left.", see: "The Umbrellas page. A brand-new workspace says **Start with an umbrella**.", target: "top-home" },
+      { text: "Press **Make your first umbrella** (or **New umbrella**), type your product's name and press **Make**. An umbrella is one product.", see: "Your umbrella's **Overview**, with a **Start here** list.", target: "new-umbrella", saves: true },
+      { text: "Bring your test cases: on **Start here**, press **Import cases** to load a CSV or Excel file. To write one instead, press **Case library** in the left menu, then **New case**.", see: "✓ Imported, with **Next: run these cases** under it.", target: "start-here" },
+      { text: "Run them: press **Next: run these cases**, or **Create a run** at the top of the **Overview**. Then press **Create and test now**.", see: "The runner, open on your first case. Press P, F or B to mark each step.", target: "run-create" },
+      { text: "Invite your team: on **Start here**, press **Invite**. (Only Admins invite people.)", see: "**Settings**, open at **Members**, where you add people by email.", target: "start-invite" },
+    ],
+    next: "find-your-way",
+  },
+  // ver_217: a private practice run, so the first run isn't real work.
+  {
+    id: "practice-run",
+    group: "Start here",
+    title: "Try a practice run",
+    sub: "3 sample cases only you see, to learn the runner and bugs",
+    words: "practice try sample demo tutorial learn first time safe sandbox playground new",
+    steps: [
+      { text: "In the left menu, press **Overview**.", see: "**Start here** near the top, with **New here? Try a 2-minute practice run**.", target: "menu-overview" },
+      { text: "Press **Try it**. (It says **Continue** if you've started one.)", see: "The runner, with a yellow **PRACTICE** note: only you see this run. It isn't in reports, Jira or Slack.", target: "practice-offer", saves: true },
+      { text: "Mark each step: press P for Passed or F for Failed. Press **Save and next** after each case.", see: "The next sample case." },
+      { text: "In **Sign in with a sample account**, step 2 is meant to fail. Press **Failed** under it, then **Report bug**, and save the bug.", see: "The bug linked on the step. It stays in the practice run." },
+      { text: "When you're done, press **Remove practice run** in the yellow note.", see: "Your umbrella again. The practice run is gone. It also goes away on its own after 7 days.", target: "practice-banner" },
+    ],
+    next: "test-case",
+  },
+  {
+    id: "start-here",
+    group: "Start here",
+    title: "Hide Start here, or bring it back",
+    sub: "Put the first-day list away and find it again later",
+    words: "start here hide close dismiss getting started checklist setup list bring back reopen",
+    steps: [
+      { text: "In the left menu, press **Overview**.", see: "**Start here** near the top while your umbrella is new, with how many steps are done.", target: "menu-overview" },
+      { text: "Press **Show me** next to a step to learn it in this guide.", see: "That step's task, with Show me on its buttons.", target: "start-here" },
+      { text: "Press **✕ Hide for now** to put the list away. Pressing Esc inside the list does the same.", see: "Start here is gone, for you only. Your ticks are kept.", target: "start-here-hide", saves: true },
+      { text: "To bring it back, press your name at the top right.", see: "Your account menu.", target: "top-account" },
+      { text: "Press **Getting started**.", see: "The umbrella's **Overview**, with **Start here** back and your ticks where you left them.", target: "account-getting-started", saves: true },
+      { text: "While it's hidden, **Show Start here again** at the top of this guide does the same.", see: "**Start here** back on the **Overview**." },
+    ],
+    next: "find-your-way",
+  },
   {
     id: "find-your-way",
     group: "Start here",
@@ -60,8 +108,8 @@ export const HOW_TO: HowToTask[] = [
     steps: [
       { text: "Sign in. If you're in only one umbrella, it opens straight away.", see: "Its **Overview**, with **Runs in progress**, **Shortcuts** and the left menu. An umbrella holds one product's cases, runs, bugs and settings." },
       { text: "Press **Flaw Patrol** at the top left (or **Umbrellas** at the top) and click an umbrella's name to switch.", see: "The Umbrellas page, with every umbrella you're on." },
-      { text: "Look at the left menu. **Library** holds what you test with, **Testing** is where you test, **Results** is what you found, and **Settings** is set once for everyone.", see: "The page you're on is lit in the menu.", target: "menu-overview" },
-      { text: "Under **Testing**, the rows under **Test runs** are your test cycles. A test cycle is the folder a run goes in, like one per platform for a release.", see: "Each test cycle with its colored dot." },
+      { text: "Look at the left menu. **Library** holds what you test with, **Testing** is where you test, and **Results** is what you found. **Settings** and **How-to guide** are at the bottom.", see: "The page you're on is lit in the menu.", target: "menu-overview" },
+      { text: "Under **Testing**, the small buttons under **Test runs** are this release's test cycles, like **Web** and **Unity**. A test cycle is the folder a run goes in, one per platform for a release. Click one to open it.", see: "Each test cycle with its colored dot. The one you're in is filled in." },
       { text: "Press **Overview** any time to get back to the umbrella's home.", see: "The umbrella's home page again." },
     ],
     next: "search",
@@ -92,7 +140,7 @@ export const HOW_TO: HowToTask[] = [
       { text: "Choose **Appearance and accessibility**.", see: "**Your account**, with the **Appearance** card open under **How it looks**.", target: "account-appearance" },
       { text: "Under **Mode**, pick **Light**, **Dark** or **Match my computer**.", see: "The whole app changes at once. It saves by itself.", target: "appearance-mode" },
       { text: "Under **Color**, pick the color you like.", see: "Buttons and links in that color. Test results keep their own colors.", target: "appearance-color" },
-      { text: "Pick a **Text font** and a **Heading font** if you want.", see: "The new fonts everywhere, including the left menu.", target: "appearance-fonts" },
+      { text: "Pick a **Text font** and a **Heading font** if you want.", see: "Text font changes lists, forms and buttons. Heading font changes page, card, case and run titles. Each one only changes its own text.", target: "appearance-fonts" },
       { text: "Open **Layout** under **How it looks** to put the left menu order or panel sizes back the way they started.", see: "**Reset to default order** and **Reset panel sizes**.", target: "account-layout" },
       { text: "Under **Just for fun**, open **Loading spinners** and tick the ones you like.", see: "One of them plays at random while Flaw Patrol is busy.", target: "account-spinners" },
     ],
@@ -109,6 +157,7 @@ export const HOW_TO: HowToTask[] = [
       { text: "Choose **Appearance and accessibility**.", see: "**Your account**, with the **Appearance** card open under **How it looks**.", target: "account-appearance" },
       { text: "Under **Look**, pick one, like **Mission control** or **High contrast**.", see: "The whole app changes at once and it saves by itself. Nothing moves; only colors, borders and fonts change. Only you see it.", target: "appearance-look" },
       { text: "Pick **80s retrowave** if you like neon. For 80s letters too, pick **Chakra Petch** under **Text font**.", see: "A neon sunset with cyan buttons. Your text font only changes if you pick one.", target: "appearance-look" },
+      { text: "Look at **Text font** and **Heading font** below. A look fills in its own fonts there, and you can change them.", see: "Whatever the two lists say is what you see, in every look.", target: "appearance-fonts" },
       { text: "Pick **Classic** to go back to the usual look.", see: "Flaw Patrol as before, with your own mode, color and fonts.", target: "appearance-look" },
     ],
     next: "risk-look",
@@ -254,13 +303,30 @@ export const HOW_TO: HowToTask[] = [
     steps: [
       { text: "In the left menu, under **Library**, press **Case library**. (A test cycle that isn't in an umbrella calls it **Test cases**.)", see: "Your cases, with folders on the left.", target: "menu-cases" },
       { text: "Pick a folder on the left if you want the case in it, then press **New case** at the top right.", see: "The **New test case** page with the cursor in **Title**.", target: "cases-new" },
-      { text: "Type a short **Title** that says what you check, like Sign in with email. To tag it, start with a word in brackets, like [WEB].", see: "Your title. A [WEB] start turns into a tag pill.", target: "case-title", type: true },
-      { text: "Check the **Folder** and **Priority**.", see: "The folder you picked, and Medium priority unless you change it.", target: "case-folder" },
-      { text: "Under **Steps**, type what to do in **Action** and what should happen in **Expected result**.", see: "Step 1 filled in.", target: "case-step", type: true },
-      { text: "Press **+ Add step** for each next step. Ctrl + Enter in a step adds one below it too.", see: "A new empty step under the last one.", target: "case-add-step" },
+      { text: "Type a short **Title** that says what you check, like Sign in with email.", see: "Your title.", target: "case-title", type: true },
+      { text: "Right under it, in **Steps**, type what to do in **Action** and what should happen in **Expected result**.", see: "Step 1 filled in.", target: "case-step", type: true },
+      { text: "Press **+ Add step** for each next step. Ctrl + Enter in a step adds one below it too. **Tips** has more.", see: "A new empty step under the last one.", target: "case-add-step" },
+      { text: "Check the **Folder** under the steps. It's the folder you came from. **More details** holds priority, tags, preconditions and test data, and stays open next time if you leave it open.", see: "The folder you picked, and **More details** folded unless you opened it last time.", target: "case-folder" },
       { text: "Press **Create case** at the bottom. To write another right away, press **Create and new** instead.", see: "The case's page, with its key (like APP-12) and **Version 1** in **Version history**.", target: "case-save", saves: true },
     ],
     next: "make-suite",
+  },
+  // ver_217: a Google Sheet's Pass, Fail and Blocked come along with its cases.
+  {
+    id: "import-sheet-results",
+    group: "Start here",
+    title: "Bring your Google Sheet, results and all",
+    sub: "Your sheet's Pass and Fail become a finished run",
+    words: "google sheet sheets results pass fail status tester notes history import keep move switch",
+    start: "In Google Sheets, press File, then Download, then Comma-separated values (.csv).",
+    steps: [
+      { text: "In the left menu, under **Library**, press **Case library**.", see: "Your cases.", target: "menu-cases" },
+      { text: "Press **Import cases** at the top right.", see: "The import page with a big drop box.", target: "cases-import" },
+      { text: "Drop your sheet's file on the box, or click the box and choose it.", see: "**Where is this file from?** says **Google Sheet** when your sheet has a Status or Result column.", target: "import-drop", type: true },
+      { text: "Under **Your sheet has results**, leave **Bring them in as a finished run** ticked and pick **When were they tested?**", see: "How many cases have a result. Notes become comments, and testers are matched to your team by name.", target: "import-results" },
+      { text: "Answer **Have these cases been run before?**, then press **Import**.", see: "✓ Imported, and how many results are in the finished run **From my sheet**.", target: "import-go", saves: true },
+    ],
+    next: "create-run",
   },
   {
     id: "import-cases",
@@ -774,6 +840,24 @@ export const HOW_TO: HowToTask[] = [
     next: "update-run-sheet",
   },
   {
+    // ver_214: clients, like a demo dry run on Web, Unreal and Unity iOS.
+    id: "clients",
+    group: "Run tests",
+    title: "See each client's result in a dry run",
+    sub: "Test every case on Web, Unreal, iOS or any other client, and see which passed",
+    words: "clients client platforms devices apps dry run demo grid column per client web unreal unity ios remote matrix which client failed",
+    steps: [
+      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your settings, with **Test cycles**.", target: "menu-settings" },
+      { text: "In **Test cycles**, press **Change** on the test cycle, like your dry run. (A test cycle outside an umbrella has **Clients** right on its Settings page.)", see: "What that test cycle can set for itself, with **Clients**.", target: "cycle-change" },
+      { text: "Under **Clients**, type a client, like Web, and press **Add client**. Add each one.", see: "Your clients in a numbered list.", target: "client-add", type: true },
+      { text: "Press **Save clients**.", see: "✓ Saved. Runs you start from now on test each case on these clients.", target: "clients-save", saves: true },
+      { text: "Start a run in that test cycle, then open it.", see: "A grid: one row per case, one column per client. A gray **Doesn't apply** means the case isn't tested there.", target: "menu-runs" },
+      { text: "Click a client's box.", see: "**Passed**, **Failed** and **Blocked**, **Write a bug for** that client and **Open in runner**.", target: "run-clients" },
+      { text: "Or press **Start testing**.", see: "A tab for each client. Picking a result opens the next client, then the next case.", target: "run-start-testing" },
+      { text: "Flaw Patrol guesses each case's clients from its words. If a guess is wrong, open the case and press **Change** under **Clients**.", see: "The clients ticked for that case." },
+    ],
+  },
+  {
     id: "take-over",
     group: "Run tests",
     title: "Take over a case someone else is testing",
@@ -794,7 +878,7 @@ export const HOW_TO: HowToTask[] = [
     sub: "Tests that passed in an earlier release and fail now",
     words: "regression regressed used to pass broke again compare previous release flag",
     steps: [
-      { text: "An Admin turns it on once: in the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
+      { text: "An Admin turns it on once: at the bottom of the left menu, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
       { text: "Find **Regression flag** and press **Change**.", see: "**Flag tests that passed before and fail now**, **Compare with** and **Jira label**.", target: "settings-regression" },
       { text: "Tick **Flag tests that passed before and fail now**.", see: "The box ticked.", target: "regression-on" },
       { text: "Pick what to **Compare with** and press **Save**.", see: "**On** and what it compares with on the row.", target: "regression-save", saves: true },
@@ -924,7 +1008,7 @@ export const HOW_TO: HowToTask[] = [
     sub: "The bug form your team wants",
     words: "bug template form fields layout headings jira",
     steps: [
-      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
+      { text: "At the bottom of the left menu, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
       { text: "Find **Bug templates** and press **Change**.", see: "Your templates, and **New template**.", target: "settings-bug-templates" },
       { text: "Press **New template**.", see: "The **New template** box.", target: "templates-new" },
       { text: "Pick **Start blank**, **Copy one of these templates**, **Copy a Jira bug's layout** or **The ready-made detailed layout**.", see: "Your choice ticked.", target: "template-start" },
@@ -942,7 +1026,7 @@ export const HOW_TO: HowToTask[] = [
     sub: "The [TAG] in bug titles, Jira Team, clients and environment",
     words: "bug defaults starting values title tag client tag brackets team client skus oly environment oko layout platform presets",
     steps: [
-      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your test cycle's settings.", target: "menu-settings" },
+      { text: "At the bottom of the left menu, press **Settings**.", see: "Your test cycle's settings.", target: "menu-settings" },
       { text: "Find **Bug templates** and press **Change**.", see: "Your templates.", target: "settings-bug-templates" },
       { text: "On the first template, press **Change layout…**. The starting values are part of the OKO bug layout.", see: "**Starting values for bugs from this test cycle**.", target: "template-change-layout" },
       { text: "Type the **Tag at the start of bug titles**, usually the platform, like UNREAL.", see: "The tag in the preview's title.", target: "defaults-tag", type: true },
@@ -996,9 +1080,24 @@ export const HOW_TO: HowToTask[] = [
     words: "wrap up end finish bash file bugs report merge duplicates",
     steps: [
       { text: "Open the bash. Whoever started it can press **End early**, or wait for the time to run out.", see: "The bash in **Wrap up**.", target: "bash-end-early" },
-      { text: "Check each bug. Untick **File it** to leave one out, change its severity, and merge duplicates.", see: "Only the bugs you want ticked.", target: "wrap-file-it" },
+      { text: "Check each bug. Press **Not a bug** on one that isn't (and pick why), change its severity, and merge duplicates.", see: "**File it** on the bugs you want filed.", target: "wrap-file-it" },
       { text: "Press **File … and wrap up** (or **Wrap up** when there's nothing to file).", see: "The bugs filed, and the bash report with **Bugs by area** and **Worst bugs**.", target: "wrap-go", saves: true },
       { text: "Missed one? Press **File this bug…** on it in the report.", see: "The usual bug box, filled in from the find.", target: "bash-file-this" },
+    ],
+    next: "bash-ready-for-jira",
+  },
+  {
+    id: "bash-ready-for-jira",
+    group: "Bug bashes",
+    title: "Get bug bash bugs ready for Jira",
+    sub: "Add for Jira, Ready for Jira, Fill in and Not a bug",
+    words: "bash jira required fields ready needs fill in repro steps impact workaround not a bug cant reproduce oko",
+    steps: [
+      { text: "While you log a bug, press **Add for Jira (3)** to add Repro steps, Bug impact and Bug workaround. They're optional: you can log without them.", see: "Three boxes under your one line.", target: "bash-add-for-jira" },
+      { text: "Press **Log bug**. Team, Client/SKUs, Build # and OKO Space Link are filled in for you.", see: "Your find in **Live finds**, marked **Ready** or **Needs** with what's missing.", target: "bash-log-go", saves: true },
+      { text: "At wrap-up, look at **Ready for Jira?**. Press **Fill in** on a bug that needs something.", see: "The OKO form, the same as in a run. **Save and fill in the next one** goes on to the next bug.", target: "wrap-file-it" },
+      { text: "Not a bug? Press **Not a bug** and pick why. **Can't reproduce** lets you ask the person who found it for steps.", see: "**Send to** them, and the report says **Not a bug · Can't reproduce**.", target: "wrap-not-a-bug" },
+      { text: "Press **File … and wrap up**. Only bugs that are ready go to Jira.", see: "The rest stay unfiled. File them later from the report with **File this bug…**.", target: "wrap-go", saves: true },
     ],
     next: "risk-board",
   },
@@ -1101,7 +1200,7 @@ export const HOW_TO: HowToTask[] = [
     sub: "Tell people how testing went",
     words: "slack email digest alert notify summary channel",
     steps: [
-      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
+      { text: "At the bottom of the left menu, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
       { text: "Find **Slack alerts** and press its button.", see: "Your Slack channels, and **＋ Add channel**.", target: "settings-slack" },
       { text: "Press **＋ Add channel**.", see: "Steps to connect a Slack channel.", target: "slack-add" },
       { text: "Find **Email digests** and set them up.", see: "When the summary emails go out and to whom.", target: "settings-digests" },
@@ -1148,7 +1247,7 @@ export const HOW_TO: HowToTask[] = [
     admins: true,
     words: "invite add member people teammate user join access bulk many whole team paste emails copy all invites",
     steps: [
-      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
+      { text: "At the bottom of the left menu, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
       { text: "Under **People** at the top, find **Members** and press **Manage**.", see: "Everyone on the team, and **Add people by email**.", target: "settings-members" },
       { text: "Type or paste their emails in **Add people by email**, one per line or with commas. The whole team at once is fine.", see: "Their emails in the box.", target: "invite-email", type: true },
       { text: "Pick their role: **Member**, **Lead**, **Admin** or **Viewer**.", see: "The role you picked.", target: "invite-role" },
@@ -1166,7 +1265,7 @@ export const HOW_TO: HowToTask[] = [
     admins: true,
     words: "roles permissions rights access lead viewer member admin",
     steps: [
-      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
+      { text: "At the bottom of the left menu, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
       { text: "Scroll down to **What can they do** and open it.", see: "Each thing people can do, with a tick for each role.", target: "settings-roles" },
       { text: "Pick a **Preset**: **Everyone** keeps every feature open, **Tighter** holds more back.", see: "The ticks change to match.", target: "roles-preset" },
       { text: "Change any tick you like, then press **Save**.", see: "\"Saved\". It applies to the Case library and every test cycle.", target: "roles-save", saves: true },
@@ -1181,7 +1280,7 @@ export const HOW_TO: HowToTask[] = [
     admins: true,
     words: "jira connect atlassian api token integration needs jira tag requirements risk board",
     steps: [
-      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
+      { text: "At the bottom of the left menu, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
       { text: "Under **Connections**, find **Jira** and press **Connect**.", see: "The Jira form.", target: "settings-jira" },
       { text: "Fill in **Jira site**, **Jira project key**, **Account email** and **API token** (make one at id.atlassian.com). **Issue type** is usually Bug.", see: "Every box filled in.", target: "jira-site", type: true },
       { text: "Press **Connect Jira**.", see: "**✓ Connected**. Every test cycle in the umbrella files bugs there, and the **Needs Jira** tags leave **Requirements** and **Risk board** in the left menu.", target: "jira-connect", saves: true },
@@ -1196,7 +1295,7 @@ export const HOW_TO: HowToTask[] = [
     admins: true,
     words: "github ci upload token pipeline teamcity actions automation connect repo",
     steps: [
-      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
+      { text: "At the bottom of the left menu, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
       { text: "Under **Connections**, find **GitHub** and press **Connect**.", see: "The GitHub form.", target: "settings-github" },
       { text: "Fill in **Repository**, **Access token**, **Workflow** and **Results files**.", see: "Your repo's details.", target: "github-repo", type: true },
       { text: "Press **Save and test**, then **Save**.", see: "The repo connected. **Repositories** shows up in the left menu.", target: "github-test", saves: true },
@@ -1214,7 +1313,7 @@ export const HOW_TO: HowToTask[] = [
     admins: true,
     words: "tools features turn on off hide menu",
     steps: [
-      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
+      { text: "At the bottom of the left menu, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
       { text: "Find **Tools** and press **Change**.", see: "Every tool, with what it includes.", target: "settings-tools" },
       { text: "Tick the tools your team uses and untick the rest.", see: "The left menu changes to match. Nothing is deleted when a tool is off.", target: "tools-list" },
     ],
@@ -1242,7 +1341,7 @@ export const HOW_TO: HowToTask[] = [
     sub: "A new place for runs, like a platform or sprint",
     words: "test cycle new add platform sprint project",
     steps: [
-      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings, with the **Test cycles** table.", target: "menu-settings" },
+      { text: "At the bottom of the left menu, press **Settings**.", see: "Your umbrella's settings, with the **Test cycles** table.", target: "menu-settings" },
       { text: "Press **Add test cycle** under the table.", see: "**New test cycle** in the list.", target: "settings-add-cycle" },
       { text: "Press **New test cycle**.", see: "A box for the new test cycle.", target: "add-cycle-new" },
       { text: "Type its **Name** and pick a platform if it has one.", see: "Your name, or a suggested one in gray.", target: "cycle-name", type: true },
@@ -1259,7 +1358,7 @@ export const HOW_TO: HowToTask[] = [
     admins: true,
     words: "archive restore delete hide remove old",
     steps: [
-      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
+      { text: "At the bottom of the left menu, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
       { text: "Scroll down to **Archive** and press **Archive…**, then **Yes, archive**.", see: "It moves to the **Archived** fold on the Umbrellas page. Cases, runs, bugs and reports all stay.", target: "settings-archive" },
       { text: "To bring it back, open it from the **Archived** fold, go to its **Settings**, and press **Restore…**, then **Yes, restore**.", see: "Everything back as it was.", target: "settings-restore" },
     ],
@@ -1272,7 +1371,7 @@ export const HOW_TO: HowToTask[] = [
     admins: true,
     words: "member role change promote demote admin lead viewer remove resend invite password link",
     steps: [
-      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
+      { text: "At the bottom of the left menu, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
       { text: "Under **People** at the top, find **Members** and press **Manage**.", see: "Everyone on the team, each with their role.", target: "settings-members" },
       { text: "Pick a new role next to their name.", see: "Their new role, saved at once. **What each role can do →** explains each one.", target: "member-role" },
       { text: "If they never signed in, press **Resend** or **Copy invite link**. **Password link** lets them set a password.", see: "A fresh link to send them." },
@@ -1287,7 +1386,7 @@ export const HOW_TO: HowToTask[] = [
     admins: true,
     words: "run fields custom field firmware api version region extra details",
     steps: [
-      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
+      { text: "At the bottom of the left menu, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
       { text: "Find **Run fields** and press **Change**.", see: "Release, Version and Environment, plus your own fields.", target: "settings-run-fields" },
       { text: "Press **＋ Add a field**.", see: "**Field name**, **Type** and three tick boxes.", target: "run-field-add" },
       { text: "Type its name, like Firmware. Pick **Text** or **Pick from a list** (then type the choices). Tick whether it's required, shows on **Release status**, and goes into Jira bugs.", see: "Your field filled in.", target: "run-field-name", type: true },
@@ -1302,7 +1401,7 @@ export const HOW_TO: HowToTask[] = [
     admins: true,
     words: "run kinds kind smoke regression release candidate type usual suite",
     steps: [
-      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
+      { text: "At the bottom of the left menu, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
       { text: "Find **Run kinds** and press **Change**.", see: "Each kind, like **Smoke test** and **Release candidate**, with **Edit**, **Hide** and **Remove**.", target: "settings-run-kinds" },
       { text: "Press **＋ Add a kind**.", see: "**Name** and **Usual suite (optional)**.", target: "run-kind-add" },
       { text: "Type a name, like Regression, and pick the suite it usually runs.", see: "Your kind filled in.", target: "run-kind-name", type: true },
@@ -1318,7 +1417,7 @@ export const HOW_TO: HowToTask[] = [
     words: "requirements settings jira project issue types stories epics link",
     start: "Connect Jira first (see Connect Jira).",
     steps: [
-      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
+      { text: "At the bottom of the left menu, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
       { text: "Under **Connections**, find **Jira** and press **Change**.", see: "The Jira form, with **Requirements** below it.", target: "settings-jira" },
       { text: "Scroll down to **Requirements**.", see: "**Requirement projects** and **Issue types you can link**.", target: "settings-requirements" },
       { text: "Type a Jira project key and press Enter. Add as many as you need.", see: "Each project as a pill.", target: "req-project", type: true },
@@ -1334,7 +1433,7 @@ export const HOW_TO: HowToTask[] = [
     admins: true,
     words: "screenshots videos replays files storage space delete old cleanup keep",
     steps: [
-      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
+      { text: "At the bottom of the left menu, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
       { text: "Find **Screenshots, videos and replays** and press **Change**.", see: "**Keep files for** and how much space they use.", target: "settings-media" },
       { text: "Pick **Failed and flaky tests only** (recommended) or **Every test**, then press **Save**.", see: "Your choice on the row.", target: "media-keep" },
       { text: "To free up space, press **Delete files from runs older than…** and pick a date. Files linked to a bug are kept.", see: "How much space it frees, then the files gone.", target: "media-delete-older" },
@@ -1348,7 +1447,7 @@ export const HOW_TO: HowToTask[] = [
     admins: true,
     words: "sentry errors crash logs stack trace exceptions connect",
     steps: [
-      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
+      { text: "At the bottom of the left menu, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
       { text: "Under **Connections**, find **Sentry** and press **Connect**.", see: "Three steps: **Sign in**, **Pick projects** and **Match builds**.", target: "settings-sentry" },
       { text: "Paste a read-only Sentry token.", see: "The token in the box (it shows as dots).", target: "sentry-token", type: true },
       { text: "Press **Check token**, then pick your Sentry organization and projects.", see: "**✓ Connected as** you, then your projects to tick.", target: "sentry-check" },
@@ -1363,7 +1462,7 @@ export const HOW_TO: HowToTask[] = [
     admins: true,
     words: "qase sync share results test management link cases token",
     steps: [
-      { text: "In the left menu, under **Settings**, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
+      { text: "At the bottom of the left menu, press **Settings**.", see: "Your umbrella's settings.", target: "menu-settings" },
       { text: "Under **Connections**, find **Qase** and press **Connect**.", see: "**Qase API token** and **Qase project**.", target: "settings-qase" },
       { text: "Paste your Qase API token. (In Qase: your avatar → API tokens → Create a new API token.)", see: "The token in the box.", target: "qase-token", type: true },
       { text: "Press **Check token and load projects**, then pick the Qase project.", see: "Your Qase projects to pick from.", target: "qase-load" },

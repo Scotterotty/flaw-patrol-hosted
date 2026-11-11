@@ -30,6 +30,7 @@ import { KeepSeparateSwitch } from "@/components/umbrella-ui";
 import { UmbrellaIcon } from "@/components/umbrella-nav";
 import { HashRedirect } from "@/components/settings-row";
 import { CycleSettingsRedirect } from "@/components/cycle-settings";
+import { ClientsSettings } from "@/components/clients-settings";
 import { OtherSettings } from "@/components/other-settings";
 import { loadUmbrella } from "@/lib/umbrella";
 import { BugTemplatesSettings } from "@/components/bug-templates";
@@ -105,6 +106,10 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
         </Card>
       )}
       {canManage && <ProjectDetailsForm projectId={project.id} name={project.name} description={project.description} />}
+      <Card id="clients" className="scroll-mt-20 space-y-3 p-5">
+        <h2 className="text-sm font-semibold text-slate-800">Clients</h2>
+        <ClientsSettings projectId={project.id} clients={project.clients} canChange={canManage} cycle={project.name} />
+      </Card>
       {!canMembers && <AskAdminLine admins={askAdmins} />}
       {canMembers && <MembersPanel
         projectId={project.id}

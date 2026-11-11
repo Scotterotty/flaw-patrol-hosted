@@ -23,11 +23,13 @@ import { HandOffNote } from "@/components/hand-off-note";
 import { AutomatedRun } from "./automated-run";
 import { queueQasePull } from "@/lib/qase-sync";
 import { RunEntries } from "@/components/run-entries";
+import { ClientGrid } from "@/components/client-grid";
+import { clientGridEntry } from "@/lib/client-grid-data";
 import { liveRowOf } from "@/lib/live-rows-data";
 import { flakyCases } from "@/lib/flaky";
 import { RunSheetButton, RunSheetStatus, type SheetState } from "@/components/run-sheet";
 import { StatusBar } from "@/components/status";
-import { Badge, buttonClass, LinkButton } from "@/components/ui";
+import { Badge, buttonClass, cx, LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
 import { caseKey, relativeTime } from "@/lib/format";
 import { can } from "@/lib/permissions";
@@ -55,14 +57,14 @@ import { viewerZone } from "@/lib/zone-server";
 
 export const metadata = { title: "Test run" };
 
-export default async function RunPage({ params, searchParams }: { params: Promise<{ key: string; number: string }>; searchParams: Promise<{ handed?: string; compare?: string; updated?: string; assigned?: string }> }) {
+export default async function RunPage({ params, searchParams }: { params: Promise<{ key: string; number: string }>; searchParams: Promise<{ handed?: string; compare?: string; updated?: string; assigned?: string; view?: string }> }) {
   // FP_TIMING=1 prints how long each part took. The independent lookups run side by
   // side instead of one after another, so the page shows sooner after Start.
   const timing = startTiming("Run page");
   // Live rows read after this replace the list's rows straight away.
   const renderedAt = Date.now();
   const { key, number } = await params;
-  const { handed, compare, updated, assigned } = await searchParams;
+  const { handed, compare, updated, assigned, view } = await searchParams;
   const [spelling, { project, user, who }] = await Promise.all([mySpelling(), timing.step("sign-in and project", projectAccess(key))]);
   const zone = await viewerZone();
   const n = Number(number);
@@ -110,6 +112,8 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   ]);
   timing.done();
 
+  // Clients (ver_214): a run started with clients opens on the client grid.
+  const byClient = run.clients.length > 0 && run.entries.some((e) => e.clients.length > 0);
   const counts = countStatuses(run.entries.map((e) => e.status));
   const t = totals(counts);
   const defectsByEntry = new Map<string, Set<string>>();
@@ -172,13 +176,34 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   const handedTo = handed ? members.find((m) => m.id === handed) : undefined;
   const handedCases = handedTo ? run.entries.filter((e) => e.assigneeId === handedTo.id).length : 0;
 
+  // Clients: the grid, or the usual case list (assign, take out, sort...).
+  const viewSwitch = byClient && (
+        <nav aria-label="How to show the cases" className="inline-flex rounded-lg border border-slate-300 bg-surface p-0.5 text-sm" data-testid="client-view-switch">
+          {(
+            [
+              ["", "By client"],
+              ["list", "Case list"],
+            ] as const
+          ).map(([v, label]) => (
+            <Link
+              key={v || "grid"}
+              href={`/p/${project.key}/runs/${run.number}${v ? `?view=${v}` : ""}`}
+              aria-current={(view === "list") === (v === "list") ? "page" : undefined}
+              className={cx("rounded-md px-3 py-1", (view === "list") === (v === "list") ? "bg-accent-600 font-medium text-white" : "text-slate-700 hover:bg-slate-100")}
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
+  );
+
   return (
     <div className="max-w-6xl">
       <LiveRefresh url={`/api/live/runs/${run.id}`} rows renderedAt={renderedAt} />
       <CrumbName href={`/p/${project.key}/runs/${run.number}`} label={runTitle(run, spelling)} />
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="fp-name flex items-center gap-2 text-xl tracking-tight">
+          <h1 className="flex items-center gap-2 text-xl tracking-tight">
             <RunName run={run} spelling={spelling} className="font-mono text-base font-normal text-slate-500" />
             {run.state === "COMPLETED" && <Badge tone="gray">Closed</Badge>}
             {!run.build.trim() && can(who, "run:create") && (
@@ -371,6 +396,21 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           path={`/p/${project.key}/runs/${run.number}`}
         />
       )}
+      {byClient && view === "list" && <div className="mb-3 flex justify-end">{viewSwitch}</div>}
+      {byClient && view !== "list" ? (
+        <ClientGrid
+          projectId={project.id}
+          projectKey={project.key}
+          runId={run.id}
+          runNumber={run.number}
+          clients={run.clients}
+          canRun={run.state === "ACTIVE" && can(who, "run:execute")}
+          renderedAt={renderedAt}
+          startLabel={t.tested === 0 ? "Start testing" : "Continue testing"}
+          viewSwitch={viewSwitch}
+          entries={run.entries.map((e) => clientGridEntry(e, caseKey(e.testCase.project.key, e.testCase.number), defectLinks))}
+        />
+      ) : (
       <RunEntries
         projectId={project.id}
         projectKey={project.key}
@@ -416,6 +456,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           ...liveRowOf(e, user.id),
         }))}
       />
+      )}
     </div>
   );
 }

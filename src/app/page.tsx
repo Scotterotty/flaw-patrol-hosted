@@ -19,11 +19,12 @@ import { can } from "@/lib/permissions";
 import { WaitingToJoin } from "@/components/join-request";
 import { LiveRefresh } from "@/components/live-refresh";
 import { adminsOf } from "@/lib/link-access-server";
+import { NOT_PRACTICE } from "@/lib/practice";
 
 export default async function HomePage() {
   const user = await requireUser();
   const t = startTiming("Umbrellas page");
-  const mine = user.isAdmin ? {} : { members: { some: { userId: user.id } } };
+  const mine = user.isAdmin ? NOT_PRACTICE : { ...NOT_PRACTICE, members: { some: { userId: user.id } } };
   // Everything the page needs before its cards, sent together.
   const [
     projects,
@@ -169,7 +170,7 @@ export default async function HomePage() {
                   {maker && <NewUmbrellaButton choices={choices} label="Make your first umbrella" />}
                   {/* ver_178: there's no left menu here yet, so the How-to guide gets its own button. */}
                   <HowToLink
-                    task="find-your-way"
+                    task="first-ten-minutes"
                     testId="home-how-to"
                     className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-surface px-3.5 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50"
                   >

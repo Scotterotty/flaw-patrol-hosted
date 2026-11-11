@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
 import { standaloneProject } from "./projects";
 
-// ver_94: bug bash bugs that weren't filed still count (File it tick box, Left out,
+// ver_94: bug bash bugs that weren't filed still count (File it tick box, Left out (Not a bug since ver_220),
 // File this bug… from the report), pass/fail only (no Bug found), and Import cases.
 
 const TAG = Date.now().toString(36).slice(-4).toUpperCase();
@@ -52,8 +52,10 @@ test("a bug left out at wrap-up still counts and can be filed from the report", 
   // Wrap-up: every bug starts ticked; untick one and the button says exactly what happens.
   await expect(page.getByRole("heading", { name: "Review 2 bugs" })).toBeVisible();
   await expect(page.getByRole("button", { name: "File 2 bugs and wrap up" })).toBeVisible();
-  await page.getByLabel("File Logo looks blurry").uncheck();
-  await expect(page.getByText("Left out")).toBeVisible();
+  // ver_220: File it / Not a bug, with a reason.
+  await page.getByRole("radiogroup", { name: "File or not: Logo looks blurry" }).getByRole("radio", { name: "Not a bug" }).click();
+  await page.getByRole("group", { name: "Why it's not a bug: Logo looks blurry" }).getByRole("button", { name: "Works as designed" }).click();
+  await expect(page.getByTestId("unfiled-tag")).toHaveText("Not a bug · Works as designed");
   await page.getByRole("button", { name: "File 1 bug and wrap up" }).click();
   await expect(page).toHaveURL(new RegExp(`/bashes/${bash.id}/report`), { timeout: 60_000 });
 
@@ -71,7 +73,7 @@ test("a bug left out at wrap-up still counts and can be filed from the report", 
   await expect(dialog.getByLabel("Summary")).toHaveValue("Logo looks blurry");
   await dialog.getByRole("button", { name: "Save bug" }).click();
   await expect(page.getByTestId("bash-unfiled-banner")).toHaveCount(0);
-  await expect(page.getByText("Left out")).toHaveCount(0);
+  await expect(page.getByTestId("unfiled-tag")).toHaveCount(0);
 });
 
 test("tick umbrellas to hide them for yourself, show them again, and archive", async ({ page }) => {

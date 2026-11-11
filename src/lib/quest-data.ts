@@ -4,6 +4,7 @@ import { db } from "./db";
 import { caseKey } from "./format";
 import { foeLine, foundRewards, generateQuest, questName, RARITY_LABEL, sentence, walkOrder, type Completion, type QuestMap } from "./quest";
 import { autoSlotFor, parseGear, partyOf, photoUrl, questRecord, rescueFinds, rescueLine, SLOT_LABEL, teamwork, troubleLine, type Look, type QuestRecord, type Slot } from "./quest-gear";
+import { NOT_PRACTICE } from "@/lib/practice";
 
 const DONE = { notIn: ["UNTESTED", "IN_PROGRESS"] as ("UNTESTED" | "IN_PROGRESS")[] };
 
@@ -98,7 +99,7 @@ export async function partyLooks(order: Completion[]) {
 export async function questRecordFor(userId: string) {
   const [user, mine] = await Promise.all([
     db.user.findUniqueOrThrow({ where: { id: userId }, select: { xpSince: true } }),
-    db.testResult.findMany({ where: { testerId: userId, status: DONE }, distinct: ["runId"], select: { runId: true } }),
+    db.testResult.findMany({ where: { testerId: userId, status: DONE, run: { project: NOT_PRACTICE } }, distinct: ["runId"], select: { runId: true } }),
   ]);
   if (!mine.length) return questRecord(userId, []);
   const runs = await db.testRun.findMany({ where: { id: { in: mine.map((m) => m.runId) }, automated: false }, select: RUN_SELECT });
@@ -233,7 +234,7 @@ export async function autoEquip(userId: string, itemIds: string[]) {
 /** The closest unfound item ahead on any active quest in the viewer's projects, for an empty Gear tab. Never says which item. */
 export async function nearestItem(userId: string, isAdmin: boolean) {
   const runs = await db.testRun.findMany({
-    where: { state: "ACTIVE", automated: false, project: isAdmin ? {} : { members: { some: { userId } } } },
+    where: { state: "ACTIVE", automated: false, project: isAdmin ? NOT_PRACTICE : { ...NOT_PRACTICE, members: { some: { userId } } } },
     orderBy: { createdAt: "desc" },
     take: 40,
     select: { ...RUN_SELECT, project: { select: { key: true } } },

@@ -45,7 +45,7 @@ export async function signIn(page: Page, email: string, name = "", password = PA
   }
   if (await create.isVisible()) {
     if (name) await page.getByLabel("Your name").fill(name);
-    await page.getByLabel("New password").fill(password);
+    await page.getByLabel("Choose a password").fill(password);
     await create.fill(password);
     await page.getByRole("button", { name: "Set password and sign in" }).click();
   } else {

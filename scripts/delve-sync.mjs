@@ -29,6 +29,7 @@ const NAMES = [
   "KM", "KR", "load", "save", "drop", "el", "show", "say", "esc", "S", "toast",
   "newRun", "nextFloor", "die", "killMon", "bossCard", "renderLog", "renderTitle", "openLoad",
   "switchSlot", "loadMeta", "saveSlots", "persist", "hashStr", "curSlot", "render", "beginRun",
+  "abToast", "stairSh",
 ];
 
 let html = readFileSync(join(from, "index.html"), "utf8");

@@ -34,6 +34,8 @@ import { caseKey, relativeTime } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { CopyText } from "@/components/copy-text";
 import { StoryLinks } from "@/components/story-links";
+import { CaseClients } from "@/components/case-clients";
+import { cleanClients, clientsForCase } from "@/lib/clients";
 import { storyInfo } from "@/lib/stories";
 import { projectAccess, mySpelling } from "@/lib/session";
 import { expandSteps, parseCaseSteps, sharedStepIdsIn } from "@/lib/steps";
@@ -76,9 +78,17 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
     others,
   ]);
   const authors = new Map(authorRows.map((u) => [u.id, u]));
+  // Clients (ver_214): the clients of the test cycles this case runs in.
+  const cycleClients = hubOf
+    ? (await db.project.findMany({ where: { groupId: hubOf, archivedAt: null, hubOf: null }, orderBy: { createdAt: "asc" }, select: { clients: true } })).flatMap((p) => p.clients)
+    : project.clients;
+  const allClients = cleanClients(cycleClients);
   const testData = isCharter ? null : parseTestData(latest?.testData);
   const steps = expandSteps(items, new Map(defs.map((d) => [d.id, d])), testData?.columns);
   const folderPath = pathOf(folders, c.folderId);
+  const caseClients = allClients.length && !isCharter && c.type !== "AUTOMATED"
+    ? clientsForCase(c.clients, allClients, [c.title, folderPath.join(" / "), ...steps.flatMap((st) => [st.action, st.expected])].join("\n"))
+    : [];
   const flips = flaky.get(c.id);
 
   return (
@@ -110,7 +120,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
             )}
             {c.archived && <Badge tone="orange">Archived</Badge>}
           </div>
-          <h1 className="fp-name mt-0.5 text-xl tracking-tight text-slate-900">{c.title}</h1>
+          <h1 className="mt-0.5 text-xl tracking-tight text-slate-900">{c.title}</h1>
           {c.automationId && (
             <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
               <span aria-hidden>🤖</span> Automated by <code className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-700">{c.automationId}</code>
@@ -235,6 +245,18 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
           {(
             <Card className="p-4">
               <StoryLinks projectId={project.id} caseId={c.id} stories={[...stories.values()]} canEdit={can(who, "case:edit") && !c.archived} jira={!!jira} />
+            </Card>
+          )}
+          {caseClients.length > 0 && (
+            <Card className="p-4">
+              <CaseClients
+                projectId={project.id}
+                caseId={c.id}
+                all={allClients}
+                picked={caseClients}
+                guessed={!allClients.some((x) => c.clients.some((y) => y.toLowerCase() === x.toLowerCase()))}
+                canEdit={can(who, "case:edit") && !c.archived}
+              />
             </Card>
           )}
           <Card className="p-4">

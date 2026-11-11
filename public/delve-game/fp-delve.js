@@ -8,6 +8,7 @@
  *    person's bugs from that run only NAME monsters (worst bug = B12 boss, other Showstopper and
  *    Critical bugs = earlier bosses, the next level down = Elites, the rest = regular monsters).
  *    Stats and Shards never change because of them. Beating B12 pays a first-clear bonus once.
+ *    Practice banks nothing: no Shards, no Scrap, no deepest floor.
  * 4. Bug Log gets a "Your bugs" tab, kept in the person's own save.
  */
 (function () {
@@ -151,7 +152,7 @@
         .sort(function (a, b) { return (a.y - b.y) || (a.x - b.x); });
       (p.mons[f] || []).forEach(function (b, i) { if (rest[i]) tag(rest[i], b, "mon"); });
       var room = d.rooms && d.rooms.length ? d.rooms[(f - 1) % d.rooms.length] : "";
-      if (room && f <= 12) g.say("Floor " + f + ": <b>" + esc(shortTitle(room)) + "</b>. " + (f === 1 ? "Find the stairs." : f % 3 === 0 ? "A boss guards the stairs." : "+" + (f - 1) + " Shards for going deeper."));
+      if (room && f <= 12) g.say("Floor " + f + ": <b>" + esc(shortTitle(room)) + "</b>. " + (f === 1 ? "Find the stairs." : f % 3 === 0 ? "A boss guards the stairs." : "+" + g.stairSh() + " Shards for going deeper."));
       g.persist();
     }
 
@@ -207,10 +208,18 @@
       if (m && m.bug) el("bossFloor").textContent = "BUG " + m.bug.key + " · B" + g.G.floor + " BOSS";
     };
 
-    // squashing a bug-named monster adds it to Your bugs
+    // squashing a bug-named monster adds it to Your bugs. A Practice boss gives no Scrap.
     var killMon0 = g.killMon;
     g.killMon = function (m) {
-      var r = killMon0(m);
+      var G = g.G, r;
+      if (G && G.practice && m && m.boss) {
+        var meta0 = g.meta, scrap = meta0.scrap || 0, toast0 = g.abToast;
+        g.abToast = function (id, html) { if (!/Scrap/.test(String(html))) toast0(id, html); };
+        try { r = killMon0(m); } finally { g.abToast = toast0; }
+        g.meta.scrap = scrap; G.scrapRun = 0; g.save(g.KM(), g.meta); g.persist();
+        return r;
+      }
+      r = killMon0(m);
       if (m && m.bug) {
         var meta = g.meta; meta.bugs = meta.bugs || {};
         var e = meta.bugs[m.bug.id] || { key: m.bug.key, t: m.bug.t, img: m.id, kind: m.bug.kind, n: 0 };

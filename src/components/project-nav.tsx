@@ -12,7 +12,7 @@ export type NavCounts = { cases: number; charters: number; suites: number; share
 
 /**
  * A test cycle's left menu, shaped like the umbrella menu: name card on top, Library, Testing,
- * Results, then Settings. Test cycles in an umbrella show the umbrella's menu instead (see ProjectMenu).
+ * Results, then Settings and How-to guide at the bottom. Test cycles in an umbrella show the umbrella's menu instead (see ProjectMenu).
  */
 export function ProjectNav({ projectKey, projectName, quests = false, counts, library, live, glossary, canBug = false }: { projectKey: string; projectName: string; quests?: boolean; counts: NavCounts; library?: NavLibrary; live?: boolean; glossary?: { count: number; unseen: boolean }; canBug?: boolean }) {
   const path = usePathname();
@@ -57,11 +57,12 @@ export function ProjectNav({ projectKey, projectName, quests = false, counts, li
         { href: `${base}/reports`, id: "reports", label: "Reports" },
       ],
     },
-    { label: "Settings", items: [{ href: `${base}/settings`, id: "cycle-settings", howto: "settings", label: `${projectName} settings` }, howToItem()] },
   ];
   // Import lives under Test cases (its button is there), so that link stays lit while importing.
   const active = (i: MenuItem) => (i.exact ? path === i.href : path === i.href || path.startsWith(`${i.href}/`)) || (i.href === `${base}/cases` && path.startsWith(`${base}/import`));
-  return <SideMenu label={projectName} head={<MenuHead href={base} name={projectName} kind="Test cycle" icon={<CycleIcon />} />} groups={groups} active={active} />;
+  // Settings and How-to guide at the bottom, the same as the umbrella menu (ver_222).
+  const footer: MenuItem[] = [{ href: `${base}/settings`, id: "cycle-settings", howto: "settings", label: `${projectName} settings` }, howToItem()];
+  return <SideMenu label={projectName} head={<MenuHead href={base} name={projectName} kind="Test cycle" icon={<CycleIcon />} />} groups={groups} footer={footer} active={active} />;
 }
 
 function CycleIcon() {

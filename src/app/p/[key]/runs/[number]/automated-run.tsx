@@ -104,7 +104,7 @@ export async function AutomatedRun({ project, runId, who }: { project: { id: str
       <CrumbName href={`/p/${project.key}/runs/${run.number}`} label={runTitle(run, spelling)} />
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="fp-name flex flex-wrap items-center gap-2 text-xl tracking-tight">
+          <h1 className="flex flex-wrap items-center gap-2 text-xl tracking-tight">
             <RunName run={run} spelling={spelling} className="font-mono text-base font-normal text-slate-500" />
             <Badge tone="violet">🤖 Automated</Badge>
           </h1>

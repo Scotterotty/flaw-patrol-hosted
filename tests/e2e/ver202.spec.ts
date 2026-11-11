@@ -39,7 +39,7 @@ const savedLook = async () => {
 test.afterAll(async () => {
   const db = new PrismaClient();
   try {
-    await db.user.update({ where: { email: EMAIL }, data: { look: "classic", riskLook: null } });
+    await db.user.update({ where: { email: EMAIL }, data: { look: "classic", riskLook: null, fontBody: "poppins", fontHeading: "bungee" } });
   } finally {
     await db.$disconnect();
   }

@@ -39,6 +39,7 @@ export function reportData(r: BashReport, file?: ReportData["file"]): ReportData
     // Unfiled bugs stay on the report, tagged, with Jira's reason.
     unfiled: b.bug || !wrapped ? null : b.review === "skip" ? ("left" as const) : ("not-filed" as const),
     why: b.fileError,
+    reason: b.reviewReason,
     attachments: b.attachments,
   });
   return {
@@ -76,6 +77,7 @@ export function reportData(r: BashReport, file?: ReportData["file"]): ReportData
       key: f.bug ? (f.bug.externalKey ?? `D-${f.bug.number}`) : "",
       url: f.bug?.externalUrl ?? null,
       left: f.kind === "bug" && wrapped && !f.bug && f.review === "skip",
+      reason: f.reviewReason,
       // Opened on the report: what was written, template tables and files.
       details: f.details,
       answers: f.template?.answers ?? [],
