@@ -115,7 +115,9 @@ export function RunsInProgressList({ rows, kinds, canExecute, spelling }: { rows
                 <StatusBar counts={r.counts} className="mt-2" />
                 <p className="mt-1 text-xs text-slate-500">
                   <span className="tabular-nums">
-                    {r.t.tested} of {r.t.total} tested · {pct(r.t.passRate)} passed
+                    {r.t.tested} of {r.t.total} tested
+                    {/* ver_216: one passed case out of five isn't "100%". */}
+                    {r.t.passRate === null ? "" : r.t.passRate === 1 && r.t.tested < r.t.total ? " · all passed so far" : ` · ${pct(r.t.passRate)} passed`}
                   </span>
                   {r.release && ` · ${r.release}`} · started {relativeTime(r.createdAt, spelling)}
                   {r.mine > 0 && ` · ${r.mineLeft ? `${r.mineLeft} of yours to go` : "your cases are done"}`}

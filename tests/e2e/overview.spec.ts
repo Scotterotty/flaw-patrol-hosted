@@ -48,7 +48,7 @@ test("the project overview shows runs in progress, my work and flagged cases", a
   await page.getByRole("navigation", { name: /breadcrumb/i }).getByRole("link", { name: `Overview ${KEY}` }).click();
   await expect(page).toHaveURL(new RegExp(`/p/${KEY}$`));
   const runs = page.getByRole("heading", { name: "Runs in progress" }).locator("xpath=../..");
-  await expect(runs).toContainText("1 of 2 tested · 100% passed");
+  await expect(runs).toContainText("1 of 2 tested · all passed so far");
   await expect(runs).toContainText("1 of yours to go");
   const mine = page.getByRole("heading", { name: "My work" }).locator("xpath=../..");
   await expect(mine.getByRole("link", { name: /Both/ })).toContainText("1 to go");

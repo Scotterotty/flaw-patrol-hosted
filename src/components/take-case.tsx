@@ -48,7 +48,15 @@ export function TakeCase({
     >
       {assignee ? (
         mine ? (
-          <span>{session ? (resume ? "You're exploring this." : "You're exploring this, so teammates see it's taken.") : "You're testing this case, so teammates see it's taken."}</span>
+          session ? (
+            <span>{resume ? "You're exploring this." : "You're exploring this, so teammates see it's taken."}</span>
+          ) : (
+            <>
+              {/* ver_216: on a phone it's one short line, so step 1's buttons fit on the first screen. */}
+              <span className="sm:hidden">You&apos;re on this case.</span>
+              <span className="hidden sm:inline">You&apos;re testing this case, so teammates see it&apos;s taken.</span>
+            </>
+          )
         ) : (
           <span className="flex min-w-0 items-center gap-1.5">
             <PersonLabel person={assignee} size={18} />
@@ -70,12 +78,19 @@ export function TakeCase({
         </Button>
       )}
       {!closed && mine && (
-        <Button size="sm" disabled={pending} onClick={() => act(false)} className={resume?.onResume ? undefined : "ml-auto"} data-howto="stop-testing">
+        <Button
+          size="sm"
+          disabled={pending}
+          onClick={() => act(false)}
+          className={resume?.onResume ? undefined : "ml-auto"}
+          data-howto="stop-testing"
+          title={session ? "Frees this session so someone else can pick it up. Your notes are kept." : "Frees this case so someone else can test it. Your marks so far are kept."}
+        >
           Stop testing
         </Button>
       )}
       {!closed && mine && (
-        <p className="w-full text-xs text-slate-500" data-testid="stop-testing-help">
+        <p className={cx("w-full text-xs text-slate-600", !session && "hidden sm:block")} data-testid="stop-testing-help">
           {session ? (
             <>
               <b>Stop testing</b> frees this session so someone else can pick it up. Your notes are kept, and you can come back to it.

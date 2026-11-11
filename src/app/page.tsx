@@ -169,7 +169,7 @@ export default async function HomePage() {
                   {maker && <NewUmbrellaButton choices={choices} label="Make your first umbrella" />}
                   {/* ver_178: there's no left menu here yet, so the How-to guide gets its own button. */}
                   <HowToLink
-                    task="find-your-way"
+                    task="first-ten-minutes"
                     testId="home-how-to"
                     className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-surface px-3.5 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50"
                   >

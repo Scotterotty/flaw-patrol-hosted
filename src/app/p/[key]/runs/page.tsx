@@ -50,7 +50,7 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
   const newsCounts = await caseNewsCounts(runs.filter((r) => r.state === "ACTIVE" || r.automated).slice(0, 30).map((r) => r.id));
   const autoCount = await db.testRun.count({ where: { projectId: project.id, automated: true } });
   const canStart = can(who, "run:create");
-  const picker = canStart ? <StartRunBox scope={{ projectKey: project.key }} /> : null;
+  const picker = canStart ? <StartRunBox scope={{ projectKey: project.key }} openParam="run" /> : null;
   const umbrella = await umbrellaOf(project);
   const inUmbrella = !!umbrella;
   const kinds = parseRunKinds(umbrella?.group.runKinds);

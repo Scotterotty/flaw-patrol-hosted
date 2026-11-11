@@ -36,7 +36,7 @@ test("passwords: first-time setup, wrong password, admin link, change", async ({
   await m.getByLabel("Email").fill(member);
   await m.getByRole("button", { name: "Continue" }).click();
   await expect(m.getByText("You don't have a password yet. Use the invite link in your email")).toBeVisible();
-  await expect(m.getByLabel("New password")).toHaveCount(0);
+  await expect(m.getByLabel(/New password|Choose a password/)).toHaveCount(0);
   await expect(page.getByRole("listitem").filter({ hasText: member })).toContainText("invited, hasn't signed in yet");
 
   // They choose it from the invite link instead.

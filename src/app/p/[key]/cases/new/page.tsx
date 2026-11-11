@@ -7,7 +7,9 @@ import { BLANK_CHARTER, parseCharter } from "@/lib/charter";
 import { can } from "@/lib/permissions";
 import { charterHome, teamTemplates } from "@/lib/charter-data";
 import { templateById } from "@/lib/charter-templates";
-import { projectAccess } from "@/lib/session";
+import { projectAccess, requireUser } from "@/lib/session";
+import { db } from "@/lib/db";
+import { firstDay } from "@/lib/first-day";
 
 export const metadata = { title: "New test case" };
 
@@ -19,6 +21,11 @@ export default async function NewCasePage({ params, searchParams }: { params: Pr
   if (!can(who, "case:edit")) notFound();
   const ctx = await editorContext(project.id, [], null, isCharter);
   // From a tour or checklist: the template fills in everything but the area.
+  // ver_216: More details stays open for people who opened it last time.
+  const me = await requireUser();
+  const prefs = firstDay((await db.user.findUnique({ where: { id: me.id }, select: { openCards: true } }))?.openCards);
+  // The folder you came from; with only one folder there's nowhere else it could go.
+  const startFolder = ctx.folders.some((f) => f.id === folder) ? folder! : ctx.folders.length === 1 ? ctx.folders[0].id : null;
   const tpl = isCharter && template ? templateById(template, await teamTemplates((await charterHome(project)).id)) : null;
   return (
     <CaseEditor
@@ -39,7 +46,7 @@ export default async function NewCasePage({ params, searchParams }: { params: Pr
         type: isCharter ? "EXPLORATORY" : "MANUAL",
         automationId: null,
         tags: [],
-        folderId: ctx.folders.some((f) => f.id === folder) ? folder! : null,
+        folderId: startFolder,
         steps: [],
         // "Write charter" on a persona and "Turn into charter" on a session idea arrive with these filled in.
         charter: isCharter
@@ -52,6 +59,7 @@ export default async function NewCasePage({ params, searchParams }: { params: Pr
       sharedSteps={ctx.sharedSteps}
       knownTags={ctx.knownTags}
       canManageShared={can(who, "shared:manage")}
+      detailsOpen={prefs.caseDetails}
     />
   );
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState, useEffect, type ReactNode } from "react";
 import { useMenuPlace } from "./menu-place";
 import { VersionLine } from "./version-line";
+import { GettingStartedItem } from "./first-day";
 
 /** Your name in the top bar: a small menu with your account, appearance, the mini game and Sign out. */
 export function AccountMenu({ children, label, admin, signOut, joins }: { children: ReactNode; label: string; admin?: boolean; signOut: () => Promise<void>; joins?: { count: number; href: string } | null }) {
@@ -57,6 +58,8 @@ export function AccountMenu({ children, label, admin, signOut, joins }: { childr
           <Link role="menuitem" href="/account#appearance" className={item} data-howto="account-appearance">
             Appearance and accessibility
           </Link>
+          {/* ver_216: Start here again, after ✕ Hide for now. */}
+          <GettingStartedItem className={item} />
           <Link role="menuitem" href="/whats-new" className={item} data-howto="account-whats-new">
             What&apos;s new
           </Link>

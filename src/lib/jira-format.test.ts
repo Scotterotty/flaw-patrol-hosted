@@ -28,6 +28,11 @@ describe("bug formatting", () => {
     expect(defaultSummary({ ...ctx, actual: "" })).toBe("Checkout with a saved card: Place order: Not as expected: Confirmation shown");
     expect(didNot("Payment sheet opens")).toBe("Payment sheet does not open");
     expect(didNot("The order is saved.")).toBe("The order is not saved");
+    expect(didNot("Cart count goes up")).toBe("Cart count does not go up");
+    expect(didNot("Banner closes")).toBe("Banner does not close");
+    expect(didNot("App fixes the typo")).toBe("App does not fix the typo");
+    expect(didNot("Search tries again")).toBe("Search does not try again");
+    expect(didNot("Menu watches focus")).toBe("Menu does not watch focus");
   });
   it("lists steps up to the failure with expected and actual", () => {
     const t = bugText(ctx);

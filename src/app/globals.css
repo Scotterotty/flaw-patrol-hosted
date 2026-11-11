@@ -1978,3 +1978,13 @@ a[href]:is(.text-accent-600, .text-accent-700).hover\:underline {
   text-decoration-thickness: from-font;
   text-underline-offset: 2px;
 }
+
+/* ver_216: the "You're set" check mark pops once, only when motion isn't reduced. */
+@keyframes fp-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  70% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html:not([data-motion="reduce"]) .fp-pop { animation: fp-pop 400ms ease-out; }
+}

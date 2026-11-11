@@ -1,5 +1,6 @@
 "use client";
 
+import { ShowStartHereAgain } from "./first-day";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { findHowTo, HOW_TO, HOW_TO_GROUPS, HOW_TO_START, howToById, plainText, type HowToStep, type HowToTask } from "@/lib/how-to";
 import { useSpell } from "./spelling";
@@ -63,7 +64,7 @@ function waitFor(names: string[], ms: number): Promise<{ name: string; el: HTMLE
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export function HowToGuide() {
+export function HowToGuide({ startHidden = false }: { startHidden?: boolean }) {
   const spell = useSpell();
   const [open, setOpen] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -385,6 +386,8 @@ export function HowToGuide() {
               aria-label="Search the How-to guide"
               className="mb-3 block h-9 w-full rounded-md border border-slate-300 bg-surface px-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 focus:outline-none"
             />
+            {/* ver_216: Start here was hidden for now; this brings it back on the Overview. */}
+            {startHidden && !q.trim() && <ShowStartHereAgain />}
             {shown.length === 0 && <p className="text-sm text-slate-500">Nothing matches. Try one word, like bug, run or import.</p>}
             {(q.trim() ? [null] : HOW_TO_GROUPS).map((g) => {
               const list = g ? shown.filter((t) => t.group === g) : shown;

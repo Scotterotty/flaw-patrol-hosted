@@ -34,6 +34,10 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         <h1 className="-mx-6 -mt-6 mb-6 bg-[#191d24]">
           <LogoBanner />
         </h1>
+        {/* ver_216: a first visit says what this is before asking for an email. */}
+        <p className="-mt-2 mb-4 text-center text-sm text-slate-600" data-testid="signin-tagline">
+          Write tests, run them together and report bugs, all in one place.
+        </p>
         <ErrorText>{error ? (ERRORS[error] ?? "Sign-in failed. Please try again.") : null}</ErrorText>
         <div className="mt-4 space-y-2">
           {oauth.map((p) => (

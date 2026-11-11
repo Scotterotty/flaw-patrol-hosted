@@ -308,6 +308,9 @@ function Form({
   const autoHere = what === "all" ? opts.autoCount : what === "suite" ? (suite?.autoCases ?? 0) : what === "cases" ? opts.cases.filter(isAuto).length : 0;
   // No cases anywhere the box can pick from.
   const noCases = opts.allCount === 0 && opts.cases.length === 0;
+  // ver_216: with nothing to run, the rest of the form (test cycle, release, version) waits until there are cases.
+  // The kind question stays: a Release candidate or Bug bash can still start without cases.
+  const waitForCases = noCases && !session;
   const count =
     what === "all" ? opts.allCount + (withAuto ? opts.autoCount : 0) : what === "suite" ? (suite?.cases ?? 0) - (withAuto ? 0 : (suite?.autoCases ?? 0)) : what === "cases" ? picked.length : 0;
   const members = chosen.length === 1 ? chosen[0].members : [];
@@ -425,19 +428,20 @@ function Form({
           <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900" data-testid="run-no-cases">
             <p>There are no test cases here yet, so there&apos;s nothing to run.</p>
             {(opts.canCases || opts.canImport) && (
-              <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                {opts.canCases && (
-                  <a href={`/p/${opts.libraryKey}/cases/new`} target="_blank" rel="noopener" className="font-medium text-accent-700 underline">
-                    Write the first case ↗
+              <p className="mt-2 flex flex-wrap items-center gap-2">
+                {opts.canImport && (
+                  <a href={`/p/${opts.libraryKey}/import`} target="_blank" rel="noopener" className="inline-flex h-8 items-center rounded-md bg-accent-600 px-3 text-sm font-medium text-white hover:bg-accent-700">
+                    Import cases ↗
                   </a>
                 )}
-                {opts.canImport && (
-                  <a href={`/p/${opts.libraryKey}/import`} target="_blank" rel="noopener" className="font-medium text-accent-700 underline">
-                    Import cases ↗
+                {opts.canCases && (
+                  <a href={`/p/${opts.libraryKey}/cases/new`} target="_blank" rel="noopener" className="inline-flex h-8 items-center rounded-md border border-slate-300 bg-surface px-3 text-sm font-medium text-slate-800 hover:bg-slate-50">
+                    Write the first case ↗
                   </a>
                 )}
               </p>
             )}
+            <p className="mt-2 text-xs text-sky-900">The rest of this form waits until there are cases.</p>
           </div>
   );
   return (
@@ -467,7 +471,8 @@ function Form({
           onChange={() => setKindId(null)}
         />
       )}
-      {kindId !== null && (
+      {kindId !== null && waitForCases && noCasesNote}
+      {kindId !== null && !waitForCases && (
       <>
       <section aria-labelledby="rb-what" data-howto="run-what">
         <h3 id="rb-what" className="mb-1.5 text-xs font-semibold text-slate-600">
@@ -851,7 +856,7 @@ function Form({
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-3">
         {/* What's still needed, so it's clear why Start is grayed out. */}
         <ul className="space-y-0.5 text-xs" aria-live="polite" data-testid="run-todo">
-          {(isSheet ? sheetTodo : todo).map(([ok, text]) => (
+          {(waitForCases ? [] : isSheet ? sheetTodo : todo).map(([ok, text]) => (
             <li key={text} className={ok ? "text-slate-700" : "text-slate-500"}>
               <span className={cx("mr-1", ok ? "text-emerald-600" : "text-slate-400")} aria-hidden>
                 {ok ? "✓" : "○"}
@@ -865,6 +870,7 @@ function Form({
             Cancel
           </Button>
           {kindId !== null &&
+            !waitForCases &&
             (isSheet ? (
               <Button variant="primary" disabled={busy || pressed !== null || !ready} onClick={nextSheet} data-howto="run-sheet-next">
                 {pressed ? "Opening…" : "Next: check the sheet"}
