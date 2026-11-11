@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 215,
+    date: "2026-11-10",
+    items: [
+      {
+        kind: "fix",
+        title: "Security update",
+        text: "A newer version of the part that reads uploaded test results closes a low-severity security alert. Nothing changes in how you use it.",
+        who: "workspace",
+      },
+    ],
+  },
+  {
     version: 214,
     date: "2026-11-10",
     items: [
