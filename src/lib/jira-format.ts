@@ -37,6 +37,13 @@ const short = (s: string, max: number) => {
   return line.length > max ? `${line.slice(0, max - 1).trimEnd()}…` : line;
 };
 
+/** "goes" → "go", "fixes" → "fix", "tries" → "try", "closes" → "close", "opens" → "open". */
+function baseVerb(w: string) {
+  if (/[^aeiou]ies$/i.test(w)) return `${w.slice(0, -3)}y`;
+  if (/(o|x|z|ch|sh|ss)es$/i.test(w)) return w.slice(0, -2);
+  return w.slice(0, -1);
+}
+
 /** "Payment sheet opens" → "Payment sheet does not open", for a title when nothing was typed. */
 export function didNot(expected: string) {
   const text = short(expected, 80).replace(/[.!]+$/, "");
@@ -45,7 +52,7 @@ export function didNot(expected: string) {
   const be = words.findIndex((w, i) => i > 0 && /^(is|are|was|were|can|will|should)$/i.test(w));
   if (be > 0) return [...words.slice(0, be + 1), "not", ...words.slice(be + 1)].join(" ");
   const verb = words.findIndex((w, i) => i > 0 && /^[a-z]{3,}s$/.test(w) && !/ss$/.test(w));
-  if (verb > 0) return [...words.slice(0, verb), "does not", words[verb].slice(0, -1), ...words.slice(verb + 1)].join(" ");
+  if (verb > 0) return [...words.slice(0, verb), "does not", baseVerb(words[verb]), ...words.slice(verb + 1)].join(" ");
   return `Not as expected: ${text}`;
 }
 

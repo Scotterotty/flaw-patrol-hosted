@@ -50,12 +50,15 @@ export function CsvImporter({
   initialPlaceId,
   initialFolderId,
   initialFolderPlaceId,
+  runHref,
 }: {
   projectId: string;
   places: ImportPlace[];
   initialPlaceId: string;
   initialFolderId: string | null;
   initialFolderPlaceId: string;
+  /** Where Create a run opens, for "Next: run these cases" after an import (ver_216). Null when you can't create runs. */
+  runHref?: string | null;
 }) {
   const [placeId, setPlaceId] = useState(initialPlaceId);
   const place = places.find((p) => p.id === placeId) ?? places[0];
@@ -81,6 +84,10 @@ export function CsvImporter({
   // A title with several lines: first line is the title, the rest goes to Expected. Picked for you.
   const [firstLineTitle, setFirstLineTitle] = useState(true);
   const [mapping, setMapping] = useState<ColumnMapping>({});
+  // ver_216: Match your columns shows the matched ones; the rest wait under Show all columns.
+  // A box you changed stays put, so it doesn't vanish when you set it to (Not imported).
+  const [showAllFields, setShowAllFields] = useState(false);
+  const [pinned, setPinned] = useState<ImportField[]>([]);
   const [source, setSource] = useState<ImportSource>("other");
   const [folderId, setFolderId] = useState(startFolder ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -104,6 +111,15 @@ export function CsvImporter({
   const longTitles = useMemo(() => (rows && sheetMode ? multiLineTitles(rows, mapping, headerRow) : 0), [rows, mapping, headerRow, sheetMode]);
   const titleSplit = sheetMode && firstLineTitle && longTitles > 0;
   const runColumns = perRunColumns(header, mapping);
+  // ver_216: only the boxes that matter. Title always; Expected too when it comes from the title's extra lines.
+  const fieldShown = (f: ImportField) => f === "title" || mapping[f] !== undefined || pinned.includes(f) || (f === "expected" && titleSplit && mapping.title !== undefined);
+  const shownFields = IMPORT_FIELDS.filter((f) => showAllFields || fieldShown(f));
+  const hiddenFields = IMPORT_FIELDS.filter((f) => !fieldShown(f)).length;
+  const usedCols = new Set(Object.values(mapping).filter((v): v is number => v !== undefined));
+  // Blank-named columns with nothing in them, and the ones filled in during a run, don't count as unmatched.
+  const usableCols = header.filter((h, i) => (h ?? "").trim() || usedCols.has(i)).length;
+  const matchedCols = header.filter((_, i) => usedCols.has(i)).length;
+  const unmatched = header.flatMap((h, i) => ((h ?? "").trim() && !usedCols.has(i) && !runColumns.includes(i) ? [i] : []));
   const sheetResults = useMemo(() => (rows ? sheetResultCount(rows, headerRow) : 0), [rows, headerRow]);
   // Rows offered in "Use a different row": the first 50 that aren't blank.
   const rowChoices = useMemo(
@@ -196,6 +212,7 @@ export function CsvImporter({
   const chooseSource = (next: ImportSource, head: string[]) => {
     setSource(next);
     setMapping(guessMapping(head, next));
+    setPinned([]);
     setRestoreBreaks(next === "qtest");
   };
 
@@ -272,7 +289,24 @@ export function CsvImporter({
           Each one starts at version 1 with a note naming {fileName}.
           {done.shared > 0 && ` Steps repeated in several cases became ${done.shared === 1 ? "a shared step" : `${done.shared} shared steps`}.`}
         </p>
-        <div className="mt-4 flex justify-center gap-2">
+        {/* ver_216: the next step leads on, so a first import doesn't end at "what now?". */}
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          {runHref && done.cases > 0 && (
+            <Link href={runHref} data-testid="import-next-run" className="inline-flex h-9 items-center rounded-md bg-accent-600 px-3.5 text-sm font-medium text-white hover:bg-accent-700">
+              Next: run {done.cases === 1 ? "this case" : `these ${done.cases} cases`}
+            </Link>
+          )}
+          <Link
+            href={`/p/${done.place.key}/cases${done.folderId ? `?folder=${done.folderId}` : ""}`}
+            data-howto="import-view"
+            className={
+              runHref && done.cases > 0
+                ? "inline-flex h-9 items-center rounded-md border border-slate-300 bg-surface px-3.5 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50"
+                : "inline-flex h-9 items-center rounded-md bg-accent-600 px-3.5 text-sm font-medium text-white hover:bg-accent-700"
+            }
+          >
+            View cases
+          </Link>
           <Button
             onClick={() => {
               setRows(null);
@@ -281,9 +315,6 @@ export function CsvImporter({
           >
             Import another file
           </Button>
-          <Link href={`/p/${done.place.key}/cases${done.folderId ? `?folder=${done.folderId}` : ""}`} data-howto="import-view" className="inline-flex h-9 items-center rounded-md bg-accent-600 px-3.5 text-sm font-medium text-white hover:bg-accent-700">
-            View cases
-          </Link>
         </div>
         {done.results > 0 && rows && (
           <p className="mt-4 text-sm text-slate-700" data-testid="sheet-results-link">
@@ -614,9 +645,17 @@ export function CsvImporter({
 
           <Card className="p-5" data-howto="import-columns">
             <h2 className="mb-1 text-sm font-semibold text-slate-800">Match your columns</h2>
-            <p className="mb-4 text-xs text-slate-500">We guessed from the header names. Only Title is required. Rows that share a case ID, as in qTest exports, become one case.</p>
+            <p className="mb-1 text-sm text-slate-700" data-testid="import-matched-count">
+              We matched {matchedCols} of your {usableCols} {usableCols === 1 ? "column" : "columns"}.
+            </p>
+            <p className="mb-4 text-xs text-slate-600">We guessed from the header names. Only Title is required. Rows that share a case ID, as in qTest exports, become one case.</p>
+            {unmatched.length > 0 && (
+              <p className="mb-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="import-not-matched">
+                Not matched: {listNames(unmatched.map((i) => header[i] || `Column ${i + 1}`))}. {unmatched.length === 1 ? "It isn't" : "They aren't"} imported unless you pick {unmatched.length === 1 ? "it" : "them"} below{showAllFields ? "" : " under Show all columns"}.
+              </p>
+            )}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {IMPORT_FIELDS.map((f: ImportField) => (
+              {shownFields.map((f: ImportField) => (
                 <Field
                   key={f}
                   label={FIELD_LABEL[f] + (f === "title" ? " *" : "")}
@@ -626,7 +665,10 @@ export function CsvImporter({
                   <Select
                     id={`map-${f}`}
                     value={mapping[f] ?? ""}
-                    onChange={(e) => setMapping((m) => ({ ...m, [f]: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                    onChange={(e) => {
+                      setMapping((m) => ({ ...m, [f]: e.target.value === "" ? undefined : Number(e.target.value) }));
+                      setPinned((p) => (p.includes(f) ? p : [...p, f]));
+                    }}
                   >
                     <option value="">
                       {f === "expected" && titleSplit && mapping.title !== undefined ? `${header[mapping.title] || "Title"} (lines under the first)` : "(Not imported)"}
@@ -640,6 +682,17 @@ export function CsvImporter({
                 </Field>
               ))}
             </div>
+            {hiddenFields > 0 && (
+              <button
+                type="button"
+                aria-expanded={showAllFields}
+                onClick={() => setShowAllFields(!showAllFields)}
+                className="mt-3 text-sm font-medium text-accent-700 hover:underline"
+                data-testid="import-show-all-columns"
+              >
+                {showAllFields ? "▾ Show only matched columns" : `▸ Show all columns (${hiddenFields} more)`}
+              </button>
+            )}
             {runColumns.length > 0 && (
               <p className="mt-4 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600" data-testid="per-run-columns">
                 {listNames(runColumns.map((i) => header[i]))} {runColumns.length === 1 ? "is" : "are"} left out. {runColumns.length === 1 ? "It's" : "They're"} filled in during a run.

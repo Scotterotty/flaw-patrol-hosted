@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { RadioProvider } from "@/components/radio-player";
 import { SpellingProvider } from "@/components/spelling";
 import { currentUser, mySpelling } from "@/lib/session";
+import { firstDay } from "@/lib/first-day";
 import { parseSpotifyLinks, validStation } from "@/lib/spotify";
 import { lookAttrs } from "@/lib/looks";
 import { cleanSpinners, pawnEmoji } from "@/lib/spinners";
@@ -183,7 +184,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <BusyCorner />
           {whatsNew.length > 0 && <WhatsNewWindow entries={whatsNew} />}
           {/* The How-to guide: closed until someone opens it from the left menu or Search. */}
-          {user && <HowToGuide />}
+          {user && <HowToGuide startHidden={firstDay(user.openCards).startHidden} />}
           </NavOrderProvider>
         </SpellingProvider>
       </body>

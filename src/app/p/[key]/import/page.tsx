@@ -42,6 +42,7 @@ export default async function ImportPage({ params, searchParams }: { params: Pro
         initialPlaceId={places[0].id}
         initialFolderId={start.folderOptions.some((f) => f.id === folder) ? folder! : null}
         initialFolderPlaceId={start.id}
+        runHref={can(who, "run:create") ? (umbrella ? `/g/${umbrella.group.id}?start=run` : `/p/${project.key}/runs?start=run`) : null}
       />
     </div>
   );

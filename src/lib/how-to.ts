@@ -45,12 +45,44 @@ export type HowToTask = {
 
 export const HOW_TO_GROUPS = ["Start here", "Write tests", "Run tests", "Bugs", "Bug bashes", "Results", "Settings", "Make it yours"] as const;
 /** "Start here" (ver_178): the first day, in the order you'd do it. */
-export const HOW_TO_START = ["find-your-way", "import-cases", "write-case", "create-run", "test-case", "report-bug", "invite", "search"];
+export const HOW_TO_START = ["first-ten-minutes", "find-your-way", "import-cases", "write-case", "create-run", "test-case", "report-bug", "invite", "search", "start-here"];
 export type HowToGroup = (typeof HOW_TO_GROUPS)[number];
 
 /** Every task has Show me on the steps that have a button to point at (ver_174 did 13, ver_175 the rest). ver_176 added a task for every feature that had none (Scott: every feature goes in the guide, so a new feature adds its task in the same build). */
 export const HOW_TO: HowToTask[] = [
   // ───────────── Get started ─────────────
+  // ver_216: the empty workspace's Show me how it works opens this one, since there's no left menu yet.
+  {
+    id: "first-ten-minutes",
+    group: "Start here",
+    title: "Your first 10 minutes",
+    sub: "Make your umbrella, bring cases, run them, invite your team",
+    words: "first time new start begin setup getting started empty workspace first day",
+    steps: [
+      { text: "Press **Flaw Patrol** at the top left.", see: "The Umbrellas page. A brand-new workspace says **Start with an umbrella**.", target: "top-home" },
+      { text: "Press **Make your first umbrella** (or **New umbrella**), type your product's name and press **Make**. An umbrella is one product.", see: "Your umbrella's **Overview**, with a **Start here** list.", target: "new-umbrella", saves: true },
+      { text: "Bring your test cases: on **Start here**, press **Import cases** to load a CSV or Excel file. To write one instead, press **Case library** in the left menu, then **New case**.", see: "✓ Imported, with **Next: run these cases** under it.", target: "start-here" },
+      { text: "Run them: press **Next: run these cases**, or **Create a run** at the top of the **Overview**. Then press **Create and test now**.", see: "The runner, open on your first case. Press P, F or B to mark each step.", target: "run-create" },
+      { text: "Invite your team: on **Start here**, press **Invite**. (Only Admins invite people.)", see: "**Settings**, open at **Members**, where you add people by email.", target: "start-invite" },
+    ],
+    next: "find-your-way",
+  },
+  {
+    id: "start-here",
+    group: "Start here",
+    title: "Hide Start here, or bring it back",
+    sub: "Put the first-day list away and find it again later",
+    words: "start here hide close dismiss getting started checklist setup list bring back reopen",
+    steps: [
+      { text: "In the left menu, press **Overview**.", see: "**Start here** near the top while your umbrella is new, with how many steps are done.", target: "menu-overview" },
+      { text: "Press **Show me** next to a step to learn it in this guide.", see: "That step's task, with Show me on its buttons.", target: "start-here" },
+      { text: "Press **✕ Hide for now** to put the list away. Pressing Esc inside the list does the same.", see: "Start here is gone, for you only. Your ticks are kept.", target: "start-here-hide", saves: true },
+      { text: "To bring it back, press your name at the top right.", see: "Your account menu.", target: "top-account" },
+      { text: "Press **Getting started**.", see: "The umbrella's **Overview**, with **Start here** back and your ticks where you left them.", target: "account-getting-started", saves: true },
+      { text: "While it's hidden, **Show Start here again** at the top of this guide does the same.", see: "**Start here** back on the **Overview**." },
+    ],
+    next: "find-your-way",
+  },
   {
     id: "find-your-way",
     group: "Start here",
@@ -254,10 +286,10 @@ export const HOW_TO: HowToTask[] = [
     steps: [
       { text: "In the left menu, under **Library**, press **Case library**. (A test cycle that isn't in an umbrella calls it **Test cases**.)", see: "Your cases, with folders on the left.", target: "menu-cases" },
       { text: "Pick a folder on the left if you want the case in it, then press **New case** at the top right.", see: "The **New test case** page with the cursor in **Title**.", target: "cases-new" },
-      { text: "Type a short **Title** that says what you check, like Sign in with email. To tag it, start with a word in brackets, like [WEB].", see: "Your title. A [WEB] start turns into a tag pill.", target: "case-title", type: true },
-      { text: "Check the **Folder** and **Priority**.", see: "The folder you picked, and Medium priority unless you change it.", target: "case-folder" },
-      { text: "Under **Steps**, type what to do in **Action** and what should happen in **Expected result**.", see: "Step 1 filled in.", target: "case-step", type: true },
-      { text: "Press **+ Add step** for each next step. Ctrl + Enter in a step adds one below it too.", see: "A new empty step under the last one.", target: "case-add-step" },
+      { text: "Type a short **Title** that says what you check, like Sign in with email.", see: "Your title.", target: "case-title", type: true },
+      { text: "Right under it, in **Steps**, type what to do in **Action** and what should happen in **Expected result**.", see: "Step 1 filled in.", target: "case-step", type: true },
+      { text: "Press **+ Add step** for each next step. Ctrl + Enter in a step adds one below it too. **Tips** has more.", see: "A new empty step under the last one.", target: "case-add-step" },
+      { text: "Check the **Folder** under the steps. It's the folder you came from. **More details** holds priority, tags, preconditions and test data, and stays open next time if you leave it open.", see: "The folder you picked, and **More details** folded unless you opened it last time.", target: "case-folder" },
       { text: "Press **Create case** at the bottom. To write another right away, press **Create and new** instead.", see: "The case's page, with its key (like APP-12) and **Version 1** in **Version history**.", target: "case-save", saves: true },
     ],
     next: "make-suite",
