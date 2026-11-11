@@ -22,6 +22,24 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 219,
+    date: "2026-11-10",
+    items: [
+      {
+        kind: "new",
+        title: "Try a practice run",
+        text: "New here? Start here has a 2-minute practice run with 3 sample cases. Only you see it, and it isn't in reports, Jira or Slack. Step 2 of the first case is meant to fail, so you can report a bug. Remove it when you're done, or it goes away on its own after 7 days.",
+        link: "/g/{umbrella}",
+      },
+      {
+        kind: "new",
+        title: "Bring your Google Sheet, results and all",
+        text: "Import a sheet with a Status or Result column and its Pass, Fail and Blocked come along as a finished run, From my sheet, on the day you pick. Notes become comments, and testers are matched to your team by name.",
+        who: "lead",
+      },
+    ],
+  },
+  {
     version: 218,
     date: "2026-11-10",
     items: [

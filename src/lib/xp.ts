@@ -6,6 +6,7 @@ import { SESSION_BUG_CAP, streaks, type GameStats } from "./game";
 import { questRecordFor, questRecordsFor } from "./quest-data";
 import { glossaryStatsFrom } from "./glossary";
 import { glossaryWork } from "./glossary-data";
+import { NOT_PRACTICE } from "./practice";
 
 const VERDICTS: ResultStatus[] = ["PASSED", "FAILED", "BLOCKED", "EXPLORED"];
 
@@ -59,11 +60,11 @@ export async function gameStats(userId: string, shared?: Shared): Promise<GameSt
 
   // Everything that only needs the dates above goes in one wave, instead of one after another.
   // Only bugs filed here from a run count; linked Jira issues and sheet imports don't.
-  const myBugs = { createdById: userId, filed: true, createdAt: since, status: { not: "WONT_FIX" as const }, links: { some: {} } };
+  const myBugs = { createdById: userId, project: NOT_PRACTICE, filed: true, createdAt: since, status: { not: "WONT_FIX" as const }, links: { some: {} } };
   const [mine, written, bugFiled, bugFixed, sessions, authored, sharedUsed, suitesRun, glossaryRows] = await Promise.all([
     db.testResult.findMany({
       // Results brought in by Import a run belong to the sheet, not the importer.
-      where: { testerId: userId, status: { in: VERDICTS }, imported: false, createdAt: since },
+      where: { testerId: userId, status: { in: VERDICTS }, imported: false, createdAt: since, run: { project: NOT_PRACTICE } },
       select: { entryId: true, runId: true, caseId: true, status: true, createdAt: true },
     }),
     db.caseVersion.findMany({
@@ -79,7 +80,7 @@ export async function gameStats(userId: string, shared?: Shared): Promise<GameSt
       },
     }),
     db.testResult.findMany({
-      where: { testerId: userId, imported: false, createdAt: since, sessionLog: { not: Prisma.AnyNull } },
+      where: { testerId: userId, imported: false, createdAt: since, sessionLog: { not: Prisma.AnyNull }, run: { project: NOT_PRACTICE } },
       select: { sessionLog: true },
     }),
     // Writing and looking after cases. Imported cases and restores don't count as writing.

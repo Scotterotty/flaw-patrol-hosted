@@ -1,6 +1,7 @@
 import type { CaseType, Priority } from "@prisma/client";
 import type { PlainStep } from "./steps";
 import { isSectionTitle } from "./step-checks";
+import { readStatus, type ImportStatus } from "./run-import";
 
 // Turns spreadsheet rows into test cases. Handles the two layouts most tools
 // export: all steps of a case in one cell (one per line, often numbered), and
@@ -68,6 +69,7 @@ export const IMPORT_SOURCES = [
   { id: "testrail", label: "TestRail" },
   { id: "zephyr", label: "Zephyr Scale" },
   { id: "xray", label: "Xray" },
+  { id: "gsheet", label: "Google Sheet" },
   { id: "other", label: "Excel or another tool" },
 ] as const;
 export type ImportSource = (typeof IMPORT_SOURCES)[number]["id"];
@@ -113,6 +115,8 @@ const SOURCE_HEADERS: Record<ImportSource, Partial<Record<ImportField, RegExp>>>
     expected: /^expected result$/i,
     requirements: /^(requirements?|covers?)$/i,
   },
+  // A team's own Google Sheet: plain columns, read like Excel. Its results can come in too (ver_217).
+  gsheet: {},
   other: {},
 };
 
@@ -712,3 +716,43 @@ export const SHEET_HANDOFF = "fp-run-sheet";
 
 /** What's handed over in SHEET_HANDOFF. Create a run → From a spreadsheet (ver_177) also sends where it goes and the new run's details. */
 export type SheetHandoff = { fileName: string; rows: string[][]; at: number; target?: "run" | "new"; name?: string; release?: string; runKind?: string };
+
+
+// Results in a team's own sheet (ver_217): a Status or Result column, and maybe who tested
+// and notes. They aren't case fields; Import can bring them in as a finished run.
+const STATUS_COLUMN = /^(status|results?|pass\s*\/\s*fail|test (status|result)|case (status|result)|execution status|outcome)$/i;
+const TESTER_COLUMN = /^(tester|tested by|executed by|run by)$/i;
+const NOTES_COLUMN = /^(notes?|comments?|actual( results?)?)$/i;
+
+export type ResultColumns = { status: number; tester?: number; notes?: number };
+
+/** The sheet's result columns, when it has a status column no case field uses. Tool exports keep their own run import. */
+export function resultColumns(header: string[], mapping: ColumnMapping, source: ImportSource): ResultColumns | null {
+  if (source !== "gsheet" && source !== "other") return null;
+  const used = new Set(Object.values(mapping));
+  const find = (re: RegExp) => {
+    const i = header.findIndex((h, j) => !used.has(j) && re.test((h ?? "").trim()));
+    return i >= 0 ? i : undefined;
+  };
+  const status = find(STATUS_COLUMN);
+  if (status === undefined) return null;
+  return { status, tester: find(TESTER_COLUMN), notes: find(NOTES_COLUMN) };
+}
+
+/** What we bring in for one case: its result, who tested it and the notes. */
+export type SheetResult = { status: Exclude<ImportStatus, "UNTESTED">; tester: string; notes: string };
+
+/**
+ * Each case's result, read from the case's first row. Blank, "Select" and words we don't
+ * know mean no result, so the case is left out of the finished run.
+ */
+export function caseResults(rows: string[][], cases: { row: number }[], cols: ResultColumns): (SheetResult | null)[] {
+  const cell = (r: string[], i: number | undefined) => (i === undefined ? "" : htmlToText((r[i] ?? "").trim()));
+  return cases.map((c) => {
+    const r = rows[c.row - 1] ?? [];
+    const { status } = readStatus(cell(r, cols.status));
+    if (status === "UNTESTED") return null;
+    const tester = cell(r, cols.tester);
+    return { status, tester: /^[-—–]+$/.test(tester) ? "" : tester.slice(0, 200), notes: cell(r, cols.notes).slice(0, 10000) };
+  });
+}

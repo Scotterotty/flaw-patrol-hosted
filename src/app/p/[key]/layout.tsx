@@ -9,6 +9,8 @@ import { can } from "@/lib/permissions";
 import { ViewerNoteFor } from "@/components/viewer-note-server";
 import { ToolGate } from "@/components/tools";
 import { gateInfo } from "@/lib/tools-data";
+import { myPractice } from "@/lib/practice-data";
+import { PracticeBanner } from "@/components/practice";
 
 export default async function ProjectLayout({ children, params }: { children: React.ReactNode; params: Promise<{ key: string }> }) {
   const { key } = await params;
@@ -48,6 +50,8 @@ export default async function ProjectLayout({ children, params }: { children: Re
   const umbrellaArchived = !!group?.hubProjectId && !!group.archivedAt;
   // A test cycle's pages follow its umbrella's tools.
   const parent = group?.hubProjectId ? await loadUmbrella(group.id, user) : null;
+  // A practice run (ver_217): the banner on every page says it's yours alone and how to remove it.
+  const practice = project.practiceFor ? await myPractice(user.id) : null;
   return (
     <>
       <TopBar user={user} project={{ key: project.key, name: project.name, group: group && { id: group.id, name: group.name } }} />
@@ -60,6 +64,7 @@ export default async function ProjectLayout({ children, params }: { children: Re
             project.archivedAt && <ArchivedBanner settingsHref={await cycleSettingsHref(project, user, "archive")} canRestore={role === "ADMIN"} />
           )}
           {viewer && <ViewerNoteFor project={project} userId={user.id} />}
+          {practice && <PracticeBanner tested={practice.tested} total={practice.total} />}
           {parent ? <ToolGate info={await gateInfo(parent)}>{children}</ToolGate> : children}
         </main>
       </div>

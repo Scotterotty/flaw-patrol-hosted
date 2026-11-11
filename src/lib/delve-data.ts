@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "./db";
 import { dungeonLabel, MAX_BUGS, MAX_DUNGEONS, MAX_ROOMS, type DelveBug, type Dungeon } from "./delve";
+import { NOT_PRACTICE } from "@/lib/practice";
 
 /**
  * One dungeon per closed run this person tested by hand: results they saved themselves (not
@@ -12,7 +13,7 @@ export async function dungeonsFor(user: { id: string; isAdmin: boolean }): Promi
   const runWhere = {
     state: "COMPLETED" as const,
     automated: false,
-    project: { archivedAt: null, ...(user.isAdmin ? {} : { members: { some: { userId: user.id } } }) },
+    project: { archivedAt: null, ...NOT_PRACTICE, ...(user.isAdmin ? {} : { members: { some: { userId: user.id } } }) },
   };
   const results = await db.testResult.findMany({
     where: { testerId: user.id, imported: false, automated: false, fromQase: false, status: { not: "UNTESTED" }, run: runWhere },

@@ -293,6 +293,9 @@ model Project {
   riskRatings          RiskRating[]
   /// Ask to join: people who opened a link here and asked to be added. Kept on the team (hub or lone test cycle).
   joinRequests         JoinRequest[]
+  /// Practice run (ver_217): the person this private practice space belongs to. Only they see it;
+  /// it stays out of lists, reports, search, Jira and Slack, and is removed after 7 days.
+  practiceFor          String?           @unique
 
   @@index([groupId])
 }

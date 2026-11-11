@@ -11,10 +11,11 @@ import { DONE, releaseKey, type RcBug, type RcColumn, type RcPick, type RcRunCho
 import { isSevere, SEVERITIES, type SeverityScale } from "@/lib/severity";
 import { severityScaleFor } from "@/lib/severity-server";
 import { parsePlatforms } from "@/lib/umbrella";
+import { NOT_PRACTICE } from "@/lib/practice";
 
 type Viewer = { id: string; isAdmin: boolean };
 
-const projectScope = (user: Viewer) => (user.isAdmin ? {} : { project: { members: { some: { userId: user.id } } } });
+const projectScope = (user: Viewer) => (user.isAdmin ? { project: NOT_PRACTICE } : { project: { ...NOT_PRACTICE, members: { some: { userId: user.id } } } });
 
 /**
  * Which runs a report starts from. An umbrella's report only ever shows its own projects' runs;

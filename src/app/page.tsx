@@ -19,11 +19,12 @@ import { can } from "@/lib/permissions";
 import { WaitingToJoin } from "@/components/join-request";
 import { LiveRefresh } from "@/components/live-refresh";
 import { adminsOf } from "@/lib/link-access-server";
+import { NOT_PRACTICE } from "@/lib/practice";
 
 export default async function HomePage() {
   const user = await requireUser();
   const t = startTiming("Umbrellas page");
-  const mine = user.isAdmin ? {} : { members: { some: { userId: user.id } } };
+  const mine = user.isAdmin ? NOT_PRACTICE : { ...NOT_PRACTICE, members: { some: { userId: user.id } } };
   // Everything the page needs before its cards, sent together.
   const [
     projects,
