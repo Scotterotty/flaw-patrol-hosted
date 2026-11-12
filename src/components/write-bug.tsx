@@ -97,6 +97,7 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
   const [severity, setSeverity] = useState<Severity>(defaultSeverityOf(scale));
   const [foundIn, setFoundIn] = useState("");
   const [jiraKey, setJiraKey] = useState<string | null>(null);
+  const [priority, setPriority] = useState<string | null>(null);
   const [alsoJira, setAlsoJira] = useState(true);
   const [files, setFiles] = useState<{ id: string; fileName: string; contentType: string; size?: number }[]>([]);
   // The OKO form's file ticks: untick a file to keep it off the bug.
@@ -160,6 +161,7 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
       if (!s.ok) return setError(s.error);
       setFoundIn(s.foundIn);
       setJiraKey(s.jiraKey);
+      setPriority(s.priority);
       const top = c.ok && c.currentLayout ? { label: c.current, layout: c.currentLayout } : { label: PLAIN, layout: null };
       const list = [...(c.ok ? c.templates : []), ...(top.layout ? [PLAIN_CHOICE] : [])];
       setFirst(top);
@@ -359,6 +361,7 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
                   uploading={uploading}
                   capture={capture}
                   jiraLimit={toJira ? JIRA_FILE_LIMIT : null}
+                  priority={toJira ? priority : null}
                   from="written"
                 />
               ) : (

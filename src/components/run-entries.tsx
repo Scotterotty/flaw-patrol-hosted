@@ -501,12 +501,18 @@ export function RunEntries({
                   {/* One action per row: Test, Continue or Retest where it didn't pass. The rest is under ⋯. */}
                   <span className="inline-flex items-center justify-end gap-1">
                     {r.status !== "PASSED" && r.status !== "SKIPPED" && (
-                      <Link
-                        href={`/p/${projectKey}/runs/${runNumber}/execute?entry=${r.id}`}
-                        className="text-xs font-medium text-accent-700 hover:underline max-sm:inline-block max-sm:rounded-md max-sm:bg-accent-600 max-sm:px-3 max-sm:py-1.5 max-sm:text-sm max-sm:text-white max-sm:hover:no-underline"
-                      >
-                        {r.status === "UNTESTED" ? "Test" : r.status === "IN_PROGRESS" ? "Continue" : "Retest"}
-                      </Link>
+                      <>
+                        <Link href={`/p/${projectKey}/runs/${runNumber}/execute?entry=${r.id}`} className="text-xs font-medium text-accent-700 hover:underline max-sm:hidden">
+                          {r.status === "UNTESTED" ? "Test" : r.status === "IN_PROGRESS" ? "Continue" : "Retest"}
+                        </Link>
+                        {/* Phones get a real button. Plain bg-accent-600 (not max-sm:) so every look's button colors apply (audit Nov 11: white on yellow in Arcade). */}
+                        <Link
+                          href={`/p/${projectKey}/runs/${runNumber}/execute?entry=${r.id}`}
+                          className="inline-block rounded-md bg-accent-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-accent-700 sm:hidden"
+                        >
+                          {r.status === "UNTESTED" ? "Test" : r.status === "IN_PROGRESS" ? "Continue" : "Retest"}
+                        </Link>
+                      </>
                     )}
                     {(r.status === "PASSED" || r.status === "SKIPPED" || (canRemove && r.removable)) && (
                       <MoreMenu label="⋯" caret={false} size="sm" ariaLabel={`Options for ${r.caseKey}`} title="Options">

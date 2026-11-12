@@ -1106,11 +1106,11 @@ export const HOW_TO: HowToTask[] = [
     group: "Bug bashes",
     title: "Get bug bash bugs ready for Jira",
     sub: "Add for Jira, Ready for Jira, Fill in and Not a bug",
-    words: "bash jira required fields ready needs fill in repro steps impact workaround not a bug cant reproduce oko",
+    words: "bash jira required fields ready needs fill in repro steps impact workaround not a bug cant reproduce oko found in version priority",
     steps: [
       { text: "While you log a bug, press **Add for Jira (3)** to add Repro steps, Bug impact and Bug workaround. They're optional: you can log without them.", see: "Three boxes under your one line.", target: "bash-add-for-jira" },
       { text: "Press **Log bug**. Team, Client/SKUs, Build # and OKO Space Link are filled in for you.", see: "Your find in **Live finds**, marked **Ready** or **Needs** with what's missing.", target: "bash-log-go", saves: true },
-      { text: "At wrap-up, look at **Ready for Jira?**. Press **Fill in** on a bug that needs something.", see: "The OKO form, the same as in a run. **Save and fill in the next one** goes on to the next bug.", target: "wrap-file-it" },
+      { text: "At wrap-up, look at **Ready for Jira?**. Press **Fill in** on a bug that needs something.", see: "The OKO form, the same as in a run: \"from bash\" by what the bash filled in, **Jira Priority**, and **Found in** when your Jira asks for it. **Save and fill in the next one** goes on to the next bug.", target: "wrap-file-it" },
       { text: "Not a bug? Press **Not a bug** and pick why. **Can't reproduce** lets you ask the person who found it for steps.", see: "**Send to** them, and the report says **Not a bug · Can't reproduce**.", target: "wrap-not-a-bug" },
       { text: "Press **File … and wrap up**. Only bugs that are ready go to Jira.", see: "The rest stay unfiled. File them later from the report with **File this bug…**.", target: "wrap-go", saves: true },
     ],
