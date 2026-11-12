@@ -114,7 +114,7 @@ test("connect Qase, link cases by title, and share results both ways", async ({ 
   expect((await qaseState(request)).results).toHaveLength(1);
 
   // 5. Qase → Flaw Patrol: a result saved in Qase comes into the run with a Qase tag.
-  await request.post(`${QASE}/__result`, { data: { run_id: made.id, case_id: 88, status: "failed", comment: "Card form froze" } });
+  const froze = (await (await request.post(`${QASE}/__result`, { data: { run_id: made.id, case_id: 88, status: "failed", comment: "Card form froze" } })).json()) as { hash: string };
   // An old Qase result for a case tested here since: newest wins, so it stays out.
   await request.post(`${QASE}/__result`, { data: { run_id: made.id, case_id: 12, status: "passed", end_time: "2020-01-01 10:00:00" } });
   await bar.getByRole("button", { name: "Sync now" }).click();
@@ -124,6 +124,27 @@ test("connect Qase, link cases by title, and share results both ways", async ({ 
   await expect(paid.getByTestId("from-qase")).toBeVisible();
   await expect(paid.getByText("Failed", { exact: true })).toBeVisible();
   await expect(page.getByTestId("from-qase")).toHaveCount(1);
+
+  // ver_228: each Qase step's result comes in. Qase said Passed but its step failed: Failed here.
+  await request.post(`${QASE}/__result`, { data: { run_id: made.id, case_id: 51, status: "passed", steps: [{ status: 2, comment: "Crop box is stuck" }] } });
+  // A Qase result edited after it came in (now passed) updates the result it made here.
+  await request.post(`${QASE}/__result`, { data: { hash: froze.hash, status: "passed", steps: [{ status: 1, comment: "" }] } });
+  await page.goto(`/p/${CYCLE}`);
+  await bar.getByRole("button", { name: "Sync now" }).click();
+  await expect(bar.getByText("Synced with Qase: 0 sent, 2 new from Qase.")).toBeVisible();
+  await page.goto(`/p/${CYCLE}/runs/1`);
+  const crop = page.getByRole("row").filter({ hasText: "Crop the profile picture" }).or(page.locator("li").filter({ hasText: "Crop the profile picture" })).first();
+  await expect(crop.getByTestId("from-qase")).toBeVisible();
+  await expect(crop.getByText("Failed", { exact: true })).toBeVisible();
+  await expect(paid.getByText("Passed", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("from-qase")).toHaveCount(2);
+  const db2 = new PrismaClient();
+  try {
+    const step = (await db2.testResult.findFirstOrThrow({ where: { entryId: entryOf["Crop the profile picture"], fromQase: true } })).stepResults as { status: string; actual: string }[];
+    expect(step).toEqual([{ status: "FAILED", actual: "Crop box is stuck" }]);
+  } finally {
+    await db2.$disconnect();
+  }
 
   // 6. Qase's webhook link: the right secret is accepted, anything else is Not found.
   expect((await request.post(hook, { data: { event_name: "result.created" } })).status()).toBe(200);

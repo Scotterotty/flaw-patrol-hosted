@@ -22,6 +22,22 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 229,
+    date: "2026-11-12",
+    items: [
+      {
+        kind: "fix",
+        title: "Qase results come in step by step",
+        text: "Results brought in from Qase now fill in each step: Passed, Failed, Blocked or Skipped, with the Qase step comment as the Actual result. A step that failed in Qase fails the case here, and a Qase result changed after it came in is updated here too.",
+      },
+      {
+        kind: "new",
+        title: "How-to: Bring Qase test results into a cycle",
+        text: "A new How-to task walks through it: one Qase run for each test cycle, pick it with Change Qase run, finish each case in Qase, then Sync now.",
+      },
+    ],
+  },
+  {
     version: 228,
     date: "2026-11-12",
     items: [

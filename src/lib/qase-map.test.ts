@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cameFromUs, closestCases, matchByTitle, parseQaseCaseId, parseStatusMap, qaseStatusFor, qaseTime, sentComment, titleKey } from "./qase-map";
+import { cameFromUs, closestCases, matchByTitle, parseQaseCaseId, parseStatusMap, qaseStatusFor, qaseTime, sentComment, qaseStepResults, titleKey } from "./qase-map";
 
 describe("Qase status matching", () => {
   it("fills in defaults and drops anything that isn't a Qase status", () => {
@@ -76,5 +76,39 @@ describe("Qase IDs and times", () => {
     expect(cameFromUs(c)).toBe(true);
     expect(cameFromUs(sentComment("", ""))).toBe(true);
     expect(cameFromUs("Tested by hand")).toBe(false);
+  });
+});
+
+describe("Qase step results", () => {
+  const steps = [
+    { action: "SPACE LISTS", expected: "" },
+    { action: "Owned By You", expected: "Owned spaces show" },
+    { action: "", expected: "" },
+    { action: "Search Functionality", expected: "Letters work\nNumbers work" },
+  ];
+  it("puts each Qase step on the matching step, skipping empty ones", () => {
+    const r = qaseStepResults(steps, "PASSED", [
+      { status: 1, comment: "" },
+      { status: 1, comment: "" },
+      { status: 2, comment: "Numbers return nothing" },
+    ]);
+    expect(r.stepResults.map((s) => s.status)).toEqual(["PASSED", "PASSED", "UNTESTED", "FAILED"]);
+    expect(r.stepResults[3].actual).toBe("Numbers return nothing");
+    // Qase said Passed, but a step failed.
+    expect(r.status).toBe("FAILED");
+  });
+  it("a blocked step blocks a passed case; a failed case stays failed", () => {
+    expect(qaseStepResults(steps, "PASSED", [{ status: 1, comment: "" }, { status: 3, comment: "" }, { status: 1, comment: "" }]).status).toBe("BLOCKED");
+    expect(qaseStepResults(steps, "FAILED", [{ status: 1, comment: "" }, { status: 3, comment: "" }, { status: 1, comment: "" }]).status).toBe("FAILED");
+  });
+  it("in-progress steps stay untested; status names work too", () => {
+    const r = qaseStepResults(steps, "FAILED", [{ status: 7, comment: "" }, { status: "skipped", comment: "" }, { status: "2", comment: "" }]);
+    expect(r.stepResults.map((s) => s.status)).toEqual(["UNTESTED", "SKIPPED", "UNTESTED", "FAILED"]);
+  });
+  it("no Qase steps, or a different count: every step takes the case's result as before", () => {
+    expect(qaseStepResults(steps, "PASSED", []).stepResults.map((s) => s.status)).toEqual(["PASSED", "PASSED", "PASSED", "PASSED"]);
+    const r = qaseStepResults(steps, "FAILED", [{ status: 2, comment: "" }]);
+    expect(r.status).toBe("FAILED");
+    expect(r.stepResults.every((s) => s.status === "UNTESTED")).toBe(true);
   });
 });

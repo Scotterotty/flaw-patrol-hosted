@@ -111,3 +111,37 @@ export function qaseTime(v: string | null | undefined): Date | null {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? null : d;
 }
+
+/** Qase's step result numbers: 1 passed, 2 failed, 3 blocked, 5 skipped (7 is in progress). */
+const QASE_STEP: Record<number, ResultStatus> = { 1: "PASSED", 2: "FAILED", 3: "BLOCKED", 5: "SKIPPED" };
+
+export type QaseStepResult = { status: number | string | null; comment: string };
+type RunStep = { action?: string; expected?: string };
+
+/**
+ * A Qase result as this run entry's result: each Qase step's own status and comment on the
+ * matching step here, and the case Failed (or Blocked) when a step is, even if Qase's case
+ * says Passed. Qase steps line up with this case's steps that have words, in order (how
+ * Export cases writes them). When the counts don't match, or Qase sent no steps, every step
+ * takes the case's result as before.
+ */
+export function qaseStepResults(runSteps: unknown, caseStatus: ResultStatus, qaseSteps: QaseStepResult[]): { status: ResultStatus; stepResults: { status: ResultStatus; actual: string }[] } {
+  const steps = (Array.isArray(runSteps) ? runSteps : []) as RunStep[];
+  const filled = steps.flatMap((s, i) => ((s?.action ?? "").trim() || (s?.expected ?? "").trim() ? [i] : []));
+  const plain = caseStatus === "PASSED" || caseStatus === "SKIPPED" ? caseStatus : "UNTESTED";
+  if (!qaseSteps.length || qaseSteps.length !== filled.length) return { status: caseStatus, stepResults: steps.map(() => ({ status: plain, actual: "" })) };
+  const out = steps.map(() => ({ status: "UNTESTED" as ResultStatus, actual: "" }));
+  filled.forEach((at, k) => {
+    const q = qaseSteps[k];
+    const n = typeof q.status === "number" ? q.status : Number(q.status);
+    const named = typeof q.status === "string" ? QASE_BRING[q.status.toLowerCase()] : undefined;
+    out[at] = { status: QASE_STEP[n] ?? named ?? "UNTESTED", actual: (q.comment ?? "").slice(0, 10000) };
+  });
+  // A failed or blocked step decides the case when Qase's case result is milder.
+  let status = caseStatus;
+  if (caseStatus === "PASSED" || caseStatus === "SKIPPED") {
+    if (out.some((s) => s.status === "FAILED")) status = "FAILED";
+    else if (out.some((s) => s.status === "BLOCKED")) status = "BLOCKED";
+  }
+  return { status, stepResults: out };
+}

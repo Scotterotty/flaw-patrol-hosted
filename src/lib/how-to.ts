@@ -1520,6 +1520,22 @@ export const HOW_TO: HowToTask[] = [
       { text: "Press **Link cases →**.", see: "**Link cases to Qase**: each case, with a Qase case to pick or an ID to type.", target: "qase-link-cases" },
       { text: "Pick the Qase case for each one, or leave it unshared.", see: "How many are linked. Results flow to Qase when someone opens a test cycle or presses **Sync now**." },
     ],
+    next: "qase-results",
+  },
+  {
+    id: "qase-results",
+    group: "Run tests",
+    title: "Bring Qase test results into a cycle",
+    sub: "Test in Qase and see each case and step here",
+    start: "An Admin connects Qase first (see Link cases to Qase), with Bring Qase results into Flaw Patrol on.",
+    words: "qase results bring pull import sync run cycle steps tested in qase two tools",
+    steps: [
+      { text: "In the left menu, press **Overview** on the test cycle for one platform, like Unreal RC 23. Start a run in it with the cases you'll test.", see: "The cycle with a green **Shares with Qase** bar.", target: "menu-overview" },
+      { text: "In Qase, make a new run just for this cycle, with the same cases. Don't reuse a Qase run that has another platform's results: every result in it comes into this cycle.", see: "Your new run in Qase." },
+      { text: "Back here, press **Change Qase run** on the green bar and pick that Qase run. (Or pick **A new run named after this test cycle** and skip the step before.)", see: "**✓ Shared with Qase** run, with the run's name.", target: "qase-change-run" },
+      { text: "Test in Qase. Give each case its final result, like Passed or Failed. Cases still in progress don't come over.", see: "Results in your Qase run." },
+      { text: "Press **Sync now** on the green bar. Opening the cycle also brings results, at most once a minute.", see: "Synced with Qase, with how many came in. Each case and step shows its Qase result, tagged Qase.", target: "qase-sync-now" },
+    ],
   },
   {
     id: "workspace",
