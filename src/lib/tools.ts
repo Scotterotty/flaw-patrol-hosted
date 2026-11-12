@@ -44,7 +44,7 @@ export const TOOLS: Tool[] = [
     why: "its cards are the release's requirements",
     better: "Test cases and Test runs (Plan this release)",
   },
-  { id: "auto", name: "Automation", what: "CI uploads, Repositories, screenshots, videos and replays", needs: ["runs"], why: "results come in as runs", better: "GitHub connection" },
+  { id: "auto", name: "Automation", what: "CI uploads, GitHub test health, screenshots, videos and replays", needs: ["runs"], why: "results come in as runs", better: "GitHub connection" },
   { id: "quest", name: "Quest map", what: "The mini game on test cycles, and crowns", needs: ["runs"], why: "quests come from running cases" },
   { id: "glossary", name: "Glossary", what: "The team's words and what they mean", needs: [] },
 ];
@@ -138,7 +138,7 @@ export function toolOfPath(path: string, at: { g: string; hub: string; cycles: s
   const g = `/g/${at.g}`;
   const h = `/p/${at.hub}`;
   if (under(`${g}/runs`) || under(`${g}/rc`) || under(`${g}/projects`)) return "runs";
-  if (under(`${g}/repos`)) return "auto";
+  if (under(`${g}/status/github`)) return "auto";
   if (under(`${g}/stories`)) return "stories";
   for (const [p, t] of [
     ["cases", "cases"],

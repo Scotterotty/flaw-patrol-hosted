@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { StatusLine } from "@/components/status-board";
 import { Suspense, type ReactNode } from "react";
 import { CrumbName } from "@/components/crumb-name";
 import { HomeTrends, HomeTrendsLoading } from "@/components/home-trends";
@@ -229,6 +230,9 @@ export async function UmbrellaHome({ u, user, welcome = false }: { u: Umbrella; 
           {canRc && <StartRcButton groupId={u.group.id} umbrella={u.group.name} hasRelease={u.projects.length > 0} canManage={canManage} canSuites={can(u.who, "suite:manage")} canCases={can(u.who, "case:edit")} canImport={can(u.who, "import")} hideButton />}
         </div>
       </div>
+
+      {/* Status (ver_228): one line when builds or tools are connected; nothing otherwise. */}
+      <StatusLine groupId={u.group.id} />
 
       {/* A brand-new umbrella with nothing running yet has its setup list instead. */}
       {runsOn && (waiting.length > 0 || ready) && (

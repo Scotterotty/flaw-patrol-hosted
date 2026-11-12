@@ -13,7 +13,7 @@ export type Action =
   | "project:manage" // test cycle name and description
   | "project:separate" // keep a test cycle's members separate from its umbrella's
   | "members:manage" // members and roles: always admins only
-  | "jira:manage" // Jira connection, bug template, Slack alerts, GitHub repos
+  | "jira:manage" // Jira connection, bug template, Slack alerts, GitHub repos, TeamCity
   | "project:group" // put the project in a project group or take it out
   | "suite:manage"
   | "run:create"
@@ -69,7 +69,7 @@ export const ROLE_ROWS: { id: string; group: string; label: string; actions: Act
   { id: "platforms", group: "Test cycles", label: "Platforms and their suites", actions: ["umbrella:manage"], std: "TESTER", tight: "LEAD" },
   { id: "shortcuts", group: "Test cycles", label: "Shortcuts on the Umbrellas page", actions: ["umbrella:shortcuts"], std: "TESTER", tight: "LEAD" },
   { id: "settings", group: "Test cycles", label: "Test cycle name and description", actions: ["project:manage"], std: "TESTER", tight: "LEAD" },
-  { id: "jira", group: "Settings", label: "Jira, bug template, Slack alerts, Sentry, GitHub and CI uploads", actions: ["jira:manage"], std: "ADMIN", tight: "ADMIN" },
+  { id: "jira", group: "Settings", label: "Jira, bug template, Slack alerts, Sentry, GitHub, TeamCity and CI uploads", actions: ["jira:manage"], std: "ADMIN", tight: "ADMIN" },
   { id: "separate", group: "Settings", label: "Keep a test cycle's members separate", actions: ["project:separate"], std: "ADMIN", tight: "ADMIN" },
   { id: "members", group: "Settings", label: "Members and roles", actions: ["members:manage"], std: "ADMIN", tight: "ADMIN", locked: true },
   { id: "archcases", group: "Archive and delete", label: "Archive test cases", actions: ["case:archive"], std: "ADMIN", tight: "ADMIN", archive: true },

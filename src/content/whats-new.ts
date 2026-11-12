@@ -22,6 +22,25 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 228,
+    date: "2026-11-12",
+    items: [
+      {
+        kind: "new",
+        title: "Status: your builds and tools in one place",
+        text: "Under Results, Status shows GitHub, TeamCity, Sentry and CI uploads together: red cards that need a look first, then all good, then anything Flaw Patrol can't reach. Each card says what failed in one sentence and links straight to that build. Write a bug on a card fills in the build and link. Repositories is now part of Status. Overview has one line saying how many things need a look.",
+        link: "/g/{umbrella}/status",
+      },
+      {
+        kind: "new",
+        title: "Connect TeamCity",
+        text: "Admins: in Settings → TeamCity, paste the server address and a read-only access token, and pick the builds to watch. Flaw Patrol only reads builds and never changes anything in TeamCity.",
+        who: "admin",
+        link: "/g/{umbrella}/settings#teamcity",
+      },
+    ],
+  },
+  {
     version: 227,
     date: "2026-11-12",
     items: [

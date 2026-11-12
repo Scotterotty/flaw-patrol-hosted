@@ -105,7 +105,9 @@ const UMBRELLA_PAGES: { label: string; path: (g: string, hub: string) => string;
   { label: "Roles", path: (g) => `/g/${g}/settings#roles`, words: "roles permissions tester lead admin" },
   { label: "Slack alerts", path: (g) => `/g/${g}/settings#slack`, words: "slack alerts notifications channel" },
   { label: "GitHub settings", path: (g) => `/g/${g}/settings#github`, words: "github connect pull repo token workflow actions ci", tool: "auto" },
-  { label: "Repositories", path: (g) => `/g/${g}/repos`, words: "repositories repos github health pass rate ci", tool: "auto" },
+  { label: "TeamCity settings", path: (g) => `/g/${g}/settings#teamcity`, words: "teamcity team city connect token builds nightly" },
+  { label: "Status", path: (g) => `/g/${g}/status`, words: "status builds build health github teamcity sentry ci uploads pipeline failing red repositories repos" },
+  { label: "GitHub test health", path: (g) => `/g/${g}/status/github`, words: "repositories repos github health pass rate flaky failing workflow", tool: "auto" },
 ];
 
 /** `umbrella`: the one you're in. `everywhere`: on the Umbrellas page, every umbrella you can see. */

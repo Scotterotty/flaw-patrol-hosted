@@ -12,7 +12,7 @@ import { Button, cx, ErrorText, InfoTip } from "./ui";
 const ROLES: Role[] = ["VIEWER", "TESTER", "LEAD", "ADMIN"];
 const SHORT: Record<Role, string> = { TESTER: "Member", LEAD: "Lead", ADMIN: "Admin", VIEWER: "Viewer" };
 const PRESET_TIP: Record<RolePreset, string> = {
-  everyone: "Everyone can use every feature. Only admins archive, delete, change members and roles, or set up Jira, Slack, Sentry, GitHub and CI uploads.",
+  everyone: "Everyone can use every feature. Only admins archive, delete, change members and roles, or set up Jira, Slack, Sentry, GitHub, TeamCity and CI uploads.",
   tighter: "Members write cases, run tests, file bugs and move requirements on the Risk board. Leads also import, organize the library, manage runs and set up releases. Only admins archive, delete and change connections or members.",
   custom: "Tick exactly what each role can do. Ticking any box makes it Custom.",
 };

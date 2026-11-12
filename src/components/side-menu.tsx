@@ -25,6 +25,8 @@ export type MenuItem = {
   dot?: string;
   /** Shown in red after the label, like "Live" on Bug bashes while one is running. */
   badge?: string;
+  /** A red number: how many things need a look, like Status's red cards (ver_228). */
+  alert?: number;
   /** A small dot: something new for you there, like an answer to your Glossary question. */
   note?: boolean;
   sub?: boolean;
@@ -226,6 +228,12 @@ export function SideMenu({ label, head, groups, footer = [], active }: { label: 
       {i.dot && <span aria-hidden className="size-1.5 flex-none rounded-full" style={{ background: i.dot }} />}
       <span className="min-w-0 flex-1 truncate">{i.label}</span>
       {i.badge && <span className="rounded-full bg-red-600 px-1.5 text-[11px] font-semibold text-white">{i.badge}</span>}
+      {!!i.alert && (
+        <span className="rounded-full bg-red-600 px-1.5 text-[11px] font-semibold text-white tabular-nums" data-testid="menu-alert">
+          {i.alert}
+          <span className="sr-only"> {i.alert === 1 ? "needs" : "need"} a look</span>
+        </span>
+      )}
       {i.tag && <span className="flex-none rounded-full bg-slate-100 px-1.5 text-[11px] font-medium text-slate-500 ring-1 ring-slate-200 ring-inset" data-testid="menu-tag">{i.tag}</span>}
       {i.note && <span className="size-2 flex-none rounded-full bg-accent-600" title="New answer to your question" aria-label="New answer to your question" data-testid="menu-note" />}
       {i.count !== undefined && <span className={cx("text-xs font-normal tabular-nums", !active(i) && "text-slate-400")}>{i.count}</span>}

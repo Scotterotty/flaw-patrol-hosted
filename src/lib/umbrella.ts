@@ -1,4 +1,5 @@
 import { splitCycles } from "@/lib/current-cycles";
+import { knownRedCount } from "@/server/status-checks";
 import { cycleHash } from "@/lib/cycle-hash";
 import { NOT_BASH_CASE, NOT_BASH_RUN } from "./bash-cases";
 import { effectiveTemplate } from "./bug-template";
@@ -207,7 +208,7 @@ const loadUmbrellaOnce = cache(async (groupId: string, userId: string, isAdmin: 
     // Jira lives on the hub; until it's connected, Requirements and Risk board say "Needs Jira" in the menu.
     db.jiraConfig.count({ where: { projectId: hub.id } }),
   ]);
-  return { group, hub, role, who, platforms, projects, current, older, live: liveBash, jira: jiraRows > 0, tools: toolsOn(group.tools), counts: { cases, charters, suites, shared, personas, activeRuns, openBugs, repos } };
+  return { group, hub, role, who, platforms, projects, current, older, live: liveBash, jira: jiraRows > 0, tools: toolsOn(group.tools), counts: { cases, charters, suites, shared, personas, activeRuns, openBugs, repos, statusRed: knownRedCount(groupId) ?? 0 } };
 });
 export type Umbrella = NonNullable<Awaited<ReturnType<typeof loadUmbrella>>>;
 
@@ -230,7 +231,7 @@ export type UmbrellaNav = {
   id: string;
   name: string;
   hubKey: string;
-  counts: { cases: number; charters: number; suites: number; shared: number; personas: number; activeRuns: number; openBugs: number; repos: number };
+  counts: { cases: number; charters: number; suites: number; shared: number; personas: number; activeRuns: number; openBugs: number; repos: number; /** Status cards that need a look, from the newest check (ver_228). */ statusRed: number };
   /** A bug bash running now, for the Live dot and the Join pill. */
   live: LiveBash | null;
   current: { key: string; name: string; color: string; platform: string; rc: string }[];

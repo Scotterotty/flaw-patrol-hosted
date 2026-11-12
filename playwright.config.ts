@@ -41,6 +41,8 @@ export default defineConfig({
     { command: "node tests/e2e/mock-sentry.mjs", port: 3193, reuseExistingServer: !process.env.CI },
     // Stand-in for GitHub's API with Scott's demo repo, used by github.spec.ts.
     { command: "node tests/e2e/mock-github.mjs", port: 3196, reuseExistingServer: !process.env.CI },
+    // Stand-in for a TeamCity server, used by status.spec.ts (ver_228).
+    { command: "node tests/e2e/mock-teamcity.mjs", port: 3191, reuseExistingServer: !process.env.CI },
     // Stand-in for Qase's API, used by ver164.spec.ts.
     { command: "node tests/e2e/mock-qase.mjs", port: 3192, reuseExistingServer: !process.env.CI },
     // Stand-ins for Microsoft / company sign-in and a mail server, used by ver92.spec.ts.

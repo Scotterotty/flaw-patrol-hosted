@@ -14,7 +14,7 @@ import { pathToFileURL } from "node:url";
 export const root = join(import.meta.dirname, "..");
 // The test server, then the stand-ins: Sentry, mail, company sign-in, GitHub, run sheet hook, Jira.
 // 3000 too: a dev server there writes into the same .next folder as the test build.
-export const PORTS = [3000, 3100, 3192, 3193, 3194, 3195, 3196, 3198, 3199];
+export const PORTS = [3000, 3100, 3191, 3192, 3193, 3194, 3195, 3196, 3198, 3199];
 
 const started = Date.now();
 const secs = (t) => `${Math.round((Date.now() - t) / 1000)}s`;

@@ -1,7 +1,7 @@
 import type { ResultStatus } from "@prisma/client";
 import { verdictFlips } from "./run-history";
 
-// The Repositories page's test health, from the runs pulled from one
+// GitHub test health (Status → Test health), from the runs pulled from one
 // GitHub repo into Flaw Patrol. Pure, so it can be unit tested.
 
 export type PulledRun = { entries: { caseId: string; status: ResultStatus | string }[] };
