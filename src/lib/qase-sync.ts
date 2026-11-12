@@ -5,7 +5,7 @@ import { open } from "./crypto";
 import { db } from "./db";
 import { NOT_BASH_RUN } from "./bash-cases";
 import { QaseClient, QaseError, type QaseResult } from "./qase";
-import { cameFromUs, matchByTitle, parseStatusMap, QASE_BRING, qaseStatusFor, qaseTime, sentComment } from "./qase-map";
+import { cameFromUs, matchByTitle, parseStatusMap, QASE_BRING, qaseStatusFor, qaseStepResults, qaseTime, sentComment } from "./qase-map";
 
 // Qase (ver_164): share a test cycle's results with its Qase run.
 //  - Send: each case's newest result made here (by hand, CI or import) goes to Qase once.
@@ -98,7 +98,7 @@ async function doSync(projectId: string, want: { send: boolean; bring: boolean }
         lastTestedAt: true,
         run: { select: { id: true, state: true, number: true, automated: true } },
         testCase: { select: { id: true, title: true, qaseId: true } },
-        results: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, status: true, comment: true, testerName: true, elapsedSec: true, durationMs: true, fromQase: true, qaseHash: true, createdAt: true } },
+        results: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, status: true, comment: true, testerName: true, elapsedSec: true, durationMs: true, fromQase: true, qaseHash: true, createdAt: true, stepResults: true } },
       },
     });
 
@@ -160,9 +160,14 @@ type EntryRow = {
   lastTestedAt: Date | null;
   run: { id: string; state: string; number: number; automated: boolean };
   testCase: { qaseId: number | null };
+  results: { id: string; status: string; comment: string; fromQase: boolean; qaseHash: string | null; stepResults: unknown }[];
 };
 
-/** Qase results not seen before go into the newest open run with the case, when they're newer. */
+/**
+ * Qase results not seen before go into the newest open run with the case, when they're newer,
+ * with each Qase step's own result. A Qase result changed after it came in (a step failed
+ * later, say) updates the result it made here, while that is still the case's latest.
+ */
 async function bringResults(projectId: string, results: QaseResult[], entries: EntryRow[]) {
   const fresh = results.filter((r) => r.hash && !cameFromUs(r.comment) && QASE_BRING[r.status]);
   if (!fresh.length) return 0;
@@ -178,14 +183,25 @@ async function bringResults(projectId: string, results: QaseResult[], entries: E
   }
   let n = 0;
   for (const { r, at } of newest.values()) {
-    if (known.has(r.hash)) continue;
+    if (known.has(r.hash)) {
+      // Brought before: catch up if Qase's result changed since and nothing newer was saved here.
+      const mine = entries.find((e) => e.results[0]?.fromQase && e.results[0].qaseHash === r.hash);
+      if (!mine) continue;
+      const want = qaseStepResults(mine.steps, QASE_BRING[r.status], r.steps);
+      const had = mine.results[0];
+      if (had.status === want.status && JSON.stringify(had.stepResults) === JSON.stringify(want.stepResults) && had.comment === r.comment.slice(0, 10000)) continue;
+      await db.$transaction(async (tx) => {
+        await tx.testResult.update({ where: { id: had.id }, data: { status: want.status, stepResults: want.stepResults as Prisma.InputJsonValue, comment: r.comment.slice(0, 10000) } });
+        await tx.runEntry.update({ where: { id: mine.id }, data: { status: want.status } });
+      });
+      n++;
+      continue;
+    }
     // The newest open run that has the case, and isn't automation.
     const target = entries.filter((e) => e.testCase.qaseId === r.caseId && e.run.state === "ACTIVE" && !e.run.automated).sort((a, b) => b.run.number - a.run.number)[0];
     if (!target) continue;
     if (target.lastTestedAt && target.lastTestedAt >= at) continue;
-    const status = QASE_BRING[r.status];
-    const steps = Array.isArray(target.steps) ? target.steps : [];
-    const stepStatus = status === "PASSED" || status === "SKIPPED" ? status : "UNTESTED";
+    const { status, stepResults } = qaseStepResults(target.steps, QASE_BRING[r.status], r.steps);
     await db.$transaction(async (tx) => {
       await tx.testResult.create({
         data: {
@@ -194,7 +210,7 @@ async function bringResults(projectId: string, results: QaseResult[], entries: E
           caseId: target.caseId,
           caseVersion: target.caseVersion,
           status,
-          stepResults: steps.map(() => ({ status: stepStatus, actual: "" })) as Prisma.InputJsonValue,
+          stepResults: stepResults as Prisma.InputJsonValue,
           comment: r.comment.slice(0, 10000),
           testerName: "Qase",
           imported: true,

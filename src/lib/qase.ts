@@ -1,4 +1,5 @@
 import "server-only";
+import type { QaseStepResult } from "./qase-map";
 
 // Qase (ver_164): talk to Qase's API v1 with a project's API token.
 // https://developers.qase.io — the token goes in the "Token" header.
@@ -11,7 +12,7 @@ export class QaseError extends Error {}
 export type QaseProject = { code: string; title: string };
 export type QaseCase = { id: number; title: string };
 export type QaseRun = { id: number; title: string; status: string };
-export type QaseResult = { hash: string; caseId: number; status: string; endTime: string | null; comment: string };
+export type QaseResult = { hash: string; caseId: number; status: string; endTime: string | null; comment: string; steps: QaseStepResult[] };
 
 type Envelope<T> = { status?: boolean; result?: T; errorMessage?: string; message?: string };
 type Page<T> = { total?: number; filtered?: number; count?: number; entities?: T[] };
@@ -99,8 +100,8 @@ export class QaseClient {
 
   async results(code: string, runId: number): Promise<QaseResult[]> {
     // Both spellings of the run filter; rows from other runs are dropped either way.
-    const rows = await this.all<{ hash: string; run_id?: number; case_id: number; status: string; end_time?: string | null; comment?: string | null }>(`/result/${encodeURIComponent(code)}?run=${runId}&filters%5Brun%5D=${runId}`);
-    return rows.filter((r) => r.run_id === undefined || r.run_id === runId).map((r) => ({ hash: r.hash, caseId: r.case_id, status: (r.status ?? "").toLowerCase(), endTime: r.end_time ?? null, comment: r.comment ?? "" }));
+    const rows = await this.all<{ hash: string; run_id?: number; case_id: number; status: string; end_time?: string | null; comment?: string | null; steps?: { status?: number | string | null; comment?: string | null }[] | null }>(`/result/${encodeURIComponent(code)}?run=${runId}&filters%5Brun%5D=${runId}`);
+    return rows.filter((r) => r.run_id === undefined || r.run_id === runId).map((r) => ({ hash: r.hash, caseId: r.case_id, status: (r.status ?? "").toLowerCase(), endTime: r.end_time ?? null, comment: r.comment ?? "", steps: (r.steps ?? []).map((st) => ({ status: st?.status ?? null, comment: st?.comment ?? "" })) }));
   }
 }
 

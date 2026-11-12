@@ -1,6 +1,6 @@
 // Stand-in for Qase's API v1 (ver_164), used by ver164.spec.ts. Answers like Qase does
 // (the { status, result } envelope, limit/offset pages) for one project, OKO.
-// Test hooks: POST /__reset, GET /__state, POST /__result (a result "saved in Qase").
+// Test hooks: POST /__reset, GET /__state, POST /__result (a result "saved in Qase", or edited when it has a hash).
 import { createServer } from "node:http";
 
 const PORT = Number(process.env.MOCK_QASE_PORT ?? 3192);
@@ -55,7 +55,13 @@ createServer(async (req, res) => {
   if (path === "/__state") return send(res, 200, state);
   if (path === "/__result") {
     const b = await body(req);
-    const r = { hash: `q${state.nextHash++}`, run_id: b.run_id, case_id: b.case_id, status: b.status, comment: b.comment ?? "", end_time: b.end_time ?? now() };
+    // With a hash: that result edited in Qase (same hash, new status or steps).
+    const had = b.hash && state.results.find((x) => x.hash === b.hash);
+    if (had) {
+      Object.assign(had, { status: b.status ?? had.status, steps: b.steps ?? had.steps, comment: b.comment ?? had.comment });
+      return send(res, 200, had);
+    }
+    const r = { hash: `q${state.nextHash++}`, run_id: b.run_id, case_id: b.case_id, status: b.status, comment: b.comment ?? "", end_time: b.end_time ?? now(), steps: b.steps ?? [] };
     state.results.push(r);
     return send(res, 200, r);
   }
