@@ -31,6 +31,8 @@ import { BugTemplatePanel, JiraSettings, StoriesPanel } from "@/components/jira-
 import { parseSeverityConfig } from "@/lib/severity";
 import { MembersPanel } from "@/components/members";
 import { CiUploadsPanel } from "@/components/ci-uploads";
+import { TeamCityPanel } from "@/components/teamcity-settings";
+import { parseBuildTypes } from "@/lib/teamcity-config";
 import { GitHubPanel, PullFromGitHubButton } from "@/components/github";
 import { QasePanel } from "@/components/qase-settings";
 import { parseStatusMap } from "@/lib/qase-map";
@@ -157,7 +159,12 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
     ]),
   ]);
   // Qase: the connection, and how many library cases are linked.
-  const qase = await db.qaseConfig.findUnique({ where: { groupId: u.group.id } });
+  const [qase, teamcity] = await Promise.all([db.qaseConfig.findUnique({ where: { groupId: u.group.id } }), db.teamCityConfig.findUnique({ where: { groupId: u.group.id } })]);
+  // TeamCity (ver_228): the builds watched on Status.
+  const watched = teamcity ? parseBuildTypes(teamcity.buildTypes) : [];
+  const teamcityText = teamcity
+    ? `${teamcity.baseUrl.replace(/^https?:\/\//, "")} · ${watched.length ? `watching ${watched.map((b) => b.name).join(", ")}` : "no builds picked yet"}`
+    : "Show your TeamCity builds on Status. Read-only.";
   const qaseLinks = qase
     ? await Promise.all([
         db.testCase.count({ where: { project: { OR: [{ groupId: u.group.id }, { hubOf: { id: u.group.id } }] }, archived: false, qaseId: { gt: 0 } } }),
@@ -575,6 +582,22 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               ) : (
                 <Row title="CI uploads" text={ciText} />
               )}
+              <ExpandRow
+                id="teamcity"
+                howto="settings-teamcity"
+                hashes={["teamcity"]}
+                title="TeamCity"
+                text={teamcityText}
+                label={manage ? (teamcity ? "Change" : "Connect") : "View"}
+                status={teamcity ? connected : notConnected}
+              >
+                <TeamCityPanel
+                  groupId={u.group.id}
+                  canEdit={manage && !u.group.archivedAt}
+                  statusHref={`/g/${u.group.id}/status`}
+                  saved={teamcity && { baseUrl: teamcity.baseUrl, buildTypes: watched, tokenReadable: canOpen(teamcity.tokenEncrypted) }}
+                />
+              </ExpandRow>
               <ExpandRow howto="settings-sentry"
                 id="sentry"
                 hashes={["sentry"]}
@@ -661,7 +684,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
         {foldLookOnly && lookOnly.length > 0 && (
           <Card className="mb-6">
             <ul>
-              <FoldedRows title="Team setup · Admins change these" sub={lookOnly.length === 1 ? "1 setting you can look at" : `${lookOnly.length} settings you can look at`} hashes={["tools", "jira", "stories", "slack", "email-digests", "sentry", "github", "ci-uploads", "qase", "run-fields", "run-kinds", "regression", "automation-files", "crowns", "bug-templates"]}>
+              <FoldedRows title="Team setup · Admins change these" sub={lookOnly.length === 1 ? "1 setting you can look at" : `${lookOnly.length} settings you can look at`} hashes={["tools", "jira", "stories", "slack", "email-digests", "sentry", "github", "ci-uploads", "teamcity", "qase", "run-fields", "run-kinds", "regression", "automation-files", "crowns", "bug-templates"]}>
                 {lookOnly}
               </FoldedRows>
             </ul>

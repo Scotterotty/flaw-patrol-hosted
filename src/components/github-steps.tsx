@@ -2,7 +2,7 @@ import type { BuildSteps, StepState } from "@/lib/github-steps";
 import { cx } from "./ui";
 
 // GitHub build steps: ✓ passed, ✕ failed, ○ didn't run. Shown in Pull from GitHub,
-// on a pulled run's page and on the Repositories page.
+// on a pulled run's page and on GitHub test health (Status → Test health).
 
 const MARK: Record<StepState, { icon: string; cls: string; tip: string }> = {
   pass: { icon: "✓", cls: "text-emerald-800", tip: "passed" },

@@ -47,7 +47,9 @@ describe("umbrella tools (ver_128)", () => {
     expect(toolOfPath("/p/PTW1/quests", at)).toBe("quest");
     expect(toolOfPath("/p/PT/bashes/x/report", at)).toBe("bashes");
     expect(toolOfPath("/p/PT/risk", at)).toBe("risk");
-    expect(toolOfPath("/g/g1/repos", at)).toBe("auto");
+    expect(toolOfPath("/g/g1/status/github", at)).toBe("auto");
+    // Status itself is for every umbrella (ver_228): TeamCity and Sentry need no tool.
+    expect(toolOfPath("/g/g1/status", at)).toBe(null);
     expect(toolOfPath("/g/g1", at)).toBeNull();
     expect(toolOfPath("/g/g1/bugs", at)).toBeNull();
     expect(toolOfPath("/g/g1/settings", at)).toBeNull();

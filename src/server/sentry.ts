@@ -5,10 +5,10 @@ import { z } from "zod";
 import { logActivity } from "@/lib/activity";
 import { canOpen, open, seal } from "@/lib/crypto";
 import { db } from "@/lib/db";
-import { parseFieldValues } from "@/lib/run-fields";
 import { requireProjectAction } from "@/lib/session";
 import { SentryClient, SentryError, sentryBase, type SentryRef } from "@/lib/sentry";
 import { attempt, UserError } from "./result";
+import { buildOf, release } from "@/lib/sentry-build";
 
 // Sentry for testers. Read-only: Flaw Patrol never writes to Sentry.
 
@@ -112,19 +112,6 @@ export async function disconnectSentry(projectId: string) {
     revalidatePath("/", "layout");
     return {};
   });
-}
-
-/** The run's build, by the field Settings → Sentry says holds it. */
-function buildOf(run: { build: string; fields: unknown }, field: string) {
-  if (!field) return "";
-  if (field === "build") return run.build;
-  return parseFieldValues(run.fields).find((f) => f.id === field)?.value ?? "";
-}
-
-/** Same as the run field shape the run stores: [{ id, name, value }]. */
-function release(client: SentryClient, cfg: { buildField: string }, run: { build: string; fields: unknown }, ids: string[]) {
-  const build = buildOf(run, cfg.buildField).trim();
-  return build ? client.releaseFor(build, ids) : Promise.resolve(null);
 }
 
 /**

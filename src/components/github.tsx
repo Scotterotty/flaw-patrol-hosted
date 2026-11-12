@@ -418,7 +418,7 @@ export function RunBadge({ run }: { run: { status: string; conclusion: string | 
   return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{run.conclusion ?? run.status}</span>;
 }
 
-/** Links on the Repositories page's failing tests. */
+/** Links on GitHub test health's failing tests. */
 export function FailLinks({ caseHref, runHref }: { caseHref: string; runHref: string }) {
   return (
     <span className="flex gap-3 text-xs">

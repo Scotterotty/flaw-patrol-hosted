@@ -44,6 +44,23 @@ function withBuild(answers: Answer[]): Answer[] {
   return line ? answers.map((a) => (a.heading === "Build #" && !a.text ? { ...a, text: line } : a)) : answers;
 }
 
+/** Filled in from a link, like Write a bug on a Status card (ver_228): the build, its name and a link. All editable. */
+export type BugPrefill = { title: string; build: string; note: string };
+
+const NOTE_HEADING = /what happened|description|actual|observed|details|notes?\b/i;
+
+function withPrefill(d: TemplatedDraft, p: BugPrefill): TemplatedDraft {
+  const plain = (a: Answer) => !a.rows && !a.files;
+  const noteAt = p.note ? d.answers.findIndex((a) => plain(a) && !a.text.trim() && NOTE_HEADING.test(a.heading)) : -1;
+  const at = noteAt >= 0 ? noteAt : p.note ? d.answers.findIndex((a) => plain(a) && !a.text.trim() && a.heading !== "Build #") : -1;
+  return {
+    ...d,
+    summary: d.summary.trim() ? d.summary : p.title,
+    build: d.build.trim() ? d.build : p.build,
+    answers: d.answers.map((a, i) => (i === at ? { ...a, text: p.note } : a.heading === "Build #" && plain(a) && !a.text.trim() && p.build ? { ...a, text: p.build } : a)),
+  };
+}
+
 export type WriteBugCycle = { id: string; name: string };
 
 /** "Plain" is the built-in choice: three boxes to write in. */
@@ -62,6 +79,7 @@ export function WriteBugButton({ cycles, scale, variant = "primary" }: { cycles:
   const [open, setOpen] = useState(false);
   // Opened by a link from Overview, the left menu or Ctrl+K.
   const asked = params.get("write") === "1";
+  const prefill: BugPrefill | null = asked && (params.get("title") || params.get("note")) ? { title: (params.get("title") ?? "").slice(0, 250), build: (params.get("build") ?? "").slice(0, 100), note: (params.get("note") ?? "").slice(0, 2000) } : null;
   useEffect(() => {
     if (asked) setOpen(true);
   }, [asked]);
@@ -70,7 +88,7 @@ export function WriteBugButton({ cycles, scale, variant = "primary" }: { cycles:
     // Take ?write=1 off, so going back or refreshing doesn't open it again.
     if (asked) {
       const next = new URLSearchParams(params.toString());
-      next.delete("write");
+      for (const k of ["write", "title", "build", "note"]) next.delete(k);
       router.replace(next.size ? `${path}?${next}` : path, { scroll: false });
     }
   };
@@ -80,12 +98,14 @@ export function WriteBugButton({ cycles, scale, variant = "primary" }: { cycles:
       <Button variant={variant} onClick={() => setOpen(true)} data-testid="write-bug">
         + Write a bug
       </Button>
-      {open && <WriteBugBox cycles={cycles} scale={scale} onClose={close} onSaved={() => router.refresh()} />}
+      {open && <WriteBugBox cycles={cycles} scale={scale} prefill={prefill} onClose={close} onSaved={() => router.refresh()} />}
     </>
   );
 }
 
-function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycle[]; scale: SeverityScale; onClose: () => void; onSaved: () => void }) {
+function WriteBugBox({ cycles, scale, prefill, onClose, onSaved }: { cycles: WriteBugCycle[]; scale: SeverityScale; prefill?: BugPrefill | null; onClose: () => void; onSaved: () => void }) {
+  // The link's build and note go in once, when the first template loads; switching templates carries them like typed text.
+  const prefilled = useRef(false);
   const [projectId, setProjectId] = useState(cycles[0].id);
   const [choices, setChoices] = useState<TemplateChoice[]>([]);
   const [chosen, setChosen] = useState("");
@@ -146,6 +166,10 @@ function WriteBugBox({ cycles, scale, onClose, onSaved }: { cycles: WriteBugCycl
           ...b,
           history: { ...b.history, context: r.context || b.history.context, user: r.user, envTenant: r.tenant && env && !env.includes("\n") ? `${env}\n${r.tenant}` : b.history.envTenant },
         });
+      }
+      if (prefill && !prefilled.current) {
+        prefilled.current = true;
+        fresh = withPrefill(fresh, prefill);
       }
       const u = usualRef.current;
       setDraft(templateId === CURRENT_ID && u.usual && u.on ? withUsual(fresh, u.usual, true) : fresh);

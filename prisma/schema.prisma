@@ -343,6 +343,7 @@ model ProjectGroup {
   githubRepos     GitHubRepo[]
   ciTokens        CiToken[]
   qase            QaseConfig?
+  teamcity        TeamCityConfig?
 }
 
 /**
@@ -350,6 +351,25 @@ model ProjectGroup {
  * (Project.qaseRunId); cases link to Qase cases by TestCase.qaseId. The token is encrypted
  * like the Jira token. See src/lib/qase.ts and src/server/qase-sync.ts.
  */
+/**
+ * TeamCity (ver_228): read-only, for the Status page. An Admin pastes the server address and an
+ * access token (encrypted like the Jira token) and picks which build configurations to watch.
+ * Flaw Patrol only reads builds and never changes anything in TeamCity.
+ */
+model TeamCityConfig {
+  id             String       @id @default(cuid())
+  group          ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId        String       @unique
+  /// The server's address, like https://teamcity.example.com (no trailing slash).
+  baseUrl        String
+  tokenEncrypted String
+  /// Build configurations to watch: [{ id, name, project }].
+  buildTypes     Json         @default("[]")
+  connectedBy    String       @default("")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
 model QaseConfig {
   id             String       @id @default(cuid())
   group          ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)

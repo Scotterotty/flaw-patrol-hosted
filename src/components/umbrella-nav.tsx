@@ -77,8 +77,8 @@ export function UmbrellaNav({ u, glossary }: { u: NavData; glossary?: { count: n
       items: [
         { href: `${g}/bugs`, id: "bugs", label: "Bugs", count: u.counts.openBugs || undefined, ...(u.canBug && { plus: { href: `${g}/bugs?write=1`, label: "Write a bug" } }) },
         { href: reportsHome({ g: u.id, tools: u.tools }), id: "reports", label: "Reports" },
-        // Once a GitHub repo is connected.
-        ...(u.counts.repos ? [{ href: `${g}/repos`, id: "repos", tool: "auto" as const, label: "Repositories", count: u.counts.repos, tip: "Test health of each connected GitHub repo" }] : []),
+        // Status (ver_228, was Repositories): GitHub, TeamCity, Sentry and CI uploads. The red number is how many need a look.
+        { href: `${g}/status`, id: "status", label: "Status", alert: u.counts.statusRed || undefined, tip: "How your builds and tools are doing: GitHub, TeamCity, Sentry and CI uploads" },
       ],
     },
   ];
