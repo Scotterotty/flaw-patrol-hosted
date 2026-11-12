@@ -11,7 +11,7 @@ export type ExportFormat = (typeof EXPORT_FORMATS)[number];
 
 export const FORMAT_INFO: Record<ExportFormat, { label: string; ext: "xlsx" | "csv"; hint: string; tool: string }> = {
   sheet: { label: "Excel or Google Sheets", ext: "xlsx", hint: "one row per step", tool: "Spreadsheet" },
-  qase: { label: "Qase", ext: "csv", hint: "Repository → Import", tool: "Qase" },
+  qase: { label: "Qase", ext: "csv", hint: "Import → choose Qase.io", tool: "Qase" },
   qtest: { label: "qTest", ext: "xlsx", hint: "Test Design → Import", tool: "qTest" },
   testrail: { label: "TestRail", ext: "csv", hint: "Import Cases", tool: "TestRail" },
 };
@@ -49,11 +49,6 @@ function action(s: ExpandedStep): string {
 function stepNo(s: ExpandedStep, i: number): string {
   const n = s.number || String(i + 1);
   return s.row !== undefined ? `Row ${s.row + 1}, ${n}` : n;
-}
-
-/** Steps as numbered lines in one cell, for tools that keep a case on one row. */
-function numbered(lines: string[]): string {
-  return lines.map((t, i) => `${i + 1}. ${t}`).join("\n");
 }
 
 /** Every case on its first row, its steps under it: the layout the spreadsheet, qTest and TestRail share. */
@@ -109,51 +104,87 @@ export function testrailTable(cases: ExportCase[]): Table {
   );
 }
 
+/** Qase's column order. Its importer reads the header row, so names and order must match. */
+export const QASE_HEADER = ["v2.id", "title", "description", "preconditions", "postconditions", "tags", "priority", "severity", "type", "behavior", "automation", "status", "is_flaky", "layer", "steps_type", "steps_actions", "steps_result", "steps_data", "milestone_id", "milestone", "suite_id", "suite_parent_id", "suite", "suite_without_cases", "parameters", "is_muted"];
+
+/** One step the way Qase writes it: a JSON string, with / and anything past ASCII escaped. */
+function qaseText(t: string): string {
+  return JSON.stringify(t ?? "").replace(/\//g, "\\/").replace(/[\u0080-\uffff]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+}
+
+/** "1. \"Open\"\n2. \"Sign in\"\n": every step numbered, each on its own line, even empty ones. */
+function qaseSteps(lines: string[]): string {
+  return lines.map((t, i) => `${i + 1}. ${qaseText(t)}\n`).join("");
+}
+
 /**
- * Qase's CSV import: one row per case, its steps numbered in steps_actions and
- * steps_result. Folders become suites: each gets an id, with suite_parent_id for nesting,
- * so Qase rebuilds the same tree.
+ * Qase's CSV import (the current "Qase.io" format, not the deprecated "Qase.io CSV"),
+ * matched to a file exported from Qase in Nov 2026: the folders first as suite rows
+ * (suite_without_cases = 1, suite_parent_id for nesting), then one row per case with its
+ * steps numbered in steps_actions, steps_result and steps_data.
  */
 export function qaseTable(cases: ExportCase[]): Table {
   const ids = new Map<string, number>();
-  const idOf = (path: string[]) => {
+  const suiteRows: Cell[][] = [];
+  const blank = () => QASE_HEADER.map((): Cell => "");
+  const at = (h: string) => QASE_HEADER.indexOf(h);
+  const idOf = (path: string[]): number => {
     const k = path.join("\u0000");
-    if (!ids.has(k)) ids.set(k, ids.size + 1);
-    return ids.get(k)!;
+    const known = ids.get(k);
+    if (known) return known;
+    const parent = path.length > 1 ? idOf(path.slice(0, -1)) : "";
+    const id = ids.size + 1;
+    ids.set(k, id);
+    const row = blank();
+    row[at("suite_id")] = id;
+    row[at("suite_parent_id")] = parent;
+    row[at("suite")] = path.at(-1)!;
+    row[at("suite_without_cases")] = 1;
+    suiteRows.push(row);
+    return id;
   };
-  const rows: Cell[][] = cases.map((c) => {
+  const caseRows: Cell[][] = cases.map((c) => {
     const suiteId = c.folder.length ? idOf(c.folder) : "";
     const parentId = c.folder.length > 1 ? idOf(c.folder.slice(0, -1)) : "";
     const steps = c.steps.filter((s) => s.action || s.expected);
-    return [
-      c.title,
-      c.folder.at(-1) ?? "",
-      suiteId,
-      parentId,
-      c.preconditions,
-      [c.requirements.length ? `Requirements: ${c.requirements.join(", ")}` : "", `Flaw Patrol ${c.key}`].filter(Boolean).join("\n"),
-      c.priority === "CRITICAL" ? "high" : c.priority.toLowerCase(),
-      c.priority === "CRITICAL" ? "critical" : "normal",
-      c.automated ? "automated" : "manual",
-      c.tags.join(","),
-      "classic",
-      numbered(steps.map(action)),
-      numbered(steps.map((s) => s.expected)),
-    ];
+    const v: Record<string, Cell> = {
+      title: c.title,
+      description: [c.requirements.length ? `Requirements: ${c.requirements.join(", ")}` : "", `Flaw Patrol ${c.key}`].filter(Boolean).join("\n"),
+      preconditions: c.preconditions,
+      tags: c.tags.join(","),
+      priority: c.priority === "CRITICAL" ? "high" : c.priority.toLowerCase(),
+      severity: c.priority === "CRITICAL" ? "critical" : "normal",
+      type: "other",
+      behavior: "undefined",
+      automation: c.automated ? "automated" : "is-not-automated",
+      status: "actual",
+      is_flaky: "no",
+      layer: "unknown",
+      steps_type: "classic",
+      steps_actions: steps.length ? qaseSteps(steps.map(action)) : "",
+      steps_result: steps.length ? qaseSteps(steps.map((s) => s.expected)) : "",
+      steps_data: steps.length ? qaseSteps(steps.map(() => "")) : "",
+      suite_id: suiteId,
+      suite_parent_id: parentId,
+      suite: c.folder.at(-1) ?? "",
+      is_muted: "no",
+    };
+    return QASE_HEADER.map((h) => v[h] ?? "");
   });
-  return {
-    header: ["title", "suite", "suite_id", "suite_parent_id", "preconditions", "description", "priority", "severity", "automation", "tags", "steps_type", "steps_actions", "steps_result"],
-    rows,
-    starts: rows.map((_, i) => i),
-  };
+  const rows = [...suiteRows, ...caseRows];
+  return { header: QASE_HEADER, rows, starts: caseRows.map((_, i) => suiteRows.length + i) };
 }
 
 export function tableFor(format: ExportFormat, cases: ExportCase[]): Table {
   return format === "qase" ? qaseTable(cases) : format === "qtest" ? qtestTable(cases) : format === "testrail" ? testrailTable(cases) : sheetTable(cases);
 }
 
-/** CSV with a byte order mark, so Excel reads £, é and emoji right. */
-export function csvFile(t: Table): string {
+/**
+ * CSV with a byte order mark, so Excel reads £, é and emoji right. Qase's files have
+ * none and use plain line breaks; a mark in front of "v2.id" would hide Qase's header.
+ */
+export function csvFile(t: Table, format?: ExportFormat): string {
+  if (format === "qase") return `${toCsv([t.header, ...t.rows], "\n")}\n`;
   return `\uFEFF${toCsv([t.header, ...t.rows])}`;
 }
 

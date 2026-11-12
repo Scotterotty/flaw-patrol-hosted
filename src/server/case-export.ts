@@ -73,6 +73,6 @@ async function workbook(t: Table, sheetName: string): Promise<Uint8Array> {
 /** The file to download: its bytes and content type. */
 export async function exportFile(format: ExportFormat, cases: ExportCase[]): Promise<{ body: Uint8Array | string; type: string }> {
   const t = tableFor(format, cases);
-  if (FORMAT_INFO[format].ext === "csv") return { body: csvFile(t), type: "text/csv; charset=utf-8" };
+  if (FORMAT_INFO[format].ext === "csv") return { body: csvFile(t, format), type: "text/csv; charset=utf-8" };
   return { body: await workbook(t, format === "qtest" ? "Test Cases" : "Cases"), type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" };
 }

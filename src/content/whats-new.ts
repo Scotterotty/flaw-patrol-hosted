@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 227,
+    date: "2026-11-12",
+    items: [
+      {
+        kind: "fix",
+        title: "Qase export works with Qase's current import",
+        text: "Export cases → Qase now makes the file Qase itself exports, so in Qase pick Import → Qase.io (not the old \"Qase.io CSV (deprecated)\"). Folders come across as suites, nested the same way.",
+      },
+    ],
+  },
+  {
     version: 226,
     date: "2026-11-12",
     items: [
