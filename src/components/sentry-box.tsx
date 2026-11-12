@@ -40,7 +40,7 @@ export function SentryStepBox({ data, onPick, onFile, canFile }: { data: StepSen
       <ul className="space-y-1">
         {data.errors.map((e) => (
           <li key={e.id}>
-            <label className="flex cursor-pointer items-start gap-2 rounded px-1 py-1 hover:bg-white/60">
+            <label className="flex cursor-pointer items-start gap-2 rounded px-1 py-1 hover:bg-surface/60">
               <input
                 type="checkbox"
                 className="mt-1 accent-accent-600"

@@ -453,7 +453,7 @@ export function FindDetail({
           <TemplateFields layout={i.template.layout} values={filling} setValues={(fn) => setFilling((f) => fn(f))} only={i.template.needIds} upload={upload} idPrefix={`fill-${i.id}`} />
           {i.template.shot && (
             <p className="flex flex-wrap items-center gap-1.5 text-xs">
-              <label className="cursor-pointer rounded-md px-2 py-1 font-medium text-accent-700 ring-1 ring-slate-300 hover:bg-white">
+              <label className="cursor-pointer rounded-md px-2 py-1 font-medium text-accent-700 ring-1 ring-slate-300 hover:bg-surface">
                 Add a screenshot or video
                 <input
                   type="file"
@@ -468,7 +468,7 @@ export function FindDetail({
                 />
               </label>
               {shots.map((f) => (
-                <span key={f.id} className="rounded bg-white px-1.5 py-0.5 text-slate-700">
+                <span key={f.id} className="rounded bg-surface px-1.5 py-0.5 text-slate-700">
                   {f.fileName}
                 </span>
               ))}

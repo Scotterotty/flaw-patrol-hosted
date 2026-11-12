@@ -117,7 +117,7 @@ export function InviteTeam({
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <span className="text-emerald-800">Sign-in link:</span>
-            <code className="rounded bg-white px-2 py-0.5 text-slate-800">{origin}/signin</code>
+            <code className="rounded bg-surface px-2 py-0.5 text-slate-800">{origin}/signin</code>
             <Button
               size="sm"
               onClick={() => {

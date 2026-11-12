@@ -220,7 +220,7 @@ export function TestPersonaPicker({ projectId, personas, value, onChange, onCrea
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const chip = (on: boolean) => cx("rounded-full border px-3 py-1 text-sm", on ? "border-violet-500 bg-white font-medium text-violet-800 ring-1 ring-violet-500" : "border-violet-200 bg-white/70 text-slate-700 hover:border-violet-400");
+  const chip = (on: boolean) => cx("rounded-full border px-3 py-1 text-sm", on ? "border-violet-500 bg-surface font-medium text-violet-800 ring-1 ring-violet-500" : "border-violet-200 bg-surface/70 text-slate-700 hover:border-violet-400");
   return (
     <section aria-label="Test persona" className="mt-4 rounded-lg border border-violet-200 bg-violet-50/70 p-4" data-testid="test-persona">
       <h3 className="text-sm font-semibold text-slate-900">
@@ -237,13 +237,13 @@ export function TestPersonaPicker({ projectId, personas, value, onChange, onCrea
           </button>
         ))}
         {canCreate && !adding && (
-          <button type="button" className="rounded-full border border-dashed border-violet-400 px-3 py-1 text-sm text-violet-800 hover:bg-white" onClick={() => setAdding(true)}>
+          <button type="button" className="rounded-full border border-dashed border-violet-400 px-3 py-1 text-sm text-violet-800 hover:bg-surface" onClick={() => setAdding(true)}>
             + New persona
           </button>
         )}
       </div>
       {adding && (
-        <div className="mt-3 space-y-2 rounded-md border border-violet-200 bg-white p-3">
+        <div className="mt-3 space-y-2 rounded-md border border-violet-200 bg-surface p-3">
           <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Look">
             <span className="mr-1 text-xs font-medium text-slate-600">Look</span>
             {EMOJIS.map((e) => (
