@@ -13,7 +13,9 @@ import { optionLike, type TemplateBug } from "@/lib/bug-template";
 import { draftToOko } from "@/lib/oko-draft";
 import type { BashView } from "@/lib/bash-summary";
 import type { SeverityScale } from "@/lib/severity";
+import type { FoundInDraft } from "@/lib/found-in";
 import { BugTemplateForm, type TemplateOptions } from "./bug-template-form";
+import { FoundInLine } from "./found-in-line";
 import type { BugCapture, BugFile } from "./bug-files";
 import { RecordingBar, takeScreenshot, useCaptureSupport, useScreenRecorder } from "./screen-capture";
 import { Button, cx, Input, Textarea } from "./ui";
@@ -62,18 +64,29 @@ export function OkoFill({ bash, b, next, onDone, setError }: { bash: BashView; b
   const [pending, start] = useTransition();
   const area = bash.areas.find((a) => a.id === b.areaId)?.name ?? "";
   const [options, setOptions] = useState<TemplateOptions>({ clients: [], team: [], olyEnv: [] });
+  // The rest of a run's Report a bug (Nov 12 2026): Jira Priority, Jira's file size limit, Found in.
+  const [priority, setPriority] = useState<string | null>(null);
+  const [fileLimit, setFileLimit] = useState<number | null>(null);
+  const [found, setFound] = useState<FoundInDraft | null>(null);
+  const [foundIn, setFoundIn] = useState("");
   const [bug, setBug] = useState<TemplateBug>(() => draftToOko({ platform: b.platform, area, summary: b.text, answers: b.template.answers, fields: b.template.layout.fields }));
   const [severity, setSeverity] = useState<Severity>(b.severity);
   const [added, setAdded] = useState<BugFile[]>([]);
   const [uploading, setUploading] = useState(false);
   useEffect(() => {
-    void bashOkoOptions(bash.id).then((r) => {
+    void bashOkoOptions(bash.id, b.id).then((r) => {
       if (!r.ok) return;
       setOptions(r.options);
+      setPriority(r.priority);
+      setFileLimit(r.fileLimit);
+      if (r.foundIn && !b.template.layout.fields.some((f) => f.id === r.foundIn!.draft.field)) {
+        setFound(r.foundIn.draft);
+        setFoundIn(r.foundIn.picked ?? r.foundIn.draft.value);
+      }
       // Client/SKUs nobody picked follows the bug's client, as filing does.
       setBug((x) => (x.clients.length || !b.platform ? x : { ...x, clients: [optionLike(r.options.clients, b.platform) || b.platform] }));
     });
-  }, [bash.id, b.platform]);
+  }, [bash.id, b.id, b.platform, b.template.layout.fields]);
   const upload = async (list: File[]) => {
     setUploading(true);
     for (const f of list) {
@@ -117,7 +130,7 @@ export function OkoFill({ bash, b, next, onDone, setError }: { bash: BashView; b
   const save = (goNext: boolean) =>
     start(async () => {
       setError(null);
-      const r = await fillBashOko(b.id, { bug, severity, attachmentIds: added.filter((f) => on.has(f.id)).map((f) => f.id) });
+      const r = await fillBashOko(b.id, { bug, severity, attachmentIds: added.filter((f) => on.has(f.id)).map((f) => f.id), ...(found && { foundIn: foundIn === found.value ? null : foundIn }) });
       if (!r.ok) return setError(r.error);
       router.refresh();
       onDone(goNext);
@@ -146,7 +159,11 @@ export function OkoFill({ bash, b, next, onDone, setError }: { bash: BashView; b
         onAdd={(list) => void upload(list)}
         uploading={uploading}
         capture={capture}
+        priority={priority}
+        jiraLimit={fileLimit}
+        from="bash"
       />
+      {found && <FoundInLine draft={found} value={foundIn} onChange={setFoundIn} />}
       <div className="flex flex-wrap justify-end gap-2">
         <Button size="sm" onClick={() => onDone(false)}>
           Cancel

@@ -240,7 +240,7 @@ export function BashReportView({ r }: { r: ReportData }) {
             </Card>
           ))}
         </div>
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
           <Card className="p-4">
             <h2 className="mb-2 text-sm font-semibold text-slate-800">Bugs by area</h2>
             <ul className="space-y-1.5 text-sm">

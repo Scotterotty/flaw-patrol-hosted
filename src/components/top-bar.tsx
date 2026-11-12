@@ -32,7 +32,7 @@ export async function TopBar({ user, project }: { user: { id: string; name: stri
       <div className="flex h-12 items-center gap-3 px-4">
         <Link href="/" className="flex items-center gap-2 font-semibold text-slate-900" data-howto="top-home">
           <Logo />
-          <span className="font-heading hidden text-lg sm:inline">Flaw Patrol</span>
+          <span className="font-heading text-lg max-sm:sr-only">Flaw Patrol</span>
         </Link>
         <div className="flex min-w-0 flex-1 items-center">
           <Breadcrumbs project={project && { key: project.key, name: project.name, group: project.group, hub: project.hub }} />

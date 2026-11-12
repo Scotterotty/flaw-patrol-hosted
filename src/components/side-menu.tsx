@@ -228,7 +228,7 @@ export function SideMenu({ label, head, groups, footer = [], active }: { label: 
       {i.badge && <span className="rounded-full bg-red-600 px-1.5 text-[11px] font-semibold text-white">{i.badge}</span>}
       {i.tag && <span className="flex-none rounded-full bg-slate-100 px-1.5 text-[11px] font-medium text-slate-500 ring-1 ring-slate-200 ring-inset" data-testid="menu-tag">{i.tag}</span>}
       {i.note && <span className="size-2 flex-none rounded-full bg-accent-600" title="New answer to your question" aria-label="New answer to your question" data-testid="menu-note" />}
-      {i.count !== undefined && <span className="text-xs font-normal text-slate-400 tabular-nums">{i.count}</span>}
+      {i.count !== undefined && <span className={cx("text-xs font-normal tabular-nums", !active(i) && "text-slate-400")}>{i.count}</span>}
     </Link>
   );
   /** A test cycle as a small button on a shared line: its colored dot and platform. */

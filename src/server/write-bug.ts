@@ -6,6 +6,7 @@
 
 import { db } from "@/lib/db";
 import { foundInRelease } from "@/lib/found-in";
+import { jiraFor } from "@/lib/jira";
 import { SAVED_ID, parseAnswers } from "@/lib/bug-layout";
 import { requireProjectAction } from "@/lib/session";
 import { jiraConfigFor } from "@/lib/umbrella";
@@ -17,7 +18,10 @@ export async function writeBugStart(projectId: string) {
   return attempt(async () => {
     const { project } = await requireProjectAction(projectId, "run:execute");
     const jira = await jiraConfigFor(project.id);
-    return { foundIn: foundInRelease({ run: "", cycle: project.rcName }).name, jiraKey: jira?.jiraProjectKey ?? null };
+    // Jira Priority, as a run's Report a bug shows it (Nov 12 2026, same form everywhere).
+    const client = jira ? await jiraFor(project.id).catch(() => null) : null;
+    const priority = client ? await client.priorityName().catch(() => null) : null;
+    return { foundIn: foundInRelease({ run: "", cycle: project.rcName }).name, jiraKey: jira?.jiraProjectKey ?? null, priority };
   });
 }
 

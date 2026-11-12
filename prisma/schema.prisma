@@ -1258,6 +1258,8 @@ model BashItem {
   platform     String       @default("")
   /// The bash's build and environment when it was logged (ver_172), so a new build mid-bash can't relabel it.
   build        String       @default("")
+  /// Found in picked at wrap-up Fill in (Nov 12 2026). null = the release picked for you when it files; "" = leave it out.
+  foundIn      String?
   environment  String       @default("")
   createdAt    DateTime     @default(now())
   attachments  Attachment[]

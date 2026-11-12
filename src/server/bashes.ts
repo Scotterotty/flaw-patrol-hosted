@@ -22,7 +22,7 @@ import { bashGuestOk } from "@/lib/link-access-server";
 import { bashEnded, channelNamesFor, esc, postBash } from "@/lib/slack";
 import { jiraConfigFor } from "@/lib/umbrella";
 import { bashReleases, startBoxData } from "@/lib/bash-data";
-import { createLocalDefect, fileJiraBug, fileTemplatedBug } from "./jira";
+import { createLocalDefect, fileJiraBug, fileTemplatedBug, previewFoundIn } from "./jira";
 import { bugContext } from "@/lib/bug-context";
 import { sectionText } from "@/lib/jira-format";
 import { listWords, nowCell, parseLayout, type AutoCells } from "@/lib/bug-layout";
@@ -815,6 +815,8 @@ async function fileItem(bash: Awaited<ReturnType<typeof loadBash>>, itemId: stri
       attachmentIds: item.attachments.map((a) => a.id).filter((id) => !inSections.has(id)),
       stories,
       notes,
+      // Picked at Fill in; otherwise the release picked for you, as before.
+      ...(item.foundIn !== null && item.foundIn !== undefined && { foundIn: item.foundIn }),
     });
     if (!r.ok) throw new UserError(r.error);
     defectId = r.defect.id;
@@ -992,21 +994,37 @@ const okoBugSchema = z.object({
 });
 
 /** The options Jira lists for the OKO form's pickers (Team, Client/SKUs, Oly Environment), for Fill in at wrap-up. */
-export async function bashOkoOptions(bashId: string) {
+export async function bashOkoOptions(bashId: string, itemId?: string) {
   return attempt(async () => {
     const { bash } = await requireIn(bashId);
     const client = await jiraFor(bash.run.projectId);
     const meta = client ? await client.fieldMeta().catch(() => null) : null;
     const of = (name: string) => meta?.find((f) => f.name.trim().toLowerCase() === name.toLowerCase())?.options ?? [];
-    return { options: { clients: of(FIELD.clients), team: of(FIELD.team), olyEnv: of(FIELD.olyEnv) } };
+    // The rest of a run's Report a bug (Nov 12 2026, same form everywhere): Jira Priority,
+    // Jira's file size limit and the Found in line, each only when Jira has it.
+    const [priority, fileLimit, foundIn] = client
+      ? await Promise.all([client.priorityName(meta).catch(() => null), client.uploadLimit().catch(() => null), itemId ? bashFoundIn(bash, itemId) : null])
+      : [null, null, null];
+    return { options: { clients: of(FIELD.clients), team: of(FIELD.team), olyEnv: of(FIELD.olyEnv) }, priority, fileLimit, foundIn };
   });
+}
+
+/** The Found in line for a bash bug: what filing would pick, and what was picked at Fill in. */
+async function bashFoundIn(bash: Awaited<ReturnType<typeof requireIn>>["bash"], itemId: string) {
+  const item = await db.bashItem.findFirst({ where: { id: itemId, bashId: bash.id }, select: { areaId: true, foundIn: true } });
+  const area = item ? parseAreas(bash.areas).find((a) => a.id === item.areaId) : null;
+  const entry = area ? await db.runEntry.findFirst({ where: { runId: bash.run.id, caseId: area.caseId ?? "" }, select: { id: true } }) : null;
+  if (!item || !entry) return null;
+  const r = await previewFoundIn(bash.run.projectId, entry.id);
+  if (!r.ok || !r.foundIn) return null;
+  return { draft: r.foundIn, picked: item.foundIn };
 }
 
 /**
  * Fill in with the OKO form (ver_220): the same form as a run's Report a bug, for a bash bug in
  * an OKO cycle. What's typed goes back under the OKO layout's headings and Jira fields.
  */
-export async function fillBashOko(itemId: string, input: { bug: TemplateBug; severity?: string; attachmentIds?: string[] }) {
+export async function fillBashOko(itemId: string, input: { bug: TemplateBug; severity?: string; attachmentIds?: string[]; foundIn?: string | null }) {
   return attempt(async () => {
     const raw = await db.bashItem.findUnique({ where: { id: itemId }, select: { bashId: true, areaId: true, kind: true, text: true, details: true, build: true, platform: true, severity: true, defectId: true, templateName: true, layout: true, answers: true, bash: { select: { run: { select: { projectId: true } } } } } });
     const oko = raw?.bash.run ? await bashOkoFor(raw.bash.run.projectId) : null;
@@ -1029,6 +1047,7 @@ export async function fillBashOko(itemId: string, input: { bug: TemplateBug; sev
         text: next.summary.trim().slice(0, 300) || raw.text,
         platform: cleanPlatform(next.platform),
         ...(severity && { severity }),
+        ...(input.foundIn !== undefined && { foundIn: z.string().trim().max(255).nullable().parse(input.foundIn) }),
       },
     });
     const ids = z.array(z.string().max(40)).max(10).parse(input.attachmentIds ?? []);

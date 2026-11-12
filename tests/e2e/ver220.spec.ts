@@ -52,7 +52,7 @@ test("bug bash bugs get ready for Jira: Add for Jira, Ready / Needs, Fill in, No
   const sam = await db.user.findUniqueOrThrow({ where: { email: "tester@example.com" } });
   const project = await db.project.create({ data: { key: KEY, name: `Jira ready ${TAG}`, members: { create: [{ userId: admin.id, role: "ADMIN" }, { userId: sam.id, role: "TESTER" }] } } });
   // The OKO bug layout, with Team "Web" as the cycle's bug default.
-  await db.jiraConfig.create({ data: { projectId: project.id, siteUrl: JIRA, email: "qa-bot@example.com", tokenEncrypted: seal("secret-token"), jiraProjectKey: "OB", bugTemplate: { on: true, clientTag: "", team: "Web", clients: [], olyEnv: [], imported: null } } });
+  await db.jiraConfig.create({ data: { projectId: project.id, siteUrl: JIRA, email: "qa-bot@example.com", tokenEncrypted: seal("secret-token"), jiraProjectKey: "OB", bugTemplate: { on: true, clientTag: "", team: "Web", clients: [], olyEnv: [], imported: null }, foundIn: { field: "versions" } } });
 
   await signIn(page, "admin@example.com", "Demo Admin");
   await page.goto(`/p/${KEY}/bashes`);
@@ -161,6 +161,12 @@ test("bug bash bugs get ready for Jira: Add for Jira, Ready / Needs, Fill in, No
   await needs.getByRole("button", { name: "Fill in" }).click();
   const fill = page.getByTestId("bash-oko-fill");
   await expect(fill.getByRole("group", { name: "Clients needed for repro" }).or(fill.getByLabel("Repro steps"))).toHaveCount(2);
+  // ver_226: the same form as a run's Report a bug. Tags say "from bash" (never "from run" or "from case"),
+  // Jira Priority shows, and Found in can be picked here and goes to Jira.
+  await expect(fill.getByText("from bash", { exact: true }).first()).toBeVisible();
+  for (const t of ["from run", "from case", "your Actual result"]) await expect(fill.getByText(t, { exact: true })).toHaveCount(0);
+  await expect(fill.getByTestId("bug-priority")).toContainText("(set in Settings → Jira)");
+  await fill.getByTestId("found-in").getByLabel("Found in").selectOption("RC 22");
   await fill.getByLabel("Repro steps").fill("1. Turn repeat off\n2. Let the video end");
   await fill.getByLabel("Bug impact").fill("Videos loop forever");
   await fill.getByLabel("Bug workaround").fill("None known");
@@ -184,7 +190,16 @@ test("bug bash bugs get ready for Jira: Add for Jira, Ready / Needs, Fill in, No
     expect(i.fields.customfield_11513, "Bug Workaround").toBeTruthy();
     expect(i.fields.customfield_11323, "Repro Steps").toBeTruthy();
   }
+  const filled = mine.find((i) => i.summary.includes("Turning repeat off"));
+  // OB has Found in version only on its Edit screen, so it may arrive as a field or in words; either way it's RC 22.
+  expect(JSON.stringify(filled), "Found in picked at Fill in").toContain("RC 22");
   // The report says why the other one wasn't filed.
   await expect(page.getByTestId("unfiled-tag").first()).toHaveText("Not a bug · Can't reproduce");
+  // ver_226: the report's Bugs by platform table scrolls inside its card on a phone, not the page.
+  await expect(page.getByTestId("bash-by-platform")).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await expect(page.getByTestId("bash-by-platform")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   await db.$disconnect();
 });

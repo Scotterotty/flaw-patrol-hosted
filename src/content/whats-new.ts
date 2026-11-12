@@ -22,6 +22,22 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 226,
+    date: "2026-11-12",
+    items: [
+      {
+        kind: "better",
+        title: "The bug form matches everywhere",
+        text: "Fill in at bug bash wrap-up now says \"from bash\" (not \"from run\"), shows Jira Priority and Found in, and warns when a file is too big for Jira, like a run's Report a bug. Write a bug shows Jira Priority too.",
+      },
+      {
+        kind: "fix",
+        title: "Easier to read in every look",
+        text: "On phones, a run's Test button is readable in Arcade and 80s retrowave. The number next to the page you're on in the left menu is readable in High contrast, Arcade and Blueprint. A finished bug bash no longer slides sideways on phones.",
+      },
+    ],
+  },
+  {
     version: 225,
     date: "2026-11-11",
     items: [
