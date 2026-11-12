@@ -182,7 +182,7 @@ function AlsoSendTo({
         {!canEdit && !groupIds.length && !addresses.length && <span className="px-1 text-sm text-slate-500">Nobody else.</span>}
       </div>
       {canEdit && open && (
-        <ul role="listbox" aria-label="Groups and people" className="max-h-64 overflow-y-auto rounded-md border border-slate-200 bg-white text-sm shadow-sm">
+        <ul role="listbox" aria-label="Groups and people" className="max-h-64 overflow-y-auto rounded-md border border-slate-200 bg-surface text-sm shadow-sm">
           {matchGroups.map((g) => {
             const added = groupIds.includes(g.id);
             return (
@@ -324,7 +324,7 @@ export function GroupEditor({ group, people, isAdmin, canEdit = true, onDone, on
           />
         </div>
         {(matches.length > 0 || (typed && !matches.some((m) => m.email.toLowerCase() === typed))) && (
-          <ul className="mt-1 rounded-md border border-slate-200 bg-white text-sm shadow-sm">
+          <ul className="mt-1 rounded-md border border-slate-200 bg-surface text-sm shadow-sm">
             {matches.map((p) => (
               <li key={p.id}>
                 <button type="button" className="flex w-full gap-2 px-3 py-1.5 text-left hover:bg-slate-50" onClick={() => add(p)}>
