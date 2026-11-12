@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 230,
+    date: "2026-11-12",
+    items: [
+      {
+        kind: "fix",
+        title: "Test persona chips are readable in dark looks",
+        text: "In 80s retrowave, Mission control, Blueprint, Arcade and Classic dark, the picked test persona (like Nobody in particular) was pale text on a white pill. It now uses the look's card color. Bug bash file names, Email digest people pickers, the sign-in link box and the Sentry pick list got the same fix.",
+      },
+    ],
+  },
+  {
     version: 229,
     date: "2026-11-12",
     items: [
