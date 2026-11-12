@@ -76,12 +76,12 @@ export function QaseBar(props: {
         </span>
         <span className="flex flex-wrap items-center gap-2">
           {props.canSync && (
-            <Button size="sm" onClick={sync} disabled={pending}>
+            <Button size="sm" onClick={sync} disabled={pending} data-howto="qase-sync-now">
               {pending ? "Syncing…" : "Sync now"}
             </Button>
           )}
           {props.canChangeRun && !runs && (
-            <button type="button" className="text-xs font-medium text-accent-700 hover:underline" onClick={loadRuns} disabled={pending}>
+            <button type="button" className="text-xs font-medium text-accent-700 hover:underline" onClick={loadRuns} disabled={pending} data-howto="qase-change-run">
               Change Qase run
             </button>
           )}
