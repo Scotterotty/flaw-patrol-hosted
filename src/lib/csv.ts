@@ -1,5 +1,5 @@
 /** RFC 4180 CSV with formula-injection guarding for spreadsheet apps. */
-export function toCsv(rows: (string | number | null | undefined)[][]): string {
+export function toCsv(rows: (string | number | null | undefined)[][], eol = "\r\n"): string {
   return rows
     .map((row) =>
       row
@@ -10,5 +10,5 @@ export function toCsv(rows: (string | number | null | undefined)[][]): string {
         })
         .join(","),
     )
-    .join("\r\n");
+    .join(eol);
 }

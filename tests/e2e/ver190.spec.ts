@@ -71,12 +71,13 @@ test("admin exports a folder to Qase, ticked cases to qTest, a suite to TestRail
   const qase = await download(page, /This folder/, /^Qase/);
   expect(qase.name).toMatch(new RegExp(`^${NAME} cases - Qase - \\w{3} \\d+ \\d{4}\\.csv$`));
   const csv = await readFile(qase.path, "utf8");
-  expect(csv.charCodeAt(0)).toBe(0xfeff);
+  // Qase's current "Qase.io" format (ver_227): no byte order mark, v2.id first.
+  expect(csv.startsWith("v2.id,title,")).toBe(true);
   expect(csv).toContain("Sign in with email");
   expect(csv).toContain("Reset a forgotten password");
   expect(csv).not.toContain("Add to cart");
   // The shared step is written out.
-  expect(csv).toContain("2. Type the password\n3. Press Go");
+  expect(csv).toContain('2. ""Type the password""\n3. ""Press Go""\n');
   await box.getByRole("button", { name: "Close" }).first().click();
 
   // Ticking a case offers it first; the format is remembered.

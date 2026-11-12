@@ -48,31 +48,51 @@ describe("Export cases", () => {
     expect(t.rows[1][t.header.indexOf("Steps (Step)")]).toBe("Type £ and é");
   });
 
-  it("Qase: one row per case, numbered steps, nested suites", () => {
+  it("Qase: suite rows first, then one row per case in Qase's current format", () => {
     const t = qaseTable([login, bare, nested]);
+    expect(t.header.slice(0, 2)).toEqual(["v2.id", "title"]);
+    expect(t.header).toHaveLength(26);
     const col = (r: number, h: string) => t.rows[r][t.header.indexOf(h)];
-    expect(t.rows).toHaveLength(3);
-    expect(col(0, "steps_actions")).toBe("1. Open the sign-in page\n2. Type £ and é");
-    expect(col(0, "steps_result")).toBe("1. The form shows\n2. Signed in");
-    expect(col(0, "priority")).toBe("high");
-    expect(col(1, "priority")).toBe("high");
-    expect(col(1, "severity")).toBe("critical");
-    expect(col(1, "automation")).toBe("automated");
-    expect(col(1, "suite_id")).toBe("");
-    // SSO sits under Login.
-    expect(col(2, "suite_parent_id")).toBe(col(0, "suite_id"));
-    expect(col(2, "suite")).toBe("SSO");
+    // Web, Web/Login, Web/Login/SSO as suites, then the three cases.
+    expect(t.rows).toHaveLength(6);
+    expect([0, 1, 2].map((r) => [col(r, "suite_id"), col(r, "suite_parent_id"), col(r, "suite"), col(r, "suite_without_cases")])).toEqual([
+      [1, "", "Web", 1],
+      [2, 1, "Login", 1],
+      [3, 2, "SSO", 1],
+    ]);
+    expect(t.starts).toEqual([3, 4, 5]);
+    expect(col(3, "title")).toBe("Sign in with email");
+    expect(col(3, "steps_actions")).toBe('1. "Open the sign-in page"\n2. "Type \\u00a3 and \\u00e9"\n');
+    expect(col(3, "steps_result")).toBe('1. "The form shows"\n2. "Signed in"\n');
+    expect(col(3, "steps_data")).toBe('1. ""\n2. ""\n');
+    expect([col(3, "suite_id"), col(3, "suite_parent_id"), col(3, "suite"), col(3, "suite_without_cases")]).toEqual([2, 1, "Login", ""]);
+    expect(col(3, "priority")).toBe("high");
+    expect(col(3, "automation")).toBe("is-not-automated");
+    expect(col(3, "tags")).toBe("Web,Smoke");
+    expect(col(4, "priority")).toBe("high");
+    expect(col(4, "severity")).toBe("critical");
+    expect(col(4, "automation")).toBe("automated");
+    expect(col(4, "suite_id")).toBe("");
+    expect(col(4, "steps_actions")).toBe("");
+    expect(col(5, "suite_id")).toBe(3);
+  });
+
+  it("Qase steps escape quotes, slashes and line breaks the way Qase does", () => {
+    const t = qaseTable([{ ...login, folder: [], steps: [{ number: "1", action: 'Press "Save" / Close\nThen wait', expected: "" }] }]);
+    expect(t.rows[0][t.header.indexOf("steps_actions")]).toBe('1. "Press \\"Save\\" \\/ Close\\nThen wait"\n');
   });
 
   it("test data rows are named in the steps", () => {
-    const t = qaseTable([{ ...login, steps: [{ number: "1", action: "Sign in as admin", expected: "", row: 0 }, { number: "1", action: "Sign in as viewer", expected: "", row: 1 }] }]);
-    expect(t.rows[0][t.header.indexOf("steps_actions")]).toBe("1. Row 1: Sign in as admin\n2. Row 2: Sign in as viewer");
+    const t = qaseTable([{ ...login, folder: [], steps: [{ number: "1", action: "Sign in as admin", expected: "", row: 0 }, { number: "1", action: "Sign in as viewer", expected: "", row: 1 }] }]);
+    expect(t.rows[0][t.header.indexOf("steps_actions")]).toBe('1. "Row 1: Sign in as admin"\n2. "Row 2: Sign in as viewer"\n');
   });
 
-  it("CSV starts with a byte order mark so Excel reads accents", () => {
-    const csv = csvFile(qaseTable([login]));
-    expect(csv.startsWith("\uFEFFtitle,suite")).toBe(true);
-    expect(csv).toContain("Type £ and é");
+  it("Qase CSV has no byte order mark and plain line breaks; others keep the mark", () => {
+    const csv = csvFile(qaseTable([login]), "qase");
+    expect(csv.startsWith("v2.id,title,")).toBe(true);
+    expect(csv).not.toContain("\r\n");
+    expect(csv).toContain(',"1. ""Open the sign-in page""\n2. ""Type \\u00a3 and \\u00e9""\n",');
+    expect(csvFile(testrailTable([login]), "testrail").startsWith("\uFEFFID,Title")).toBe(true);
   });
 
   it("names the file after the place, the tool and the day", () => {
