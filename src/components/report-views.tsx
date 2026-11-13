@@ -13,6 +13,7 @@ import { NOTE_KINDS, NOTE_LABEL, type NoteKind } from "@/lib/charter";
 import type { sessionFindings, FindingTotals } from "@/lib/findings";
 import { count, relativeTime } from "@/lib/format";
 import type { caseHealth, defectReport, RunKind, RunRow, runReport, StepHistory, suiteReport, Trends } from "@/lib/reports";
+import { countedRuns } from "@/lib/bash-runs";
 import { manualLine, splitProgress } from "@/lib/progress-split";
 import { mySpelling } from "@/lib/session";
 import { AE_SCALE, type SeverityScale } from "@/lib/severity";
@@ -238,8 +239,11 @@ function SplitBars({ manual, auto, autoAll, autoRuns }: { manual: StatusCounts |
 }
 
 /** `suiteKey`: the project whose page each suite links to (the umbrella's hub on its Reports). */
-export function StatusView({ suiteKey, runs, suites, kind, only }: { suiteKey: string; runs: Awaited<ReturnType<typeof runReport>>; suites: Awaited<ReturnType<typeof suiteReport>>; kind?: RunKind; only?: PartId }) {
-  const show = shows(only);
+export function StatusView({ suiteKey, runs: allRuns, suites, kind, only }: { suiteKey: string; runs: Awaited<ReturnType<typeof runReport>>; suites: Awaited<ReturnType<typeof suiteReport>>; kind?: RunKind; only?: PartId }) {
+  // Bug bashes stay out of the numbers, like the summary line (ver_237); By test cycle lists them apart.
+  const runs = countedRuns(allRuns, kind);
+  const onlyBashes = runs.length === 0 && allRuns.length > 0;
+  const show = (part: PartId) => shows(only)(part) && !(onlyBashes && part !== "status.suites");
   const { manual, auto } = splitProgress(runs);
   const defects = manual.bugs + auto.bugs;
   const hand = manualLine(manual);
@@ -248,6 +252,11 @@ export function StatusView({ suiteKey, runs, suites, kind, only }: { suiteKey: s
   const mixed = manual.runs > 0 && auto.runs > 0;
   return (
     <div className="space-y-5">
+      {onlyBashes && (!only || only === "status.tiles") && (
+        <Card className="p-4 text-sm text-slate-600" data-testid="only-bashes">
+          Only bug bashes match these filters. Bug bashes don&apos;t count toward pass rates. Under <b>Filter</b>, set <b>Runs</b> to <b>🐞 Bug bash</b> to see their numbers.
+        </Card>
+      )}
       {show("status.tiles") && kind !== "automated" && manual.inProgress > 0 && <StartedBanner tested={hand.tested} total={hand.total} inProgress={manual.inProgress} />}
       {show("status.tiles") && auto.runs > 0 && hand.tested === 0 && manual.inProgress === 0 && kind !== "automated" && <NoManualBanner total={hand.total} />}
       {show("status.tiles") && <div>

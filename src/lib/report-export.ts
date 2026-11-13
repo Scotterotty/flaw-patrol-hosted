@@ -14,6 +14,7 @@ import { caseHealth, defectReport, runReport, stepHistory, trends, type ReportFi
 import { runValues } from "./run-fields";
 import { runFieldsFor } from "./run-fields-server";
 import { severityScaleFor } from "./severity-server";
+import { countedRuns } from "./bash-runs";
 import { manualLine, splitProgress } from "./progress-split";
 import { countStatuses, pct, STATUS_LABEL, STATUSES, totals, type StatusCounts } from "./status";
 import { coverageCsvRows, storyCoverage, storyReleases, type CoverageColumn } from "./story-coverage";
@@ -64,6 +65,8 @@ export type ExportCtx = {
 };
 
 const RUN_TYPE = { manual: "Manual", upload: "Automated (uploaded)", github: "Automated (GitHub)" } as const;
+/** A bug bash's run says so, never "Manual" (ver_237). */
+const runType = (r: { source: keyof typeof RUN_TYPE; bash?: boolean }) => (r.bash ? "Bug bash" : RUN_TYPE[r.source]);
 /** The run's version (or start day), with its test cycle in an umbrella (ver_189: never "R12"). */
 const runName = (ctx: ExportCtx, r: Pick<RunRow, "projectKey" | "name" | "build" | "createdAt">) => [ctx.umbrella ? r.projectKey : "", runTag(r) || r.name].filter(Boolean).join(" ");
 export const outcomes = (c: StatusCounts) => STATUSES.filter((s) => c[s]).map((s) => `${c[s]} ${STATUS_LABEL[s].toLowerCase()}`).join(", ");
@@ -100,7 +103,7 @@ export async function reportTable(ctx: ExportCtx, view: ExportTab, f: ReportFilt
       label,
       rows: [
         ["Run", "Name", "Type", "Release", "Passed steps", "Failed steps", "Blocked steps", "Skipped steps", "Untested steps"],
-        ...runs.map((r) => [runName(ctx, r), r.name, RUN_TYPE[r.source], r.release, r.steps.PASSED, r.steps.FAILED, r.steps.BLOCKED, r.steps.SKIPPED, r.steps.UNTESTED]),
+        ...runs.map((r) => [runName(ctx, r), r.name, runType(r), r.release, r.steps.PASSED, r.steps.FAILED, r.steps.BLOCKED, r.steps.SKIPPED, r.steps.UNTESTED]),
       ],
     };
   }
@@ -218,7 +221,7 @@ export async function reportTable(ctx: ExportCtx, view: ExportTab, f: ReportFilt
           runName(ctx, r),
           r.name,
           ...(ctx.umbrella ? [r.projectName, r.platform] : []),
-          RUN_TYPE[r.source],
+          runType(r),
           r.suite,
           r.suiteVersion,
           r.release,
@@ -507,7 +510,9 @@ export async function reportPdf(ctx: ExportCtx, f: ReportFilters, tabs: ExportTa
       continue;
     }
     if (id === "status" || id === "steps") {
-      const runs = await runReport(ctx.scope, f);
+      const all = await runReport(ctx.scope, f);
+      // Bug bashes stay out of the status numbers, as on screen (ver_237). Steps keep every run.
+      const runs = id === "status" ? countedRuns(all, f.kind) : all;
       const counts = countStatuses(runs.flatMap((r) => STATUSES.flatMap((s) => Array(id === "status" ? r.counts[s] : r.steps[s]).fill(s))));
       const t = totals(counts);
       pdf.heading(EXPORT_TABS.find((x) => x.id === id)!.label);

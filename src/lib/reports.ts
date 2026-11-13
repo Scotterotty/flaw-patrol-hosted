@@ -92,6 +92,8 @@ export type RunRow = {
   id: string;
   /** A bug bash's run: kept out of the Reports summary's run count. */
   bash?: boolean;
+  /** The bug bash behind the run, for its own row in By test cycle (ver_237). */
+  bashInfo?: { id: string; name: string; at: Date; homeKey: string } | null;
   /** The test cycle the run belongs to: run numbers are only unique within it. */
   projectKey: string;
   projectName: string;
@@ -139,7 +141,7 @@ export async function runReport(scope: ReportScope, f: ReportFilters): Promise<R
       suite: { select: { name: true } },
       entries: { where: entry, select: { caseId: true, status: true, draftAt: true, steps: true, results: { orderBy: { createdAt: "desc" }, take: 1, select: { stepResults: true } } } },
       results: { where: narrowed ? { entry } : undefined, select: { defects: { select: { defectId: true } } } },
-      bugBash: { select: { id: true } },
+      bugBash: { select: { id: true, name: true, startsAt: true, project: { select: { key: true } } } },
     },
   });
   return runs.map((r) => {
@@ -147,6 +149,7 @@ export async function runReport(scope: ReportScope, f: ReportFilters): Promise<R
     const started = r.entries.filter((e) => e.status === "IN_PROGRESS");
     return {
     bash: !!r.bugBash,
+    bashInfo: r.bugBash ? { id: r.bugBash.id, name: r.bugBash.name, at: r.bugBash.startsAt, homeKey: r.bugBash.project.key } : null,
     id: r.id,
     projectKey: r.project.key,
     projectName: r.project.name,
