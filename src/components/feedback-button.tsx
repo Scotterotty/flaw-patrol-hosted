@@ -1,5 +1,6 @@
 "use client";
 
+import { pageScroller } from "@/lib/page-scroll";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -32,12 +33,17 @@ function whereNow() {
 async function capturePage(): Promise<string> {
   const { toPng } = await import("html-to-image");
   const bg = getComputedStyle(document.body).backgroundColor || "#ffffff";
+  const inBody = pageScroller() === document.body;
+  const top = document.body.scrollTop;
   return toPng(document.body, {
     backgroundColor: bg,
     pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
     width: window.innerWidth,
     height: window.innerHeight,
-    style: { transform: `translate(${-window.scrollX}px, ${-window.scrollY}px)`, transformOrigin: "top left" },
+    // While the How-to guide is open the page scrolls in <body>: draw it whole and shift it the same way.
+    style: inBody
+      ? { height: "auto", overflow: "visible", transform: `translate(0px, ${-top}px)`, transformOrigin: "top left" }
+      : { transform: `translate(${-window.scrollX}px, ${-window.scrollY}px)`, transformOrigin: "top left" },
     filter: (n) => !(n instanceof HTMLElement && (n.dataset.feedbackSkip !== undefined || n.tagName === "DIALOG")),
   });
 }

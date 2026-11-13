@@ -1,5 +1,6 @@
 "use client";
 
+import { pageScroller } from "@/lib/page-scroll";
 import { useEffect, useRef, useState } from "react";
 import { cx } from "./ui";
 
@@ -26,8 +27,8 @@ export function AccountTabs({ tabs, label = "Account sections" }: { tabs: [id: s
         // stretch of scrolling, so the bottom sections still each get their turn.
         const barBottom = bar.getBoundingClientRect().bottom;
         const view = window.innerHeight;
-        const doc = document.documentElement;
-        const remaining = doc.scrollHeight - view - window.scrollY;
+        const doc = pageScroller();
+        const remaining = doc.scrollHeight - view - doc.scrollTop;
         const stretch = Math.min(view * 0.8, doc.scrollHeight - view);
         const t = stretch > 0 ? Math.min(1, Math.max(0, 1 - remaining / stretch)) : 1;
         const line = barBottom + 30 + t * (view - barBottom - 70);
@@ -47,12 +48,13 @@ export function AccountTabs({ tabs, label = "Account sections" }: { tabs: [id: s
     const fromHash = tabs.find(([id]) => `#${id}` === window.location.hash);
     if (fromHash) pinned.current = fromHash[0];
     update();
-    window.addEventListener("scroll", update, { passive: true });
+    // Capture: the page may scroll in <body> (How-to guide open), whose scroll doesn't reach window.
+    window.addEventListener("scroll", update, { passive: true, capture: true });
     window.addEventListener("resize", update);
     const events = ["wheel", "touchstart", "keydown", "mousedown"] as const;
     for (const ev of events) window.addEventListener(ev, unpin, { passive: true });
     return () => {
-      window.removeEventListener("scroll", update);
+      window.removeEventListener("scroll", update, { capture: true });
       window.removeEventListener("resize", update);
       for (const ev of events) window.removeEventListener(ev, unpin);
     };
@@ -66,7 +68,8 @@ export function AccountTabs({ tabs, label = "Account sections" }: { tabs: [id: s
     setCurrent(id);
     history.replaceState(null, "", `#${id}`);
     const smooth = !document.documentElement.dataset.motion && !matchMedia("(prefers-reduced-motion: reduce)").matches;
-    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - bar.getBoundingClientRect().bottom - 12, behavior: smooth ? "smooth" : "auto" });
+    const page = pageScroller();
+    page.scrollTo({ top: el.getBoundingClientRect().top + page.scrollTop - bar.getBoundingClientRect().bottom - 12, behavior: smooth ? "smooth" : "auto" });
   };
 
   return (
