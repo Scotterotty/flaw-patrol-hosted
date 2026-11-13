@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 245,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "new",
+        title: "Paw prints loading spinner",
+        text: "A new pick under Your account → Just for fun → Loading spinners: little paw prints walk around the circle while Flaw Patrol is busy. Tick it to use it. The plain ring is still the default.",
+        link: "/account#spinners",
+      },
+    ],
+  },
+  {
     version: 244,
     date: "2026-11-13",
     items: [

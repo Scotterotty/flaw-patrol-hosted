@@ -18,6 +18,7 @@ export const SPINNERS = [
   { id: "ink", label: "Octopus ink", help: "An ink swirl around the octopus" },
   { id: "crown", label: "Spinning crown", help: "A turning crown" },
   { id: "seasonal", label: "Seasonal", help: "Follows the season: a pumpkin at Halloween, a snowman in winter" },
+  { id: "paws", label: "Paw prints", help: "Little paw prints walk around the circle" },
 ] as const;
 
 export type SpinnerId = (typeof SPINNERS)[number]["id"];

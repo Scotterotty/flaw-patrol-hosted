@@ -142,7 +142,7 @@ export const HOW_TO: HowToTask[] = [
       { text: "Under **Color**, pick the color you like.", see: "Buttons and links in that color. Test results keep their own colors.", target: "appearance-color" },
       { text: "Pick a **Text font** and a **Heading font** if you want.", see: "Text font changes lists, forms and buttons. Heading font changes page, card, case and run titles. Each one only changes its own text.", target: "appearance-fonts" },
       { text: "Open **Layout** under **How it looks** to put the left menu order or panel sizes back the way they started.", see: "**Reset to default order** and **Reset panel sizes**.", target: "account-layout" },
-      { text: "Under **Just for fun**, open **Loading spinners** and tick the ones you like.", see: "One of them plays at random while Flaw Patrol is busy.", target: "account-spinners" },
+      { text: "Under **Just for fun**, open **Loading spinners** and tick the ones you like, like **Paw prints**.", see: "One of them plays at random while Flaw Patrol is busy.", target: "account-spinners" },
     ],
     next: "look",
   },
