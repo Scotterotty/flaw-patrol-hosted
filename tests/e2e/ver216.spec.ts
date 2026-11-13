@@ -113,6 +113,22 @@ test("Start here: Show me, Create a run with no cases, Hide for now and bringing
   await page.locator('header button[aria-haspopup="menu"]').click();
   await page.getByRole("menuitem", { name: "Getting started" }).click();
   await expect(page.getByTestId("admin-start-here")).toBeVisible();
+
+  // From a page outside the umbrella's Overview (a test cycle's cases), Getting started opens this
+  // umbrella's Overview, not the Umbrellas list (an Admin sees every umbrella there).
+  await page.getByTestId("admin-start-here").getByTestId("start-here-hide").click();
+  await page.goto(`/p/${HUB}/cases`);
+  await page.locator('header button[aria-haspopup="menu"]').click();
+  await page.getByRole("menuitem", { name: "Getting started" }).click();
+  await expect(page).toHaveURL(new RegExp(`/g/${ids.group}$`));
+  await expect(page.getByTestId("admin-start-here")).toBeVisible();
+  // From the Umbrellas list: the umbrella you last opened.
+  await page.getByTestId("admin-start-here").getByTestId("start-here-hide").click();
+  await page.goto("/");
+  await page.locator('header button[aria-haspopup="menu"]').click();
+  await page.getByRole("menuitem", { name: "Getting started" }).click();
+  await expect(page).toHaveURL(new RegExp(`/g/${ids.group}$`));
+  await expect(page.getByTestId("admin-start-here")).toBeVisible();
 });
 
 test("a new case: Title, then Steps, then the folder you're in; More details is remembered", async ({ page }) => {
