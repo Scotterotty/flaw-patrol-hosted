@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 244,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "fix",
+        title: "Updates don't stop on a busy database",
+        text: "Flaw Patrol now keeps at most 10 database connections open, so the backup before an update always finds a free one. If the database is still busy, the update helper tries the backup again a few times, and says what to do if it can't.",
+        who: "workspace",
+      },
+    ],
+  },
+  {
     version: 243,
     date: "2026-11-13",
     items: [

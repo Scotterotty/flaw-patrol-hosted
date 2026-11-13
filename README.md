@@ -249,6 +249,13 @@ Keep the server's copy of the code unchanged: if the new code changes a file you
 edited on the server (like the web address in `docker-compose.hosting.yml`), the
 update stops before changing anything and says so.
 
+If the backup fails with "too many clients", the database has no free connections.
+The helper tries 5 times, 15 seconds apart, then stops without changing anything.
+Restart Flaw Patrol (`docker restart flaw-patrol`) and press Update now again.
+Flaw Patrol keeps at most 10 connections open (`DATABASE_POOL` in `flaw-patrol.env`
+changes that); if it still happens, see who holds them:
+`docker exec flaw-patrol-db psql -U flawpatrol -d flawpatrol -c "select client_addr, application_name, count(*) from pg_stat_activity group by 1,2"`.
+
 **Backups:** `docker compose -f docker-compose.hosting.yml exec -T db pg_dump -U flawpatrol -Fc flawpatrol > backup.dump`.
 Run it on a schedule and keep the files somewhere else.
 
