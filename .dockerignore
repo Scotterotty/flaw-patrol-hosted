@@ -11,3 +11,5 @@ dist
 .git
 flaw-patrol.env
 *.env.local
+server-update
+backups
