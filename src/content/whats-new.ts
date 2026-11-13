@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 240,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "fix",
+        title: "Getting started opens your umbrella's Start here steps",
+        text: "Pressing Getting started used to land on the Umbrellas list. It now opens your umbrella's Start here steps.",
+      },
+    ],
+  },
+  {
     version: 239,
     date: "2026-11-13",
     items: [
