@@ -4,14 +4,8 @@ import { logActivity } from "@/lib/activity";
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/session";
 import { attempt, UserError } from "./result";
-
-async function requireWorkspaceAdmin() {
-  const user = await requireUser();
-  if (!user.isAdmin) throw new UserError("Only a workspace admin can do that.");
-  return user;
-}
+import { requireWorkspaceAdmin } from "./admin-guard";
 
 // A reset takes XP back to 0. Titles and frames earned before it go too, except the Early Adopter ones.
 // The satchel empties with it, so worn quest gear comes off; the chosen pawn and color stay.

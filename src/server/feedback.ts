@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { feedbackInput, kindLabel, MAX_SHOT_BYTES, MAX_SHOTS, safeFeedbackPath, SHOT_TYPES, statusSchema } from "@/lib/feedback";
 import { requireProjectAction, requireUser } from "@/lib/session";
 import { attempt, UserError } from "./result";
+import { requireWorkspaceAdmin } from "./admin-guard";
 import { APP_VERSION } from "@/lib/version";
 
 /**
@@ -50,12 +51,6 @@ async function visible(id: string) {
   const fb = await db.feedback.findUnique({ where: { id: z.string().max(40).parse(id) }, select: { id: true, userId: true, kind: true, message: true, place: true, path: true } });
   if (!fb || (!user.isAdmin && fb.userId !== user.id)) throw new UserError("That feedback isn't there any more.");
   return { user, fb };
-}
-
-async function requireWorkspaceAdmin() {
-  const user = await requireUser();
-  if (!user.isAdmin) throw new UserError("Only a workspace admin can do that.");
-  return user;
 }
 
 /** A reply from an admin (the sender gets a dot on Feedback), or the sender answering back. */

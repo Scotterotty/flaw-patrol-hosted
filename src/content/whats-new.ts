@@ -22,6 +22,19 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 241,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "new",
+        title: "Add more workspace admins",
+        text: "Workspace settings → Admins lists the workspace admins. Make someone else an admin, or take it away. Before you remove one, it says what they'll lose and keep. There's always at least one admin, and nobody can be removed in a way that stops them signing in.",
+        who: "workspace",
+        link: "/how-to?task=workspace-admins",
+      },
+    ],
+  },
+  {
     version: 240,
     date: "2026-11-13",
     items: [

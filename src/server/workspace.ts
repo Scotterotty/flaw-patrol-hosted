@@ -10,12 +10,7 @@ import { MAIL_PRESETS, MAIL_SECURITY, sendMail } from "@/lib/mail";
 import { requireUser } from "@/lib/session";
 import { COMPANY_PROVIDERS, domainList, forgetSavedProviders, GUID, isComplete, microsoftAuthority, PROVIDER_NAME, type CompanyProvider } from "@/lib/sign-in-config";
 import { attempt, UserError } from "./result";
-
-async function requireWorkspaceAdmin() {
-  const user = await requireUser();
-  if (!user.isAdmin) throw new UserError("Only a workspace admin can do that.");
-  return user;
-}
+import { requireWorkspaceAdmin } from "./admin-guard";
 
 const providerId = z.enum(COMPANY_PROVIDERS);
 const nameOf = (id: CompanyProvider, label?: string | null) => (id === "oidc" ? label || PROVIDER_NAME.oidc : PROVIDER_NAME[id]);
