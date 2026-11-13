@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 243,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "fix",
+        title: "The picked platform chip's highlight is centered",
+        text: "In the left menu, the highlight around the platform you picked sat off center in some looks. It's now centered in every look, on computers and phones.",
+      },
+    ],
+  },
+  {
     version: 242,
     date: "2026-11-13",
     items: [
