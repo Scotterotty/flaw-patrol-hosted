@@ -113,7 +113,8 @@ test("found-in version goes into Jira and shows on the Bugs page", async ({ page
   await page.goto(`/p/${KEY}/bugs`);
   await expect(page.getByTestId("bug-found-in").filter({ hasText: "Version RC 22" })).toHaveCount(1);
   await expect(page.getByTestId("bug-found-in").filter({ hasText: "Version 2.6 beta" })).toHaveCount(1);
-  await page.getByLabel("Found in version").selectOption({ label: "Found in RC 22" });
+  // ver_232: with Jira, Version is in the filter bar Table and Board share.
+  await page.getByTestId("bugs-filter-bar").getByLabel("Version").selectOption("RC 22");
   await expect(page).toHaveURL(/version=RC(\+|%20)22/);
   await expect(page.getByTestId("bug-found-in")).toHaveCount(1);
   await expect(page.getByRole("link", { name: first })).toBeVisible();
