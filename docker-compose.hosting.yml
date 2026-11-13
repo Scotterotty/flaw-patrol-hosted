@@ -23,6 +23,11 @@ services:
       - LETSENCRYPT_HOST=flawpatrol.magnopus.global
       # The address people open; sign-in and invite links use it.
       - AUTH_URL=https://flawpatrol.magnopus.global
+      # Workspace settings -> Updates leaves its note here for the update helper
+      # (scripts/server-update.sh, README: Update button). Harmless without the helper.
+      - SERVER_UPDATE_DIR=/app/server-update
+    volumes:
+      - ./server-update:/app/server-update
     depends_on:
       db:
         condition: service_healthy

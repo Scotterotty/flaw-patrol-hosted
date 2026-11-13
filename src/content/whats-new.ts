@@ -22,6 +22,19 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 238,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "new",
+        title: "Update Flaw Patrol from Workspace settings",
+        text: "On a server, Workspace settings → Updates shows the version you run and what's new on GitHub. Update now backs up the database, builds the new version and restarts Flaw Patrol by itself. It needs a small helper set up on the server once (README: Update button).",
+        who: "workspace",
+        link: "/workspace#updates",
+      },
+    ],
+  },
+  {
     version: 237,
     date: "2026-11-13",
     items: [

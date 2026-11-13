@@ -1,5 +1,6 @@
 import { defineConfig } from "@playwright/test";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { SERVER_UPDATE_DIR } from "./tests/e2e/server-update-dir";
 
 // End-to-end tests run against `next dev`, or with E2E_SERVER=prod against a production build
 // (`next build` first), which is faster and never restarts mid-test. `npm run e2e:all` does it all:
@@ -9,6 +10,8 @@ const server = process.env.E2E_SERVER ?? "dev";
 export const DEV_ONLY = ["run-sheet.spec.ts", "sheet-fill.spec.ts", "ver82.spec.ts"];
 // The preflight makes a fresh database for each run and names it here; the servers and specs use it instead of .env's.
 if (existsSync(".e2e-database")) process.env.DATABASE_URL = readFileSync(".e2e-database", "utf8").trim();
+// Workspace settings → Updates talks to the update helper through this folder; ver238.spec.ts plays the helper.
+mkdirSync(SERVER_UPDATE_DIR, { recursive: true });
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -31,7 +34,7 @@ export default defineConfig({
       // Microsoft sign-in talks to the stand-in in mock-sso.mjs (ver_92).
       // AUTH_URL: sign-in sends people back to this server, not the 3000 one in .env.
       // A bigger heap, so next dev doesn't restart itself mid-run ("approaching the used memory threshold").
-      env: { AUTH_URL: "http://localhost:3100", GITHUB_API_URL: "http://localhost:3196", QASE_API_URL: "http://localhost:3192/v1", FP_MICROSOFT_AUTHORITY: "http://localhost:3195", NODE_OPTIONS: "--max-old-space-size=8192" },
+      env: { AUTH_URL: "http://localhost:3100", GITHUB_API_URL: "http://localhost:3196", QASE_API_URL: "http://localhost:3192/v1", FP_MICROSOFT_AUTHORITY: "http://localhost:3195", SERVER_UPDATE_DIR, NODE_OPTIONS: "--max-old-space-size=8192" },
       url: "http://localhost:3100/signin",
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
