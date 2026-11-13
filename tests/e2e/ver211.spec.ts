@@ -114,6 +114,8 @@ test("Board shows every bug on the Jira board, and the bug panel shows the ticke
   // ver_212: the team's own Repro Steps field, right under the description.
   const repro = panel.getByTestId("bug-panel-repro");
   await expect(repro.getByRole("heading", { name: "Repro steps (from Jira)" })).toBeVisible();
+  // ver_231: steps typed on one line in Jira show one per line.
+  await expect(repro.getByTestId("jira-steps")).toBeVisible();
   await expect(repro.locator("li")).toHaveText(["Sign in as two users in the same space.", "As User B, rename any material.", "Look at User A's material list."]);
   const found = panel.getByTestId("bug-panel-found");
   await expect(found).toContainText("Where the bug was found");

@@ -4,6 +4,7 @@
 import { withBracketTags } from "./tags";
 import { isDxdiag, orderFiles, type TemplateBug } from "./bug-template";
 import type { Answer } from "./bug-layout";
+import { splitNumberedSteps } from "./numbered-steps";
 
 export type BugContext = {
   caseKey: string;
@@ -129,10 +130,16 @@ function paraLines(t: string, marks?: Node[]): Node {
   return { type: "paragraph", content };
 }
 
-/** Plain text as a rich-text (ADF) document: blank lines split paragraphs. */
+/** A paragraph, or a numbered list when it is steps "1. … 2. …", even typed on one line (ver_231). */
+function paraOrSteps(t: string): Node {
+  const steps = splitNumberedSteps(t);
+  return steps ? { type: "orderedList", content: steps.map((s) => ({ type: "listItem", content: [paraLines(s)] })) } : paraLines(t);
+}
+
+/** Plain text as a rich-text (ADF) document: blank lines split paragraphs; numbered steps become a list. */
 export function richText(t: string): Node {
   const paras = t.trim().split(/\n\s*\n/).filter((p) => p.trim());
-  return { type: "doc", version: 1, content: paras.length ? paras.map((p) => paraLines(p.trim())) : [para()] };
+  return { type: "doc", version: 1, content: paras.length ? paras.map((p) => paraOrSteps(p.trim())) : [para()] };
 }
 
 const link = (label: string, href?: string) => text(label, href ? [{ type: "link", attrs: { href } }] : undefined);
@@ -225,7 +232,7 @@ function blocks(t: string): Node[] {
     .trim()
     .split(/\n\s*\n/)
     .filter((p) => p.trim())
-    .map((p) => paraLines(p.trim()));
+    .map((p) => paraOrSteps(p.trim()));
 }
 
 /**

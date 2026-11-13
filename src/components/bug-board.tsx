@@ -276,7 +276,7 @@ function BugPanel({ where, issue, issueKey, nameOf, onClose }: { where: Where; i
             <JiraAdf doc={t.description} empty="No description in Jira." />
           </section>
           {!!t.repro && (
-            <section className="rounded-lg border border-slate-200 p-3" data-testid="bug-panel-repro">
+            <section className="rounded-lg border border-slate-200 p-3" data-testid="bug-panel-repro" data-howto="board-repro">
               <h3 className="mb-1 text-[11px] font-semibold tracking-wide text-slate-600 uppercase">Repro steps (from Jira)</h3>
               <JiraAdf doc={t.repro} empty="No repro steps in Jira." />
             </section>

@@ -156,8 +156,9 @@ issues.get("BB-3").description = adf(
   { type: "orderedList", content: ["Open a space with two users signed in.", "User B renames any material."].map((t) => ({ type: "listItem", content: [p_(t)] })) },
 );
 // Like OB: repro steps in their own field, plus Build # and an empty Bug Impact (ver_212).
+// Typed on one line like real OKO bugs, so the panel splits them one per line (ver_231).
 Object.assign(issues.get("BB-3").fields, {
-  customfield_11323: adf({ type: "orderedList", content: ["Sign in as two users in the same space.", "As User B, rename any material.", "Look at User A's material list."].map((t) => ({ type: "listItem", content: [p_(t)] })) }),
+  customfield_11323: adf("1. Sign in as two users in the same space. 2. As User B, rename any material. 3. Look at User A's material list."),
   customfield_11489: "4.20.1",
   customfield_11490: "3/3",
   customfield_11494: null,
