@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { splitNumberedSteps } from "@/lib/numbered-steps";
 
 /**
  * Shows a Jira description or comment (Atlassian Document Format) as plain, readable HTML
@@ -31,6 +32,30 @@ function marked(n: Node, key: number): ReactNode {
   return <span key={key}>{out}</span>;
 }
 
+/** Steps typed on one line ("1. … 2. … 3. …") as a lined-up numbered list (ver_231). */
+function Steps({ steps }: { steps: string[] }) {
+  return (
+    <ol className="my-1 flex list-decimal flex-col gap-1 pl-6 marker:font-semibold" data-testid="jira-steps">
+      {steps.map((s, i) => (
+        <li key={i} className="pl-1">
+          {s}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** A paragraph of plain text only (no links or bold), so splitting it loses nothing. */
+function plainText(n: Node): string | null {
+  let out = "";
+  for (const c of n.content ?? []) {
+    if (c.type === "hardBreak") out += "\n";
+    else if (c.type === "text" && !c.marks?.length) out += c.text ?? "";
+    else return null;
+  }
+  return out;
+}
+
 function kids(n: Node) {
   return (n.content ?? []).map((c, i) => <Adf key={i} node={c} k={i} />);
 }
@@ -43,8 +68,11 @@ function Adf({ node: n, k }: { node: Node; k: number }): ReactNode {
       return marked(n, k);
     case "hardBreak":
       return <br />;
-    case "paragraph":
-      return <p className="my-1">{kids(n)}</p>;
+    case "paragraph": {
+      const plain = plainText(n);
+      const steps = plain === null ? null : splitNumberedSteps(plain);
+      return steps ? <Steps steps={steps} /> : <p className="my-1">{kids(n)}</p>;
+    }
     case "heading":
       return <p className="mt-2 mb-1 font-semibold text-slate-900">{kids(n)}</p>;
     case "bulletList":
@@ -98,7 +126,18 @@ function Adf({ node: n, k }: { node: Node; k: number }): ReactNode {
 
 export function JiraAdf({ doc, empty = "Nothing written." }: { doc: unknown; empty?: string }) {
   // Older Jira sites send wiki text as a plain string.
-  if (typeof doc === "string" && doc.trim()) return <p className="text-sm whitespace-pre-wrap text-slate-800">{doc}</p>;
+  if (typeof doc === "string" && doc.trim())
+    return (
+      <div className="text-sm break-words text-slate-800">
+        {doc
+          .trim()
+          .split(/\n\s*\n/)
+          .map((p, i) => {
+            const steps = splitNumberedSteps(p);
+            return steps ? <Steps key={i} steps={steps} /> : <p key={i} className="my-1 whitespace-pre-wrap">{p.trim()}</p>;
+          })}
+      </div>
+    );
   if (!doc || typeof doc !== "object") return <p className="text-sm text-slate-500">{empty}</p>;
   const n = doc as Node;
   if (n.type === "doc" && !(n.content ?? []).length) return <p className="text-sm text-slate-500">{empty}</p>;

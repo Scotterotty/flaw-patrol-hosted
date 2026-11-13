@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 231,
+    date: "2026-11-12",
+    items: [
+      {
+        kind: "better",
+        title: "Repro steps are one per line",
+        text: "When a Jira bug's steps were typed on one line, like 1. Log in. 2. Add an entity. 3. …, the bug panel on the Bugs Board now shows each step on its own line, lined up. Steps you send to Jira that way arrive as a numbered list too.",
+        link: "/how-to?task=bug-board",
+      },
+    ],
+  },
+  {
     version: 230,
     date: "2026-11-12",
     items: [
