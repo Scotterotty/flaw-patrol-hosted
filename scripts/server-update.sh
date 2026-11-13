@@ -7,6 +7,10 @@
 # server-update folder, and this script only ever runs the fixed steps below; nothing in the
 # note is run as a command.
 #
+# install copies this script to /usr/local/libexec/flaw-patrol-updater and the service runs that
+# copy, so systemd (and SELinux) will start it wherever the code lives. If an update changes this
+# script, run install again to use the new one; Flaw Patrol says so when it happens.
+#
 #   sudo scripts/server-update.sh install     set it up as a service that starts with the server
 #   sudo scripts/server-update.sh uninstall   remove the service (your code and data stay)
 #   scripts/server-update.sh run              run it in this window instead (Ctrl+C stops it)
@@ -18,10 +22,21 @@
 #   FP_COMPOSE_FILE=docker-compose.hosting.yml
 #   FP_BACKUP=1  FP_KEEP_BACKUPS=5              database backup before each update, in ./backups
 #   FP_CHECK_EVERY=300                          seconds between looks for new code
+#   FP_ROOT=/path/to/flaw-patrol                the code folder (install sets this for the service)
 set -uo pipefail
 
-ROOT=$(cd "$(dirname "$0")/.." && pwd)
+# The installed copy lives outside the code folder, so it's told where the code is (FP_ROOT).
+# Run from the code folder, it works that out itself.
+if [ -n "${FP_ROOT:-}" ]; then
+  ROOT=$FP_ROOT
+else
+  ROOT=$(cd "$(dirname "$0")/.." && pwd)
+fi
 cd "$ROOT" || exit 1
+if [ ! -e "$ROOT/.git" ]; then
+  echo "$ROOT isn't Flaw Patrol's code folder. Run scripts/server-update.sh from the code, or set FP_ROOT." >&2
+  exit 1
+fi
 
 REMOTE=${FP_REMOTE:-origin}
 BRANCH=${FP_BRANCH:-main}
@@ -36,6 +51,9 @@ APP=${FP_APP_CONTAINER:-flaw-patrol}
 # leave its note in the server-update folder.
 APP_GID=1001
 UNIT=/etc/systemd/system/flaw-patrol-updater.service
+# The copy the service runs, and the script in the code it's copied from.
+HELPER=/usr/local/libexec/flaw-patrol-updater
+REPO_SCRIPT=$ROOT/scripts/server-update.sh
 
 git_() { git -c safe.directory="$ROOT" "$@"; }
 compose() { docker compose -f "$COMPOSE_FILE" "$@"; }
@@ -44,6 +62,8 @@ now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 oneline() { printf '%s' "$1" | tr '\r\n\t' '   ' | cut -c1-400; }
 version_at() { git_ show "$1:package.json" 2>/dev/null | sed -n 's/^ *"version": *"\([^"]*\)".*/\1/p' | head -n1; }
 say() { echo "[$(date '+%H:%M:%S')] $*"; }
+# True when the service's copy is older than the script in the code (an update changed it).
+helper_outdated() { [ -f "$HELPER" ] && [ -f "$REPO_SCRIPT" ] && ! cmp -s "$HELPER" "$REPO_SCRIPT"; }
 
 # ---- The status file Flaw Patrol reads ---------------------------------------------------------
 STATE=idle RUN_ID="" STEP="" MESSAGE="" STARTED="" FINISHED="" FROM="" TO="" BACKUP_FILE="" BY=""
@@ -199,6 +219,11 @@ update() {
   fi
 
   STATE=done MESSAGE="Updated from $FROM to $TO." FINISHED=$(now) STEP=""
+  # The service keeps running its installed copy until someone reinstalls it on purpose.
+  if helper_outdated; then
+    MESSAGE="$MESSAGE This update also changed the update helper. To use the new one, run on the server: sudo scripts/server-update.sh install"
+    echo "== The update helper changed. Run: sudo $REPO_SCRIPT install" >>"$CHANNEL/update.log"
+  fi
   say "$MESSAGE"
   write_status
   check
@@ -211,7 +236,7 @@ prepare() {
     # Owned by whoever owns the code, writable by the Flaw Patrol container's group.
     chown "$(stat -c %u "$ROOT")":"$APP_GID" "$CHANNEL" && chmod 2775 "$CHANNEL"
   elif [ "$(stat -c %g "$CHANNEL")" != "$APP_GID" ]; then
-    say "Note: Flaw Patrol can't leave notes in $CHANNEL yet. Run: sudo $0 install"
+    say "Note: Flaw Patrol can't leave notes in $CHANNEL yet. Run: sudo $REPO_SCRIPT install"
   fi
 }
 
@@ -228,6 +253,9 @@ run() {
   load_status
   write_status
   say "Watching $CHANNEL. Flaw Patrol's Update button works while this runs."
+  if helper_outdated; then
+    say "Note: the code has a newer update helper than the one running. Run: sudo $REPO_SCRIPT install"
+  fi
   local last=0 t
   while true; do
     if [ -f "$CHANNEL/request" ]; then
@@ -247,10 +275,12 @@ run() {
   done
 }
 
-install() {
-  [ "$(id -u)" = 0 ] || { echo "Run it with sudo: sudo $0 install" >&2; exit 1; }
+# Named install_helper, not install, so it doesn't hide the system 'install' command it uses.
+install_helper() {
+  [ "$(id -u)" = 0 ] || { echo "Run it with sudo: sudo $REPO_SCRIPT install" >&2; exit 1; }
   command -v docker >/dev/null || { echo "Docker isn't installed on this server." >&2; exit 1; }
-  command -v systemctl >/dev/null || { echo "This server has no systemd. Run '$0 run' under your own process manager instead." >&2; exit 1; }
+  command -v systemctl >/dev/null || { echo "This server has no systemd. Run '$REPO_SCRIPT run' under your own process manager instead." >&2; exit 1; }
+  [ -f "$REPO_SCRIPT" ] || { echo "Couldn't find $REPO_SCRIPT." >&2; exit 1; }
   local owner
   owner=$(stat -c %U "$ROOT")
   if [ "$owner" != root ] && ! id -nG "$owner" | tr ' ' '\n' | grep -qx docker; then
@@ -258,9 +288,18 @@ install() {
     exit 1
   fi
   if ! sudo -u "$owner" git -C "$ROOT" ls-remote --exit-code "$REMOTE" "$BRANCH" >/dev/null 2>&1; then
-    echo "Warning: $owner can't reach $REMOTE/$BRANCH yet. Add the deploy key (README: Update button), then try '$0 check'." >&2
+    echo "Warning: $owner can't reach $REMOTE/$BRANCH yet. Add the deploy key (README: Update button), then try '$REPO_SCRIPT check'." >&2
   fi
   prepare
+
+  # Copy the helper somewhere systemd is allowed to run it from. On SELinux servers, files in a
+  # data folder (like /mnt/data) usually can't be started by systemd; /usr/local/libexec can.
+  mkdir -p "$(dirname "$HELPER")"
+  command install -m 0755 -o root -g root "$REPO_SCRIPT" "$HELPER" || { echo "Couldn't copy the helper to $HELPER." >&2; exit 1; }
+  if command -v restorecon >/dev/null; then
+    restorecon "$HELPER"
+  fi
+
   cat >"$UNIT" <<EOF
 [Unit]
 Description=Flaw Patrol update helper (Workspace settings, Updates)
@@ -271,8 +310,9 @@ Requires=docker.service
 [Service]
 Type=simple
 User=$owner
+Environment="FP_ROOT=$ROOT"
 WorkingDirectory=$ROOT
-ExecStart=$ROOT/scripts/server-update.sh run
+ExecStart=$HELPER run
 Restart=always
 RestartSec=10
 
@@ -280,7 +320,9 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
   systemctl daemon-reload
-  systemctl enable --now flaw-patrol-updater
+  systemctl enable flaw-patrol-updater
+  # restart, not start, so installing again picks up a new copy of the helper.
+  systemctl restart flaw-patrol-updater
   echo
   echo "Done. The update helper is running as $owner and starts with the server."
   echo "If Flaw Patrol was started before this, restart it once so it sees the folder:"
@@ -289,18 +331,18 @@ EOF
 }
 
 uninstall() {
-  [ "$(id -u)" = 0 ] || { echo "Run it with sudo: sudo $0 uninstall" >&2; exit 1; }
+  [ "$(id -u)" = 0 ] || { echo "Run it with sudo: sudo $REPO_SCRIPT uninstall" >&2; exit 1; }
   systemctl disable --now flaw-patrol-updater 2>/dev/null
-  rm -f "$UNIT"
+  rm -f "$UNIT" "$HELPER"
   systemctl daemon-reload
   echo "Removed the update helper. Flaw Patrol, its code and its data are untouched."
 }
 
 case "${1:-}" in
-  install) install ;;
+  install) install_helper ;;
   uninstall) uninstall ;;
   run) run ;;
   check) prepare; check ;;
   update) prepare; load_status; update manual "$(id -un)" ;;
-  *) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+  *) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac
