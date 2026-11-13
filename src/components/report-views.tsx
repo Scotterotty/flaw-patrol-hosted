@@ -240,7 +240,7 @@ function SplitBars({ manual, auto, autoAll, autoRuns }: { manual: StatusCounts |
 
 /** `suiteKey`: the project whose page each suite links to (the umbrella's hub on its Reports). */
 export function StatusView({ suiteKey, runs: allRuns, suites, kind, only }: { suiteKey: string; runs: Awaited<ReturnType<typeof runReport>>; suites: Awaited<ReturnType<typeof suiteReport>>; kind?: RunKind; only?: PartId }) {
-  // Bug bashes stay out of the numbers, like the summary line (ver_237); By test cycle lists them apart.
+  // Bug bashes stay out of the numbers, like the summary line (ver_242); By test cycle lists them apart.
   const runs = countedRuns(allRuns, kind);
   const onlyBashes = runs.length === 0 && allRuns.length > 0;
   const show = (part: PartId) => shows(only)(part) && !(onlyBashes && part !== "status.suites");

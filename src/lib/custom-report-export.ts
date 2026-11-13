@@ -118,7 +118,7 @@ export async function partBlocks(cs: CustomScope, load: Loader, it: ReportPart, 
   const runs = await load.runs(f);
   if (!runs.length) return nothing("No test runs match these filters.");
   const { manual, auto } = splitProgress(runs);
-  // Bug bashes stay out of the status numbers and get their own rows (ver_237), as on screen.
+  // Bug bashes stay out of the status numbers and get their own rows (ver_242), as on screen.
   const counted = countedRuns(runs, f.kind);
   const status = splitProgress(counted);
   const onlyBashes = () => nothing("Only bug bashes match these filters. Bug bashes don't count toward pass rates.");

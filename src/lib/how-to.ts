@@ -1148,7 +1148,7 @@ export const HOW_TO: HowToTask[] = [
     ],
     next: "risk-board",
   },
-  // ver_237: bug bashes get their own group in Reports, apart from test cycles.
+  // ver_242: bug bashes get their own group in Reports, apart from test cycles.
   {
     id: "bash-in-reports",
     group: "Bug bashes",

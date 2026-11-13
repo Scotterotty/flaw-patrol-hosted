@@ -92,7 +92,7 @@ export type RunRow = {
   id: string;
   /** A bug bash's run: kept out of the Reports summary's run count. */
   bash?: boolean;
-  /** The bug bash behind the run, for its own row in By test cycle (ver_237). */
+  /** The bug bash behind the run, for its own row in By test cycle (ver_242). */
   bashInfo?: { id: string; name: string; at: Date; homeKey: string } | null;
   /** The test cycle the run belongs to: run numbers are only unique within it. */
   projectKey: string;

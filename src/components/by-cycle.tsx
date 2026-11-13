@@ -11,7 +11,7 @@ import { pct, totals } from "@/lib/status";
 /**
  * One row per test cycle: how its runs in range are going. Hand testing and
  * automation get their own rows, so automation never reads as manual progress.
- * Bug bashes aren't test cycles: they get their own group under the cycles (ver_237),
+ * Bug bashes aren't test cycles: they get their own group under the cycles (ver_242),
  * one row per bash with its name and day, and never count in pass rates.
  */
 export function ByCycle({ runs, colorOf }: { runs: RunRow[]; colorOf: (platform: string) => string }) {

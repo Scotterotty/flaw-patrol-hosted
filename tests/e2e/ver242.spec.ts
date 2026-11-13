@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
 
-// ver_237: a bug bash in Reports is listed apart from the test cycles, under Bug bashes,
+// ver_242: a bug bash in Reports is listed apart from the test cycles, under Bug bashes,
 // with a Bug bash badge, its name and day. It doesn't count in the Status numbers.
 
 const TAG = Date.now().toString(36).slice(-4).toUpperCase();

@@ -65,7 +65,7 @@ export type ExportCtx = {
 };
 
 const RUN_TYPE = { manual: "Manual", upload: "Automated (uploaded)", github: "Automated (GitHub)" } as const;
-/** A bug bash's run says so, never "Manual" (ver_237). */
+/** A bug bash's run says so, never "Manual" (ver_242). */
 const runType = (r: { source: keyof typeof RUN_TYPE; bash?: boolean }) => (r.bash ? "Bug bash" : RUN_TYPE[r.source]);
 /** The run's version (or start day), with its test cycle in an umbrella (ver_189: never "R12"). */
 const runName = (ctx: ExportCtx, r: Pick<RunRow, "projectKey" | "name" | "build" | "createdAt">) => [ctx.umbrella ? r.projectKey : "", runTag(r) || r.name].filter(Boolean).join(" ");
@@ -511,7 +511,7 @@ export async function reportPdf(ctx: ExportCtx, f: ReportFilters, tabs: ExportTa
     }
     if (id === "status" || id === "steps") {
       const all = await runReport(ctx.scope, f);
-      // Bug bashes stay out of the status numbers, as on screen (ver_237). Steps keep every run.
+      // Bug bashes stay out of the status numbers, as on screen (ver_242). Steps keep every run.
       const runs = id === "status" ? countedRuns(all, f.kind) : all;
       const counts = countStatuses(runs.flatMap((r) => STATUSES.flatMap((s) => Array(id === "status" ? r.counts[s] : r.steps[s]).fill(s))));
       const t = totals(counts);

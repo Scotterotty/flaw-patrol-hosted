@@ -1,4 +1,4 @@
-// Bug bashes in run reports (ver_237). A bash is exploring, not a test cycle: Reports lists
+// Bug bashes in run reports (ver_242). A bash is exploring, not a test cycle: Reports lists
 // it apart, under Bug bashes, and leaves it out of pass rates and the manual numbers.
 // Only when Runs is set to Bug bash do the numbers count them, since that's all there is.
 
