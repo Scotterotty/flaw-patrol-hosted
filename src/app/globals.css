@@ -1795,14 +1795,28 @@ main:focus {
     border-left-width: 1px;
     box-shadow: none;
   }
+  /* The page scrolls in <body>, which ends where the guide starts, so the page's scroll bar sits at
+     the page's own edge instead of right beside the guide's bar (Scott, Nov 13 2026). */
+  :root[data-howto="open"] {
+    overflow: hidden;
+  }
   :root[data-howto="open"] body {
     padding-bottom: 0;
-    padding-right: var(--fp-howto-w);
+    margin-right: var(--fp-howto-w);
+    height: 100vh;
+    height: 100dvh;
+    overflow-y: auto;
   }
   /* Small notes in the corner move over with the page. */
   :root[data-howto="open"] .fp-right {
     right: calc(var(--fp-howto-w) + 1rem);
   }
+}
+/* The guide's own scroll bar: slim, in the Look's colors. */
+.fp-howto-panel,
+.fp-howto-panel * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-slate-300) transparent;
 }
 /* The glow is drawn around the button, never on top of it. */
 .fp-howto-glow {
@@ -1861,8 +1875,14 @@ main:focus {
   .fp-howto-tip {
     display: none;
   }
+  :root[data-howto="open"] {
+    overflow: visible;
+  }
   :root[data-howto="open"] body {
     padding: 0;
+    margin: 0;
+    height: auto;
+    overflow: visible;
   }
 }
 

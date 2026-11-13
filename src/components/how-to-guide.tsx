@@ -5,6 +5,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { findHowTo, HOW_TO, HOW_TO_GROUPS, HOW_TO_START, howToById, plainText, type HowToStep, type HowToTask } from "@/lib/how-to";
 import { useSpell } from "./spelling";
 import { cx } from "./ui";
+import { pageScroller } from "@/lib/page-scroll";
 
 /**
  * The How-to guide (ver_174): a panel docked on the right that pushes the page over and never
@@ -106,13 +107,19 @@ export function HowToGuide({ startHidden = false }: { startHidden?: boolean }) {
   }, [open, taskId, at]);
 
   // The page makes room for the panel instead of sitting under it.
+  // On a computer the page then scrolls in <body> instead of the window (see globals.css), so carry
+  // the scroll position over both ways and the page doesn't jump to the top.
   useEffect(() => {
     const root = document.documentElement;
-    if (open) root.dataset.howto = "open";
-    else delete root.dataset.howto;
-    return () => {
-      delete root.dataset.howto;
+    const flip = (on: boolean) => {
+      const y = pageScroller().scrollTop;
+      if (on) root.dataset.howto = "open";
+      else delete root.dataset.howto;
+      const to = pageScroller();
+      if (to.scrollTop !== y) to.scrollTop = y;
     };
+    flip(open);
+    return () => flip(false);
   }, [open]);
 
   const stop = useCallback(() => setShowing(false), []);
