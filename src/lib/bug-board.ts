@@ -17,8 +17,10 @@ export type BoardIssue = {
   labels: string[];
   versions: string[];
   url: string;
-  /** Flaw Patrol has this bug on a test result: a run found it. */
+  /** Flaw Patrol has this bug: a run found it, or someone wrote it here (ver_232: written ones count too). */
   found: boolean;
+  /** Flaw Patrol's Found in version, when it has one (ver_232). */
+  foundIn?: string;
 };
 
 export type BoardData = {

@@ -106,13 +106,18 @@ export async function loadBugBoard(jiraProjectId: string, scopeIds: string[], op
     }
   }
   const found = await foundKeys(scopeIds);
-  return { ...hit.data, issues: hit.data.issues.map((i) => ({ ...i, found: found.has(i.key) })) };
+  return { ...hit.data, issues: hit.data.issues.map((i) => ({ ...i, found: found.has(i.key), foundIn: found.get(i.key) || undefined })) };
 }
 
-/** Jira keys of bugs that a run (or bug bash) found: they're on a test result. */
+/**
+ * Jira keys of the bugs Flaw Patrol has, with their Found in version: found by a run (or bug bash)
+ * or written here. ver_232: the same bugs Table lists, so Found in testing means the same in both views.
+ */
 async function foundKeys(scopeIds: string[]) {
-  const rows = await db.defect.findMany({ where: { projectId: { in: scopeIds }, externalKey: { not: null }, links: { some: {} } }, select: { externalKey: true }, distinct: ["externalKey"] });
-  return new Set(rows.map((r) => r.externalKey!));
+  const rows = await db.defect.findMany({ where: { projectId: { in: scopeIds }, externalKey: { not: null } }, select: { externalKey: true, foundIn: true }, orderBy: { createdAt: "asc" } });
+  const out = new Map<string, string>();
+  for (const r of rows) if (!out.get(r.externalKey!)) out.set(r.externalKey!, r.foundIn);
+  return out;
 }
 
 /** Forget the cached board, after Refresh from Jira. */

@@ -27,7 +27,8 @@ function seal(plain: string) {
 async function boardUmbrella() {
   const db = new PrismaClient();
   try {
-    const admin = await db.user.findUniqueOrThrow({ where: { email: "admin@example.com" } });
+    // ver_232: start without saved Bugs picks (view, Jira board, Found in testing).
+    const admin = await db.user.update({ where: { email: "admin@example.com" }, data: { bugsPicks: {} } });
     const members = { create: [{ userId: admin.id, role: "ADMIN" as const }] };
     const hub = await db.project.create({ data: { key: `BB${TAG}`, name: `Board ${TAG}`, members } });
     const group = await db.projectGroup.create({ data: { name: `Board ${TAG}`, hubProjectId: hub.id, platforms: [{ name: "Web", suiteIds: [] }], rolesChosenAt: new Date() } });
@@ -65,7 +66,8 @@ test("Board shows every bug on the Jira board, and the bug panel shows the ticke
   test.setTimeout(180_000);
   const u = await boardUmbrella();
   await signIn(page, "admin@example.com", "Demo Admin");
-  await page.goto(`/g/${u.groupId}/bugs`);
+  // Every bug on the board: Found in testing off (ver_232 turns it on at first).
+  await page.goto(`/g/${u.groupId}/bugs?found=all`);
   // Table first, with the switch next to the title.
   await expect(page.getByRole("group", { name: "View" }).getByRole("link", { name: "Table" })).toHaveAttribute("aria-current", "page");
   await page.getByRole("group", { name: "View" }).getByRole("link", { name: "Board" }).click();
@@ -93,7 +95,8 @@ test("Board shows every bug on the Jira board, and the bug panel shows the ticke
   // Filters.
   await board.getByRole("button", { name: "Found in testing", exact: true }).click();
   await expect(board.getByTestId("board-card")).toHaveCount(1);
-  await board.getByRole("button", { name: "Clear filters", exact: true }).click();
+  await board.getByRole("button", { name: "Found in testing", exact: true }).click();
+  await expect(board.getByTestId("board-card")).not.toHaveCount(1);
   await board.getByRole("button", { name: "Mine", exact: true }).click();
   await expect(board.getByTestId("board-card")).toHaveText([/BB-3/]);
   await board.getByRole("button", { name: "Clear filters", exact: true }).click();
@@ -190,4 +193,6 @@ test("Board shows every bug on the Jira board, and the bug panel shows the ticke
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.getByTestId("bug-panel").getByRole("button", { name: "Close" }).click();
   await page.goto(`/g/${u.groupId}/bugs?view=table`);
+  const reset = new PrismaClient();
+  await reset.user.update({ where: { email: "admin@example.com" }, data: { bugsPicks: {} } }).finally(() => reset.$disconnect());
 });

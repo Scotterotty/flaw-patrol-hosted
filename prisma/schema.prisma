@@ -54,6 +54,8 @@ model User {
   spotifyLinks      Json            @default("[]")
   // RC status page: the release last shown and the runs picked for each release (src/lib/rc-status.ts).
   rcReport          Json            @default("{}")
+  // Bugs page (ver_232): the view, Found in testing and the Jira board picked per Jira project (src/lib/bugs-view.ts).
+  bugsPicks         Json            @default("{}")
   // The time zone their browser last reported (src/lib/zone.ts), so digest emails show their own clock.
   timeZone          String?
   // The newest build whose What's new window this person has closed (src/content/whats-new.ts).

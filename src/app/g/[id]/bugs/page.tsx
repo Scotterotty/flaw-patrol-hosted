@@ -21,15 +21,17 @@ import { BugDescription } from "@/components/bug-description";
 import { isWritten, parseAnswers } from "@/lib/bug-layout";
 import { SendWrittenBugButton, WriteBugButton } from "@/components/write-bug";
 import { LastCheckLine, type LastCheck } from "@/components/known-bugs-panel";
-import { BugViewSwitch } from "@/components/bug-board";
-import { BugBoardSection, bugsView } from "@/components/bug-board-section";
+import { BugViewSwitch, JiraOnlyList } from "@/components/bug-board";
+import { BugBoardSection, bugsSetup, tableBoard } from "@/components/bug-board-section";
+import { BugsFilterBar, ShowingLine } from "@/components/bugs-filter-bar";
+import { SHARED_KEYS } from "@/lib/bugs-view";
 
 export const metadata = { title: "Bugs" };
 
 const SEV_BG: Record<Severity, string> = { SHOWSTOPPER: "#b91c1c", CRITICAL: "#ea580c", PROBLEMATIC: "#ca8a04", MINOR: "#475569", ENHANCEMENT: "#94a3b8" };
 
 /** Every bug filed from any project under the umbrella, once each: a Jira issue filed from two platforms shows once with both. */
-export default async function UmbrellaBugsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ q?: string; all?: string; rc?: string; platform?: string; sev?: string; jira?: string; version?: string; from?: string; view?: string; board?: string }> }) {
+export default async function UmbrellaBugsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const spelling = await mySpelling();
   const { id } = await params;
   const sp = await searchParams;
@@ -49,7 +51,11 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
   const shortName = (name: string) => (name.startsWith(`${u.group.name} `) ? name.slice(u.group.name.length + 1) : name);
   const writeTo = u.current.length ? u.current.map((p) => ({ id: p.id, name: shortName(p.name) })) : [{ id: u.hub.id, name: u.group.name }];
   // Board (ver_211): every bug on the Jira board, in its columns. Only with Jira connected.
-  const view = jira ? await bugsView(sp.view) : "table";
+  // ver_232: Table and Board share the Jira board and the filters, saved on the account too.
+  const setup = await bugsSetup(sp, user.id, jira?.jiraProjectKey ?? null);
+  const view = setup.view;
+  const me = { name: user.name ?? "", email: user.email ?? "" };
+  const scopeIds = projects.map((p) => p.id);
   const actions =
     (jira && canRun) || canWrite ? (
       <div className="flex flex-wrap gap-2">
@@ -57,13 +63,24 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
         {canWrite && <WriteBugButton cycles={writeTo} scale={scale} />}
       </div>
     ) : null;
-  if (view === "board")
+  if (view === "board") {
+    const local = await db.defect.findMany({ where: { projectId: { in: scopeIds }, externalKey: null, status: "OPEN" }, orderBy: { createdAt: "desc" }, take: 200, select: { id: true, number: true, title: true, createdBy: true, foundIn: true, projectId: true } });
     return (
       <div>
-        <PageHeader title="Bugs" beside={<BugViewSwitch view="board" />} subtitle={`Every bug on your Jira board for ${jira!.jiraProjectKey}. Click one for its details.`} actions={actions} />
-        <BugBoardSection where={{ groupId: id }} jiraProjectId={u.hub.id} scopeIds={projects.map((p) => p.id)} board={sp.board} me={{ name: user.name ?? "", email: user.email ?? "" }} />
+        <PageHeader title="Bugs" beside={<BugViewSwitch view="board" />} subtitle={`Bugs on your Jira board for ${jira!.jiraProjectKey}. Click one for its details.`} actions={actions} />
+        <BugBoardSection
+          where={{ groupId: id }}
+          jiraProjectId={u.hub.id}
+         
+          scopeIds={scopeIds}
+          board={setup.board}
+          me={me}
+          foundDefault={setup.picks.found ?? true}
+          local={local.map((d) => ({ id: d.id, label: `${byId.get(d.projectId)?.key}-D${d.number}`, title: d.title, href: "?view=table&jira=local", createdBy: d.createdBy, foundIn: d.foundIn }))}
+        />
       </div>
     );
+  }
   const defects = await db.defect.findMany({
     where: { projectId: { in: projects.map((p) => p.id) }, ...(showAll ? {} : OPEN_BUG), ...(sp.jira === "local" ? { externalKey: null } : {}) },
     orderBy: { createdAt: "asc" },
@@ -103,17 +120,23 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
   }
   // Forgiving search: exact matches, then close ones under their own label.
   const bySeverity = (a: Row, b: Row) => severityRank(a.first.severity) - severityRank(b.first.severity) || b.first.createdAt.getTime() - a.first.createdAt.getTime();
+  // ver_232: with Jira, the same bugs as Board (the picked board and the shared filters). Search stays forgiving.
+  const tb = jira ? await tableBoard(u.hub.id, scopeIds, setup.board, setup.filters, me, { search: false }) : null;
+  const asTableBug = (r: Row) => ({ ...r.first, label: r.first.externalKey ?? `${byId.get(r.first.projectId)?.key}-D${r.first.number}` });
+  const offBoard = tb ? tb.offBoard([...rows.values()].map(asTableBug)) : 0;
   const found = forgivingFilter(
     [...rows.values()]
+      .filter((r) => !tb || tb.keep(asTableBug(r)))
       .filter((r) => !sp.platform || r.platforms.some((p) => p.toLowerCase() === sp.platform!.toLowerCase()))
       .filter((r) => !sp.rc || r.rcs.includes(sp.rc))
-      .filter((r) => !sp.version || r.first.foundIn === sp.version)
+      .filter((r) => !!tb || !sp.version || r.first.foundIn === sp.version)
       .filter((r) => sp.from !== "own" || isWritten(r.first.layout))
       .filter((r) => sp.sev !== "critical" || isSevere(r.first.severity, scale)),
     sp.q ?? "",
     (r) => `${r.first.title} ${r.first.externalKey ?? ""} ${r.cases.join(" ")}`,
   );
   const list = [...found.exact.sort(bySeverity), ...found.close.sort(bySeverity)];
+  const jiraOnly = tb ? forgivingFilter(tb.jiraOnly(new Set((await db.defect.findMany({ where: { projectId: { in: scopeIds }, externalKey: { not: null } }, select: { externalKey: true } })).map((d) => d.externalKey!))), sp.q ?? "", (i) => `${i.key} ${i.title} ${i.labels.join(" ")} ${i.assignee}`).exact : [];
   const closeStart = found.close.length ? found.exact.length : -1;
   const openRows = [...rows.values()].filter((r) => r.first.status === "OPEN");
   const critical = openRows.filter((r) => isSevere(r.first.severity, scale)).length;
@@ -123,7 +146,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
 
   const link = (patch: Record<string, string | undefined>) => {
     const s = new URLSearchParams();
-    for (const [k, v] of Object.entries({ q: sp.q, all: sp.all, rc: sp.rc, platform: sp.platform, sev: sp.sev, jira: sp.jira, version: sp.version, from: sp.from, ...patch })) if (v) s.set(k, v);
+    for (const [k, v] of Object.entries({ ...Object.fromEntries(["view", ...SHARED_KEYS].map((k) => [k, sp[k]])), all: sp.all, rc: sp.rc, platform: sp.platform, sev: sp.sev, jira: sp.jira, from: sp.from, ...patch })) if (v) s.set(k, v);
     return `?${s}`;
   };
   const chip = (label: string, on: boolean, href: string, dot?: string) => (
@@ -155,32 +178,51 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
           </Link>
         </p>
       )}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <AutoFilterForm className="min-w-60 flex-1">
-          {Object.entries({ all: sp.all, rc: sp.rc, platform: sp.platform, sev: sp.sev, jira: sp.jira, version: sp.version, from: sp.from }).map(([k, v]) => v && <input key={k} type="hidden" name={k} value={v} />)}
-          <Input name="q" type="search" defaultValue={sp.q} placeholder="Search bugs, Jira keys or case IDs" aria-label="Search bugs" data-howto="bugs-search" className="w-full" />
-        </AutoFilterForm>
-        {chip(showAll ? "Open and closed" : "Open", !showAll, link({ all: showAll ? undefined : "1" }))}
-        {sp.jira === "local" && chip("Not in Jira", true, link({ jira: undefined }))}
-        {sp.sev === "critical" ? chip("Critical only", true, link({ sev: undefined })) : chip("Critical", false, link({ sev: "critical" }))}
-        {chip("Not from a run", sp.from === "own", link({ from: sp.from === "own" ? undefined : "own" }))}
-        {latestRc && chip(latestRc, sp.rc === latestRc, link({ rc: sp.rc === latestRc ? undefined : latestRc }))}
-        {(versions.length > 0 || sp.version) && (
-          <AutoFilterForm>
-            {Object.entries({ q: sp.q, all: sp.all, rc: sp.rc, platform: sp.platform, sev: sp.sev, jira: sp.jira, from: sp.from }).map(([k, v]) => v && <input key={k} type="hidden" name={k} value={v} />)}
-            <Select name="version" defaultValue={sp.version ?? ""} className="w-auto" aria-label="Found in version">
-              <option value="">Any version</option>
-              {[...new Set([...versions, ...(sp.version ? [sp.version] : [])])].map((v) => (
-                <option key={v} value={v}>
-                  Found in {v}
-                </option>
-              ))}
-            </Select>
+      {tb ? (
+        <div className="mb-4 flex flex-col gap-2">
+          <BugsFilterBar mode="table" boards={tb.data?.boards ?? []} board={tb.data?.board ?? null} filters={setup.filters} versions={[...new Set([...versions, ...tb.options.versions])]} labels={tb.options.labels} priorities={tb.options.priorities}>
+            {chip(showAll ? "Open and closed" : "Open", !showAll, link({ all: showAll ? undefined : "1" }))}
+            {sp.jira === "local" && chip("Not in Jira", true, link({ jira: undefined }))}
+            {sp.sev === "critical" ? chip("Critical only", true, link({ sev: undefined })) : chip("Critical", false, link({ sev: "critical" }))}
+            {chip("Not from a run", sp.from === "own", link({ from: sp.from === "own" ? undefined : "own" }))}
+            {latestRc && chip(latestRc, sp.rc === latestRc, link({ rc: sp.rc === latestRc ? undefined : latestRc }))}
+            {u.platforms.map((p) => chip(p.name, sp.platform?.toLowerCase() === p.name.toLowerCase(), link({ platform: sp.platform?.toLowerCase() === p.name.toLowerCase() ? undefined : p.name }), platformColor(u.platforms, p.name)))}
+          </BugsFilterBar>
+          <ShowingLine shown={list.length + jiraOnly.length} found={setup.filters.found} board={tb.data?.board?.name ?? null} more={tb.data ? new Set([...tb.data.issues.map((i) => i.key), ...rows.keys()]).size : undefined} />
+          {offBoard > 0 && (
+            <p className="text-xs text-slate-600" data-testid="bugs-off-board">
+              {offBoard === 1 ? "1 open bug isn't" : `${offBoard} open bugs aren't`} on this Jira board. Pick another board to see {offBoard === 1 ? "it" : "them"}.
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <AutoFilterForm className="min-w-60 flex-1">
+            {Object.entries({ all: sp.all, rc: sp.rc, platform: sp.platform, sev: sp.sev, jira: sp.jira, version: sp.version, from: sp.from }).map(([k, v]) => v && <input key={k} type="hidden" name={k} value={v} />)}
+            <Input name="q" type="search" defaultValue={sp.q} placeholder="Search bugs, Jira keys or case IDs" aria-label="Search bugs" data-howto="bugs-search" className="w-full" />
           </AutoFilterForm>
-        )}
-        {u.platforms.map((p) => chip(p.name, sp.platform?.toLowerCase() === p.name.toLowerCase(), link({ platform: sp.platform?.toLowerCase() === p.name.toLowerCase() ? undefined : p.name }), platformColor(u.platforms, p.name)))}
-      </div>
-      {list.length === 0 ? (
+          {chip(showAll ? "Open and closed" : "Open", !showAll, link({ all: showAll ? undefined : "1" }))}
+          {sp.jira === "local" && chip("Not in Jira", true, link({ jira: undefined }))}
+          {sp.sev === "critical" ? chip("Critical only", true, link({ sev: undefined })) : chip("Critical", false, link({ sev: "critical" }))}
+          {chip("Not from a run", sp.from === "own", link({ from: sp.from === "own" ? undefined : "own" }))}
+          {latestRc && chip(latestRc, sp.rc === latestRc, link({ rc: sp.rc === latestRc ? undefined : latestRc }))}
+          {(versions.length > 0 || sp.version) && (
+            <AutoFilterForm>
+              {Object.entries({ q: sp.q, all: sp.all, rc: sp.rc, platform: sp.platform, sev: sp.sev, jira: sp.jira, from: sp.from }).map(([k, v]) => v && <input key={k} type="hidden" name={k} value={v} />)}
+              <Select name="version" defaultValue={sp.version ?? ""} className="w-auto" aria-label="Found in version">
+                <option value="">Any version</option>
+                {[...new Set([...versions, ...(sp.version ? [sp.version] : [])])].map((v) => (
+                  <option key={v} value={v}>
+                    Found in {v}
+                  </option>
+                ))}
+              </Select>
+            </AutoFilterForm>
+          )}
+          {u.platforms.map((p) => chip(p.name, sp.platform?.toLowerCase() === p.name.toLowerCase(), link({ platform: sp.platform?.toLowerCase() === p.name.toLowerCase() ? undefined : p.name }), platformColor(u.platforms, p.name)))}
+        </div>
+      )}
+      {list.length === 0 && jiraOnly.length ? null : list.length === 0 ? (
         <EmptyState title={defects.length ? "No bugs match" : "No bugs yet"}>{defects.length ? "Try fewer filters." : `Bugs filed from any ${u.group.name} run show up here, and so do bugs written with + Write a bug.`}</EmptyState>
       ) : (
         <Card className="overflow-x-auto">
@@ -270,6 +312,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
           </table>
         </Card>
       )}
+      {tb && <JiraOnlyList where={{ groupId: id }} issues={jiraOnly} me={me} board={tb.data?.board?.name ?? null} />}
     </div>
   );
 }
