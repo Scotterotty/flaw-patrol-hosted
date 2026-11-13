@@ -20,7 +20,7 @@ export default async function SharedStepsPage({ params, searchParams }: { params
   });
 
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <PageHeader
         title={
           <span className="inline-flex items-center gap-2">

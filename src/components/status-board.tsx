@@ -61,7 +61,7 @@ export function StatusBoard({ groupId, name, sources, canManage, canBug }: { gro
 
   if (!sources.length)
     return (
-      <div className="max-w-5xl">
+      <div className="page page-list">
         <Header name={name} checked="" busy={false} onRefresh={null} />
         <Card className="space-y-3 p-6 text-sm text-slate-700" data-testid="status-empty">
           <p className="font-medium text-slate-900">Nothing is connected yet.</p>
@@ -87,7 +87,7 @@ export function StatusBoard({ groupId, name, sources, canManage, canBug }: { gro
     );
 
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <Header name={name} checked={checked} busy={busy} onRefresh={() => load(true)} />
       <p
         className={cx("mb-4 rounded-lg px-4 py-2.5 text-sm font-semibold", waiting.length && !bad.length ? "bg-slate-100 text-slate-700" : bad.length ? "bg-red-50 text-red-800" : "bg-emerald-50 text-emerald-800")}

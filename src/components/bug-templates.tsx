@@ -428,8 +428,8 @@ export function TemplateEditor({
     });
 
   return (
-    <Modal open onClose={onClose} title={initial.id ? `Edit ${initial.name}` : `New template: ${initial.name}`} wide>
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]" data-testid="template-editor">
+    <Modal open onClose={onClose} title={initial.id ? `Edit ${initial.name}` : `New template: ${initial.name}`} wide roomy>
+      <div className="grid gap-5 lg:grid-cols-2" data-testid="template-editor">
         <div className="min-w-0 space-y-4">
           <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -643,7 +643,7 @@ function PreviewTable({ s, rows }: { s: Section; rows: number }) {
         <thead>
           <tr>
             {s.columns.map((c, i) => (
-              <th key={i} className="border-r border-slate-100 bg-slate-100 px-1.5 py-1 text-left font-semibold whitespace-nowrap">
+              <th key={i} className="border-r border-slate-100 bg-slate-100 px-1.5 py-1 text-left align-top font-semibold">
                 {c.name}
               </th>
             ))}
@@ -653,7 +653,7 @@ function PreviewTable({ s, rows }: { s: Section; rows: number }) {
           {Array.from({ length: rows }, (_, r) => (
             <tr key={r}>
               {s.columns.map((c, i) => (
-                <td key={i} className={cx("border-t border-r border-slate-100 px-1.5 py-1 whitespace-nowrap", c.fill !== "write" && "bg-slate-50 text-slate-500")}>
+                <td key={i} className={cx("border-t border-r border-slate-100 px-1.5 py-1 align-top", c.fill !== "write" && "bg-slate-50 text-slate-500")}>
                   {c.fill === "write" ? <span className="inline-block min-w-10 rounded border border-slate-300 px-1">&nbsp;</span> : r ? EXAMPLE_CELLS[c.fill].replace("Sam Lee", "Ana Ruiz") : EXAMPLE_CELLS[c.fill]}
                 </td>
               ))}

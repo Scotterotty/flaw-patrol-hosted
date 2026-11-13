@@ -85,7 +85,7 @@ export default async function StoriesPage({ params, searchParams }: { params: Pr
 
   if (!cov.connected)
     return (
-      <div className="max-w-6xl">
+      <div className="page page-list">
         <PageHeader title="Requirements" />
         <EmptyState title="Jira isn't connected" action={can(who, "jira:manage") ? <LinkButton href={await cycleSettingsHref(project, user, "jira")}>Open Settings</LinkButton> : null}>
           Requirements come from Jira. Once Jira is connected, link cases to stories, Epics or other requirements, and their coverage shows here.
@@ -94,7 +94,7 @@ export default async function StoriesPage({ params, searchParams }: { params: Pr
     );
 
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <PageHeader
         title="Requirements"
         subtitle={`${kinds} from ${source}`}

@@ -25,7 +25,7 @@ export function AccountForm({ name }: { name: string }) {
     >
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <Field label="Your name" htmlFor="account-name" hint="Shown to your team on cases, runs and results, including ones you've already recorded.">
-        <Input id="account-name" value={value} onChange={(e) => setValue(e.target.value)} required maxLength={100} />
+        <Input id="account-name" className="max-w-md" value={value} onChange={(e) => setValue(e.target.value)} required maxLength={100} />
       </Field>
       <div className="flex items-center gap-3">
         <Button type="submit" variant="primary" disabled={pending || !value.trim() || value.trim() === name}>

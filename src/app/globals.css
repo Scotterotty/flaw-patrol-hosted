@@ -1977,3 +1977,31 @@ a[href]:is(.text-accent-600, .text-accent-700).hover\:underline {
 @media (prefers-reduced-motion: no-preference) {
   html:not([data-motion="reduce"]) .fp-pop { animation: fp-pop 400ms ease-out; }
 }
+
+/*
+ * Page widths (ver_233). Every page is centered beside the menu and uses one of three widths,
+ * so pages look the same size wherever you go. New pages pick one of these instead of their own max-w:
+ *   page page-settings  896 px  Your account, Test cycle / Team / Workspace settings, Qase
+ *   page page-list     1152 px  lists and work pages (Bugs, Test runs, Reports, Team home...)
+ *   page page-reading   672 px  What's new, Leaderboard (short lines read best)
+ * At the largest text size (150%) pages fill the screen, as they did before.
+ * tests/e2e/page-widths.spec.ts checks these.
+ */
+@layer components {
+  .page {
+    width: 100%;
+    margin-inline: auto;
+  }
+  .page-settings {
+    max-width: 56rem;
+  }
+  .page-list {
+    max-width: 72rem;
+  }
+  .page-reading {
+    max-width: 42rem;
+  }
+  :root[data-text-size="150"] .page {
+    max-width: none;
+  }
+}

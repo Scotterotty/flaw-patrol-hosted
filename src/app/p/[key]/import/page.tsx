@@ -45,7 +45,7 @@ export default async function ImportPage({ params, searchParams }: { params: Pro
     if (!u.group.archivedAt && can(u.who, "cycle:create")) sheetRun.newCycle = { groupId: u.group.id, name: u.group.name };
   }
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <PageHeader title="Import test cases" subtitle="Bring existing cases in from a CSV or Excel file. Nothing is saved until you press Import." />
       <CsvImporter
         projectId={project.id}

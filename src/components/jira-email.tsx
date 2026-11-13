@@ -42,7 +42,7 @@ export function JiraEmailForm({ jiraEmail, email }: { jiraEmail: string | null; 
       </p>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <Field label="Jira email (only if different)" htmlFor="jira-email-own">
-        <Input id="jira-email-own" type="email" value={value} onChange={(e) => setValue(e.target.value)} placeholder={email} className="max-w-sm" />
+        <Input id="jira-email-own" type="email" value={value} onChange={(e) => setValue(e.target.value)} placeholder={email} className="max-w-md" />
       </Field>
       {match?.site && (
         <p role="status" className={match.name ? "flex items-center gap-2 text-sm text-emerald-700" : "flex items-center gap-2 text-sm text-amber-800"}>

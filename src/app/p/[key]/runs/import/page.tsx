@@ -26,7 +26,7 @@ export default async function ImportRunPage({ params, searchParams }: { params: 
   const runs = active.map((r) => ({ id: r.id, number: r.number, name: r.name, title: runTitle(r), total: r.entries.length, tested: r.entries.filter((e) => e.status !== "UNTESTED").length }));
   return (
     // Same width as Test runs, and only the top bar's breadcrumb (ver_54 audit #5, #6).
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <PageHeader title="Import a run" subtitle={`Import results tracked in a spreadsheet for ${project.name}: step results, case results and testers. Add them to a run in progress, or make a new run.`} />
       <RunImporter projectId={project.id} projectKey={project.key} suites={suites} runs={runs} pickRun={sp.run} handoff={sp.sheet === "handoff"} />
     </div>

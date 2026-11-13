@@ -23,7 +23,7 @@ export default async function SharedStepPage({ params, searchParams }: { params:
   const isCurrent = shown?.version === s.currentVersion;
 
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <CrumbName href={`/p/${project.key}/shared-steps/${s.id}`} label={s.name} />
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>

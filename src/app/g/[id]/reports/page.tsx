@@ -89,7 +89,7 @@ export default async function UmbrellaReportsPage({ params, searchParams }: { pa
   const wrapPick = wrapPickOf(user.rcReport, wrapKey);
   const wrapUps = await attachedWrapUps(all, wrapPick, wrapPick.auto ? (f.release ? await releaseStart(all, f.release) : f.from) : null);
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <PageHeader
         title="Reports"
         subtitle={`${u.group.name} · ${where} · ${when}`}

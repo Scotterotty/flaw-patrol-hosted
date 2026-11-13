@@ -84,31 +84,33 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
       <TopBar user={user} />
       <div className="flex">
         {last && <ProjectMenu project={last.project} user={user} />}
-        <main id="main" tabIndex={-1} className="max-w-3xl min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
-          <PageHeader title="Workspace settings" subtitle="Only workspace admins see this page." />
-          <AccountTabs
-            label="Workspace sections"
-            tabs={[
-              ["sign-in", "Sign-in"],
-              ["email", "Email"],
-              ["bug-templates", "Bug templates"],
-              ["activity", "Activity log"],
-              ["game-admin", "Game admin"],
-            ]}
-          />
-          <div className="space-y-5">
-            <WorkspaceSignIn
-              password={{ on: ws.passwordSignIn, joinDomains: ws.joinDomains, envDomains: domainList(process.env.AUTH_ALLOWED_DOMAINS).join(", ") }}
-              providers={providers}
-              githubFromEnv={!!env.github}
-              callbackBase={callbackBase}
-              tested={tested ?? null}
+        <main id="main" tabIndex={-1} className="min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
+          <div className="page page-settings">
+            <PageHeader title="Workspace settings" subtitle="Only workspace admins see this page." />
+            <AccountTabs
+              label="Workspace sections"
+              tabs={[
+                ["sign-in", "Sign-in"],
+                ["email", "Email"],
+                ["bug-templates", "Bug templates"],
+                ["activity", "Activity log"],
+                ["game-admin", "Game admin"],
+              ]}
             />
-            <WorkspaceEmail saved={mail} />
-            <EmailGroupsCard groups={groups} people={people} isAdmin={user.isAdmin} />
-            <WorkspaceBugTemplates list={templates} sources={sources} joinDomains={ws.joinDomains} />
-            <ActivityLog filters={filters} spelling={spelling} />
-            <GameAdminCard />
+            <div className="space-y-5">
+              <WorkspaceSignIn
+                password={{ on: ws.passwordSignIn, joinDomains: ws.joinDomains, envDomains: domainList(process.env.AUTH_ALLOWED_DOMAINS).join(", ") }}
+                providers={providers}
+                githubFromEnv={!!env.github}
+                callbackBase={callbackBase}
+                tested={tested ?? null}
+              />
+              <WorkspaceEmail saved={mail} />
+              <EmailGroupsCard groups={groups} people={people} isAdmin={user.isAdmin} />
+              <WorkspaceBugTemplates list={templates} sources={sources} joinDomains={ws.joinDomains} />
+              <ActivityLog filters={filters} spelling={spelling} />
+              <GameAdminCard />
+            </div>
           </div>
         </main>
       </div>

@@ -102,7 +102,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
 
   if (!releases.length || !board?.connected)
     return (
-      <div className="max-w-6xl">
+      <div className="page page-list">
         {header}
         <RequirementsViews base={`/p/${project.key}`} current="risk" />
         <EmptyState title={board && !board.connected ? "Jira isn't connected" : "No Jira releases yet"} action={can(who, "jira:manage") ? <LinkButton href={full ? `/g/${full.group.id}/settings#stories` : await cycleSettingsHref(project, user, "jira")}>Open Settings</LinkButton> : null}>
@@ -112,7 +112,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
     );
 
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       {header}
       <RequirementsViews base={`/p/${project.key}`} current="risk" query={reqQuery({ releases: chosen, proj })} />
       <div className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-3" data-howto="risk-release">

@@ -72,7 +72,7 @@ export default async function CaseVersionPage({ params, searchParams }: { params
   if (tableChanges.length) fieldChanges.push({ label: "Test data", from: "", to: tableChanges.join(" ") });
 
   return (
-    <div className="max-w-5xl">
+    <div className="page page-list">
       <nav className="mb-2 text-xs text-slate-500">
         <Link href={`/p/${project.key}/cases/${c.number}`} className="hover:underline">
           {caseKey(project.key, c.number)}

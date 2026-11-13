@@ -100,7 +100,7 @@ export async function AutomatedRun({ project, runId, who }: { project: { id: str
   const fileCount = rows.reduce((n, r) => n + r.files.length, 0);
 
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <CrumbName href={`/p/${project.key}/runs/${run.number}`} label={runTitle(run, spelling)} />
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
