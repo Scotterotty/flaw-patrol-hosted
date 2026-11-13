@@ -23,7 +23,7 @@ vi.mock("@/lib/session", () => ({ currentUser: async () => me.current }));
 // Only "guest" is let into bash b1 as someone outside the team.
 vi.mock("@/lib/link-access-server", () => ({ bashGuestOk: async (bashId: string, userId: string) => (bashId === "b1" && userId === "guest" ? { projectId: "p1", joined: true } : null) }));
 vi.mock("@/server/bashes", () => ({ bashTick: async () => {} }));
-vi.mock("@/lib/bash-live", () => ({ bashFinds: async (id: string) => (id === "b1" ? { projectId: "p1", finds: [] } : null) }));
+vi.mock("@/lib/bash-live", () => ({ bashFinds: async (id: string) => (id === "b1" ? { projectId: "p1", finds: [] } : null), bashFindsVersion: async (id: string) => (id === "b1" ? { projectId: "p1", v: "v1" } : null) }));
 vi.mock("@/lib/live-rows-data", () => ({ liveRowsFor: async () => [] }));
 vi.mock("@/lib/db", () => ({
   db: {
@@ -105,6 +105,15 @@ describe.each(projectRoutes)("GET $name", ({ route, id, signedOut }) => {
   it("serves a workspace admin who isn't on the team", async () => {
     as("admin");
     expect((await get(route, id)).status).toBe(200);
+  });
+});
+
+describe("live bug bash finds with a fingerprint", () => {
+  it("sends only the fingerprint while nothing changed, and every find once it did", async () => {
+    as("member");
+    const ask = (v: string) => liveFinds.GET(new Request(`http://x/api/live/bashes/b1/finds?v=${v}`), { params: Promise.resolve({ id: "b1" }) });
+    expect(await (await ask("v1")).json()).toEqual({ v: "v1", same: true });
+    expect(await (await ask("old")).json()).toEqual({ finds: [], v: "v1" });
   });
 });
 
