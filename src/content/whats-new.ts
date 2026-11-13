@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 235,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "fix",
+        title: "The 100% label on the pass rate chart shows in full",
+        text: "On a test cycle's home page, the latest value above the \"Pass rate, last 30 days\" line was cut off at the top when it was 100%. The chart now has room above the 100% line, in every look and on phones.",
+      },
+    ],
+  },
+  {
     version: 234,
     date: "2026-11-13",
     items: [

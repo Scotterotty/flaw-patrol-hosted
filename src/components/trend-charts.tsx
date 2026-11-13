@@ -11,7 +11,8 @@ import { cx } from "./ui";
 // Drawn at roughly the width it's shown at, so axis text stays its real size.
 const W = 1000;
 const H = 220;
-const pad = { l: 36, r: 16, t: 14, b: 24 };
+// Top room fits the latest-value label above a 100% point, so it never clips.
+const pad = { l: 36, r: 16, t: 28, b: 24 };
 
 /** Which x labels to print so they never collide: about eight, plus the last. */
 const showLabel = (i: number, n: number) => i === n - 1 || i % Math.ceil(n / 8) === 0;
