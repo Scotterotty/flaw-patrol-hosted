@@ -1,0 +1,1 @@
+ALTER TABLE "User" ADD COLUMN "bugsPicks" JSONB NOT NULL DEFAULT '{}';

@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fileSize, isMe, priorityTone, shortNames, type BoardData, type BoardIssue, type FoundAt, type PriorityTone, type TicketDetail } from "@/lib/bug-board";
 import { bugTicket } from "@/server/bug-board";
 import { JiraAdf } from "./jira-adf";
-import { Button, cx, Input, Select } from "./ui";
+import { keepBug, sharedFilters, switchHref } from "@/lib/bugs-view";
+import { saveBugsPicks } from "@/server/bug-board";
+import { BugsFilterBar, ShowingLine } from "./bugs-filter-bar";
+import { Button, cx } from "./ui";
 
 /**
  * Bug board (ver_211): the Bugs page's Board view. Every bug on the team's Jira board, in the
@@ -34,97 +37,50 @@ function FoundTag() {
   return <span className="rounded bg-emerald-50 px-1.5 py-px text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-200 ring-inset">Found in testing</span>;
 }
 
-export function BugBoard({ where, data, me }: { where: Where; data: BoardData; me: Me }) {
-  const router = useRouter();
-  const [q, setQ] = useState("");
-  const [mine, setMine] = useState(false);
-  const [found, setFound] = useState(false);
-  const [version, setVersion] = useState("");
-  const [label, setLabel] = useState("");
-  const [priority, setPriority] = useState("");
+export type LocalBug = { id: string; label: string; title: string; href: string; createdBy: string; foundIn: string };
+
+export function BugBoard({ where, data, me, jiraKey, foundDefault, local = [] }: { where: Where; data: BoardData; me: Me; jiraKey: string; foundDefault: boolean; local?: LocalBug[] }) {
+  const params = useSearchParams();
+  const f = sharedFilters(Object.fromEntries(params.entries()), { found: foundDefault });
   const [col, setCol] = useState(0);
   const [shown, setShown] = useState<Record<number, number>>({});
   const [open, setOpen] = useState<string | null>(null);
 
   const nameOf = useMemo(() => shortNames(data.issues.map((i) => ({ name: i.assignee, email: i.assigneeEmail })), me), [data.issues, me]);
   const sorted = (list: string[]) => [...new Set(list)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-  const versions = useMemo(() => sorted(data.issues.flatMap((i) => i.versions)), [data.issues]);
+  const versions = useMemo(() => sorted([...data.issues.flatMap((i) => [...i.versions, ...(i.foundIn ? [i.foundIn] : [])]), ...local.map((l) => l.foundIn).filter(Boolean)]), [data.issues, local]);
   const labels = useMemo(() => sorted(data.issues.flatMap((i) => i.labels)), [data.issues]);
   const priorities = useMemo(() => [...new Set(data.issues.map((i) => i.priority).filter(Boolean))], [data.issues]);
 
-  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const keep = (i: BoardIssue) =>
-    (!mine || isMe({ name: i.assignee, email: i.assigneeEmail }, me)) &&
-    (!found || i.found) &&
-    (!version || i.versions.includes(version)) &&
-    (!label || i.labels.includes(label)) &&
-    (!priority || i.priority === priority) &&
-    words.every((w) => `${i.key} ${i.title} ${i.labels.join(" ")} ${i.assignee}`.toLowerCase().includes(w));
+  // The same filters as Table (src/lib/bugs-view.ts), so both views show the same bugs.
+  const keep = (i: BoardIssue) => keepBug({ ...i, versions: i.foundIn ? [...i.versions, i.foundIn] : i.versions, inFp: i.found }, f, me);
+  // Bugs saved here and not in Jira yet get their own column at the left, like in Table.
+  const localCards = local.filter((l) => keepBug({ key: l.label, title: l.title, assignee: l.createdBy, assigneeEmail: "", labels: [], priority: "", versions: l.foundIn ? [l.foundIn] : [], inFp: true }, f, me));
   const columns = data.columns.map((c) => ({ ...c, cards: data.issues.filter((i) => c.statusIds.includes(i.statusId) && keep(i)) }));
-  const filtered = !!(words.length || mine || found || version || label || priority);
+  const total = columns.reduce((n, c) => n + c.cards.length, 0) + localCards.length;
   const close = () => setOpen(null);
 
   return (
     <div data-testid="bug-board" className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search bugs" aria-label="Search bugs" data-howto="board-search" className="w-56 max-w-full" />
-        <Chip on={mine} onClick={() => setMine(!mine)}>
-          Mine
-        </Chip>
-        <Chip on={found} onClick={() => setFound(!found)} howto="board-found">
-          Found in testing
-        </Chip>
-        {versions.length > 0 && (
-          <Select value={version} onChange={(e) => setVersion(e.target.value)} aria-label="Version" className="w-auto">
-            <option value="">Any version</option>
-            {versions.map((v) => (
-              <option key={v}>{v}</option>
-            ))}
-          </Select>
-        )}
-        {labels.length > 0 && (
-          <Select value={label} onChange={(e) => setLabel(e.target.value)} aria-label="Label" className="w-auto">
-            <option value="">Any label</option>
-            {labels.map((v) => (
-              <option key={v}>{v}</option>
-            ))}
-          </Select>
-        )}
-        {priorities.length > 0 && (
-          <Select value={priority} onChange={(e) => setPriority(e.target.value)} aria-label="Priority" className="w-auto">
-            <option value="">Any priority</option>
-            {priorities.map((v) => (
-              <option key={v}>{v}</option>
-            ))}
-          </Select>
-        )}
-        {data.boards.length > 1 && data.board && (
-          <Select value={data.board.id} onChange={(e) => router.push(`?view=board&board=${encodeURIComponent(e.target.value)}`)} aria-label="Jira board" className="w-auto">
-            {data.boards.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </Select>
-        )}
-        {filtered && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setQ("");
-              setMine(false);
-              setFound(false);
-              setVersion("");
-              setLabel("");
-              setPriority("");
-            }}
-          >
-            Clear filters
-          </Button>
-        )}
-      </div>
+      <BugsFilterBar mode="board" jiraKey={jiraKey} boards={data.boards} board={data.board} filters={f} versions={versions} labels={labels} priorities={priorities} />
+      <ShowingLine shown={total} found={f.found} board={data.board?.name ?? null} more={data.issues.length + local.length} />
       {data.more && <p className="text-xs text-slate-500">Showing the first 1,000 bugs on the board. Search or filter to find others.</p>}
+
+      {localCards.length > 0 && (
+        <section aria-label="Not in Jira yet" data-testid="board-local" className="flex flex-col gap-2 rounded-lg bg-amber-50 p-2 ring-1 ring-amber-200 ring-inset">
+          <h2 className="px-1 pt-0.5 text-[11px] font-semibold tracking-wide text-amber-900 uppercase">
+            Not in Jira yet <span className="tabular-nums">{localCards.length}</span>
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {localCards.map((l) => (
+              <Link key={l.id} href={l.href} className="flex w-full flex-col gap-1 rounded-md border border-slate-200 bg-surface p-2.5 text-sm shadow-sm hover:border-accent-500 md:w-72">
+                <span className="line-clamp-2 font-medium text-slate-900">{l.title}</span>
+                <span className="font-mono text-xs text-slate-600">{l.label}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Phones: one column at a time, picked from these names. */}
       <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 md:hidden" role="group" aria-label="Board columns">
@@ -205,20 +161,6 @@ export function BugBoard({ where, data, me }: { where: Where; data: BoardData; m
         {open && <BugPanel key={open} where={where} issue={data.issues.find((i) => i.key === open) ?? null} issueKey={open} nameOf={nameOf} onClose={close} />}
       </div>
     </div>
-  );
-}
-
-function Chip({ on, onClick, howto, children }: { on: boolean; onClick: () => void; howto?: string; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={on}
-      onClick={onClick}
-      data-howto={howto}
-      className={cx("inline-flex h-9 items-center rounded-full border px-3 text-sm", on ? "border-accent-500 bg-accent-50 font-medium text-accent-700" : "border-slate-200 text-slate-700 hover:border-accent-500")}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -416,13 +358,16 @@ function FoundAtBox({ f }: { f: FoundAt }) {
 }
 
 /** Table | Board on the Bugs page. Your pick is remembered, so Bugs opens the way you left it. */
+/** Table | Board (ver_211). It keeps every filter and the Jira board, and saves the pick on the account (ver_232). */
 export function BugViewSwitch({ view }: { view: "table" | "board" }) {
-  const remember = (v: string) => {
+  const params = useSearchParams();
+  const remember = (v: "table" | "board") => {
     document.cookie = `fp-bugs-view=${v}; path=/; max-age=31536000; samesite=lax`;
+    void saveBugsPicks({ view: v });
   };
   const item = (v: "table" | "board", label: string) => (
     <Link
-      href={`?view=${v}`}
+      href={switchHref(params.toString(), v)}
       onClick={() => remember(v)}
       aria-current={view === v ? "page" : undefined}
       className={cx("px-3 py-1 text-sm font-medium", view === v ? "bg-accent-600 text-white" : "text-slate-700 hover:bg-slate-100")}
@@ -435,5 +380,44 @@ export function BugViewSwitch({ view }: { view: "table" | "board" }) {
       {item("table", "Table")}
       {item("board", "Board")}
     </span>
+  );
+}
+
+/**
+ * Table with Found in testing off (ver_232): the bugs on the Jira board that Flaw Patrol doesn't
+ * have, under Flaw Patrol's own. Click one for the same bug panel as on Board.
+ */
+export function JiraOnlyList({ where, issues, me, board }: { where: Where; issues: BoardIssue[]; me: Me; board: string | null }) {
+  const [open, setOpen] = useState<string | null>(null);
+  const [limit, setLimit] = useState(PAGE);
+  const nameOf = useMemo(() => shortNames(issues.map((i) => ({ name: i.assignee, email: i.assigneeEmail })), me), [issues, me]);
+  if (!issues.length) return null;
+  return (
+    <section aria-labelledby="jira-only-title" data-testid="jira-only" className="mt-6 flex flex-col gap-2">
+      <h2 id="jira-only-title" className="text-sm font-semibold text-slate-900">
+        Also on {board ?? "the Jira board"}, not found in testing <span className="font-normal text-slate-600 tabular-nums">({issues.length})</span>
+      </h2>
+      <div className={cx("gap-4", open && "lg:grid lg:grid-cols-[minmax(0,1fr)_26rem]")}>
+        <ul className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200 bg-surface text-sm">
+          {issues.slice(0, limit).map((i) => (
+            <li key={i.key}>
+              <button type="button" aria-pressed={open === i.key} onClick={() => setOpen(open === i.key ? null : i.key)} data-testid="jira-only-row" className={cx("flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-left hover:bg-slate-50", open === i.key && "bg-accent-50")}>
+                <span className="font-mono text-xs text-accent-700">{i.key}</span>
+                <span className="min-w-0 flex-1 text-slate-900">{i.title}</span>
+                <span className="rounded border border-slate-200 px-1.5 py-px text-[11px] text-slate-700">{i.status}</span>
+                <PriorityPill name={i.priority} />
+                <span className="w-20 truncate text-xs text-slate-600">{nameOf({ name: i.assignee, email: i.assigneeEmail })}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        {open && <BugPanel key={open} where={where} issue={issues.find((i) => i.key === open) ?? null} issueKey={open} nameOf={nameOf} onClose={() => setOpen(null)} />}
+      </div>
+      {issues.length > limit && (
+        <Button size="sm" variant="ghost" className="self-start" onClick={() => setLimit(limit + PAGE)}>
+          Show {Math.min(PAGE, issues.length - limit)} more
+        </Button>
+      )}
+    </section>
   );
 }

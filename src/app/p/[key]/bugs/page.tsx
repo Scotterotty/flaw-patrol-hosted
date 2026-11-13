@@ -18,13 +18,15 @@ import { BugDescription } from "@/components/bug-description";
 import { isWritten, parseAnswers } from "@/lib/bug-layout";
 import { SendWrittenBugButton, WriteBugButton } from "@/components/write-bug";
 import { LastCheckLine } from "@/components/known-bugs-panel";
-import { BugViewSwitch } from "@/components/bug-board";
-import { BugBoardSection, bugsView } from "@/components/bug-board-section";
+import { BugViewSwitch, JiraOnlyList } from "@/components/bug-board";
+import { BugBoardSection, bugsSetup, tableBoard } from "@/components/bug-board-section";
+import { BugsFilterBar, ShowingLine } from "@/components/bugs-filter-bar";
+import { SHARED_KEYS } from "@/lib/bugs-view";
 import { cycleSettingsHref, hubGroupId, jiraConfigFor } from "@/lib/umbrella";
 
 export const metadata = { title: "Bugs" };
 
-export default async function DefectsPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ status?: string; severity?: string; jira?: string; version?: string; from?: string; write?: string; view?: string; board?: string }> }) {
+export default async function DefectsPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const spelling = await mySpelling();
   const { key } = await params;
   const sp = await searchParams;
@@ -37,8 +39,12 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
   if (jira) await refreshDefectStatuses(project.id).catch(() => null);
 
   // Board (ver_211): every bug on the Jira board, in its columns. Only with Jira connected.
-  const view = jira ? await bugsView(sp.view) : "table";
+  // ver_232: Table and Board share the Jira board and the filters, saved on the account too.
+  const setup = await bugsSetup(sp, user.id, jira?.jiraProjectKey ?? null);
+  const view = setup.view;
+  const me = { name: user.name ?? "", email: user.email ?? "" };
   if (view === "board") {
+    const local = await db.defect.findMany({ where: { projectId: project.id, externalKey: null, status: "OPEN" }, orderBy: { createdAt: "desc" }, take: 200, select: { id: true, number: true, title: true, createdBy: true, foundIn: true } });
     const canWriteBoard = can(who, "run:execute");
     return (
       <div>
@@ -55,7 +61,16 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
             ) : null
           }
         />
-        <BugBoardSection where={{ projectId: project.id }} jiraProjectId={project.id} scopeIds={[project.id]} board={sp.board} me={{ name: user.name ?? "", email: user.email ?? "" }} />
+        <BugBoardSection
+          where={{ projectId: project.id }}
+          jiraProjectId={project.id}
+          jiraKey={jira!.jiraProjectKey}
+          scopeIds={[project.id]}
+          board={setup.board}
+          me={me}
+          foundDefault={setup.picks.found ?? true}
+          local={local.map((d) => ({ id: d.id, label: `D-${d.number}`, title: d.title, href: `?view=table&jira=local#D-${d.number}`, createdBy: d.createdBy, foundIn: d.foundIn }))}
+        />
       </div>
     );
   }
@@ -66,8 +81,8 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
   if (sp.severity) where.severity = sp.severity as Prisma.DefectWhereInput["severity"];
   // Bugs saved before Jira was connected.
   if (sp.jira === "local") where.externalKey = null;
-  // Found-in version.
-  if (sp.version) where.foundIn = sp.version;
+  // Found-in version (with Jira, the shared filter bar handles it, Jira's versions too).
+  if (sp.version && !jira) where.foundIn = sp.version;
   const versions = (await db.defect.findMany({ where: { projectId: project.id, foundIn: { not: "" } }, distinct: ["foundIn"], orderBy: { createdAt: "desc" }, take: 30, select: { foundIn: true } })).map((d) => d.foundIn);
   const scale = await severityScaleFor(project.id);
   const all = await db.defect.findMany({
@@ -83,7 +98,13 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
   });
 
   // Where it came from: a test (or a bug bash), or written on its own with Write a bug.
-  const defects = sp.from === "own" ? all.filter((d) => isWritten(d.layout)) : sp.from === "tests" ? all.filter((d) => !isWritten(d.layout)) : all;
+  const fromPick = sp.from === "own" ? all.filter((d) => isWritten(d.layout)) : sp.from === "tests" ? all.filter((d) => !isWritten(d.layout)) : all;
+  // ver_232: with Jira, the same bugs as Board (the picked board and the shared filters).
+  const tb = jira ? await tableBoard(project.id, [project.id], setup.board, setup.filters, me) : null;
+  const asTableBug = (d: (typeof all)[number]) => ({ ...d, label: `D-${d.number}` });
+  const defects = tb ? fromPick.filter((d) => tb.keep(asTableBug(d))) : fromPick;
+  const offBoard = tb ? tb.offBoard(fromPick.map(asTableBug)) : 0;
+  const jiraOnly = tb ? tb.jiraOnly(new Set((await db.defect.findMany({ where: { projectId: project.id, externalKey: { not: null } }, select: { externalKey: true } })).map((d) => d.externalKey!))) : [];
   const canWrite = can(who, "run:execute");
   // Send to Jira: open bugs saved before Jira was connected, for those who can file bugs.
   const canSend = !!jira && can(who, "run:execute");
@@ -127,38 +148,73 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
           </Link>
         </p>
       )}
-      <AutoFilterForm className="mb-4 flex flex-wrap gap-2">
-        {sp.jira === "local" && <input type="hidden" name="jira" value="local" />}
-        <Select name="from" defaultValue={sp.from ?? ""} className="w-auto" aria-label="Where it came from">
-          <option value="">From anywhere</option>
-          <option value="tests">From tests</option>
-          <option value="own">Not from a run</option>
-        </Select>
-        <Select name="status" defaultValue={sp.status ?? ""} className="w-auto" aria-label="Status">
-          <option value="">Any status</option>
-          <option value="open">Open</option>
-          <option value="resolved">Fixed or closed</option>
-        </Select>
-        <Select name="severity" defaultValue={sp.severity ?? ""} className="w-auto" aria-label="Severity">
-          <option value="">Any severity</option>
-          {scale.levels.map((s) => (
-            <option key={s} value={s}>
-              {scale.labels[s]}
-            </option>
-          ))}
-        </Select>
-        {(versions.length > 0 || sp.version) && (
-          <Select name="version" defaultValue={sp.version ?? ""} className="w-auto" aria-label="Found in version">
-            <option value="">Any version</option>
-            {[...new Set([...versions, ...(sp.version ? [sp.version] : [])])].map((v) => (
-              <option key={v} value={v}>
-                Found in {v}
+      {tb ? (
+        <div className="mb-4 flex flex-col gap-2">
+          <BugsFilterBar mode="table" jiraKey={jira!.jiraProjectKey} boards={tb.data?.boards ?? []} board={tb.data?.board ?? null} filters={setup.filters} versions={[...new Set([...versions, ...tb.options.versions])]} labels={tb.options.labels} priorities={tb.options.priorities}>
+          <AutoFilterForm className="contents">
+            {sp.jira === "local" && <input type="hidden" name="jira" value="local" />}
+            {jira && ["view", ...SHARED_KEYS].map((k) => sp[k] && <input key={k} type="hidden" name={k} value={sp[k]} />)}
+            <Select name="from" defaultValue={sp.from ?? ""} className="w-auto" aria-label="Where it came from">
+              <option value="">From anywhere</option>
+              <option value="tests">From tests</option>
+              <option value="own">Not from a run</option>
+            </Select>
+            <Select name="status" defaultValue={sp.status ?? ""} className="w-auto" aria-label="Status">
+              <option value="">Any status</option>
+              <option value="open">Open</option>
+              <option value="resolved">Fixed or closed</option>
+            </Select>
+            <Select name="severity" defaultValue={sp.severity ?? ""} className="w-auto" aria-label="Severity">
+              <option value="">Any severity</option>
+              {scale.levels.map((s) => (
+                <option key={s} value={s}>
+                  {scale.labels[s]}
+                </option>
+              ))}
+            </Select>
+          </AutoFilterForm>
+          </BugsFilterBar>
+          <ShowingLine shown={defects.length + jiraOnly.length} found={setup.filters.found} board={tb.data?.board?.name ?? null} more={tb.data ? new Set([...tb.data.issues.map((i) => i.key), ...all.map((d) => d.externalKey ?? d.id)]).size : undefined} />
+          {offBoard > 0 && (
+            <p className="text-xs text-slate-600" data-testid="bugs-off-board">
+              {offBoard === 1 ? "1 open bug isn't" : `${offBoard} open bugs aren't`} on this Jira board. Pick another board to see {offBoard === 1 ? "it" : "them"}.
+            </p>
+          )}
+        </div>
+      ) : (
+        <AutoFilterForm className="mb-4 flex flex-wrap gap-2">
+          {sp.jira === "local" && <input type="hidden" name="jira" value="local" />}
+          <Select name="from" defaultValue={sp.from ?? ""} className="w-auto" aria-label="Where it came from">
+            <option value="">From anywhere</option>
+            <option value="tests">From tests</option>
+            <option value="own">Not from a run</option>
+          </Select>
+          <Select name="status" defaultValue={sp.status ?? ""} className="w-auto" aria-label="Status">
+            <option value="">Any status</option>
+            <option value="open">Open</option>
+            <option value="resolved">Fixed or closed</option>
+          </Select>
+          <Select name="severity" defaultValue={sp.severity ?? ""} className="w-auto" aria-label="Severity">
+            <option value="">Any severity</option>
+            {scale.levels.map((s) => (
+              <option key={s} value={s}>
+                {scale.labels[s]}
               </option>
             ))}
           </Select>
-        )}
-      </AutoFilterForm>
-      {defects.length === 0 ? (
+          {(versions.length > 0 || sp.version) && (
+            <Select name="version" defaultValue={sp.version ?? ""} className="w-auto" aria-label="Found in version">
+              <option value="">Any version</option>
+              {[...new Set([...versions, ...(sp.version ? [sp.version] : [])])].map((v) => (
+                <option key={v} value={v}>
+                  Found in {v}
+                </option>
+              ))}
+            </Select>
+          )}
+        </AutoFilterForm>
+      )}
+      {defects.length === 0 && jiraOnly.length ? null : defects.length === 0 ? (
         <EmptyState title={all.length ? "No bugs match" : "No bugs"}>
           {all.length ? "Try fewer filters." : <>When someone reports a bug from a test step, it shows up here with the run and case it came from. Found one outside a test? Use{canWrite ? <b className="font-semibold"> + Write a bug</b> : " Write a bug"} at the top.</>}
         </EmptyState>
@@ -244,6 +300,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
           </table>
         </Card>
       )}
+      {tb && <JiraOnlyList where={{ projectId: project.id }} issues={jiraOnly} me={me} board={tb.data?.board?.name ?? null} />}
     </div>
   );
 }

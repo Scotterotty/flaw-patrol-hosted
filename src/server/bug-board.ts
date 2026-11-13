@@ -4,6 +4,8 @@ import { boardScope, foundAt, ISSUE_KEY, loadTicket } from "@/lib/bug-board-serv
 import { jiraFor } from "@/lib/jira";
 import { Forbidden, requireUser } from "@/lib/session";
 import { attempt, UserError } from "./result";
+import { db } from "@/lib/db";
+import { mergePicks, readPicks } from "@/lib/bugs-view";
 import { JiraError } from "@/lib/jira";
 
 type Where = { groupId?: string | null; projectId?: string | null };
@@ -26,5 +28,16 @@ export async function bugTicket(where: Where, key: string) {
       foundAt(scope.scopeIds, key),
     ]);
     return { ticket, found };
+  });
+}
+
+/** Save the Bugs page picks on the person's account (ver_232): the view, Found in testing and the Jira board. */
+export async function saveBugsPicks(patch: { view?: string; found?: boolean; board?: { jira: string; id: string } }) {
+  return attempt(async () => {
+    const user = await requireUser();
+    const row = await db.user.findUnique({ where: { id: user.id }, select: { bugsPicks: true } });
+    const next = mergePicks(readPicks(row?.bugsPicks), patch);
+    await db.user.update({ where: { id: user.id }, data: { bugsPicks: next } });
+    return {};
   });
 }
