@@ -14,6 +14,7 @@ import { deriveCaseStatus } from "@/lib/status";
 import { attempt, UserError } from "./result";
 import { buildEntries } from "./snapshot";
 import { saveDraft, submitResult } from "./results";
+import { fillSisters, type FillSummary } from "@/lib/sisters-server";
 
 // Clients (ver_214): a test cycle's clients, which clients a case covers, and marking one
 // client's result straight from the run page's grid.
@@ -77,7 +78,7 @@ const markSchema = z.object({
  */
 export async function markClient(projectId: string, entryId: string, input: z.input<typeof markSchema>) {
   return attempt(async () => {
-    await requireProjectAction(projectId, "run:execute");
+    const { user } = await requireProjectAction(projectId, "run:execute");
     const { client, status } = markSchema.parse(input);
     const entry = await db.runEntry.findFirst({
       where: { id: entryId, run: { projectId } },
@@ -111,7 +112,7 @@ export async function markClient(projectId: string, entryId: string, input: z.in
         defects: draft?.defects.map((d) => ({ existingId: d.defect.id, stepIndex: d.stepIndex })) ?? [],
       });
       if (!r.ok) throw new UserError(r.error);
-      return { status: deriveCaseStatus(results) };
+      return { status: deriveCaseStatus(results), sisters: r.sisters };
     }
     const r = await saveDraft(
       projectId,
@@ -127,6 +128,11 @@ export async function markClient(projectId: string, entryId: string, input: z.in
       { steps: mine, override: false, comment: false, attachments: false, defects: false },
     );
     if (!r.ok) throw new UserError(r.error);
-    return { status: r.status };
+    // Sister cases: this client's result fills its sisters' steps in the RC runs.
+    const sisters: FillSummary =
+      status === "UNTESTED"
+        ? { items: [], disagree: 0, at: null }
+        : await fillSisters(entryId, { id: user.id, name: user.name ?? user.email }, { onlyClients: [client] }).catch((e) => (console.warn("Sister fill failed", e), { items: [], disagree: 0, at: null }));
+    return { status: r.status, sisters };
   });
 }

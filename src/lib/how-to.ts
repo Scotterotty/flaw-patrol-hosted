@@ -859,6 +859,22 @@ export const HOW_TO: HowToTask[] = [
     ],
   },
   {
+    // Sister cases: dry run results fill the RC steps they share.
+    id: "sister-cases",
+    group: "Run tests",
+    title: "Fill RC steps from the dry run",
+    sub: "Link dry run cases to their sister cases, so one result counts in both",
+    words: "sister cases link dry run demo rc release candidate same test fill copy carry results twice retype both runs",
+    steps: [
+      { text: "In the left menu, under **Library**, press **Case library**.", see: "Your cases, with a **Sister cases** tab once a test cycle has clients.", target: "menu-cases" },
+      { text: "Press the **Sister cases** tab.", see: "Each dry run case, with the cases it probably shares a test with, one per client.", target: "cases-sisters" },
+      { text: "Tick the steps of the sister case that the dry run case covers.", see: "Only those steps fill in. Untick the ones it doesn't test.", target: "sister-steps" },
+      { text: "Press **Link** on a suggestion, or **Link all suggested** to take them all. Use **+ Add a sister** for one it missed.", see: "**Linked** on each one.", target: "sister-link-all", saves: true },
+      { text: "Test the dry run as usual. When a case or a client gets a result, the linked steps fill in on the open RC runs, only where nobody has marked them yet.", see: "A green **Also filled in the RC** line, with **Undo**." },
+      { text: "In the RC run, the filled steps say **From dry run** and who tested them. Test the rest as usual.", see: "A Fail in the dry run fails those steps, so the RC case fails too." },
+    ],
+  },
+  {
     id: "take-over",
     group: "Run tests",
     title: "Take over a case someone else is testing",

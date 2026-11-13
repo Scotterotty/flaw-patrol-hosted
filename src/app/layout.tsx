@@ -101,6 +101,7 @@ import "./globals.css";
 import "./risk-looks.css";
 import "./looks.css";
 import { QuestToaster } from "@/components/quest-toast";
+import { SisterToaster } from "@/components/sister-toast";
 import { CrownToaster } from "@/components/crown-toast";
 import { crownChanges } from "@/lib/crowns";
 import { SkipLink } from "@/components/skip-link";
@@ -179,6 +180,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             return user ? <GlossaryProvider underline={user.glossaryUnderline}>{page}</GlossaryProvider> : page;
           })()}
           {user?.gameEnabled && user.questMap && <QuestToaster />}
+          {user && <SisterToaster />}
           {crowns && crowns.changes.length > 0 && <CrownToaster changes={crowns.changes} />}
           {/* Your spinner whenever something takes more than a third of a second. */}
           <BusyCorner />

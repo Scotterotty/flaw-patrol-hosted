@@ -25,6 +25,7 @@ describe("crumbsFor", () => {
 
   it("names Import a run, not Rimport", () => {
     expect(labels("/p/OKO/runs/import", oko)).toEqual(["Umbrellas", "OKO Web", "Test runs", "Import a run"]);
+    expect(labels("/p/OKO/cases/sisters", oko)).toEqual(["Umbrellas", "OKO Web", "Test cases", "Sister cases"]);
   });
 
   it("uses the name a page gives itself", () => {

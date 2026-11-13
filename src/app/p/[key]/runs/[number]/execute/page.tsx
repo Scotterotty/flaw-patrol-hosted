@@ -1,3 +1,4 @@
+import { parseSisterFill } from "@/lib/sisters";
 import { runTag, runTitle } from "@/lib/run-label";
 import { rowsOfResult } from "@/lib/test-data-history";
 import { RunName } from "@/components/run-name";
@@ -392,6 +393,7 @@ export default async function ExecutePage({
             clients: entry.clients,
             status: entry.status,
             draft: parseDraft(entry.draft),
+            sisterFill: parseSisterFill(entry.sisterFill),
             stories,
             linkStories,
             draftBy: entry.draftAt ? { name: entry.draftByName, ago: relativeTime(entry.draftAt, spelling), at: entry.draftAt.toISOString(), mine: entry.draftById ? entry.draftById === user.id : entry.draftByName === (user.name ?? user.email) } : null,

@@ -1,5 +1,6 @@
 "use server";
 
+import { fillNewRun } from "@/lib/sisters-server";
 import { runTitle } from "@/lib/run-label";
 import { logActivity } from "@/lib/activity";
 import { Prisma, type ResultStatus } from "@prisma/client";
@@ -145,6 +146,8 @@ export async function createRun(projectId: string, from: z.input<typeof source>,
     await logActivity({ actor: user, kind: "run", action: `Started run "${runTitle(run)}"`, project, detail: run.release ? `Release ${run.release}` : "" });
     revalidatePath(`/p/${project.key}`, "layout");
     await alertRunStarted(project, run.id, user.name ?? user.email).catch(() => {});
+    // Sister cases: steps the dry run already tested fill in straight away.
+    await fillNewRun(run.id, { id: user.id, name: user.name ?? user.email }).catch((e) => console.warn("Sister fill failed", e));
     return { number: run.number };
   });
 }

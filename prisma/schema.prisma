@@ -630,6 +630,10 @@ model TestCase {
   sharedUsages   CaseSharedStep[]
   suites         SuiteCase[]
   runEntries     RunEntry[]
+  /// Sister cases: this dry run case's results fill these cases' steps in RC runs.
+  sistersOut     SisterLink[]     @relation("SisterFrom")
+  /// Sister cases: dry run cases whose results fill this case's steps.
+  sistersIn      SisterLink[]     @relation("SisterTo")
 
   @@unique([projectId, number])
   @@index([projectId, folderId])
@@ -889,6 +893,8 @@ model RunEntry {
   regressionOffBy String       @default("")
   /// Added to the run after it started, like "Added from the Risk board by Sam".
   addedNote       String       @default("")
+  /// Sister cases: steps filled from a dry run, and results that disagreed (src/lib/sisters.ts).
+  sisterFill      Json?
   results         TestResult[]
 
   @@unique([runId, caseId])
@@ -1519,4 +1525,25 @@ model DelveSave {
   /// Runs whose first-clear bonus was paid, so it's paid once per run.
   cleared   String[] @default([])
   updatedAt DateTime @updatedAt
+}
+
+/// Sister cases: a demo dry run case and a case it shares a test with, like dry run "Log in" and
+/// Web "Sign In / Out". When the dry run case (or one of its clients) gets a result, the linked steps
+/// of the sister case fill in, in open runs only where nobody has marked them yet. See src/lib/sisters.ts.
+model SisterLink {
+  id          String   @id @default(cuid())
+  fromCase    TestCase @relation("SisterFrom", fields: [fromCaseId], references: [id], onDelete: Cascade)
+  fromCaseId  String
+  /// The dry run client whose result fills it ("Web"), or "" for the case's own result.
+  fromClient  String   @default("")
+  toCase      TestCase @relation("SisterTo", fields: [toCaseId], references: [id], onDelete: Cascade)
+  toCaseId    String
+  /// The sister case's steps it covers, as step keys (stepKey); empty = every step.
+  steps       String[] @default([])
+  createdById String?
+  createdBy   String   @default("")
+  createdAt   DateTime @default(now())
+
+  @@unique([fromCaseId, fromClient, toCaseId])
+  @@index([toCaseId])
 }
