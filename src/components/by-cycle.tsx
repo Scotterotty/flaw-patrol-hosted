@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { PartTitle } from "@/components/report-part-title";
 import { StatusBar } from "@/components/status";
+import { ShortDay } from "@/components/short-day";
 import { Card, cx } from "@/components/ui";
+import { bashRowName } from "@/lib/bash-runs";
 import { splitProgress } from "@/lib/progress-split";
 import type { RunRow } from "@/lib/reports";
 import { pct, totals } from "@/lib/status";
@@ -9,10 +11,14 @@ import { pct, totals } from "@/lib/status";
 /**
  * One row per test cycle: how its runs in range are going. Hand testing and
  * automation get their own rows, so automation never reads as manual progress.
+ * Bug bashes aren't test cycles: they get their own group under the cycles (ver_242),
+ * one row per bash with its name and day, and never count in pass rates.
  */
 export function ByCycle({ runs, colorOf }: { runs: RunRow[]; colorOf: (platform: string) => string }) {
   const cycles = new Map<string, { key: string; name: string; platform: string; runs: RunRow[] }>();
+  const bashes = runs.filter((r) => r.bash);
   for (const r of runs) {
+    if (r.bash) continue;
     const c = cycles.get(r.projectKey) ?? { key: r.projectKey, name: r.projectName, platform: r.platform, runs: [] };
     c.runs.push(r);
     cycles.set(r.projectKey, c);
@@ -81,6 +87,53 @@ export function ByCycle({ runs, colorOf }: { runs: RunRow[]; colorOf: (platform:
             </tbody>
           );
         })}
+        {bashes.length > 0 && (
+          <tbody className="border-t border-slate-200" data-testid="cycle-bashes" data-howto="reports-bashes">
+            <tr className="bg-slate-50">
+              <th colSpan={8} scope="rowgroup" className="px-4 py-1.5 text-left text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                🐞 Bug bashes
+              </th>
+            </tr>
+            {bashes.map((r) => {
+              const t = totals(r.counts);
+              const b = r.bashInfo;
+              const name = b ? bashRowName(b.name) : r.name;
+              return (
+                <tr key={r.id} data-testid="cycle-bash" title="A bug bash. Listed apart from test cycles, and not counted in pass rates.">
+                  <td className="px-4 py-2">
+                    <Link href={b ? `/p/${b.homeKey}/bashes/${b.id}/report` : `/p/${r.projectKey}/runs/${r.number}`} className="font-medium hover:underline">
+                      🐞 {name}
+                      {b && (
+                        <span className="font-normal text-slate-500">
+                          {" · "}
+                          <ShortDay at={b.at} />
+                        </span>
+                      )}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2 text-xs whitespace-nowrap">
+                    <span className="rounded-full border border-current px-2 py-0.5 font-semibold text-orange-800">Bug bash</span>
+                  </td>
+                  <td className={cell}>1</td>
+                  <td className="px-4 py-2">
+                    <StatusBar counts={r.counts} />
+                  </td>
+                  <td className={cx(cell, "whitespace-nowrap")}>
+                    {t.tested} / {t.total}
+                  </td>
+                  <td className={cell}>–</td>
+                  <td className={cell}>{r.counts.FAILED}</td>
+                  <td className={cell}>{r.defects}</td>
+                </tr>
+              );
+            })}
+            <tr>
+              <td colSpan={8} className="px-4 py-2 text-xs text-slate-500">
+                Bug bashes are listed apart and don&apos;t count toward pass rates.
+              </td>
+            </tr>
+          </tbody>
+        )}
       </table>
     </Card>
   );

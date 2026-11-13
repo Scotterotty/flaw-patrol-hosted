@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 242,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "better",
+        title: "Bug bashes have their own group in Reports",
+        text: "A bug bash isn't a test cycle, so Reports now lists bug bashes apart, under Bug bashes below the test cycles. They no longer count as manual runs or toward pass rates. To see only bug bashes, set Runs to Bug bash in Filter.",
+        link: "/how-to?task=bash-in-reports",
+      },
+    ],
+  },
+  {
     version: 241,
     date: "2026-11-13",
     items: [

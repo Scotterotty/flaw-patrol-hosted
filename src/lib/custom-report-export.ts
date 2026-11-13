@@ -7,6 +7,7 @@ import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { filtersOf, partQuery, type CustomScope, type Loader } from "./custom-report-data";
 import { ACCENT, HEAD, INK, LINE, MUTED, outcomes, PDF_COLS, PdfWriter, rcTable, reportTable, safe, STATUS_RGB, type Cell } from "./report-export";
 import { headingOf, layoutRows, ownLabel, partOf, tabLabel, type ReportItem, type ReportPart } from "./report-parts";
+import { bashRowName, countedRuns } from "./bash-runs";
 import { manualLine, splitProgress } from "./progress-split";
 import { countStatuses, pct, STATUS_LABEL, STATUSES, totals, type StatusCounts } from "./status";
 import { wrapLine } from "./wrap-up-text";
@@ -117,25 +118,36 @@ export async function partBlocks(cs: CustomScope, load: Loader, it: ReportPart, 
   const runs = await load.runs(f);
   if (!runs.length) return nothing("No test runs match these filters.");
   const { manual, auto } = splitProgress(runs);
+  // Bug bashes stay out of the status numbers and get their own rows (ver_242), as on screen.
+  const counted = countedRuns(runs, f.kind);
+  const status = splitProgress(counted);
+  const onlyBashes = () => nothing("Only bug bashes match these filters. Bug bashes don't count toward pass rates.");
   switch (part) {
     case "status.cycles": {
       const byCycle = new Map<string, typeof runs>();
-      for (const r of runs) byCycle.set(r.projectName, [...(byCycle.get(r.projectName) ?? []), r]);
+      for (const r of runs) if (!r.bash) byCycle.set(r.projectName, [...(byCycle.get(r.projectName) ?? []), r]);
       const rows: Cell[][] = [["Test cycle", "Who ran it", "Runs", "Done", "Passed", "Failed", "Bugs"]];
       for (const [name, list] of byCycle) {
         const s = splitProgress(list);
         if (s.manual.runs) rows.push([name, "Manual", s.manual.runs, `${totals(s.manual.counts).tested} / ${totals(s.manual.counts).total}`, pct(totals(s.manual.counts).passRate), s.manual.counts.FAILED, s.manual.bugs]);
         if (s.auto.runs) rows.push([s.manual.runs ? "" : name, "Automated", s.auto.runs, `${totals(s.auto.latest).tested} / ${totals(s.auto.latest).total}`, pct(totals(s.auto.latest).passRate), s.auto.latest.FAILED, s.auto.bugs]);
       }
+      for (const r of runs.filter((x) => x.bash)) {
+        const t = totals(r.counts);
+        const b = r.bashInfo;
+        rows.push([b ? `${bashRowName(b.name)} · ${b.at.toISOString().slice(0, 10)}` : r.name, "Bug bash", 1, `${t.tested} / ${t.total}`, "–", r.counts.FAILED, r.defects]);
+      }
       return [{ k: "table", rows }];
     }
     case "status.tiles": {
+      if (!counted.length) return onlyBashes();
+      const { manual, auto } = status;
       const hand = manualLine(manual);
       return [
         {
           k: "tiles",
           list: [
-            { label: manual.runs && auto.runs ? `Runs (${manual.runs} manual, ${auto.runs} automated)` : "Runs", value: String(runs.length) },
+            { label: manual.runs && auto.runs ? `Runs (${manual.runs} manual, ${auto.runs} automated)` : "Runs", value: String(counted.length) },
             ...(manual.runs ? [{ label: manual.inProgress ? `Manual: finished (${manual.inProgress} in progress)` : "Manual: tested by hand", value: `${hand.tested} of ${hand.total}` }] : []),
             ...(auto.runs ? [{ label: "Automated: passed on latest run", value: `${auto.latest.PASSED} of ${auto.cases}` }] : []),
             { label: "Bugs found", value: String(manual.bugs + auto.bugs) },
@@ -143,10 +155,15 @@ export async function partBlocks(cs: CustomScope, load: Loader, it: ReportPart, 
         },
       ];
     }
-    case "status.cases":
+    case "status.cases": {
+      if (!counted.length) return onlyBashes();
+      const { manual, auto } = status;
       return [...(manual.runs ? [{ k: "bar", label: "Manual testing: cases by result", counts: manual.counts } as Block] : []), ...(auto.runs ? [{ k: "bar", label: "Automated tests: latest result of each case", counts: auto.latest } as Block] : [])];
+    }
     case "status.passrate": {
-      const ordered = [...runs].reverse().slice(-30);
+      if (!counted.length) return onlyBashes();
+      const { manual, auto } = status;
+      const ordered = [...counted].reverse().slice(-30);
       const point = (want: boolean) => ordered.map((r) => ({ label: runName(cs, r), value: (r.source !== "manual") === want ? totals(r.counts).passRate : null }));
       return [
         {
