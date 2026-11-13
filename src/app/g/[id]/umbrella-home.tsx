@@ -206,7 +206,7 @@ export async function UmbrellaHome({ u, user, welcome = false }: { u: Umbrella; 
   const started = !!firstRun || !runsOn;
 
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <CrumbName href={g} label={u.group.name} />
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>

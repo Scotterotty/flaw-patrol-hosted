@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 233,
+    date: "2026-11-12",
+    items: [
+      {
+        kind: "better",
+        title: "Pages sit in the middle of the screen",
+        text: "Every page is now centered next to the menu and comes in one of three sizes, so pages look the same size wherever you go. Your account and the settings pages are wider, and the team pages match the lists inside a test cycle.",
+      },
+    ],
+  },
+  {
     version: 232,
     date: "2026-11-12",
     items: [

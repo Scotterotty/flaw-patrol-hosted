@@ -120,7 +120,7 @@ export function GlossaryPage({
     );
 
   return (
-    <div className="max-w-4xl space-y-4">
+    <div className="page page-list space-y-4">
       <PageHeader
         title="Glossary"
         subtitle="The team's words, explained in plain words. One list for everyone."

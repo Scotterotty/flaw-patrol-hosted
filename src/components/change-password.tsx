@@ -35,6 +35,7 @@ export function ChangePasswordForm({ hasPassword }: { hasPassword: boolean }) {
         <Field label="Current password" htmlFor="pw-current">
           <Input
             id="pw-current"
+            className="max-w-md"
             name="current"
             type="password"
             autoComplete="current-password"

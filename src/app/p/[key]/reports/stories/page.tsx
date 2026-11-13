@@ -13,7 +13,7 @@ export default async function ProjectStoriesReport({ params, searchParams }: { p
   const { project, user, who } = await projectAccess((await params).key);
   const base = `/p/${project.key}/reports`;
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <PageHeader title="Reports" subtitle="Which Jira requirements have cases, and how they did in this test cycle." />
       <ViewTabs
         label="Reports"

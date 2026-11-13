@@ -13,7 +13,7 @@ export default async function CycleCustomReports({ params }: { params: Promise<{
   const base = `/p/${project.key}/reports`;
   const [cs, reports] = await Promise.all([cycleScope(project, user), reportsFor(project.id, user, who)]);
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <PageHeader title="Reports" subtitle="Your own reports, made from parts of the other tabs." />
       <ViewTabs
         label="Reports"

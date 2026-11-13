@@ -25,26 +25,28 @@ export default async function WhatsNewPage() {
       <TopBar user={user} />
       <div className="flex">
         {last && <ProjectMenu project={last.project} user={user} />}
-        <main id="main" tabIndex={-1} className="max-w-2xl min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
-          <PageHeader title="What's new" subtitle="Every Flaw Patrol version, newest first. The how-to steps are in the release notes." />
-          {entries.length ? (
-            <div className="space-y-4">
-              {entries.map((e) => (
-                <section key={e.version} className="rounded-lg border border-slate-200 bg-surface px-4 py-3 shadow-sm" aria-label={`Version ${e.version}`}>
-                  <h2 className="text-sm font-semibold text-slate-800">
-                    Version {e.version} <span className="font-normal text-slate-500">· {shortDate(e.date, spelling)}</span>
-                  </h2>
-                  <ul className="divide-y divide-slate-100">
-                    {e.items.map((i) => (
-                      <WhatsNewLine key={i.title} i={i} showMe />
-                    ))}
-                  </ul>
-                </section>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-slate-500">Nothing listed yet.</p>
-          )}
+        <main id="main" tabIndex={-1} className="min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
+          <div className="page page-reading">
+            <PageHeader title="What's new" subtitle="Every Flaw Patrol version, newest first. The how-to steps are in the release notes." />
+            {entries.length ? (
+              <div className="space-y-4">
+                {entries.map((e) => (
+                  <section key={e.version} className="rounded-lg border border-slate-200 bg-surface px-4 py-3 shadow-sm" aria-label={`Version ${e.version}`}>
+                    <h2 className="text-sm font-semibold text-slate-800">
+                      Version {e.version} <span className="font-normal text-slate-500">· {shortDate(e.date, spelling)}</span>
+                    </h2>
+                    <ul className="divide-y divide-slate-100">
+                      {e.items.map((i) => (
+                        <WhatsNewLine key={i.title} i={i} showMe />
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Nothing listed yet.</p>
+            )}
+          </div>
         </main>
       </div>
     </>

@@ -17,7 +17,7 @@ export default async function UmbrellaStoriesReport({ params, searchParams }: { 
   if (!u) notFound();
   const g = `/g/${u.group.id}`;
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <PageHeader title="Reports" subtitle={`Which Jira requirements have cases, and how they did in each ${u.group.name} test cycle.`} />
       <ViewTabs
         label="Reports"

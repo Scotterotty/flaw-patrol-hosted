@@ -114,7 +114,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
     : new Map();
 
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <PageHeader
         title="Bugs"
         beside={jira ? <BugViewSwitch view="table" /> : undefined}

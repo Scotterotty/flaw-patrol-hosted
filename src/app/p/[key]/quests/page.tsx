@@ -68,7 +68,7 @@ export default async function QuestsPage({ params, searchParams }: { params: Pro
   const look = { userId: user.id, name: user.name ?? user.email, pawn: user.questPawn, color: user.questColor, gear: gear.worn, photo: gear.photo };
 
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <DelveDoor />
       <PageHeader title="Quest map" subtitle="Every test run is a quest. Each case that gets a result moves the team's pawn a step." />
       <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">

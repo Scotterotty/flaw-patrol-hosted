@@ -198,7 +198,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   );
 
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <LiveRefresh url={`/api/live/runs/${run.id}`} rows renderedAt={renderedAt} />
       <CrumbName href={`/p/${project.key}/runs/${run.number}`} label={runTitle(run, spelling)} />
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">

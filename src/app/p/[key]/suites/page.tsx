@@ -41,7 +41,7 @@ export default async function SuitesPage({ params, searchParams }: { params: Pro
   const sharedWith = hubOf ? await db.project.count({ where: { groupId: hubOf, archivedAt: null, id: { not: project.id } } }) : 0;
 
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <PageHeader
         title={archived ? "Archived suites" : "Test suites"}
         subtitle="Sets of cases you run again and again, such as a smoke test or a release regression."

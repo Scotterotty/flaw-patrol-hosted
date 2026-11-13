@@ -92,7 +92,7 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
   const flips = flaky.get(c.id);
 
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <FreshVersion caseId={c.id} version={c.currentVersion} />
       <nav aria-label="Folder" className="mb-2 text-xs text-slate-500">
         {folderPath.length === 0 && "No folder"}

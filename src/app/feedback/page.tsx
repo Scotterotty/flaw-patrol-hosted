@@ -77,12 +77,14 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
       <TopBar user={user} />
       <div className="flex">
         {last && <ProjectMenu project={last.project} user={user} />}
-        <main id="main" tabIndex={-1} className="max-w-6xl min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
-          <PageHeader
-            title="Feedback"
-            subtitle={user.isAdmin ? "What people think of Flaw Patrol. Reply, set where it's at, or turn it into a bug." : "What you've told us about Flaw Patrol, and any replies. Send more with Feedback at the top of any page."}
-          />
-          <FeedbackInbox items={items} admin={user.isAdmin} everyone={everyone} projects={projects} />
+        <main id="main" tabIndex={-1} className="min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
+          <div className="page page-list">
+            <PageHeader
+              title="Feedback"
+              subtitle={user.isAdmin ? "What people think of Flaw Patrol. Reply, set where it's at, or turn it into a bug." : "What you've told us about Flaw Patrol, and any replies. Send more with Feedback at the top of any page."}
+            />
+            <FeedbackInbox items={items} admin={user.isAdmin} everyone={everyone} projects={projects} />
+          </div>
         </main>
       </div>
     </>

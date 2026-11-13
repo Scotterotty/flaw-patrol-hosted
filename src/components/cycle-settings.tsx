@@ -109,7 +109,7 @@ export function CycleSettingsTable({
         {addButton}
       </div>
       <p className="px-4 pt-3 text-sm text-slate-500">Every test cycle uses the settings above. Change one only if it needs to be different.</p>
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="text-left text-[11px] tracking-wide text-slate-500 uppercase">

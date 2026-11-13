@@ -85,7 +85,7 @@ export default async function ReportsPage({ params, searchParams }: { params: Pr
   const wrapPick = wrapPickOf(user.rcReport, wrapKey);
   const wrapUps = await attachedWrapUps([project.id], wrapPick, wrapPick.auto ? (f.release ? await releaseStart([project.id], f.release) : f.from) : null);
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <PageHeader
         title="Reports"
         subtitle={scope}

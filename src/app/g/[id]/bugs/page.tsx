@@ -163,7 +163,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
   );
 
   return (
-    <div className="max-w-6xl">
+    <div className="page page-list">
       <PageHeader
         title="Bugs"
         beside={jira ? <BugViewSwitch view="table" /> : undefined}

@@ -34,7 +34,7 @@ export default async function LeaderboardPage() {
   return (
     <>
       <TopBar user={user} />
-      <main id="main" tabIndex={-1} className="mx-auto max-w-2xl px-4 py-8">
+      <main id="main" tabIndex={-1} className="page page-reading px-4 py-8">
         <PageHeader title="Bug of War 🤫" subtitle="There's no leaderboard. You didn't see this. Only mini game players are listed." />
         {!user.gameEnabled && (
           <p className="mb-4 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">Join the mini game in Your profile to join the Bug of War.</p>

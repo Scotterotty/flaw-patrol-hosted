@@ -15,7 +15,7 @@ export default async function UmbrellaRcPage({ params, searchParams }: { params:
   const u = await loadUmbrella((await params).id, user);
   if (!u) notFound();
   return (
-    <div className="max-w-5xl">
+    <div className="page page-list">
       <PageHeader title="Reports" subtitle={`A quick look at how each ${u.group.name} release is going, one column per platform.`} />
       <ViewTabs
         label="Reports"
