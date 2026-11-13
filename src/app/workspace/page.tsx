@@ -7,6 +7,7 @@ import { ProjectMenu } from "@/components/project-menu";
 import { TopBar } from "@/components/top-bar";
 import { PageHeader } from "@/components/ui";
 import { WorkspaceBugTemplates } from "@/components/workspace-bug-templates";
+import { WorkspaceAdmins } from "@/components/workspace-admins";
 import { WorkspaceEmail, type MailView } from "@/components/workspace-email";
 import { EmailGroupsCard } from "@/components/digest-card";
 import { emailGroupViews, pickablePeople } from "@/lib/digest-data";
@@ -45,6 +46,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
     pickablePeople("all"),
     readServerUpdate(),
   ]);
+  const admins = (await db.user.findMany({ where: { isAdmin: true }, orderBy: [{ name: "asc" }, { email: "asc" }], select: { id: true, name: true, email: true } })).map((u) => ({ id: u.id, name: u.name || u.email, email: u.email }));
   const env = envProviders();
   const providers: ProviderView[] = COMPANY_PROVIDERS.map((id) => {
     const r = rows.find((x) => x.id === id);
@@ -94,6 +96,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
             <AccountTabs
               label="Workspace sections"
               tabs={[
+                ["admins", "Admins"],
                 ["sign-in", "Sign-in"],
                 ["email", "Email"],
                 ["bug-templates", "Bug templates"],
@@ -103,6 +106,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
               ]}
             />
             <div className="space-y-5">
+              <WorkspaceAdmins admins={admins} people={people} meId={user.id} />
               <WorkspaceSignIn
                 password={{ on: ws.passwordSignIn, joinDomains: ws.joinDomains, envDomains: domainList(process.env.AUTH_ALLOWED_DOMAINS).join(", ") }}
                 providers={providers}
