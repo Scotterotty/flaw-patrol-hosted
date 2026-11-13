@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 237,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "fix",
+        title: "Add people by email lines up",
+        text: "On the Members page, the email box, role and Add button now sit on one line at the same height. The \"One per line\" hint sits under the row, and on a phone role and Add sit together under the email box.",
+      },
+    ],
+  },
+  {
     version: 236,
     date: "2026-11-13",
     items: [
