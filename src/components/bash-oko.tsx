@@ -19,6 +19,7 @@ import { FoundInLine } from "./found-in-line";
 import type { BugCapture, BugFile } from "./bug-files";
 import { RecordingBar, takeScreenshot, useCaptureSupport, useScreenRecorder } from "./screen-capture";
 import { Button, cx, Input, Textarea } from "./ui";
+import { KeptNote, KeptSaved, useKeptDraft } from "./kept-draft";
 
 type Item = BashView["items"][number];
 type Tpl = NonNullable<Item["template"]>;
@@ -69,12 +70,16 @@ export function OkoFill({ bash, b, next, onDone, setError }: { bash: BashView; b
   const [fileLimit, setFileLimit] = useState<number | null>(null);
   const [found, setFound] = useState<FoundInDraft | null>(null);
   const [foundIn, setFoundIn] = useState("");
-  const [bug, setBug] = useState<TemplateBug>(() => draftToOko({ platform: b.platform, area, summary: b.text, answers: b.template.answers, fields: b.template.layout.fields }));
+  const startBug = () => draftToOko({ platform: b.platform, area, summary: b.text, answers: b.template.answers, fields: b.template.layout.fields });
+  const [bug, setBug] = useState<TemplateBug>(startBug);
+  // Keep what you're typing: compared once Jira's options have filled in what they fill.
+  const [opened, setOpened] = useState(false);
   const [severity, setSeverity] = useState<Severity>(b.severity);
   const [added, setAdded] = useState<BugFile[]>([]);
   const [uploading, setUploading] = useState(false);
   useEffect(() => {
     void bashOkoOptions(bash.id, b.id).then((r) => {
+      setOpened(true);
       if (!r.ok) return;
       setOptions(r.options);
       setPriority(r.priority);
@@ -127,11 +132,35 @@ export function OkoFill({ bash, b, next, onDone, setError }: { bash: BashView; b
   const [include, setInclude] = useState<Set<string>>(new Set());
   const on = new Set([...b.attachments.map((a) => a.id), ...added.filter((f) => !include.has(f.id)).map((f) => f.id)]);
   const scale: SeverityScale = { labels: bash.sevNames, levels: BASH_LEVELS, critical: ["SHOWSTOPPER", "CRITICAL"], fromJira: false };
+  // Keep what you're typing (Nov 13 2026): the same as every other bug form.
+  const keep = useKeptDraft(
+    `bash-fill:${b.id}`,
+    { bug, severity, added, include: [...include], foundIn },
+    (k) => {
+      setBug(k.bug);
+      setSeverity(k.severity);
+      setAdded(k.added);
+      setInclude(new Set(k.include));
+      setFoundIn(k.foundIn);
+    },
+    {
+      ready: opened,
+      reset: () => {
+        const s0 = startBug();
+        setBug(s0.clients.length || !b.platform ? s0 : { ...s0, clients: [optionLike(options.clients, b.platform) || b.platform] });
+        setSeverity(b.severity);
+        setAdded([]);
+        setInclude(new Set());
+        if (found) setFoundIn(found.value);
+      },
+    },
+  );
   const save = (goNext: boolean) =>
     start(async () => {
       setError(null);
       const r = await fillBashOko(b.id, { bug, severity, attachmentIds: added.filter((f) => on.has(f.id)).map((f) => f.id), ...(found && { foundIn: foundIn === found.value ? null : foundIn }) });
       if (!r.ok) return setError(r.error);
+      keep.clear();
       router.refresh();
       onDone(goNext);
     });
@@ -142,6 +171,7 @@ export function OkoFill({ bash, b, next, onDone, setError }: { bash: BashView; b
         {b.template.needs.length ? "Fill in" : "Edit"}: {b.text} <span className="font-normal text-slate-500">· {b.template.name}</span>
       </p>
       {b.template.needs.length > 0 && <p className="text-xs text-amber-900">Jira still needs: {b.template.needs.join(", ")}</p>}
+      <KeptNote kept={keep} what="the bug you were filling in" />
       <BugTemplateForm
         bug={bug}
         setBug={(fn) => setBug(fn)}
@@ -164,7 +194,8 @@ export function OkoFill({ bash, b, next, onDone, setError }: { bash: BashView; b
         from="bash"
       />
       {found && <FoundInLine draft={found} value={foundIn} onChange={setFoundIn} />}
-      <div className="flex flex-wrap justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <KeptSaved kept={keep} className="mr-auto" />
         <Button size="sm" onClick={() => onDone(false)}>
           Cancel
         </Button>

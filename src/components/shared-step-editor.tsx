@@ -5,6 +5,8 @@ import { useState, useTransition } from "react";
 import { placeholdersIn, type PlainStep, type SharedStepParam } from "@/lib/steps";
 import { saveSharedStep, setSharedStepArchived } from "@/server/shared-steps";
 import { Button, ErrorText, Field, Input, Textarea } from "./ui";
+import { keptStamp } from "@/lib/kept-draft";
+import { KeptNote, KeptSaved, useKeptDraft } from "./kept-draft";
 
 export function SharedStepEditor({
   projectId,
@@ -27,6 +29,26 @@ export function SharedStepEditor({
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
+  // Keep what you're typing (Nov 13 2026), until it's saved or someone saves a newer version.
+  const kept = useKeptDraft(
+    `shared-step:${sharedStepId ?? `new:${projectId}`}:${keptStamp(initial)}`,
+    { name, description, parameters, steps },
+    (k) => {
+      setName(k.name);
+      setDescription(k.description);
+      setParameters(k.parameters);
+      setSteps(k.steps);
+    },
+    {
+      reset: () => {
+        setName(initial.name);
+        setDescription(initial.description);
+        setParameters(initial.parameters);
+        setSteps(initial.steps.length ? initial.steps : [{ action: "", expected: "" }]);
+      },
+    },
+  );
+
   const used = placeholdersIn(steps);
   const undeclared = used.filter((u) => !parameters.some((p) => p.name === u));
   const unused = parameters.filter((p) => !used.includes(p.name)).map((p) => p.name);
@@ -46,6 +68,7 @@ export function SharedStepEditor({
       setError(null);
       const res = await saveSharedStep(projectId, sharedStepId, { name, description, parameters, steps });
       if (!res.ok) return setError(res.error);
+      kept.clear();
       router.push(`/p/${projectKey}/shared-steps/${res.id}`);
       router.refresh();
     });
@@ -60,7 +83,8 @@ export function SharedStepEditor({
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold tracking-tight">{sharedStepId ? "Edit shared step" : "New shared step"}</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <KeptSaved kept={kept} />
           <Button onClick={() => router.back()}>Cancel</Button>
           <Button type="submit" variant="primary" disabled={pending} data-howto="shared-save">
             {sharedStepId ? "Save new version" : "Create shared step"}
@@ -73,6 +97,7 @@ export function SharedStepEditor({
         </p>
       )}
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+      <KeptNote kept={kept} what="the shared step you were writing" />
 
       <div className="space-y-4 rounded-lg border border-slate-200 bg-surface p-5 shadow-sm">
         <Field label="Name" htmlFor="name">

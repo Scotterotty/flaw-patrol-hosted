@@ -989,6 +989,20 @@ export const HOW_TO: HowToTask[] = [
     next: "bug-templates",
   },
   {
+    id: "keep-typing",
+    group: "Bugs",
+    title: "Get back what you were typing",
+    sub: "A refresh or closed tab doesn't lose your bug",
+    words: "draft lost refresh reload closed tab autosave auto save saved keep kept restore recover unsaved start fresh discard",
+    steps: [
+      { text: "In the left menu, press **+** next to **Bugs** to open **Write a bug**.", see: "The **Write a bug** box.", target: "menu-bugs-plus" },
+      { text: "Type a few words in the **Summary**.", see: "**✓ Saved on this computer** and the time, next to the buttons at the bottom. It's kept in this browser as you type.", target: "bug-summary", type: true },
+      { text: "Refresh the page, or press **Esc**, then open **Write a bug** again.", see: "A green note: **We kept the bug you were writing**, and your words back where they were. Every form you write in works this way: Report a bug, a bug bash, test cases, Feedback and more.", target: "menu-bugs-plus" },
+      { text: "To throw the draft away, press **Start fresh** in the green note.", see: "An empty form. Saving the bug clears the draft too, and drafts you never come back to clear themselves after 7 days.", target: "kept-fresh" },
+    ],
+    next: "find-bugs",
+  },
+  {
     id: "find-bugs",
     group: "Bugs",
     title: "Find and send bugs",
