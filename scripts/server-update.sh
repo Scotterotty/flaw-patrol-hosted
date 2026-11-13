@@ -21,6 +21,7 @@
 #   FP_REMOTE=origin  FP_BRANCH=main            where new code comes from
 #   FP_COMPOSE_FILE=docker-compose.hosting.yml
 #   FP_BACKUP=1  FP_KEEP_BACKUPS=5              database backup before each update, in ./backups
+#   FP_BACKUP_TRIES=5  FP_BACKUP_WAIT=15        tries (and seconds between) when the database is busy
 #   FP_CHECK_EVERY=300                          seconds between looks for new code
 #   FP_ROOT=/path/to/flaw-patrol                the code folder (install sets this for the service)
 set -uo pipefail
@@ -45,6 +46,8 @@ CHANNEL=${FP_CHANNEL:-$ROOT/server-update}
 BACKUPS=${FP_BACKUPS:-$ROOT/backups}
 BACKUP=${FP_BACKUP:-1}
 KEEP_BACKUPS=${FP_KEEP_BACKUPS:-5}
+BACKUP_TRIES=${FP_BACKUP_TRIES:-5}
+BACKUP_WAIT=${FP_BACKUP_WAIT:-15}
 CHECK_EVERY=${FP_CHECK_EVERY:-300}
 APP=${FP_APP_CONTAINER:-flaw-patrol}
 # The Flaw Patrol container runs as this user and group (see Dockerfile); it must be able to
@@ -170,11 +173,23 @@ update() {
     mkdir -p "$BACKUPS"
     local file
     file="$BACKUPS/flawpatrol-$(date -u +%Y%m%d-%H%M%S)-${FROM:-unknown}.dump"
-    if ! compose exec -T db pg_dump -U flawpatrol -Fc flawpatrol >"$file" 2>>"$CHANNEL/update.log" || [ ! -s "$file" ]; then
+    # A busy database ("too many clients") usually frees a slot within a minute, so try a few times.
+    local tries=0
+    until compose exec -T db pg_dump -U flawpatrol -Fc flawpatrol >"$file" 2>>"$CHANNEL/update.log" && [ -s "$file" ]; do
       rm -f "$file"
-      fail "Couldn't back up the database, so nothing was changed. See the log."
-      return 1
-    fi
+      tries=$((tries + 1))
+      if [ "$tries" -ge "$BACKUP_TRIES" ]; then
+        if grep -q "too many clients" "$CHANNEL/update.log"; then
+          fail "Couldn't back up the database because it's out of connections, so nothing was changed. Restart Flaw Patrol on the server (docker restart $APP) and press Update now again."
+        else
+          fail "Couldn't back up the database, so nothing was changed. See the log."
+        fi
+        return 1
+      fi
+      echo "== The backup didn't work, trying again in ${BACKUP_WAIT}s ($tries of $BACKUP_TRIES)" >>"$CHANNEL/update.log"
+      write_status
+      sleep "$BACKUP_WAIT"
+    done
     chmod 600 "$file"
     BACKUP_FILE=$file
     # Keep the newest few.
