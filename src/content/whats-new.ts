@@ -22,7 +22,7 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
-    version: 245,
+    version: 246,
     date: "2026-11-13",
     items: [
       {
@@ -30,6 +30,17 @@ export const WHATS_NEW: WhatsNewEntry[] = [
         title: "Paw prints loading spinner",
         text: "A new pick under Your account → Just for fun → Loading spinners: little paw prints walk around the circle while Flaw Patrol is busy. Tick it to use it. The plain ring is still the default.",
         link: "/account#spinners",
+      },
+    ],
+  },
+  {
+    version: 245,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "fix",
+        title: "More kinds of numbered repro steps go one per line",
+        text: "Jira repro steps typed on one line with numbers like 1), 1.), 1:, 1 - or Step 1: now show one step per line on the Bugs Board, like 1. already did.",
       },
     ],
   },

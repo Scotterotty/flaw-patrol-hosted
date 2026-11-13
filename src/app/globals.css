@@ -1564,7 +1564,7 @@ main:focus {
   position: relative;
   font-size: 16px;
 }
-/* Paw prints (ver_245): four prints step clockwise round the track, left, right, left, right,
+/* Paw prints (ver_246): four prints step clockwise round the track, left, right, left, right,
    and fade like footprints. With reduce motion they all sit still around the circle. */
 .fp-paws {
   position: absolute;

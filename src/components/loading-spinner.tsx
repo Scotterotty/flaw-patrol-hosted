@@ -86,7 +86,7 @@ function art(id: SpinnerId, pawn?: string) {
   }
 }
 
-/** One paw print (ver_245): a pad and four toes, in the Look's accent color. */
+/** One paw print (ver_246): a pad and four toes, in the Look's accent color. */
 function PawPrint() {
   return (
     <svg viewBox="0 0 20 20">
