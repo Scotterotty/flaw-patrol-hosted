@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 236,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "new",
+        title: "Sister cases: dry run results fill the RC",
+        text: "Link each dry run case to the RC cases it shares a test with, and tick the steps it covers. When you test the dry run, those steps fill in on the open RC run, marked From dry run, only where nobody has marked them yet. Find it in Case library under Sister cases.",
+        link: "/how-to?task=sister-cases",
+      },
+    ],
+  },
+  {
     version: 235,
     date: "2026-11-13",
     items: [
