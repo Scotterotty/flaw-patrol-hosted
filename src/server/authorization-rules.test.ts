@@ -11,7 +11,8 @@ const root = join(__dirname, "..", "..");
 const src = join(root, "src");
 
 /** Calls that look up or require the signed-in person (src/auth.ts, src/lib/session.ts). */
-const CHECKS = new Set(["auth", "currentUser", "requireUser", "requireProjectAction", "projectAccess", "projectAccessOrGuest"]);
+// requireWorkspaceAdmin is shared from src/server/admin-guard.ts; the test below checks it calls requireUser.
+const CHECKS = new Set(["auth", "currentUser", "requireUser", "requireProjectAction", "projectAccess", "projectAccessOrGuest", "requireWorkspaceAdmin"]);
 
 /** Actions anyone may call, each with the check it does instead of a sign-in. */
 const OPEN_ACTIONS: Record<string, string> = {
@@ -84,6 +85,11 @@ describe("authorization on the server", () => {
   it("finds the server actions and routes", () => {
     expect(actionFiles.length).toBeGreaterThan(40);
     expect(files.filter((f) => f.endsWith("route.ts")).length).toBeGreaterThan(8);
+  });
+
+  it("the shared workspace admin check signs in first and refuses non-admins", () => {
+    const text = readFileSync(join(src, "server", "admin-guard.ts"), "utf8");
+    expect(text).toMatch(/const user = await requireUser\(\);\s+if \(!user\.isAdmin\) throw/);
   });
 
   it("every server action checks who is signed in", () => {

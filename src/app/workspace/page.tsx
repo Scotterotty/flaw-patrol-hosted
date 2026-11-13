@@ -31,7 +31,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
   if (!user.isAdmin) notFound();
   const { tested, ...filters } = await searchParams;
   await pruneActivity();
-  const [ws, rows, last, spelling, templates, sources, groups, people, updates] = await Promise.all([
+  const [ws, rows, last, spelling, templates, sources, groups, people, updates, adminRows] = await Promise.all([
     db.workspace.upsert({ where: { id: 1 }, create: { id: 1 }, update: {} }),
     db.signInProvider.findMany(),
     db.projectPin.findFirst({
@@ -45,8 +45,9 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
     emailGroupViews(),
     pickablePeople("all"),
     readServerUpdate(),
+    db.user.findMany({ where: { isAdmin: true }, orderBy: [{ name: "asc" }, { email: "asc" }], select: { id: true, name: true, email: true } }),
   ]);
-  const admins = (await db.user.findMany({ where: { isAdmin: true }, orderBy: [{ name: "asc" }, { email: "asc" }], select: { id: true, name: true, email: true } })).map((u) => ({ id: u.id, name: u.name || u.email, email: u.email }));
+  const admins = adminRows.map((u) => ({ id: u.id, name: u.name || u.email, email: u.email }));
   const env = envProviders();
   const providers: ProviderView[] = COMPANY_PROVIDERS.map((id) => {
     const r = rows.find((x) => x.id === id);
@@ -106,7 +107,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
               ]}
             />
             <div className="space-y-5">
-              <WorkspaceAdmins admins={admins} people={people} meId={user.id} />
+              <WorkspaceAdmins admins={admins} meId={user.id} />
               <WorkspaceSignIn
                 password={{ on: ws.passwordSignIn, joinDomains: ws.joinDomains, envDomains: domainList(process.env.AUTH_ALLOWED_DOMAINS).join(", ") }}
                 providers={providers}

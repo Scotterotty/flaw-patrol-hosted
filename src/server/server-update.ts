@@ -4,14 +4,8 @@ import { revalidatePath } from "next/cache";
 import { logActivity } from "@/lib/activity";
 import { leaveRequest, readServerUpdate } from "@/lib/server-update-files";
 import { updateBlocked } from "@/lib/server-update";
-import { requireUser } from "@/lib/session";
 import { attempt, UserError } from "./result";
-
-async function requireWorkspaceAdmin() {
-  const user = await requireUser();
-  if (!user.isAdmin) throw new UserError("Only a workspace admin can do that.");
-  return user;
-}
+import { requireWorkspaceAdmin } from "./admin-guard";
 
 /** Workspace settings → Updates → Update now: ask the update helper on the server to update (ver_239). */
 export async function requestServerUpdate() {

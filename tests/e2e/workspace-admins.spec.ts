@@ -67,7 +67,9 @@ test("a workspace admin makes someone else an admin, and they can remove themsel
   await expect(mine).toContainText("You");
   await mine.getByRole("button", { name: `Remove ${name} as a workspace admin` }).click();
   await expect(mine).toContainText("Stop being a workspace admin?");
-  await mine.getByRole("button", { name: "Remove admin" }).click();
+  await expect(mine).toContainText("You'll lose:");
+  await expect(mine).toContainText("This can be undone");
+  await mine.getByRole("button", { name: "Stop being an admin" }).click();
   await expect(k).not.toHaveURL(/\/workspace/);
   expect((await k.goto("/workspace"))?.status()).toBe(404);
   await ctx.close();
@@ -75,4 +77,32 @@ test("a workspace admin makes someone else an admin, and they can remove themsel
   // Back on the first admin's page, they're gone from the list.
   await page.reload();
   await expect(list).not.toContainText(email);
+});
+
+test("with password sign-in off, removing an admin who uses a password is blocked until there's another way in", async ({ page }) => {
+  const db = new PrismaClient();
+  const pw = `wsadmin-pw-${TAG}@example.com`;
+  const ws = await db.workspace.upsert({ where: { id: 1 }, create: { id: 1 }, update: {} });
+  // No company sign-in either, for this test only (other specs may have turned one on).
+  const providersOn = (await db.signInProvider.findMany({ where: { enabled: true }, select: { id: true } })).map((r) => r.id);
+  try {
+    await db.signInProvider.updateMany({ data: { enabled: false } });
+    await db.user.create({ data: { email: pw, name: `Pat Password${TAG}`, isAdmin: true, passwordHash: "not-a-real-hash" } });
+    await signIn(page, "admin@example.com", "Demo Admin");
+    await db.workspace.update({ where: { id: 1 }, data: { passwordSignIn: false } });
+    await page.goto("/workspace");
+    const row = page.getByRole("region", { name: "Workspace admins" }).getByRole("listitem").filter({ hasText: pw });
+    await row.getByRole("button", { name: `Remove Pat Password${TAG} as a workspace admin` }).click();
+    const warning = row.getByRole("alert");
+    await expect(warning).toContainText("Check how Pat signs in first");
+    // The e2e workspace has no company sign-in turned on, so removing would lock Pat out: no way through.
+    await expect(warning).toContainText("couldn't sign in at all");
+    await expect(row.getByRole("button", { name: "Remove admin" })).toBeDisabled();
+    expect((await db.user.findUniqueOrThrow({ where: { email: pw } })).isAdmin).toBe(true);
+  } finally {
+    await db.workspace.update({ where: { id: 1 }, data: { passwordSignIn: ws.passwordSignIn } });
+    await db.signInProvider.updateMany({ where: { id: { in: providersOn } }, data: { enabled: true } });
+    await db.user.deleteMany({ where: { email: pw } });
+    await db.$disconnect();
+  }
 });
