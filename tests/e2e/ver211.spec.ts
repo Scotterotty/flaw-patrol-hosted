@@ -153,6 +153,28 @@ test("Board shows every bug on the Jira board, and the bug panel shows the ticke
   await expect(panel.getByTestId("bug-panel-description")).toBeVisible();
   await expect(panel.getByTestId("bug-panel-found")).toHaveCount(0);
   await expect(panel.getByTestId("bug-panel-repro")).toHaveCount(0);
+  // ver_234: every box opens and closes. With no repro steps, Description starts open.
+  await expect(panel.getByTestId("bug-panel-description")).toHaveAttribute("open", "");
+  // Comments, Attachments and Details stay open from BB-3: the panel remembers them.
+  await expect(panel.getByTestId("bug-panel-details")).toHaveAttribute("open", "");
+  await panel.getByRole("button", { name: "Close all", exact: true }).click();
+  for (const box of ["description", "comments", "attachments", "details"]) await expect(panel.getByTestId(`bug-panel-${box}`)).not.toHaveAttribute("open");
+  // Saved on the account: after a reload BB-3's Description stays closed; Repro steps and Where it was found start open.
+  await page.reload();
+  await card.click();
+  const repro2 = panel.getByTestId("bug-panel-repro");
+  await expect(panel.getByTestId("bug-panel-description")).not.toHaveAttribute("open");
+  await expect(panel.getByTestId("bug-panel-description").locator("summary")).toContainText("Material list splits into two lists");
+  await expect(repro2).toHaveAttribute("open", "");
+  await expect(panel.getByTestId("bug-panel-found")).toHaveAttribute("open", "");
+  // A closed box says what's inside.
+  await repro2.locator("summary").click();
+  await expect(repro2.getByTestId("jira-steps")).toBeHidden();
+  await expect(repro2.locator("summary")).toContainText("3 steps");
+  await panel.getByRole("button", { name: "Open all", exact: true }).click();
+  await expect(repro2.getByTestId("jira-steps")).toBeVisible();
+  for (const box of ["description", "repro", "found", "comments", "attachments", "details"]) await expect(panel.getByTestId(`bug-panel-${box}`)).toHaveAttribute("open", "");
+  await expect(panel.getByRole("button", { name: "Close all", exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(panel).toHaveCount(0);
 

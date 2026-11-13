@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { fileSize, priorityTone, shortNames, type BoardData, type BoardIssue, type FoundAt, type PriorityTone, type TicketDetail } from "@/lib/bug-board";
-import { bugTicket } from "@/server/bug-board";
+import { adfText, fileSize, priorityTone, shortNames, type BoardData, type BoardIssue, type FoundAt, type PriorityTone, type TicketDetail } from "@/lib/bug-board";
+import { bugTicket, saveBugsPicks } from "@/server/bug-board";
 import { JiraAdf } from "./jira-adf";
-import { keepBug, sharedFilters, switchHref } from "@/lib/bugs-view";
+import { FOLD_BOXES, foldOpen, keepBug, sharedFilters, switchHref, type BugsPicks, type FoldBox } from "@/lib/bugs-view";
+import { splitNumberedSteps } from "@/lib/numbered-steps";
 import { BugsFilterBar, ShowingLine } from "./bugs-filter-bar";
 import { Button, cx } from "./ui";
 
@@ -167,10 +168,16 @@ const when = (iso: string) => (iso ? new Date(iso).toLocaleString(undefined, { m
 
 function BugPanel({ where, issue, issueKey, nameOf, onClose }: { where: Where; issue: BoardIssue | null; issueKey: string; nameOf: (p: { name: string; email: string }) => string; onClose: () => void }) {
   const [state, setState] = useState<{ ticket: TicketDetail; found: FoundAt | null } | { error: string } | null>(null);
+  // Which boxes are open (ver_234): saved on the person's account, so they stay the same on every bug and computer.
+  const [folds, setFolds] = useState<NonNullable<BugsPicks["folds"]>>({});
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     let live = true;
-    bugTicket(where, issueKey).then((res) => live && setState(res.ok ? { ticket: res.ticket, found: res.found } : { error: res.error }));
+    bugTicket(where, issueKey).then((res) => {
+      if (!live) return;
+      if (res.ok) setFolds(res.folds);
+      setState(res.ok ? { ticket: res.ticket, found: res.found } : { error: res.error });
+    });
     return () => {
       live = false;
     };
@@ -183,6 +190,16 @@ function BugPanel({ where, issue, issueKey, nameOf, onClose }: { where: Where; i
   }, [onClose]);
   const t = state && "ticket" in state ? state.ticket : null;
   const title = t?.title ?? issue?.title ?? issueKey;
+  const hasRepro = !!t?.repro;
+  const found = state && "ticket" in state ? state.found : null;
+  const shown: FoldBox[] = FOLD_BOXES.filter((b) => (b === "repro" ? hasRepro : b === "found" ? !!found : true));
+  const isOpen = (b: FoldBox) => foldOpen(b, folds, hasRepro);
+  const setOpen = (change: Partial<Record<FoldBox, boolean>>) => {
+    setFolds((f) => ({ ...f, ...change }));
+    void saveBugsPicks({ folds: change });
+  };
+  const allOpen = shown.every(isOpen);
+  const fold = (b: FoldBox) => ({ open: isOpen(b), onOpen: (on: boolean) => on !== isOpen(b) && setOpen({ [b]: on }) });
   const file = (id: string, name: string) => `/api/bug-board/file?${where.groupId ? `g=${encodeURIComponent(where.groupId)}` : `p=${encodeURIComponent(where.projectId ?? "")}`}&id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}`;
 
   return (
@@ -203,30 +220,33 @@ function BugPanel({ where, issue, issueKey, nameOf, onClose }: { where: Where; i
       <h2 ref={heading} tabIndex={-1} className="text-lg font-semibold text-slate-900 outline-none">
         {title}
       </h2>
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <a href={t?.url ?? issue?.url} target="_blank" rel="noreferrer" data-howto="board-open-jira" className="inline-flex h-9 items-center rounded-md bg-accent-600 px-3 text-sm font-medium text-white hover:bg-accent-700">
           Open in Jira ↗
         </a>
+        {t && (
+          <button type="button" className="text-sm text-accent-700 hover:underline" data-howto="board-open-all" onClick={() => setOpen(Object.fromEntries(shown.map((b) => [b, !allOpen])))}>
+            {allOpen ? "Close all" : "Open all"}
+          </button>
+        )}
       </div>
       {!state && <p className="text-sm text-slate-600">Loading from Jira…</p>}
       {state && "error" in state && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{state.error}</p>}
       {t && (
         <>
-          <section className="rounded-lg border border-slate-200 p-3" data-testid="bug-panel-description">
-            <h3 className="mb-1 text-[11px] font-semibold tracking-wide text-slate-600 uppercase">Description (from Jira)</h3>
+          <Fold title="Description" fromJira hint={preview(adfText(t.description))} testid="bug-panel-description" {...fold("description")}>
             <JiraAdf doc={t.description} empty="No description in Jira." />
-          </section>
-          {!!t.repro && (
-            <section className="rounded-lg border border-slate-200 p-3" data-testid="bug-panel-repro" data-howto="board-repro">
-              <h3 className="mb-1 text-[11px] font-semibold tracking-wide text-slate-600 uppercase">Repro steps (from Jira)</h3>
+          </Fold>
+          {hasRepro && (
+            <Fold title="Repro steps" fromJira hint={stepsHint(t.repro)} testid="bug-panel-repro" howto="board-repro" {...fold("repro")}>
               <JiraAdf doc={t.repro} empty="No repro steps in Jira." />
-            </section>
+            </Fold>
           )}
-          {state && "ticket" in state && state.found && <FoundAtBox f={state.found} />}
-          <More title="Comments" count={t.comments.length} testid="bug-panel-comments">
+          {found && <FoundAtBox f={found} {...fold("found")} />}
+          <More title="Comments" count={t.comments.length} testid="bug-panel-comments" {...fold("comments")}>
             <Comments list={t.comments} />
           </More>
-          <More title="Attachments" count={t.attachments.length} testid="bug-panel-attachments">
+          <More title="Attachments" count={t.attachments.length} testid="bug-panel-attachments" {...fold("attachments")}>
             {t.attachments.length === 0 ? (
               <p className="text-sm text-slate-600">No attachments.</p>
             ) : (
@@ -246,7 +266,7 @@ function BugPanel({ where, issue, issueKey, nameOf, onClose }: { where: Where; i
               </ul>
             )}
           </More>
-          <More title="Details" testid="bug-panel-details">
+          <More title="Details" hint={t.extras.map((x) => x.name).slice(0, 3).join(", ")} testid="bug-panel-details" {...fold("details")}>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
               {(
                 [
@@ -280,22 +300,53 @@ function BugPanel({ where, issue, issueKey, nameOf, onClose }: { where: Where; i
   );
 }
 
-function More({ title, count, testid, children }: { title: string; count?: number; testid: string; children: React.ReactNode }) {
+type FoldProps = { open: boolean; onOpen: (on: boolean) => void };
+
+/** The first words of a box's text, shown on its line while it's closed. */
+function preview(text: string) {
+  const one = text.replace(/\s+/g, " ").trim();
+  return one.length > 60 ? `${one.slice(0, 57)}…` : one;
+}
+
+/** "9 steps" for repro steps, from a Jira numbered list or steps typed on one line. */
+function stepsHint(doc: unknown) {
+  const d = doc as { content?: { type?: string; content?: unknown[] }[] } | null;
+  const list = typeof doc === "object" && d?.content?.find((c) => c.type === "orderedList");
+  const n = list ? (list.content?.length ?? 0) : (splitNumberedSteps(typeof doc === "string" ? doc : adfText(doc))?.length ?? 0);
+  return n > 1 ? `${n} steps` : preview(typeof doc === "string" ? doc : adfText(doc));
+}
+
+/**
+ * One box in the bug panel that opens and closes (ver_234). Every box works the same way:
+ * a line with an arrow and its name, and a short preview of what's inside while it's closed.
+ */
+function Fold({ title, fromJira, count, hint, testid, howto, tone, open, onOpen, children }: FoldProps & { title: string; fromJira?: boolean; count?: number; hint?: string; testid: string; howto?: string; tone?: "found"; children: React.ReactNode }) {
   return (
-    <details className="group rounded-lg border border-slate-200 px-3 py-2" data-testid={testid}>
-      <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium text-slate-900 [&::-webkit-details-marker]:hidden">
-        <span aria-hidden className="w-3 font-bold text-accent-700 group-open:hidden">
-          +
+    <details
+      open={open}
+      onToggle={(e) => onOpen(e.currentTarget.open)}
+      className={cx("group rounded-lg border px-3 py-2", tone === "found" ? "border-emerald-600" : "border-slate-200")}
+      data-testid={testid}
+      data-howto={howto}
+    >
+      <summary className="flex cursor-pointer list-none items-center gap-2 text-sm [&::-webkit-details-marker]:hidden" title={fromJira ? "From Jira" : undefined}>
+        <span aria-hidden className="w-3 shrink-0 text-xs text-accent-700 transition-transform group-open:rotate-90 motion-reduce:transition-none">
+          ▶
         </span>
-        <span aria-hidden className="hidden w-3 font-bold text-accent-700 group-open:inline">
-          −
-        </span>
-        {title}
+        <h3 className="shrink-0 font-medium text-slate-900">
+          {title}
+          {fromJira && <span className="sr-only"> (from Jira)</span>}
+        </h3>
         {count !== undefined && <span className="rounded-full bg-slate-100 px-2 text-xs text-slate-700 tabular-nums">{count}</span>}
+        {hint && <span className="ml-auto min-w-0 truncate text-xs text-slate-600 group-open:hidden">{hint}</span>}
       </summary>
       <div className="mt-2">{children}</div>
     </details>
   );
+}
+
+function More(props: FoldProps & { title: string; count?: number; hint?: string; testid: string; children: React.ReactNode }) {
+  return <Fold {...props} />;
 }
 
 function Comments({ list }: { list: TicketDetail["comments"] }) {
@@ -321,10 +372,9 @@ function Comments({ list }: { list: TicketDetail["comments"] }) {
   );
 }
 
-function FoundAtBox({ f }: { f: FoundAt }) {
+function FoundAtBox({ f, open, onOpen }: { f: FoundAt } & FoldProps) {
   return (
-    <section className="rounded-lg border border-emerald-600 p-3" data-testid="bug-panel-found">
-      <h3 className="mb-1 text-[11px] font-semibold tracking-wide text-slate-600 uppercase">Where the bug was found</h3>
+    <Fold title="Where the bug was found" hint={`${f.caseKey} ${f.caseTitle}`} testid="bug-panel-found" tone="found" open={open} onOpen={onOpen}>
       <p className="text-sm">
         <span className="font-mono text-xs text-slate-600">{f.caseKey}</span> <span className="font-medium text-slate-900">{f.caseTitle}</span>
       </p>
@@ -352,7 +402,7 @@ function FoundAtBox({ f }: { f: FoundAt }) {
       <Link href={f.href} className="mt-2 inline-flex h-8 items-center rounded-md border border-slate-300 px-3 text-sm font-medium text-slate-800 hover:border-accent-500">
         Open this case
       </Link>
-    </section>
+    </Fold>
   );
 }
 

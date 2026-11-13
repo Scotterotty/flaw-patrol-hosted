@@ -42,3 +42,24 @@ describe("Bugs Table and Board in sync (ver_232)", () => {
     expect(switchHref("", "table")).toBe("?view=table");
   });
 });
+
+describe("bug panel boxes (open and close)", () => {
+  it("start with Repro steps and Where it was found open, Description only without repro steps", async () => {
+    const { foldOpen } = await import("./bugs-view");
+    expect(foldOpen("repro", {}, true)).toBe(true);
+    expect(foldOpen("found", undefined, true)).toBe(true);
+    expect(foldOpen("description", {}, true)).toBe(false);
+    expect(foldOpen("description", {}, false)).toBe(true);
+    expect(foldOpen("comments", {}, true)).toBe(false);
+    expect(foldOpen("repro", { repro: false }, true)).toBe(false);
+    expect(foldOpen("details", { details: true }, true)).toBe(true);
+  });
+
+  it("are saved with the other picks, and odd values are dropped", async () => {
+    const { mergePicks, readPicks } = await import("./bugs-view");
+    const a = mergePicks({ view: "board" }, { folds: { comments: true } });
+    const b = mergePicks(a, { folds: { repro: false, nope: true } });
+    expect(b).toEqual({ view: "board", folds: { comments: true, repro: false } });
+    expect(readPicks({ folds: { details: "yes", found: false } })).toEqual({ folds: { found: false } });
+  });
+});

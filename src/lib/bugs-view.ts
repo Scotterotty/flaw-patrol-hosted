@@ -17,7 +17,20 @@ export type BugsPicks = {
   found?: boolean;
   /** The Jira board picked, per Jira project key. */
   boards?: Record<string, string>;
+  /** Which bug panel boxes this person keeps open or closed (ver_234). Missing ones use the box's default. */
+  folds?: Partial<Record<FoldBox, boolean>>;
 };
+
+/** The bug panel's boxes that open and close, top to bottom (ver_234). */
+export const FOLD_BOXES = ["description", "repro", "found", "comments", "attachments", "details"] as const;
+export type FoldBox = (typeof FOLD_BOXES)[number];
+
+/** Whether a bug panel box starts open: Repro steps and Where it was found do; Description only when there are no repro steps. */
+export function foldOpen(box: FoldBox, folds: BugsPicks["folds"], hasRepro: boolean): boolean {
+  const saved = folds?.[box];
+  if (typeof saved === "boolean") return saved;
+  return box === "repro" || box === "found" || (box === "description" && !hasRepro);
+}
 
 /** The person's saved picks, from User.bugsPicks. Anything odd is left out. */
 export function readPicks(raw: unknown): BugsPicks {
@@ -31,15 +44,24 @@ export function readPicks(raw: unknown): BugsPicks {
     for (const [k, v] of Object.entries(r.boards as Record<string, unknown>).slice(0, 50)) if (typeof v === "string" && v.length <= 40 && k.length <= 40) boards[k] = v;
     out.boards = boards;
   }
+  if (r.folds && typeof r.folds === "object" && !Array.isArray(r.folds)) {
+    const folds: Partial<Record<FoldBox, boolean>> = {};
+    for (const b of FOLD_BOXES) {
+      const v = (r.folds as Record<string, unknown>)[b];
+      if (typeof v === "boolean") folds[b] = v;
+    }
+    out.folds = folds;
+  }
   return out;
 }
 
 /** A change to the saved picks, merged in. Boards merge per Jira project. */
-export function mergePicks(old: BugsPicks, patch: { view?: string; found?: boolean; board?: { jira: string; id: string } }): BugsPicks {
+export function mergePicks(old: BugsPicks, patch: { view?: string; found?: boolean; board?: { jira: string; id: string }; folds?: Partial<Record<string, boolean>> }): BugsPicks {
   const next: BugsPicks = { ...old };
   if (patch.view === "table" || patch.view === "board") next.view = patch.view;
   if (typeof patch.found === "boolean") next.found = patch.found;
   if (patch.board && /^[A-Za-z0-9_-]{1,40}$/.test(patch.board.jira) && /^\d{1,20}$/.test(patch.board.id)) next.boards = { ...old.boards, [patch.board.jira]: patch.board.id };
+  if (patch.folds && typeof patch.folds === "object") next.folds = { ...old.folds, ...patch.folds };
   return readPicks(next);
 }
 
