@@ -235,6 +235,8 @@ test("Show me on the rest of the tasks", async ({ page }) => {
   await walk(page, "find-bugs", false, { to: 3 });
   // ver_211: the Board needs Jira, which this umbrella has none of; tests/e2e/ver211.spec.ts covers it.
   await walk(page, "bug-board", false, { to: 1 });
+  // ver_232: picks need Jira too; tests/e2e/ver232.spec.ts covers them.
+  await walk(page, "bugs-pick", false, { to: 1 });
   await walk(page, "custom-report", false, { to: 3 });
   await walk(page, "bug-templates", false);
   await walk(page, "alerts", false, { to: 5 });

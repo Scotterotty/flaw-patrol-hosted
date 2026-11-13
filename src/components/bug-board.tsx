@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { fileSize, isMe, priorityTone, shortNames, type BoardData, type BoardIssue, type FoundAt, type PriorityTone, type TicketDetail } from "@/lib/bug-board";
+import { fileSize, priorityTone, shortNames, type BoardData, type BoardIssue, type FoundAt, type PriorityTone, type TicketDetail } from "@/lib/bug-board";
 import { bugTicket } from "@/server/bug-board";
 import { JiraAdf } from "./jira-adf";
 import { keepBug, sharedFilters, switchHref } from "@/lib/bugs-view";
-import { saveBugsPicks } from "@/server/bug-board";
 import { BugsFilterBar, ShowingLine } from "./bugs-filter-bar";
 import { Button, cx } from "./ui";
 
@@ -39,7 +38,7 @@ function FoundTag() {
 
 export type LocalBug = { id: string; label: string; title: string; href: string; createdBy: string; foundIn: string };
 
-export function BugBoard({ where, data, me, jiraKey, foundDefault, local = [] }: { where: Where; data: BoardData; me: Me; jiraKey: string; foundDefault: boolean; local?: LocalBug[] }) {
+export function BugBoard({ where, data, me, foundDefault, local = [] }: { where: Where; data: BoardData; me: Me; foundDefault: boolean; local?: LocalBug[] }) {
   const params = useSearchParams();
   const f = sharedFilters(Object.fromEntries(params.entries()), { found: foundDefault });
   const [col, setCol] = useState(0);
@@ -62,7 +61,7 @@ export function BugBoard({ where, data, me, jiraKey, foundDefault, local = [] }:
 
   return (
     <div data-testid="bug-board" className="flex flex-col gap-3">
-      <BugsFilterBar mode="board" jiraKey={jiraKey} boards={data.boards} board={data.board} filters={f} versions={versions} labels={labels} priorities={priorities} />
+      <BugsFilterBar mode="board" boards={data.boards} board={data.board} filters={f} versions={versions} labels={labels} priorities={priorities} />
       <ShowingLine shown={total} found={f.found} board={data.board?.name ?? null} more={data.issues.length + local.length} />
       {data.more && <p className="text-xs text-slate-500">Showing the first 1,000 bugs on the board. Search or filter to find others.</p>}
 
@@ -358,12 +357,12 @@ function FoundAtBox({ f }: { f: FoundAt }) {
 }
 
 /** Table | Board on the Bugs page. Your pick is remembered, so Bugs opens the way you left it. */
-/** Table | Board (ver_211). It keeps every filter and the Jira board, and saves the pick on the account (ver_232). */
+/** Table | Board (ver_211). It keeps every filter and the Jira board (ver_232). */
 export function BugViewSwitch({ view }: { view: "table" | "board" }) {
   const params = useSearchParams();
   const remember = (v: "table" | "board") => {
+    // The page saves the pick on the account when it opens with ?view= (src/components/bug-board-section.tsx).
     document.cookie = `fp-bugs-view=${v}; path=/; max-age=31536000; samesite=lax`;
-    void saveBugsPicks({ view: v });
   };
   const item = (v: "table" | "board", label: string) => (
     <Link

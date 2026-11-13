@@ -22,6 +22,23 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 232,
+    date: "2026-11-12",
+    items: [
+      {
+        kind: "better",
+        title: "Bugs Table and Board show the same bugs",
+        text: "Both views share one filter bar: Jira board, Search, Found in testing, Mine, Version, Priority and Label. Switching between Table and Board keeps them. Turn off Found in testing to see every bug on the Jira board, in Table too.",
+        link: "/how-to?task=bugs-pick",
+      },
+      {
+        kind: "better",
+        title: "Your Bugs picks stay with you",
+        text: "Your Jira board, Found in testing and Table or Board are saved on your account, so they're still there after you sign out, on any computer.",
+      },
+    ],
+  },
+  {
     version: 231,
     date: "2026-11-12",
     items: [
@@ -2690,7 +2707,7 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       {
         kind: "new",
         title: "Send to Jira for bugs saved before Jira was connected",
-        link: "/g/{umbrella}/bugs",
+        link: "/how-to?task=bugs-pick",
       },
       {
         kind: "better",

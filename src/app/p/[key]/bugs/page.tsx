@@ -51,7 +51,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
         <PageHeader
           title="Bugs"
           beside={<BugViewSwitch view="board" />}
-          subtitle={`Every bug on your Jira board for ${jira!.jiraProjectKey}. Click one for its details.`}
+          subtitle={`Bugs on your Jira board for ${jira!.jiraProjectKey}. Click one for its details.`}
           actions={
             canWriteBoard ? (
               <div className="flex flex-wrap gap-2">
@@ -64,7 +64,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
         <BugBoardSection
           where={{ projectId: project.id }}
           jiraProjectId={project.id}
-          jiraKey={jira!.jiraProjectKey}
+         
           scopeIds={[project.id]}
           board={setup.board}
           me={me}
@@ -120,7 +120,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
         beside={jira ? <BugViewSwitch view="table" /> : undefined}
         subtitle={
           jira ? (
-            `Bugs found while testing or written here, linked to Jira project ${jira.jiraProjectKey}.`
+            `Bugs on your Jira board for ${jira.jiraProjectKey}, with the run and case that found them.`
           ) : (
             <>
               Bugs found while testing or written here.{" "}
@@ -150,7 +150,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
       )}
       {tb ? (
         <div className="mb-4 flex flex-col gap-2">
-          <BugsFilterBar mode="table" jiraKey={jira!.jiraProjectKey} boards={tb.data?.boards ?? []} board={tb.data?.board ?? null} filters={setup.filters} versions={[...new Set([...versions, ...tb.options.versions])]} labels={tb.options.labels} priorities={tb.options.priorities}>
+          <BugsFilterBar mode="table" boards={tb.data?.boards ?? []} board={tb.data?.board ?? null} filters={setup.filters} versions={[...new Set([...versions, ...tb.options.versions])]} labels={tb.options.labels} priorities={tb.options.priorities}>
           <AutoFilterForm className="contents">
             {sp.jira === "local" && <input type="hidden" name="jira" value="local" />}
             {jira && ["view", ...SHARED_KEYS].map((k) => sp[k] && <input key={k} type="hidden" name={k} value={sp[k]} />)}

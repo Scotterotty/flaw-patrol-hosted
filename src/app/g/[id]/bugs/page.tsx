@@ -71,7 +71,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
         <BugBoardSection
           where={{ groupId: id }}
           jiraProjectId={u.hub.id}
-          jiraKey={jira!.jiraProjectKey}
+         
           scopeIds={scopeIds}
           board={setup.board}
           me={me}
@@ -180,7 +180,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
       )}
       {tb ? (
         <div className="mb-4 flex flex-col gap-2">
-          <BugsFilterBar mode="table" jiraKey={jira!.jiraProjectKey} boards={tb.data?.boards ?? []} board={tb.data?.board ?? null} filters={setup.filters} versions={[...new Set([...versions, ...tb.options.versions])]} labels={tb.options.labels} priorities={tb.options.priorities}>
+          <BugsFilterBar mode="table" boards={tb.data?.boards ?? []} board={tb.data?.board ?? null} filters={setup.filters} versions={[...new Set([...versions, ...tb.options.versions])]} labels={tb.options.labels} priorities={tb.options.priorities}>
             {chip(showAll ? "Open and closed" : "Open", !showAll, link({ all: showAll ? undefined : "1" }))}
             {sp.jira === "local" && chip("Not in Jira", true, link({ jira: undefined }))}
             {sp.sev === "critical" ? chip("Critical only", true, link({ sev: undefined })) : chip("Critical", false, link({ sev: "critical" }))}

@@ -14,7 +14,6 @@ import { Button, cx, Input, Select } from "./ui";
  */
 export function BugsFilterBar({
   mode,
-  jiraKey,
   boards,
   board,
   filters,
@@ -24,7 +23,6 @@ export function BugsFilterBar({
   children,
 }: {
   mode: "table" | "board";
-  jiraKey: string;
   boards: { id: string; name: string }[];
   board: { id: string; name: string } | null;
   filters: SharedFilters;
@@ -55,12 +53,10 @@ export function BugsFilterBar({
   };
   const found = (on: boolean) => {
     go({ found: on ? "1" : "all" });
-    void saveBugsPicks({ found: on });
+    // Table reloads, and the page saves the pick; Board filters here, so it saves it itself.
+    if (mode === "board") void saveBugsPicks({ found: on });
   };
-  const pickBoard = (id: string) => {
-    void saveBugsPicks({ board: { jira: jiraKey, id } });
-    go({ board: id }, true);
-  };
+  const pickBoard = (id: string) => go({ board: id }, true);
   const filtered = !!(filters.q || filters.mine || filters.version || filters.label || filters.priority);
   const sorted = (list: string[], extra: string) => [...new Set([...list, ...(extra ? [extra] : [])])];
 

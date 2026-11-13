@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { loadBugBoard } from "@/lib/bug-board-server";
 import type { BoardData, BoardIssue } from "@/lib/bug-board";
-import { keepBug, readPicks, sharedFilters, type SharedFilters } from "@/lib/bugs-view";
+import { keepBug, mergePicks, readPicks, sharedFilters, type SharedFilters } from "@/lib/bugs-view";
 import { db } from "@/lib/db";
 import { BugBoard, type LocalBug } from "./bug-board";
 import { EmptyState } from "./ui";
@@ -19,6 +19,9 @@ export async function bugsView(view: string | undefined, saved?: "table" | "boar
 export async function bugsSetup(sp: Record<string, string | undefined>, userId: string, jiraKey: string | null) {
   const row = await db.user.findUnique({ where: { id: userId }, select: { bugsPicks: true } });
   const picks = readPicks(row?.bugsPicks);
+  // A pick in the web address is saved on the account, so it's still there after signing out.
+  const next = mergePicks(picks, { view: jiraKey ? sp.view : undefined, found: sp.found === "1" ? true : sp.found === "all" ? false : undefined, board: jiraKey && sp.board ? { jira: jiraKey, id: sp.board } : undefined });
+  if (JSON.stringify(next) !== JSON.stringify(picks)) await db.user.update({ where: { id: userId }, data: { bugsPicks: next } }).catch(() => null);
   const view = jiraKey ? await bugsView(sp.view, picks.view) : "table";
   const board = sp.board ?? (jiraKey ? picks.boards?.[jiraKey] : undefined);
   return { view, board, filters: sharedFilters(sp, picks), picks };
@@ -35,8 +38,8 @@ export async function tableBoard(jiraProjectId: string, scopeIds: string[], boar
   const res = await loadBugBoard(jiraProjectId, scopeIds, { board }).catch(() => null);
   const data: BoardData | null = res && "columns" in res ? res : null;
   const byKey = new Map((data?.issues ?? []).map((i) => [i.key, i]));
-  // Only trust "not on the board" when the whole board loaded.
-  const complete = !!data && !data.more;
+  // Only trust "not on the board" when a real Jira board loaded whole (not the no-board fallback).
+  const complete = !!data?.board && !data.more;
   const keep = (d: TableBug) => {
     const i = d.externalKey ? byKey.get(d.externalKey) : undefined;
     if (complete && d.externalKey && d.status === "OPEN" && !i) return false;
@@ -67,10 +70,10 @@ export async function tableBoard(jiraProjectId: string, scopeIds: string[], boar
 }
 
 /** The Board view (ver_211): every bug on the Jira board, in its columns. */
-export async function BugBoardSection({ where, jiraProjectId, jiraKey, scopeIds, board, me, foundDefault, local }: { where: { groupId?: string; projectId?: string }; jiraProjectId: string; jiraKey: string; scopeIds: string[]; board?: string; me: { name: string; email: string }; foundDefault: boolean; local: LocalBug[] }) {
+export async function BugBoardSection({ where, jiraProjectId, scopeIds, board, me, foundDefault, local }: { where: { groupId?: string; projectId?: string }; jiraProjectId: string; scopeIds: string[]; board?: string; me: { name: string; email: string }; foundDefault: boolean; local: LocalBug[] }) {
   const data = await loadBugBoard(jiraProjectId, scopeIds, { board });
   if (!data) return <EmptyState title="Connect Jira to see the board">The board shows every bug on your Jira board, in the same columns.</EmptyState>;
   if ("error" in data && data.error) return <EmptyState title="Couldn’t read the Jira board">{data.error}</EmptyState>;
   if (!("columns" in data) || !data.columns.length) return <EmptyState title="No board columns">Jira sent no columns for this board.</EmptyState>;
-  return <BugBoard where={where} data={data} me={me} jiraKey={jiraKey} foundDefault={foundDefault} local={local} />;
+  return <BugBoard where={where} data={data} me={me} foundDefault={foundDefault} local={local} />;
 }

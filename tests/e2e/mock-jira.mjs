@@ -263,8 +263,10 @@ http
       return send(res, 201);
     }
     // Bug board (ver_211): Jira Software's board list and setup, saved filters and statuses.
-    if (p === "/rest/agile/1.0/board") return send(res, 200, { values: url.searchParams.get("projectKeyOrId") === "BB" ? [{ id: 7, name: "BB board", type: "kanban" }] : [] });
+    if (p === "/rest/agile/1.0/board") return send(res, 200, { values: url.searchParams.get("projectKeyOrId") === "BB" ? [{ id: 7, name: "BB board", type: "kanban" }, { id: 8, name: "BB triage", type: "scrum" }] : [] });
     if (p === "/rest/agile/1.0/board/7/configuration") return send(res, 200, { filter: { id: "700" }, columnConfig: { columns: BB_COLUMNS } });
+    // ver_232: a second BB board with fewer columns, for the Jira board pick in Table and Board.
+    if (p === "/rest/agile/1.0/board/8/configuration") return send(res, 200, { filter: { id: "700" }, columnConfig: { columns: BB_COLUMNS.filter((c) => c.name === "Needs QA" || c.name === "Blocked / NMI") } });
     if (p === "/rest/api/3/filter/700") return send(res, 200, { id: "700", jql: 'project = "BB" ORDER BY Rank ASC' });
     if (p === "/rest/api/3/status") return send(res, 200, STATUSES);
     if (p.startsWith("/rest/api/3/project/")) return /\/(QA|RP|OB|WEB|BB)$/.test(p) ? send(res, 200, { key: "QA", issueTypes: ISSUE_TYPES }) : send(res, 404, { errorMessages: ["No project"] });
