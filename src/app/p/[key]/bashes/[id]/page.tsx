@@ -27,7 +27,7 @@ export default async function BashPage({ params, searchParams }: { params: Promi
   return (
     <div className="page page-list">
       <CrumbName href={`/p/${view.homeKey}/bashes/${id}`} label={`Bug bash · ${view.name}`} />
-      <LiveRefresh url={`/api/live/bashes/${id}`} />
+      <LiveRefresh url={`/api/live/bashes/${id}`} everyMs={2000} gapMs={3000} />
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-xl font-semibold tracking-tight text-slate-900">
           Bug bash · {view.name}

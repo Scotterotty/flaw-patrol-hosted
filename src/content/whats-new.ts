@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 238,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "better",
+        title: "Bug bashes stay fast with lots of people",
+        text: "With 50 people in a bug bash, the bash pages kept the server busy checking for new finds. They now check less often and only fetch the full list when something changed, so pages stay quick. Nothing on the screen changes.",
+      },
+    ],
+  },
+  {
     version: 237,
     date: "2026-11-13",
     items: [
