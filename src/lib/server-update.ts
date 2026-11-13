@@ -1,4 +1,4 @@
-// Updates from Workspace settings (ver_238). Flaw Patrol can't rebuild its own container, so
+// Updates from Workspace settings (ver_239). Flaw Patrol can't rebuild its own container, so
 // the Update button only leaves a note in a folder shared with the server; the update helper
 // (scripts/server-update.sh) picks it up, does the update, and writes back how it's going.
 // Every file in the folder is plain key=value or tab-separated lines, so the helper needs no

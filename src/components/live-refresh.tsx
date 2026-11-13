@@ -17,10 +17,12 @@ const REFRESH_GAP_MS = 5000;
  * hidden and while a form on the page has unsaved input (holdLive).
  * With `rows`, a change also brings the run's rows, so run lists update straight
  * away, even while the refresh is held.
+ * `everyMs` and `gapMs` slow a busy page down: a bash page with 50 people in it checks every
+ * 2 seconds and reloads at most every few seconds (ver_237), since each reload redraws the whole page.
  * `renderedAt` (server time the page was drawn) skips a reload the page doesn't need: after
  * Save and next, say, the new case was drawn after your own save already.
  */
-export function LiveRefresh({ url, rows = false, renderedAt }: { url: string; rows?: boolean; renderedAt?: number }) {
+export function LiveRefresh({ url, rows = false, renderedAt, everyMs = EVERY_MS, gapMs }: { url: string; rows?: boolean; renderedAt?: number; everyMs?: number; gapMs?: number }) {
   const router = useRouter();
   const drawnAt = useRef(renderedAt);
   useEffect(() => {
@@ -51,7 +53,8 @@ export function LiveRefresh({ url, rows = false, renderedAt }: { url: string; ro
           seenDraw = drawnAt.current;
           const shown = redrawn && !!drawnAt.current && body?.latest !== undefined && body.latest <= drawnAt.current;
           const changed = !!v && !!known && v !== known && !shown;
-          const canRefresh = !liveHeld() && (!rows || Date.now() - refreshedAt >= REFRESH_GAP_MS);
+          const gap = gapMs ?? (rows ? REFRESH_GAP_MS : 0);
+          const canRefresh = !liveHeld() && Date.now() - refreshedAt >= gap;
           if (changed && canRefresh) {
             router.refresh();
             refreshedAt = Date.now();
@@ -62,7 +65,7 @@ export function LiveRefresh({ url, rows = false, renderedAt }: { url: string; ro
           // Offline or the server restarted; try again next time.
         }
       }
-      if (!stopped) timer = setTimeout(check, EVERY_MS);
+      if (!stopped) timer = setTimeout(check, everyMs);
     };
     const onVisible = () => {
       if (!document.hidden) {
@@ -78,7 +81,7 @@ export function LiveRefresh({ url, rows = false, renderedAt }: { url: string; ro
       clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [url, rows, router]);
+  }, [url, rows, router, everyMs, gapMs]);
 
   return null;
 }

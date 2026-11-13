@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Flaw Patrol's update helper (ver_238). It runs on the server, beside docker-compose.hosting.yml,
+# Flaw Patrol's update helper (ver_239). It runs on the server, beside docker-compose.hosting.yml,
 # and does what Workspace settings -> Updates asks for: get the new code, back up the database,
 # rebuild Flaw Patrol and restart it.
 #

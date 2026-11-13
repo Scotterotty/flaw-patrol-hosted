@@ -10,7 +10,7 @@ const server = process.env.E2E_SERVER ?? "dev";
 export const DEV_ONLY = ["run-sheet.spec.ts", "sheet-fill.spec.ts", "ver82.spec.ts"];
 // The preflight makes a fresh database for each run and names it here; the servers and specs use it instead of .env's.
 if (existsSync(".e2e-database")) process.env.DATABASE_URL = readFileSync(".e2e-database", "utf8").trim();
-// Workspace settings → Updates talks to the update helper through this folder; ver238.spec.ts plays the helper.
+// Workspace settings → Updates talks to the update helper through this folder; ver239.spec.ts plays the helper.
 mkdirSync(SERVER_UPDATE_DIR, { recursive: true });
 
 export default defineConfig({

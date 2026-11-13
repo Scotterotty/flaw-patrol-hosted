@@ -12,7 +12,7 @@ const SHOWN_COMMITS = 8;
 const ago = (iso: string | null) => (iso ? relativeTime(new Date(iso)) : "never");
 
 /**
- * Workspace settings → Updates (ver_238): the version this server runs, what's new on GitHub,
+ * Workspace settings → Updates (ver_239): the version this server runs, what's new on GitHub,
  * and an Update now button that hands the work to the update helper on the server
  * (scripts/server-update.sh). While it updates, the card asks every few seconds how it's going,
  * and keeps asking through the restart, when Flaw Patrol is away for a moment.

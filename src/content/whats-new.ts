@@ -22,7 +22,7 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
-    version: 238,
+    version: 239,
     date: "2026-11-13",
     items: [
       {
@@ -31,6 +31,17 @@ export const WHATS_NEW: WhatsNewEntry[] = [
         text: "On a server, Workspace settings → Updates shows the version you run and what's new on GitHub. Update now backs up the database, builds the new version and restarts Flaw Patrol by itself. It needs a small helper set up on the server once (README: Update button).",
         who: "workspace",
         link: "/workspace#updates",
+      },
+    ],
+  },
+  {
+    version: 238,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "better",
+        title: "Bug bashes stay fast with lots of people",
+        text: "With 50 people in a bug bash, the bash pages kept the server busy checking for new finds. They now check less often and only fetch the full list when something changed, so pages stay quick. Nothing on the screen changes.",
       },
     ],
   },

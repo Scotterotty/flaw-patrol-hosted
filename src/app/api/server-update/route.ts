@@ -7,7 +7,7 @@ import { APP_VERSION } from "@/lib/version";
 export const dynamic = "force-dynamic";
 
 /**
- * How an update is going (ver_238), for Workspace settings → Updates to follow along while
+ * How an update is going (ver_239), for Workspace settings → Updates to follow along while
  * the helper builds and restarts. Workspace admins only. `running` is this server's version,
  * so the page can tell when the new one has taken over.
  */

@@ -13,7 +13,7 @@ async function requireWorkspaceAdmin() {
   return user;
 }
 
-/** Workspace settings → Updates → Update now: ask the update helper on the server to update (ver_238). */
+/** Workspace settings → Updates → Update now: ask the update helper on the server to update (ver_239). */
 export async function requestServerUpdate() {
   return attempt(async () => {
     const admin = await requireWorkspaceAdmin();

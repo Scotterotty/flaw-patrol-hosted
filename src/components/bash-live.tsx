@@ -65,28 +65,55 @@ export function KindTag({ kind, className }: { kind: FindKind; className?: strin
   return <span className={cx("inline-block w-[4.5rem] shrink-0 rounded px-1.5 py-0.5 text-center text-[11px] font-semibold ring-1 ring-inset", KIND_TONE[kind], className)}>{FIND_LABEL[kind]}</span>;
 }
 
-/** Polls the bash's finds every 2 seconds, while the tab is in view. `reload` asks right away. */
+/** How often the full list comes anyway, even when the fingerprint says nothing changed. */
+const FULL_EVERY_MS = 30_000;
+
+/**
+ * Polls the bash's finds every 2 seconds, while the tab is in view. `reload` asks right away.
+ * Each check sends the fingerprint it last got, so while nothing changed only that comes back (ver_237).
+ */
 export function useLiveFinds(bashId: string, initial: LiveData) {
   const [data, setData] = useState(initial);
   const busy = useRef(false);
-  const reload = useCallback(async () => {
-    if (busy.current) return;
-    busy.current = true;
-    try {
-      const res = await fetch(`/api/live/bashes/${bashId}/finds`, { cache: "no-store" });
-      if (res.ok) setData((await res.json()) as LiveData);
-    } catch {
-      // The next tick tries again.
-    } finally {
-      busy.current = false;
-    }
-  }, [bashId]);
+  const known = useRef<{ v: string; at: number } | null>(null);
+  // A full reload asked for while a check was out runs right after it, so your own find shows.
+  const again = useRef(false);
+  const check = useCallback(
+    async (full: boolean): Promise<void> => {
+      if (busy.current) {
+        if (full) again.current = true;
+        return;
+      }
+      busy.current = true;
+      try {
+        const ask = !full && known.current && Date.now() - known.current.at < FULL_EVERY_MS ? `?v=${encodeURIComponent(known.current.v)}` : "";
+        const res = await fetch(`/api/live/bashes/${bashId}/finds${ask}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const body = (await res.json()) as LiveData & { v?: string; same?: boolean };
+        if (body.same) return;
+        if (body.v) known.current = { v: body.v, at: Date.now() };
+        const { v: _v, same: _same, ...rest } = body; // eslint-disable-line @typescript-eslint/no-unused-vars
+        setData(rest as LiveData);
+      } catch {
+        // The next tick tries again.
+      } finally {
+        busy.current = false;
+      }
+      if (again.current) {
+        again.current = false;
+        await check(true);
+      }
+    },
+    [bashId],
+  );
+  // After your own change: always the full list.
+  const reload = useCallback(() => check(true), [check]);
   useEffect(() => {
     const t = setInterval(() => {
-      if (!document.hidden) void reload();
+      if (!document.hidden) void check(false);
     }, 2000);
     return () => clearInterval(t);
-  }, [reload]);
+  }, [check]);
   return { data, reload };
 }
 

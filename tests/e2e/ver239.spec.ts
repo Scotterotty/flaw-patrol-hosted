@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 import { signIn } from "./auth";
 import { SERVER_UPDATE_DIR as DIR } from "./server-update-dir";
 
-// ver_238 (Scott, Nov 13 2026): Workspace settings → Updates. Flaw Patrol can't rebuild its own
+// ver_239 (Scott, Nov 13 2026): Workspace settings → Updates. Flaw Patrol can't rebuild its own
 // container, so Update now leaves a note for the update helper on the server
 // (scripts/server-update.sh) and follows the status it writes back. This test plays the helper
 // by writing its files into the shared folder (playwright.config.ts sets SERVER_UPDATE_DIR).
@@ -22,7 +22,7 @@ test.beforeEach(() => {
 test("Updates: see what's new, press Update now, follow the helper to Done", async ({ page }) => {
   test.setTimeout(180_000);
   status({});
-  put("remote", `checked=${iso(60_000)}\ncurrent=0.3.0-alpha.238\nlatest=0.3.0-alpha.240\nlatestCommit=abc1234\nbehind=2\nahead=0\nchanged=\nerror=\n`);
+  put("remote", `checked=${iso(60_000)}\ncurrent=0.3.0-alpha.239\nlatest=0.3.0-alpha.240\nlatestCommit=abc1234\nbehind=2\nahead=0\nchanged=\nerror=\n`);
   put("commits", "abc1234\tVersion 240: something new\ndef5678\tVersion 239: a fix\n");
   put("migrations", "20261113090000_new_table\n");
 
@@ -47,22 +47,22 @@ test("Updates: see what's new, press Update now, follow the helper to Done", asy
 
   // The helper takes the note and works; the card follows along.
   rmSync(join(DIR, "request"));
-  status({ state: "updating", step: "Building 0.3.0-alpha.240 (about 4 minutes)", started: iso(), from: "0.3.0-alpha.238", to: "0.3.0-alpha.240" });
+  status({ state: "updating", step: "Building 0.3.0-alpha.240 (about 4 minutes)", started: iso(), from: "0.3.0-alpha.239", to: "0.3.0-alpha.240" });
   await expect(card.getByText("Building 0.3.0-alpha.240 (about 4 minutes)")).toBeVisible({ timeout: 15_000 });
   await expect(card.getByRole("button", { name: "Update now" })).toHaveCount(0);
 
-  status({ state: "done", message: "Updated from 0.3.0-alpha.238 to 0.3.0-alpha.240.", by: "Demo Admin", finished: iso(), from: "0.3.0-alpha.238", to: "0.3.0-alpha.240" });
+  status({ state: "done", message: "Updated from 0.3.0-alpha.239 to 0.3.0-alpha.240.", by: "Demo Admin", finished: iso(), from: "0.3.0-alpha.239", to: "0.3.0-alpha.240" });
   put("remote", `checked=${iso()}\ncurrent=0.3.0-alpha.240\nlatest=0.3.0-alpha.240\nbehind=0\nahead=0\nchanged=\nerror=\n`);
   put("update.log", "== Getting the new code\n== Building\n");
   await expect(card.getByText("Done", { exact: true })).toBeVisible({ timeout: 15_000 });
-  await expect(card.getByText("Updated from 0.3.0-alpha.238 to 0.3.0-alpha.240.")).toBeVisible();
+  await expect(card.getByText("Updated from 0.3.0-alpha.239 to 0.3.0-alpha.240.")).toBeVisible();
   await expect(card.getByText("Up to date")).toBeVisible();
   await expect(card.getByRole("button", { name: "Update now" })).toBeDisabled();
 });
 
 test("Updates: says when the helper isn't running, and Update now stays off", async ({ page }) => {
   status({ seen: iso(10 * 60_000) });
-  put("remote", `checked=${iso(10 * 60_000)}\ncurrent=0.3.0-alpha.238\nlatest=0.3.0-alpha.240\nbehind=2\nahead=0\nchanged=\nerror=\n`);
+  put("remote", `checked=${iso(10 * 60_000)}\ncurrent=0.3.0-alpha.239\nlatest=0.3.0-alpha.240\nbehind=2\nahead=0\nchanged=\nerror=\n`);
   await signIn(page, "admin@example.com", "Demo Admin");
   await page.goto("/workspace#updates");
   const card = page.getByRole("region", { name: "Updates" });
