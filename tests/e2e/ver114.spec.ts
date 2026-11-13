@@ -19,7 +19,7 @@ test("Add gives a message with the invite link, and the link lets them in", asyn
 
   // The false "choose a password the first time" hint is gone.
   await expect(page.locator("#members")).not.toContainText(/password the first time/);
-  await expect(page.getByText("You'll get a link to send them. It lets them in once and works for 7 days.")).toBeVisible();
+  await expect(page.getByText("You'll get a link to send each person. It lets them in once and works for 7 days.")).toBeVisible();
 
   await page.getByLabel("Add people by email").fill(newbie);
   await page.getByRole("button", { name: "Add", exact: true }).click();
