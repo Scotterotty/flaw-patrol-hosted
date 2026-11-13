@@ -22,6 +22,9 @@ import { clientRowLabel } from "@/lib/clients";
 import type { LinkedDefect } from "@/server/jira";
 import { saveDraft, submitResult, uploadAttachment } from "@/server/results";
 import { showQuestMoments } from "./quest-toast";
+import { showSisterFill } from "./sister-toast";
+import { SisterDisagreeNote, SisterStepTag } from "./sister-tags";
+import type { SisterFill } from "@/lib/sisters";
 import { BugDialog } from "./bug-dialog";
 import { CaseFlagButton } from "./case-flag";
 import { StepText } from "./step-text";
@@ -72,6 +75,8 @@ export type RunnerEntry = {
   draft: Draft | null;
   /** Who left the autosaved draft, how long ago, and whether it was you. */
   draftBy: { name: string; ago: string; mine: boolean; at?: string } | null;
+  /** Sister cases: steps a dry run filled in, and dry run results that disagreed. */
+  sisterFill?: SisterFill | null;
   /** Jira stories the case tests, and whether the bug box ticks "Link to story" for them. */
   stories?: { key: string; title: string; status: string; url: string | null }[];
   linkStories?: boolean;
@@ -803,6 +808,7 @@ export function Runner({
           return setError(res.error);
         }
         showQuestMoments(res.quest);
+        showSisterFill(res.sisters);
         // The last case of the run: offer to close it rather than dropping back to the run page.
         if (goNext && !nextEntryId && res.runDone) {
           router.replace(`${runPath}/execute?entry=${entry.id}&finished=1${keepQuery}`);
@@ -1112,6 +1118,7 @@ export function Runner({
             </ScrollTabs>
           </div>
         )}
+        {entry.sisterFill && <SisterDisagreeNote list={entry.sisterFill.disagree} numberOf={(i) => entry.steps[i]?.number ?? String(i + 1)} />}
         <ol className="space-y-2">
           {entry.steps.map((step, i) => {
             if (activeRow !== null && step.row !== activeRow) return null;
@@ -1183,6 +1190,7 @@ export function Runner({
                           </span>
                         )}
                         {news?.kind === "updated" && <StepChangeTag change={news.steps[i]} />}
+                        {entry.sisterFill?.steps[i] && statuses[i] === entry.sisterFill.steps[i].status && <SisterStepTag mark={entry.sisterFill.steps[i]} />}
                         {many ? (
                           <span className="block">
                             <span className="font-medium">{many.title}</span>

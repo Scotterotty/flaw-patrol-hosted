@@ -21,6 +21,7 @@ import { queueQaseSend } from "@/lib/qase-sync";
 import { questMoments } from "@/lib/quest-data";
 import { parseGear } from "@/lib/quest-gear";
 import { attachmentType } from "@/lib/attachment-type";
+import { fillSisters, type FillSummary } from "@/lib/sisters-server";
 
 const statusEnum = z.enum(["UNTESTED", "PASSED", "FAILED", "BLOCKED", "RETEST", "SKIPPED", "EXPLORED"]);
 
@@ -155,7 +156,9 @@ export async function submitResult(projectId: string, entryId: string, input: Re
     after(() => alertsForResult({ cycle: project, resultId: result.id, status: data.status, comment: data.comment, tester: user.name ?? user.email, entryId, wasOpen: OPEN.includes(entry.status), runDone }).catch((e) => console.warn("Slack alerts failed", e)));
     // Mini game crowns are counted again after the response goes out.
     after(() => refreshCrownsFor(projectId));
-    return { resultId: result.id, runId: entry.runId, runDone, quest: quests ? await questMoments(entry.runId, entryId, result.createdAt) : [] };
+    // Sister cases: a dry run result fills the linked steps in open RC runs. Never fails the save.
+    const sisters: FillSummary = await fillSisters(entryId, { id: user.id, name: user.name ?? user.email }).catch((e) => (console.warn("Sister fill failed", e), { items: [], disagree: 0, at: null }));
+    return { resultId: result.id, runId: entry.runId, runDone, sisters, quest: quests ? await questMoments(entry.runId, entryId, result.createdAt) : [] };
   });
 }
 
