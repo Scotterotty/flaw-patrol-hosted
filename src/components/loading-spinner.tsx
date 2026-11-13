@@ -73,7 +73,30 @@ function art(id: SpinnerId, pawn?: string) {
       return <i className="fp-emoji fp-flip">👑</i>;
     case "seasonal":
       return <i className="fp-emoji fp-bob">{SEASON_INFO[seasonFor(new Date())].icon}</i>;
+    case "paws":
+      return (
+        <i className="fp-paws">
+          {[0, 1, 2, 3].map((n) => (
+            <b key={n}>
+              <PawPrint />
+            </b>
+          ))}
+        </i>
+      );
   }
+}
+
+/** One paw print (ver_246): a pad and four toes, in the Look's accent color. */
+function PawPrint() {
+  return (
+    <svg viewBox="0 0 20 20">
+      <ellipse cx="10" cy="13.6" rx="5" ry="4.3" />
+      <circle cx="3.8" cy="8.2" r="2" />
+      <circle cx="7.6" cy="4.4" r="2.1" />
+      <circle cx="12.4" cy="4.4" r="2.1" />
+      <circle cx="16.2" cy="8.2" r="2" />
+    </svg>
+  );
 }
 
 /**

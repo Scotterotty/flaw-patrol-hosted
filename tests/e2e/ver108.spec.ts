@@ -48,7 +48,8 @@ test("anyone can tick loading spinners in Account → Appearance", async ({ page
   const picker = page.getByTestId("spinner-picker").getByRole("list");
   await expect(picker.getByRole("button", { pressed: true })).toHaveCount(1);
   await expect(picker.getByRole("button", { name: /Plain ring/ })).toHaveAttribute("aria-pressed", "true");
-  await expect(picker.getByRole("listitem")).toHaveCount(13);
+  await expect(picker.getByRole("listitem")).toHaveCount(14);
+  await expect(picker.getByRole("button", { name: /Paw prints/ })).toBeVisible();
   await picker.getByRole("button", { name: /Bug crawl/ }).click();
   await picker.getByRole("button", { name: /Patrol radar/ }).click();
   await expect(page.getByTestId("spinner-summary")).toHaveText("3 ticked: Plain ring, Patrol radar, Bug crawl");

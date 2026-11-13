@@ -7,13 +7,16 @@
  */
 export function splitNumberedSteps(text: string): string[] | null {
   const t = text.trim();
-  const first = /^1([.)])\s+/.exec(t);
+  // Accept the common ways people number steps: "1." "1)" "1)." "1.)"
+  // "1:" "1 -" and "Step 1:" style. Every later step must use the same style.
+  const first = /^(step\s*)?1(\s*-|\)\.|\.\)|[.):])\s+/i.exec(t);
   if (!first) return null;
-  const mark = first[1] === "." ? "\\." : "\\)";
+  const word = first[1] ? "step\\s*" : "";
+  const mark = first[2].includes("-") ? "\\s*-" : first[2].replace(/[.)]/g, "\\$&");
   const steps: string[] = [];
   let start = first[0].length;
   for (let n = 2; ; n++) {
-    const next = new RegExp(`\\s${n}${mark}\\s+`, "g");
+    const next = new RegExp(`\\s${word}${n}${mark}\\s+`, "gi");
     next.lastIndex = start;
     const m = next.exec(t);
     if (!m) break;

@@ -1564,6 +1564,59 @@ main:focus {
   position: relative;
   font-size: 16px;
 }
+/* Paw prints (ver_246): four prints step clockwise round the track, left, right, left, right,
+   and fade like footprints. With reduce motion they all sit still around the circle. */
+.fp-paws {
+  position: absolute;
+  inset: 0;
+}
+.fp-paws b {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 15px;
+  height: 15px;
+  margin: -7.5px 0 0 -7.5px;
+  color: var(--color-accent-500);
+  animation: fp-step 1.6s ease-out infinite;
+}
+.fp-paws svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+.fp-paws b:nth-child(1) {
+  transform: rotate(0deg) translateY(-13.5px) rotate(90deg);
+}
+.fp-paws b:nth-child(2) {
+  transform: rotate(90deg) translateY(-9px) rotate(90deg);
+  animation-delay: 0.4s;
+}
+.fp-paws b:nth-child(3) {
+  transform: rotate(180deg) translateY(-13.5px) rotate(90deg);
+  animation-delay: 0.8s;
+}
+.fp-paws b:nth-child(4) {
+  transform: rotate(270deg) translateY(-9px) rotate(90deg);
+  animation-delay: 1.2s;
+}
+@keyframes fp-step {
+  0% {
+    opacity: 0;
+    scale: 0.6;
+  }
+  12% {
+    opacity: 1;
+    scale: 1;
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.25;
+  }
+}
 @keyframes fp-turn {
   to {
     transform: rotate(360deg);
