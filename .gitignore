@@ -10,3 +10,6 @@ test-results
 # Copied from playwright-core after npm install (scripts/copy-trace-viewer.mjs)
 /public/trace-viewer
 flaw-patrol.env
+# The update helper's notes and database backups (scripts/server-update.sh)
+/server-update
+/backups

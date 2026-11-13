@@ -1600,6 +1600,23 @@ export const HOW_TO: HowToTask[] = [
       { text: "Under **Activity log**, search who did what: sign-ins, role changes and other admin events, newest first.", see: "The matching events.", target: "workspace-activity" },
     ],
   },
+  // Workspace admins (Nov 13): a workspace admin makes other people workspace admins.
+  {
+    id: "workspace-admins",
+    group: "Settings",
+    title: "Add another workspace admin",
+    sub: "Let someone else change workspace settings and open every project",
+    admins: true,
+    words: "workspace admin admins add another second more owner make admin remove admin update button",
+    start: "Only workspace admins see this. The person needs a Flaw Patrol account first: invite them to a project if they don't have one.",
+    steps: [
+      { text: "Click your name at the top right.", see: "Your account menu, with **Workspace settings**.", target: "top-account" },
+      { text: "Choose **Workspace settings**.", see: "**Workspace settings**, with **Admins** first.", target: "account-workspace" },
+      { text: "Under **Workspace admins**, type the person's name or email and press **Make admin**.", see: "A box listing what they'll be able to do.", target: "workspace-admins", type: true },
+      { text: "Press **Make admin** in the box to confirm.", see: "They're in the list of workspace admins, and the Activity log says who made them one.", saves: true },
+      { text: "To take it away, press **Remove** on their row. They keep their projects. The last admin can't be removed.", see: "They're gone from the list." },
+    ],
+  },
 ];
 
 export const howToById = new Map(HOW_TO.map((t) => [t.id, t]));

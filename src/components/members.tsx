@@ -14,7 +14,7 @@ import { addMember, changeRole, removeMember, updateProject } from "@/server/pro
 import { Avatar } from "./avatar";
 import { JoinRequests, type JoinRequestRow } from "./join-request";
 import { RoleBadge } from "./badges";
-import { Button, Card, ErrorText, Field, Input, Select, Textarea } from "./ui";
+import { Button, Card, ErrorText, Field, Input, Label, Select, Textarea } from "./ui";
 
 type Member = { userId: string; email: string; name: string | null; role: Role; signedIn: boolean; hasPassword: boolean; avatarAt: Date | null; inviteSentAt?: Date | null; inviteUntil?: Date | null; title: string | null; frame: string | null };
 
@@ -207,7 +207,7 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
       {canManage && nudge && <Fragment key="nudge">{nudge}</Fragment>}
       {canManage && (
         <form
-          className="mt-4 flex flex-wrap items-end gap-2 border-t border-slate-100 pt-4"
+          className="mt-4 border-t border-slate-100 pt-4"
           onSubmit={(e) => {
             e.preventDefault();
             const list = emailList(email);
@@ -243,49 +243,51 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
             });
           }}
         >
-          <div className="min-w-56 flex-1">
-            <Field label="Add people by email" htmlFor="invite" hint="One per line, or commas between them.">
-              <Textarea
-                id="invite"
-                data-howto="invite-email"
-                required
-                rows={emailCount > 1 ? Math.min(emailCount, 6) : 1}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => {
-                  // Enter adds a line for the next email; Ctrl + Enter adds everyone.
-                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                    e.preventDefault();
-                    e.currentTarget.form?.requestSubmit();
-                  }
-                }}
-                placeholder="teammate@company.com"
-                className="min-h-9 resize-y"
-              />
-            </Field>
+          {/* One row: email box, role and Add share one height and line up at the top.
+              All help text sits under the whole row so nothing pushes role and Add down.
+              On a phone the box takes the full width and role + Add sit together under it. */}
+          <Label htmlFor="invite">Add people by email</Label>
+          <div className="flex flex-wrap items-start gap-2 sm:flex-nowrap">
+            <Textarea
+              id="invite"
+              data-howto="invite-email"
+              required
+              rows={emailCount > 1 ? Math.min(emailCount, 6) : 1}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => {
+                // Enter adds a line for the next email; Ctrl + Enter adds everyone.
+                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  e.currentTarget.form?.requestSubmit();
+                }
+              }}
+              placeholder="teammate@company.com"
+              className="min-h-9 min-w-0 py-[7px] leading-5 flex-1 basis-full resize-y sm:basis-0"
+            />
+            <Select aria-label="Role" data-howto="invite-role" className="w-auto max-w-full flex-1 sm:flex-none" value={role} onChange={(e) => setRole(e.target.value as Role)}>
+              {ROLES_PICK.map((r) => (
+                <option key={r} value={r}>
+                  {ROLE_LABEL[r]}
+                </option>
+              ))}
+            </Select>
+            <Button type="submit" variant="primary" disabled={pending} data-howto="invite-add" className="h-9 shrink-0">
+              {emailCount > 1 ? `Add ${emailCount} people` : "Add"}
+            </Button>
           </div>
-          <Select aria-label="Role" data-howto="invite-role" className="w-auto max-w-full" value={role} onChange={(e) => setRole(e.target.value as Role)}>
-            {ROLES_PICK.map((r) => (
-              <option key={r} value={r}>
-                {ROLE_LABEL[r]}
-              </option>
-            ))}
-          </Select>
-          <Button type="submit" variant="primary" disabled={pending} data-howto="invite-add">
-            {emailCount > 1 ? `Add ${emailCount} people` : "Add"}
-          </Button>
-          {/* The hint sits under the whole row so the role and Add line up with the email box. */}
           {/* The old "choose a password the first time" hint wasn't true; new people need their invite link. */}
           {canEmail ? (
-            <div className="w-full">
-              <label className="flex items-center gap-2 text-sm text-slate-700">
+            <div className="mt-1.5">
+              <p className="text-xs text-slate-500">One per line, or commas between them.</p>
+              <label className="mt-2 flex items-center gap-2 text-sm text-slate-700">
                 <input type="checkbox" checked={sendIt} onChange={(e) => setSendIt(e.target.checked)} className="accent-accent-600" />
                 Email them an invite link
               </label>
               <p className="mt-0.5 text-xs text-slate-500">The email has a link that lets them in once and works for 7 days. Untick it to copy the message yourself.</p>
             </div>
           ) : (
-            <p className="-mt-1 w-full text-xs text-slate-500">You&apos;ll get a link to send them. It lets them in once and works for 7 days.</p>
+            <p className="mt-1.5 text-xs text-slate-500">One per line, or commas between them. You&apos;ll get a link to send each person. It lets them in once and works for 7 days.</p>
           )}
         </form>
       )}

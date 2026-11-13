@@ -212,6 +212,42 @@ Use Neon's address without "-pooler" in it. Then do step 6, and use the
 copies, or their changes go to Neon instead.
 
 **Update to a new version:** get the new code, then run the step 6 command again.
+Or set up the Update button (below) once, and update from Flaw Patrol instead.
+
+### Update button
+
+Workspace settings → **Updates** shows the version this server runs and what's new
+on GitHub, and has an **Update now** button for workspace admins. Flaw Patrol can't
+rebuild its own container, so a small helper on the server does the work:
+`scripts/server-update.sh`. The button only leaves it a note in the `server-update`
+folder; the helper gets the new code, backs up the database to `backups/` (it keeps
+the newest 5), rebuilds, restarts and reports back. If the new version doesn't
+build, the old one keeps running and the code goes back where it was. Nothing in
+the note is ever run as a command.
+
+Set it up once, on the server, in the Flaw Patrol folder:
+
+1. **Let the server read the code.** Make a key: `ssh-keygen -t ed25519 -f ~/.ssh/flaw-patrol -N ""`.
+   On GitHub, open the repository → Settings → Deploy keys → Add deploy key, paste
+   `~/.ssh/flaw-patrol.pub`, and leave **Allow write access** off. Then point the
+   code at it: `git remote set-url origin git@github.com:<owner>/flaw-patrol.git` and
+   `git config core.sshCommand "ssh -i ~/.ssh/flaw-patrol -o IdentitiesOnly=yes"`.
+   Check with `git fetch`.
+2. **Install the helper:** `sudo scripts/server-update.sh install`. It runs as
+   whoever owns the folder (they need to be in the `docker` group) and starts with
+   the server.
+3. **Restart Flaw Patrol once** so it sees the folder:
+   `docker compose -f docker-compose.hosting.yml up -d`.
+
+Then open Workspace settings → Updates. It checks GitHub every 5 minutes, or press
+Check now. An update takes about 4 minutes, and Flaw Patrol is away for a few
+seconds while it restarts. The helper's own log: `journalctl -u flaw-patrol-updater -f`.
+To update from the command line instead: `scripts/server-update.sh update`.
+To remove it: `sudo scripts/server-update.sh uninstall`.
+
+Keep the server's copy of the code unchanged: if the new code changes a file you
+edited on the server (like the web address in `docker-compose.hosting.yml`), the
+update stops before changing anything and says so.
 
 **Backups:** `docker compose -f docker-compose.hosting.yml exec -T db pg_dump -U flawpatrol -Fc flawpatrol > backup.dump`.
 Run it on a schedule and keep the files somewhere else.

@@ -307,18 +307,20 @@ export async function cancelBash(bashId: string) {
  * posts its start, and ten minutes before the end the warning goes out.
  */
 export async function bashTick(bashId: string) {
-  const b = await db.bugBash.findUnique({ where: { id: bashId }, include: { project: { select: { key: true } }, run: { select: { projectId: true } }, _count: { select: { items: { where: { kind: "bug", mergedIntoId: null } } } } } });
+  // Every open bash page asks every couple of seconds, so look at the clock first and count bugs only when the warning goes out.
+  const b = await db.bugBash.findUnique({ where: { id: bashId }, include: { project: { select: { key: true } }, run: { select: { projectId: true } } } });
   if (!b?.run || !b.slack) return;
   const phase = phaseOf(b);
   if (phase === "live" && !b.slackStartAt) await slackStart(b.id).catch(() => {});
   const left = b.endsAt.getTime() - Date.now();
   if (phase === "live" && b.minutes > 15 && left <= 10 * 60_000 && left > 0 && !b.slackWarnAt) {
     const claimed = await db.bugBash.updateMany({ where: { id: b.id, slackWarnAt: null }, data: { slackWarnAt: new Date() } });
+    const bugs = claimed.count ? await db.bashItem.count({ where: { bashId: b.id, kind: "bug", mergedIntoId: null } }) : 0;
     if (claimed.count)
       await postBash(b.run.projectId, (base) => ({
         tone: "amber",
         title: `⏰ 10 minutes left in the bug bash · ${b.name}`,
-        lines: [`${b._count.items} ${b._count.items === 1 ? "bug" : "bugs"} so far. Log what you've got!`],
+        lines: [`${bugs} ${bugs === 1 ? "bug" : "bugs"} so far. Log what you've got!`],
         button: { label: "Open the bash", url: `${base}/p/${b.project.key}/bashes/${b.id}` },
       })).catch(() => {});
   }

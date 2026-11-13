@@ -22,6 +22,65 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 241,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "new",
+        title: "Add more workspace admins",
+        text: "Workspace settings → Admins lists the workspace admins. Make someone else an admin, or take it away. Before you remove one, it says what they'll lose and keep. There's always at least one admin, and nobody can be removed in a way that stops them signing in.",
+        who: "workspace",
+        link: "/how-to?task=workspace-admins",
+      },
+    ],
+  },
+  {
+    version: 240,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "fix",
+        title: "Getting started opens your umbrella's Start here steps",
+        text: "Pressing Getting started used to land on the Umbrellas list. It now opens your umbrella's Start here steps.",
+      },
+    ],
+  },
+  {
+    version: 239,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "new",
+        title: "Update Flaw Patrol from Workspace settings",
+        text: "On a server, Workspace settings → Updates shows the version you run and what's new on GitHub. Update now backs up the database, builds the new version and restarts Flaw Patrol by itself. It needs a small helper set up on the server once (README: Update button).",
+        who: "workspace",
+        link: "/workspace#updates",
+      },
+    ],
+  },
+  {
+    version: 238,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "better",
+        title: "Bug bashes stay fast with lots of people",
+        text: "With 50 people in a bug bash, the bash pages kept the server busy checking for new finds. They now check less often and only fetch the full list when something changed, so pages stay quick. Nothing on the screen changes.",
+      },
+    ],
+  },
+  {
+    version: 237,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "fix",
+        title: "Add people by email lines up",
+        text: "On the Members page, the email box, role and Add button now sit on one line at the same height. The \"One per line\" hint sits under the row, and on a phone role and Add sit together under the email box.",
+      },
+    ],
+  },
+  {
     version: 236,
     date: "2026-11-13",
     items: [

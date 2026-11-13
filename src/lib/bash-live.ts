@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { ITEM_KINDS, parseAreas, parseLinks, phaseOf, plusOnesOf } from "./bash";
 import { findTemplate } from "./bash-template";
 import { withOko } from "./bash-oko";
@@ -68,3 +69,37 @@ export async function bashFinds(bashId: string) {
 }
 export type BashFinds = NonNullable<Awaited<ReturnType<typeof bashFinds>>>;
 export type LiveFind = BashFinds["items"][number];
+
+/**
+ * A cheap fingerprint of everything Live finds shows (ver_237, bug bash of fifty): the panel sends
+ * the last one it got, and while nothing changed it gets back only this, not every find again.
+ * Null when there's no such bash. Leaves out the cycle's Jira bug form; the panel asks for the full
+ * list every 30 seconds anyway, which picks that up.
+ */
+export async function bashFindsVersion(bashId: string) {
+  const bash = await db.bugBash.findUnique({
+    where: { id: bashId },
+    select: {
+      projectId: true,
+      startsAt: true,
+      endsAt: true,
+      endedAt: true,
+      wrappedAt: true,
+      areas: true,
+      links: true,
+      run: { select: { build: true, environment: true } },
+      people: { select: { userId: true, name: true, areaId: true }, orderBy: { userId: "asc" } },
+      items: {
+        where: { kind: { in: [...ITEM_KINDS, "add"] } },
+        orderBy: { id: "asc" },
+        select: { id: true, areaId: true, text: true, details: true, severity: true, plusOnes: true, defectId: true, answers: true, platform: true, review: true, reviewReason: true, mergedIntoId: true, _count: { select: { attachments: true } } },
+      },
+    },
+  });
+  if (!bash) return null;
+  const hash = createHash("sha1");
+  hash.update(`${phaseOf(bash)}|${JSON.stringify(bash.areas)}|${JSON.stringify(bash.links)}|${bash.run?.build ?? ""}|${bash.run?.environment ?? ""}`);
+  for (const p of bash.people) hash.update(`|${p.userId}:${p.name}:${p.areaId}`);
+  for (const i of bash.items) hash.update(`|${JSON.stringify(i)}`);
+  return { projectId: bash.projectId, v: hash.digest("base64url") };
+}

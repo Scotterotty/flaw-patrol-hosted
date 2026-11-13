@@ -7,10 +7,14 @@ import { ProjectMenu } from "@/components/project-menu";
 import { TopBar } from "@/components/top-bar";
 import { PageHeader } from "@/components/ui";
 import { WorkspaceBugTemplates } from "@/components/workspace-bug-templates";
+import { WorkspaceAdmins } from "@/components/workspace-admins";
 import { WorkspaceEmail, type MailView } from "@/components/workspace-email";
 import { EmailGroupsCard } from "@/components/digest-card";
 import { emailGroupViews, pickablePeople } from "@/lib/digest-data";
 import { WorkspaceSignIn, type ProviderView } from "@/components/workspace-sign-in";
+import { WorkspaceUpdates } from "@/components/workspace-updates";
+import { readServerUpdate } from "@/lib/server-update-files";
+import { APP_VERSION } from "@/lib/version";
 import { pruneActivity } from "@/lib/activity";
 import type { ActivityFilters } from "@/lib/activity-query";
 import { canOpen } from "@/lib/crypto";
@@ -21,13 +25,13 @@ import { COMPANY_PROVIDERS, domainList, envProviders, PROVIDER_NAME } from "@/li
 
 export const metadata = { title: "Workspace settings" };
 
-/** Workspace admins only: company sign-in, email, the activity log and the game admin. */
+/** Workspace admins only: company sign-in, email, the activity log, the game admin and updates. */
 export default async function WorkspacePage({ searchParams }: { searchParams: Promise<ActivityFilters & { tested?: string }> }) {
   const user = await requireUser();
   if (!user.isAdmin) notFound();
   const { tested, ...filters } = await searchParams;
   await pruneActivity();
-  const [ws, rows, last, spelling, templates, sources, groups, people] = await Promise.all([
+  const [ws, rows, last, spelling, templates, sources, groups, people, updates, adminRows] = await Promise.all([
     db.workspace.upsert({ where: { id: 1 }, create: { id: 1 }, update: {} }),
     db.signInProvider.findMany(),
     db.projectPin.findFirst({
@@ -40,7 +44,10 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
     shareSources(),
     emailGroupViews(),
     pickablePeople("all"),
+    readServerUpdate(),
+    db.user.findMany({ where: { isAdmin: true }, orderBy: [{ name: "asc" }, { email: "asc" }], select: { id: true, name: true, email: true } }),
   ]);
+  const admins = adminRows.map((u) => ({ id: u.id, name: u.name || u.email, email: u.email }));
   const env = envProviders();
   const providers: ProviderView[] = COMPANY_PROVIDERS.map((id) => {
     const r = rows.find((x) => x.id === id);
@@ -90,14 +97,17 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
             <AccountTabs
               label="Workspace sections"
               tabs={[
+                ["admins", "Admins"],
                 ["sign-in", "Sign-in"],
                 ["email", "Email"],
                 ["bug-templates", "Bug templates"],
                 ["activity", "Activity log"],
                 ["game-admin", "Game admin"],
+                ["updates", "Updates"],
               ]}
             />
             <div className="space-y-5">
+              <WorkspaceAdmins admins={admins} meId={user.id} />
               <WorkspaceSignIn
                 password={{ on: ws.passwordSignIn, joinDomains: ws.joinDomains, envDomains: domainList(process.env.AUTH_ALLOWED_DOMAINS).join(", ") }}
                 providers={providers}
@@ -110,6 +120,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
               <WorkspaceBugTemplates list={templates} sources={sources} joinDomains={ws.joinDomains} />
               <ActivityLog filters={filters} spelling={spelling} />
               <GameAdminCard />
+              <WorkspaceUpdates initial={{ ...updates, running: APP_VERSION }} />
             </div>
           </div>
         </main>

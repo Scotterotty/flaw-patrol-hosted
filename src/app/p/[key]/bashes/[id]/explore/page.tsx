@@ -19,7 +19,8 @@ export default async function ExploreBashPage({ params }: { params: Promise<{ ke
   return (
     <div className="page max-w-7xl">
       <CrumbName href={`/p/${view.homeKey}/bashes/${id}/explore`} label={`${view.name} · ${area?.name ?? ""}`} />
-      <LiveRefresh url={`/api/live/bashes/${id}`} />
+      {/* Live finds keeps itself current, so the rest of the page (areas, who is where) can wait a bit (ver_237). */}
+      <LiveRefresh url={`/api/live/bashes/${id}`} everyMs={2000} gapMs={15_000} />
       <h1 className="mb-4 text-xl font-semibold tracking-tight text-slate-900">
         Bug bash · {view.name}
       </h1>

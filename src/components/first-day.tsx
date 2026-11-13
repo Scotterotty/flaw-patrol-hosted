@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
-import { closeAllSet, hideStartHere } from "@/server/first-day";
+import { closeAllSet, hideStartHere, showStartHere } from "@/server/first-day";
 import { Button, Card, cx } from "./ui";
 
 const SHOWN = "fp:start-here-shown";
@@ -14,11 +14,11 @@ export function useShowStartHere() {
   const [pending, start] = useTransition();
   const show = () =>
     start(async () => {
-      await hideStartHere(false);
+      // Start here lives on an umbrella's Overview: the server picks the umbrella you're working in.
+      const r = await showStartHere(pathname);
       // A card hidden on this page stays mounted as hidden: tell it to show again.
       window.dispatchEvent(new Event(SHOWN));
-      const m = /^\/g\/([^/?#]+)/.exec(pathname);
-      router.push(m ? `/g/${m[1]}` : "/start");
+      router.push(r.ok ? r.href : "/start");
       router.refresh();
     });
   return { show, pending };
