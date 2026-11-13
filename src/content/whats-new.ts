@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 245,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "fix",
+        title: "More kinds of numbered repro steps go one per line",
+        text: "Jira repro steps typed on one line with numbers like 1), 1.), 1:, 1 - or Step 1: now show one step per line on the Bugs Board, like 1. already did.",
+      },
+    ],
+  },
+  {
     version: 244,
     date: "2026-11-13",
     items: [
