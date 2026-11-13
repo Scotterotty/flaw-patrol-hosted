@@ -22,6 +22,18 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 234,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "better",
+        title: "Open and close every box in the bug panel",
+        text: "When you click a bug on the Bugs Board, every box (Description, Repro steps, Where the bug was found, Comments, Attachments and Details) now opens and closes the same way. A closed box shows a short preview, like 9 steps. Open all opens them all, and the boxes stay the way you left them on every bug and computer.",
+        link: "/how-to?task=bug-board",
+      },
+    ],
+  },
+  {
     version: 233,
     date: "2026-11-12",
     items: [

@@ -27,12 +27,14 @@ export async function bugTicket(where: Where, key: string) {
       }),
       foundAt(scope.scopeIds, key),
     ]);
-    return { ticket, found };
+    // The boxes this person keeps open or closed in the bug panel (ver_234).
+    const row = await db.user.findUnique({ where: { id: user.id }, select: { bugsPicks: true } });
+    return { ticket, found, folds: readPicks(row?.bugsPicks).folds ?? {} };
   });
 }
 
-/** Save the Bugs page picks on the person's account (ver_232): the view, Found in testing and the Jira board. */
-export async function saveBugsPicks(patch: { view?: string; found?: boolean; board?: { jira: string; id: string } }) {
+/** Save the Bugs page picks on the person's account (ver_232): the view, Found in testing, the Jira board, and the bug panel's open boxes (ver_234). */
+export async function saveBugsPicks(patch: { view?: string; found?: boolean; board?: { jira: string; id: string }; folds?: Partial<Record<string, boolean>> }) {
   return attempt(async () => {
     const user = await requireUser();
     const row = await db.user.findUnique({ where: { id: user.id }, select: { bugsPicks: true } });
