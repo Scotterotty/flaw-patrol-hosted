@@ -247,7 +247,7 @@ export function SideMenu({ label, head, groups, footer = [], active }: { label: 
       title={i.tip}
       data-howto={guideName(i)}
       className={cx(
-        "flex min-h-6 max-w-full items-center gap-1 rounded-full px-1.5 py-0.5 text-xs ring-1 ring-inset focus-visible:outline-2 focus-visible:outline-accent-500",
+        "fp-chip flex min-h-6 max-w-full items-center gap-1 rounded-full px-1.5 py-0.5 text-xs ring-1 ring-inset focus-visible:outline-2 focus-visible:outline-accent-500",
         active(i) ? "bg-accent-100 font-semibold text-accent-700 ring-accent-500" : "text-slate-700 ring-slate-200 hover:bg-slate-100",
       )}
     >
@@ -489,7 +489,7 @@ export function SideMenu({ label, head, groups, footer = [], active }: { label: 
                 title={i.tip}
                 data-howto={guideName(i)}
                 className={cx(
-                  "shrink-0 rounded-md px-2.5 py-1 text-xs",
+                  "fp-chip shrink-0 rounded-md px-2.5 py-1 text-xs",
                   active(i) ? "bg-accent-100 font-semibold text-accent-700 ring-1 ring-accent-500 ring-inset" : "text-slate-600",
                 )}
               >
