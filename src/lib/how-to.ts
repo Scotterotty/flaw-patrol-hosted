@@ -1148,6 +1148,21 @@ export const HOW_TO: HowToTask[] = [
     ],
     next: "risk-board",
   },
+  // ver_242: bug bashes get their own group in Reports, apart from test cycles.
+  {
+    id: "bash-in-reports",
+    group: "Bug bashes",
+    title: "Find your bug bashes in Reports",
+    sub: "Listed apart from test cycles, never in pass rates",
+    words: "bug bash reports test cycle rc release pass rate manual where find",
+    steps: [
+      { text: "In the left menu, under **Results**, press **Reports**.", see: "**Reports**, on the **Status** view.", target: "menu-reports" },
+      { text: "Scroll to **By test cycle**. Bug bashes are under **🐞 Bug bashes**, below the test cycles.", see: "Each bash by name and day, with a **Bug bash** badge. They don't count toward pass rates.", target: "reports-bashes" },
+      { text: "Press a bash's name.", see: "That bash's report: **Bugs by area** and **Worst bugs**." },
+      { text: "To see only bug bashes, press **Filter** and set **Runs** to **🐞 Bug bash**.", see: "The numbers for just your bug bashes.", target: "reports-filter-open" },
+    ],
+    next: "wrap-up-bash",
+  },
   {
     id: "risk-board",
     group: "Bug bashes",
