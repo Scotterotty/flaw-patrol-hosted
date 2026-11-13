@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { cleanSpinners, pickSpinner, SPINNER_FOLD, SPINNERS, spinnerLine } from "./spinners";
 
 describe("loading spinners", () => {
-  it("has 13 with unique ids", () => {
-    expect(SPINNERS).toHaveLength(13);
-    expect(new Set(SPINNERS.map((s) => s.id)).size).toBe(13);
+  it("has 14 with unique ids", () => {
+    expect(SPINNERS).toHaveLength(14);
+    expect(new Set(SPINNERS.map((s) => s.id)).size).toBe(14);
   });
   it("keeps known ones in list order and falls back to the plain ring", () => {
     expect(cleanSpinners(["dice", "nope", "radar"])).toEqual(["radar", "dice"]);
@@ -21,7 +21,7 @@ describe("loading spinners", () => {
     expect(spinnerLine(["ring"])).toBe("Plain ring");
     expect(spinnerLine([])).toBe("Plain ring");
     expect(spinnerLine(["stopwatch", "radar", "bug"])).toBe("3 ticked: Patrol radar, Bug crawl, Stopwatch");
-    expect(spinnerLine(SPINNERS.map((s) => s.id))).toMatch(/^13 ticked: Plain ring, /);
+    expect(spinnerLine(SPINNERS.map((s) => s.id))).toMatch(/^14 ticked: Plain ring, /);
   });
   it("saves its open state under an id the account accepts", () => {
     expect(SPINNER_FOLD).toMatch(/^[a-z]+:[a-z-]+$/);

@@ -15,15 +15,15 @@ test("Loading spinners folds to one line and remembers if it's open", async ({ p
   await expect(section.getByRole("list")).toHaveCount(0);
   await expect(section.getByRole("button", { name: "Tick all" })).toHaveCount(0);
   await expect(page.getByTestId("spinner-summary")).toHaveText(/^(Plain ring|\d+ ticked: .+)$/);
-  await expect(section).toContainText(/\d+ of 13/);
+  await expect(section).toContainText(/\d+ of 14/);
 
   // Open it, tick all, and the line says so.
   await fold.click();
   await expect(fold).toHaveAttribute("aria-expanded", "true");
-  await expect(section.getByRole("listitem")).toHaveCount(13);
+  await expect(section.getByRole("listitem")).toHaveCount(14);
   await section.getByRole("button", { name: "Tick all" }).click();
-  await expect(page.getByTestId("spinner-summary")).toHaveText(/^13 ticked: Plain ring, Patrol radar, /);
-  await expect(section).toContainText("13 of 13");
+  await expect(page.getByTestId("spinner-summary")).toHaveText(/^14 ticked: Plain ring, Patrol radar, /);
+  await expect(section).toContainText("14 of 14");
 
   // Left open: still open after a reload.
   await expect.poll(async () => {
@@ -34,7 +34,7 @@ test("Loading spinners folds to one line and remembers if it's open", async ({ p
   // Back to the plain ring, then Close all folds it with the cards.
   await section.getByRole("button", { name: "Back to the plain ring" }).click();
   await expect(page.getByTestId("spinner-summary")).toHaveText("Plain ring");
-  await expect(section).toContainText("1 of 13");
+  await expect(section).toContainText("1 of 14");
   const openAll = page.getByRole("button", { name: "Open all", exact: true });
   const closeAll = page.getByRole("button", { name: "Close all", exact: true });
   if (await openAll.count()) await openAll.click();

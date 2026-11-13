@@ -12,7 +12,7 @@ import { cx, ErrorText } from "./ui";
 /**
  * Account → Appearance → Loading spinners: tick the ones you like. Long waits play
  * one of them at random; with none ticked you get the plain ring. Open to everyone.
- * Folds to one line: what you ticked, small still pictures of up to 4, and "N of 13".
+ * Folds to one line: what you ticked, small still pictures of up to 4, and "N of 14".
  * Starts closed; open or closed is saved on your account like the other folding cards.
  */
 export function SpinnerPicker({ initial, pawn, card = false }: { initial: SpinnerId[]; pawn: string; /** Its own card under Just for fun (ver_200), not a fold inside Appearance. */ card?: boolean }) {
