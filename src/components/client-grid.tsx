@@ -9,6 +9,7 @@ import { useLiveRows } from "@/lib/live-rows";
 import { STATUS_STYLE } from "@/lib/status";
 import { markClient } from "@/server/clients";
 import { Modal } from "./modal";
+import { showSisterFill } from "./sister-toast";
 import { StatusIcon } from "./status";
 import { Button, buttonClass, cx, ErrorText, LinkButton } from "./ui";
 
@@ -113,6 +114,7 @@ export function ClientGrid({
     start(async () => {
       const r = await markClient(projectId, e.id, { client, status: status as "PASSED" | "FAILED" | "BLOCKED" | "UNTESTED" });
       if (!r.ok) return setError(r.error);
+      showSisterFill(r.sisters);
       setMine((m) => ({ ...m, [e.id]: { ...m[e.id], [client]: status } }));
       setOpen(null);
       setNote(`${client}: ${word(status)}. ${e.caseKey} ${e.title}`);

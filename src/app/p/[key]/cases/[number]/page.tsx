@@ -65,6 +65,13 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
     jiraConfigFor(project.id),
   ]);
   const c = await loadCase(project.id, number);
+  // Sister cases: dry run cases this one fills, or that fill it.
+  const sisters = c
+    ? await db.sisterLink.findMany({
+        where: { OR: [{ fromCaseId: c.id }, { toCaseId: c.id }] },
+        select: { fromClient: true, fromCaseId: true, fromCase: { select: { number: true, title: true, project: { select: { key: true } } } }, toCase: { select: { number: true, title: true, project: { select: { key: true } } } } },
+      })
+    : [];
   const flag = flagInfo(c, relativeTime);
   const isCharter = c.type === "EXPLORATORY";
   const latest = c.versions[0];
@@ -257,6 +264,28 @@ export default async function CasePage({ params }: { params: Promise<{ key: stri
                 guessed={!allClients.some((x) => c.clients.some((y) => y.toLowerCase() === x.toLowerCase()))}
                 canEdit={can(who, "case:edit") && !c.archived}
               />
+            </Card>
+          )}
+          {sisters.length > 0 && (
+            <Card className="p-4" data-testid="case-sisters">
+              <h2 className="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">Sister cases</h2>
+              <p className="mb-1.5 text-xs text-slate-600">{sisters[0].fromCaseId === c.id ? "Its dry run results fill in steps on:" : "Steps fill in from the dry run:"}</p>
+              <ul className="space-y-1 text-sm">
+                {sisters.map((l, i) => {
+                  const other = l.fromCaseId === c.id ? l.toCase : l.fromCase;
+                  return (
+                    <li key={i}>
+                      <Link href={`/p/${other.project.key}/cases/${other.number}`} className="text-slate-800 hover:underline">
+                        <span className="font-mono text-xs text-accent-700">{caseKey(other.project.key, other.number)}</span> {other.title}
+                      </Link>
+                      {l.fromClient && <span className="text-xs text-slate-600"> · {l.fromClient}</span>}
+                    </li>
+                  );
+                })}
+              </ul>
+              <Link href={`/p/${sisters[0].toCase.project.key}/cases/sisters?from=${sisters[0].fromCase.project.key}`} className="mt-2 inline-block text-xs font-medium text-accent-700 hover:underline">
+                Change sister cases
+              </Link>
             </Card>
           )}
           <Card className="p-4">

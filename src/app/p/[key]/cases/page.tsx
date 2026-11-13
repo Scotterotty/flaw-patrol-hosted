@@ -7,6 +7,7 @@ import { FlagIcon } from "@/components/case-flag";
 import { CaseTable } from "@/components/case-table";
 import { FolderTree } from "@/components/folder-tree";
 import { ViewTabs } from "@/components/view-tabs";
+import { dryRunCycles } from "@/lib/sisters-server";
 import { TagsRow } from "@/components/tag-pill";
 import { AreaBanner } from "@/components/area-convert";
 import { BracketBanner } from "@/components/bracket-convert";
@@ -80,6 +81,7 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
     project.groupId && can(who, "library:move") ? db.testCase.count({ where: { projectId: project.id, archived: false } }) : 0,
   ]);
   const [u, parentRow, { all: allFolders, charterOnly }, counts, robotCounts, allTags, flaky, regressed] = await early;
+  const hasDry = (await dryRunCycles(user.id)).length > 0;
   // An umbrella's hub is its Case library: every test cycle under it runs these cases.
   const parent = u ? null : parentRow;
   const platform = u?.platforms.find((p) => p.name.toLowerCase() === sp.platform?.toLowerCase());
@@ -346,6 +348,8 @@ export default async function CasesPage({ params, searchParams }: { params: Prom
           tabs={[
             { label: "Active", href: keep({ archived: undefined, page: undefined }), count: activeCount, current: sp.archived !== "1" },
             { label: "Archived", href: keep({ archived: "1", page: undefined }), count: archivedCount, current: sp.archived === "1" },
+            // Sister cases: only once there's a dry run (a test cycle with clients) to link from.
+            ...(hasDry ? [{ label: "Sister cases", href: `/p/${project.key}/cases/sisters`, current: false }] : []),
           ]}
         />
 
