@@ -1,7 +1,8 @@
 // Bug audit (ver_250): a team pass over a Jira filter of old bugs before a bug bash.
 // Jira is the source of truth. The list is the audit's filter, and every bug someone checks
 // gets the audit's label in Jira, whatever they found (a bug that still happens stays open,
-// it's just been checked), so it drops off the filter. Flaw Patrol only adds what Jira can't
+// it's just been checked), so it drops off the filter. A comment goes in only when there's news
+// (ver_255): anything but Still happens, or a note someone typed. Flaw Patrol only adds what Jira can't
 // hold: who has which bug right now, and what each person found.
 
 export const OUTCOMES = [
@@ -113,6 +114,13 @@ export function fieldChanges(before: Editable, after: Editable): string[] {
   if (!same(before.versions, after.versions)) out.push(`Affects version: ${list(before.versions)} → ${list(after.versions)}`);
   return out;
 }
+
+/**
+ * Does Verify leave a comment in Jira (ver_255)? Justin's audit rule: a bug that's still the same
+ * only gets the label. Can't reproduce, Already fixed, Duplicate and Needs info say why, and so does
+ * any typed note. Field fixes and status moves don't need one: Jira's own history shows them.
+ */
+export const auditNeedsComment = (outcome: Outcome, note: string) => outcome !== "still" || note.trim() !== "";
 
 /** The comment the check leaves in Jira, so anyone reading the ticket sees what was found. */
 export function auditComment(a: { label: string; outcome: Outcome; clients: string[]; build: string; note: string; by: string; changes: string[]; movedTo: string }) {
