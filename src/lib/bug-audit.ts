@@ -17,10 +17,11 @@ export const isOutcome = (v: unknown): v is Outcome => OUTCOMES.some((o) => o.id
 export const outcomeLabel = (v: string) => OUTCOMES.find((o) => o.id === v)?.label ?? v;
 
 /**
- * A claim lasts this long without a sign of life, so a forgotten bug goes back quickly. The Audit page
+ * A claim lasts this long without a sign of life, so a forgotten bug goes back. The Audit page
  * renews it every few minutes while the bug is open (KEEP_MS), and taking another bug lets it go at once.
+ * 30 minutes (ver_256), so someone trying a bug in a headset or on a device doesn't lose it.
  */
-export const CLAIM_MS = 15 * 60_000;
+export const CLAIM_MS = 30 * 60_000;
 export const KEEP_MS = 4 * 60_000;
 
 /** One bug on the audit's filter, as the list needs it. */
@@ -81,6 +82,19 @@ export function reopenedChecks(checks: { issueKey: string; checkedAt: Date | nul
   return checks.filter((c) => c.checkedAt && !labelled.has(c.issueKey) && now.getTime() - c.checkedAt.getTime() > LABEL_LAG_MS).map((c) => c.issueKey);
 }
 
+/**
+ * The audit's search (ver_256): its filter or JQL, leaving out bugs that already carry the label, so
+ * a checked bug never counts as left even when the filter itself forgets to leave them out.
+ * A typed ORDER BY stays at the end so the list keeps the filter's order.
+ */
+export function auditJql(jql: string, label: string) {
+  const order = /\sORDER\s+BY\s[\s\S]*$/i.exec(` ${jql}`)?.[0] ?? "";
+  const where = (order ? ` ${jql}`.slice(0, -order.length) : jql).trim();
+  const l = label.replace(/["\\]/g, "");
+  const notLabelled = `(labels is EMPTY OR labels not in ("${l}"))`;
+  return `${where ? `(${where}) AND ` : ""}${notLabelled}${order ? ` ${order.trim()}` : ""}`;
+}
+
 /** A Jira filter link or number becomes "filter = 23539"; anything else is taken as JQL. */
 export function parseFilterInput(input: string): { jql: string; filterId: string | null } | null {
   const v = input.trim();
@@ -116,22 +130,29 @@ export function fieldChanges(before: Editable, after: Editable): string[] {
 }
 
 /**
- * Does Verify leave a comment in Jira (ver_255)? Justin's audit rule: a bug that's still the same
- * only gets the label. Can't reproduce, Already fixed, Duplicate and Needs info say why, and so does
- * any typed note. Field fixes and status moves don't need one: Jira's own history shows them.
+ * Does Save leave a comment (ver_255)? Justin's audit rule: a bug that's still the same only gets the
+ * label. Everything else says why (ver_256: the note is required for those), and so does any typed note.
+ * Field fixes and status moves don't need one: Jira's own history shows them.
  */
 export const auditNeedsComment = (outcome: Outcome, note: string) => outcome !== "still" || note.trim() !== "";
 
-/** The comment the check leaves in Jira, so anyone reading the ticket sees what was found. */
-export function auditComment(a: { label: string; outcome: Outcome; clients: string[]; build: string; note: string; by: string; changes: string[]; movedTo: string }) {
-  const found = `${outcomeLabel(a.outcome)}${a.clients.length ? ` on ${a.clients.join(", ")}` : ""}${a.build ? `, build ${a.build}` : ""}.`;
-  return [
-    `Bug audit (${a.label}): ${found}`,
-    a.note.trim() && `Note: ${a.note.trim()}`,
-    a.changes.length > 0 && `Changed: ${a.changes.join("; ")}.`,
-    a.movedTo && `Moved to ${a.movedTo}.`,
-    `Checked by ${a.by} in Flaw Patrol.`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+/** Closing a bug or asking for info needs a reason in the note (ver_256). Still happens doesn't. */
+export const auditNoteRequired = (outcome: Outcome | null) => !!outcome && outcome !== "still";
+
+/** The question above the note box, and an example of an answer, for each outcome (ver_256). */
+export const NOTE_ASK: Record<Outcome, { ask: string; example: string }> = {
+  still: { ask: "Note (optional)", example: "Anything new, like it only happens on the second try." },
+  cant: { ask: "Why can't you reproduce it?", example: "Tried the steps 10 times on build R24 and it didn't happen." },
+  fixed: { ask: "How do you know it's fixed?", example: "The menu opens every time now. Fixed by the R22 menu rework." },
+  dupe: { ask: "Anything to add about the duplicate?", example: "Same crash, same steps. The other bug has the logs." },
+  info: { ask: "What info is missing?", example: "Which headset, and the steps to get to the lobby." },
+};
+
+/**
+ * The comment the check leaves in Jira (ver_256): the person's own note, then who checked it and on
+ * what. Every comment posts from Flaw Patrol's one Jira account, so the name line says who wrote it.
+ */
+export function auditComment(a: { note: string; by: string; clients: string[]; build: string }) {
+  const sign = ["— " + (a.by.trim() || "Flaw Patrol"), a.clients.join(", "), a.build.trim() && `build ${a.build.trim()}`].filter(Boolean).join(" · ");
+  return [a.note.trim(), sign].filter(Boolean).join("\n");
 }

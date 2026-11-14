@@ -2,16 +2,18 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { auditNeedsComment, CLAIM_MS, fieldChanges, KEEP_MS, OUTCOMES, outcomeLabel, type AuditIssue, type Editable, type Outcome } from "@/lib/bug-audit";
+import { auditNeedsComment, auditNoteRequired, CLAIM_MS, fieldChanges, KEEP_MS, NOTE_ASK, OUTCOMES, outcomeLabel, type AuditIssue, type Editable, type Outcome } from "@/lib/bug-audit";
 import { fileSize } from "@/lib/bug-board";
-import { claimAuditBug, keepAuditBug, nextAuditBug, openAuditBug, releaseAuditBug, verifyAuditBug } from "@/server/bug-audit";
+import { auditBugTitle, claimAuditBug, keepAuditBug, nextAuditBug, openAuditBug, releaseAuditBug, verifyAuditBug } from "@/server/bug-audit";
 import { JiraAdf } from "./jira-adf";
-import { Button, Card, cx, ErrorText, Input, Select } from "./ui";
+import { Button, Card, cx, ErrorText, Input, Select, Textarea } from "./ui";
 
 export type AuditListBug = AuditIssue;
 export type AuditRecent = { issueKey: string; title: string; outcome: string; clients: string[]; checkedBy: string; checkedAt: string; movedTo: string };
 type Holder = { name: string; mine: boolean };
 type Opened = Extract<Awaited<ReturnType<typeof openAuditBug>>, { ok: true }>;
+/** What the last Save and next did in Jira (ver_256), for the green Saved line. */
+type Saved = { key: string; outcome: string; movedTo: string; commented: boolean };
 type Progress = { left: number; done: number; holding: number; pace: { days: number; perDay: number } | null };
 
 const BUILD_KEY = "fp-audit-build";
@@ -33,7 +35,7 @@ const store = {
 
 const chip = (on: boolean) => cx("inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm", on ? "border-accent-500 bg-accent-50 font-medium text-accent-700" : "border-slate-200 text-slate-700 hover:border-accent-500");
 
-/** Bugs → Audit (ver_250): Next bug, the bug in full with its Jira fields to fix, and Verify and next. */
+/** Bugs → Audit (ver_250): Next bug, the bug in full with its Jira fields to fix, and Save and next. */
 export function AuditWorkbench({
   groupId,
   audit,
@@ -66,6 +68,7 @@ export function AuditWorkbench({
   const [skipped, setSkipped] = useState<string[]>([]);
   const [bug, setBug] = useState<{ key: string; data: Opened | null; heldBy: string | null } | null>(null);
   const [none, setNone] = useState(false);
+  const [saved, setSaved] = useState<Saved | null>(null);
   // The list is open whenever no bug is (ver_251): it folds away while you check one.
   const [browse, setBrowse] = useState(true);
   useEffect(() => {
@@ -106,7 +109,7 @@ export function AuditWorkbench({
       router.refresh();
     });
 
-  // Release (ver_252): let a bug go without checking it, from the bug or from the list. Nothing changes in Jira.
+  // Put back (ver_252 Release, renamed ver_256): let a bug go without checking it, from the bug or from the list. Nothing changes in Jira.
   const release = (key: string) =>
     start(async () => {
       const r = await releaseAuditBug(audit.id, key);
@@ -211,6 +214,21 @@ export function AuditWorkbench({
         </div>
       )}
 
+      {saved && (
+        <p className="flex flex-wrap items-center gap-x-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-slate-900" role="status" data-testid="audit-saved">
+          <span>
+            <span className="font-semibold text-emerald-800">✓ {saved.key} saved to Jira:</span> {outcomeLabel(saved.outcome)}, label added{saved.commented ? ", your note added as a comment" : ""}
+            {saved.movedTo ? `, moved to ${saved.movedTo}` : ""}.
+          </span>
+          <a href={`${site}/browse/${saved.key}`} target="_blank" rel="noreferrer" className="text-accent-700 underline">
+            Open in Jira ↗
+          </a>
+          <button type="button" className="ml-auto text-slate-600 hover:text-slate-900" onClick={() => setSaved(null)} aria-label="Hide the saved message">
+            ✕
+          </button>
+        </p>
+      )}
+
       {none && <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">Nothing left that fits. Try Any platform and Any component, or everything&apos;s been checked.</p>}
 
       {(browse || !canCheck) && <BugList issues={issues} holders={holders} onPick={canCheck ? take : null} onRelease={canCheck ? release : null} openKey={bug?.key ?? null} />}
@@ -227,7 +245,8 @@ export function AuditWorkbench({
           heldBy={bug.heldBy}
           platforms={platforms}
           onReload={() => open(bug.key, bug.heldBy)}
-          onDone={() => {
+          onDone={(s) => {
+            setSaved(s);
             router.refresh();
             next(skipped);
           }}
@@ -272,8 +291,8 @@ function BugList({ issues, holders, onPick, onRelease, openKey }: { issues: Audi
                     </Button>
                   )}
                   {onRelease && (
-                    <Button size="sm" onClick={() => onRelease(i.key)} title="Let it go without checking it. Nothing changes in Jira." data-testid="audit-list-release">
-                      Release
+                    <Button size="sm" onClick={() => onRelease(i.key)} title="Put it back for someone else, without checking it. Nothing changes in Jira." data-testid="audit-list-release">
+                      Put back
                     </Button>
                   )}
                 </span>
@@ -356,7 +375,7 @@ function BugCheck({
   heldBy: string | null;
   platforms: string[];
   onReload: () => void;
-  onDone: () => void;
+  onDone: (saved: Saved) => void;
   onSkip: () => void;
   onLetGo: () => void;
 }) {
@@ -366,6 +385,8 @@ function BugCheck({
   const [build, setBuild] = useState("");
   const [note, setNote] = useState("");
   const [moveTo, setMoveTo] = useState("");
+  const [dupOf, setDupOf] = useState("");
+  const [dupTitle, setDupTitle] = useState<{ key: string; title: string | null; error?: string } | null>(null);
   const [edits, setEdits] = useState<Editable | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [conflict, setConflict] = useState<string[] | null>(null);
@@ -379,7 +400,7 @@ function BugCheck({
   }, [data]);
   const canVerify = !heldBy && !!data && !!edits;
   // The bug stays yours while you work on it: any click, key or scroll renews the claim every few
-  // minutes. After 15 minutes with no activity on the page, it goes back on the list (a closed page
+  // minutes. After 30 minutes with no activity on the page, it goes back on the list (a closed page
   // lets it go on the server the same way).
   const [lost, setLost] = useState(false);
   const lastActive = useRef(Date.now());
@@ -416,14 +437,16 @@ function BugCheck({
   const verify = (force = false) => {
     if (!data || !edits) return;
     if (!outcome) return setError("Pick what you found first.");
+    if (auditNoteRequired(outcome) && !note.trim()) return setError("Say why in the note first. It goes in the Jira comment.");
+    if (outcome === "dupe" && !dupOf.trim()) return setError("Type the key of the bug it duplicates, like OB-3921.");
     if (lost) return setError("Take the bug back first: it went back on the list while the page was idle.");
     start(async () => {
       setError(null);
       store.set(BUILD_KEY, build);
-      const r = await verifyAuditBug(auditId, bugKey, { outcome, clients, build, note, edits, seen: data.editable, seenUpdated: data.updated, moveTo, force });
+      const r = await verifyAuditBug(auditId, bugKey, { outcome, clients, build, note, edits, seen: data.editable, seenUpdated: data.updated, moveTo, duplicateOf: outcome === "dupe" ? dupOf : "", force });
       if (!r.ok) return setError(r.error);
       if (r.conflict) return setConflict(r.conflict);
-      onDone();
+      onDone({ key: bugKey, outcome, movedTo: r.movedTo, commented: r.commented });
     });
   };
 
@@ -453,6 +476,15 @@ function BugCheck({
   const file = (id: string, name: string) => `/api/bug-board/file?g=${encodeURIComponent(groupId)}&id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}`;
   const closeMove = data?.moves.find((m) => CLOSING.test(m.to));
   const suggestClose = (outcome === "cant" || outcome === "fixed" || outcome === "dupe") && closeMove && moveTo !== closeMove.id;
+  // Duplicate (ver_256): look up the key typed, so the person sees it's the right bug.
+  const lookUp = () => {
+    const k = dupOf.trim().toUpperCase();
+    if (!k || dupTitle?.key === k) return;
+    setDupTitle({ key: k, title: null });
+    void auditBugTitle(auditId, k).then((r) => setDupTitle((d) => (d?.key === k ? { key: k, title: r.ok ? r.title : null, error: r.ok ? undefined : r.error } : d)));
+  };
+  const ask = outcome ? NOTE_ASK[outcome] : null;
+  const noteNeeded = auditNoteRequired(outcome);
   // ver_255: say exactly what lands in Jira, and change as the outcome, note, fields and status change.
   const comment = outcome ? auditNeedsComment(outcome, note) : null;
   const saving = data && edits && fieldChanges(data.editable, edits).length > 0;
@@ -461,7 +493,7 @@ function BugCheck({
   return (
     <Card className="flex flex-col gap-3 p-4 ring-1 ring-accent-500" data-testid="audit-bug">
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="font-mono font-medium text-accent-700">{bugKey}</span>
+        <span className="font-mono font-medium text-accent-700" data-testid="audit-key">{bugKey}</span>
         {heldBy ? (
           <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-800" data-testid="audit-held">
             {heldBy} is checking this
@@ -525,7 +557,7 @@ function BugCheck({
                     <JiraAdf doc={t.description} empty="No description in Jira." />
                   </div>
                 </details>
-                <p className="text-xs text-slate-500">To rewrite the steps or description, use Jira ↗. Your other changes here save with Verify.</p>
+                <p className="text-xs text-slate-500">To rewrite the steps or description, use Jira ↗. Your other changes here save with Save and next.</p>
               </div>
               <div className="flex flex-col gap-2 text-sm">
                 {t.attachments.length > 0 && (
@@ -564,7 +596,7 @@ function BugCheck({
               <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
               {lost && (
                 <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="status" data-testid="audit-lost">
-                  <span className="min-w-0 flex-1">This page was idle for 15 minutes, so {bugKey} went back on the list for someone else.</span>
+                  <span className="min-w-0 flex-1">This page was idle for 30 minutes, so {bugKey} went back on the list for someone else.</span>
                   <Button size="sm" onClick={takeBack} disabled={pending}>
                     Take it back
                   </Button>
@@ -600,14 +632,40 @@ function BugCheck({
                   ))}
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {platforms.map((p) => (
-                  <button key={p} type="button" aria-pressed={clients.includes(p)} className={chip(clients.includes(p))} onClick={() => setClients((c) => (c.includes(p) ? c.filter((x) => x !== p) : [...c, p]))}>
-                    {p}
-                  </button>
-                ))}
-                <Input value={build} onChange={(e) => setBuild(e.target.value)} placeholder="Build checked" aria-label="Build checked" className="w-40" />
-                <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" aria-label="Note" className="min-w-40 flex-1" />
+              {outcome === "dupe" && (
+                <div data-testid="audit-dupe">
+                  <label htmlFor="audit-dupe-of" className="mb-1 block text-xs font-medium text-slate-600">
+                    Duplicate of which bug?
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input id="audit-dupe-of" value={dupOf} onChange={(e) => (setDupOf(e.target.value), setDupTitle(null))} onBlur={lookUp} placeholder="OB-3921" className="w-36 font-mono" autoComplete="off" />
+                    {dupTitle && <span className={cx("min-w-0 text-sm", dupTitle.error ? "text-red-700" : "text-slate-700")}>{dupTitle.error ?? dupTitle.title ?? "Looking it up…"}</span>}
+                  </div>
+                  <p className="mt-1 text-xs text-slate-600">Jira links the two bugs, so engineers can jump to the original.</p>
+                </div>
+              )}
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                <span className="text-xs font-medium text-slate-600" id="audit-checked-on">
+                  Checked on
+                </span>
+                <div className="flex flex-wrap items-center gap-2" role="group" aria-labelledby="audit-checked-on">
+                  {platforms.map((p) => (
+                    <button key={p} type="button" aria-pressed={clients.includes(p)} className={chip(clients.includes(p))} onClick={() => setClients((c) => (c.includes(p) ? c.filter((x) => x !== p) : [...c, p]))}>
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                <label htmlFor="audit-build" className="text-xs font-medium text-slate-600 sm:ml-2">
+                  Build
+                </label>
+                <Input id="audit-build" value={build} onChange={(e) => setBuild(e.target.value)} placeholder="R24" className="w-full sm:w-40" />
+              </div>
+              <div>
+                <label htmlFor="audit-note" className="mb-1 block text-xs font-medium text-slate-600">
+                  {ask?.ask ?? "Note (optional)"}
+                  {noteNeeded && <span className="font-normal"> (goes in the Jira comment)</span>}
+                </label>
+                <Textarea id="audit-note" value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder={ask ? `Like: ${ask.example}` : "Pick what you found first."} required={noteNeeded} aria-required={noteNeeded} className="w-full" data-testid="audit-note" data-howto="audit-note" />
               </div>
               {data.moves.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -629,18 +687,25 @@ function BugCheck({
               )}
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="primary" onClick={() => verify()} disabled={pending} data-testid="audit-verify" data-howto="audit-verify">
-                  Verify and next
+                  Save and next
                 </Button>
                 <Button onClick={onSkip} disabled={pending}>
                   Skip
                 </Button>
-                <Button onClick={onLetGo} disabled={pending} title="Let it go without checking it, so someone else can take it. Nothing changes in Jira." data-testid="audit-release">
-                  Release
+                <Button onClick={onLetGo} disabled={pending} title="Put it back for someone else, without checking it. Nothing changes in Jira." data-testid="audit-release">
+                  Put back
                 </Button>
                 <span className="text-xs text-slate-600" aria-live="polite" data-testid="audit-verify-hint">
                   {saving && "Saves your changes to Jira. "}
                   Adds <code className="text-accent-700">{label}</code>
-                  {comment === null ? ". Pick what you found: Still happens adds no comment unless you type a note." : comment ? " and a comment." : ". No comment. Type a note if you want one."}
+                  {comment === null
+                    ? ". Pick what you found: Still happens adds no comment unless you type a note."
+                    : comment
+                      ? noteNeeded && !note.trim()
+                        ? ". Say why in the note: it becomes the Jira comment, signed with your name."
+                        : " and your note as a comment, signed with your name."
+                      : ". No comment. Type a note if you want one."}
+                  {outcome === "dupe" && dupOf.trim() && ` Links it to ${dupOf.trim().toUpperCase()}.`}
                   {moving && ` Moves it to ${moving}.`}
                 </span>
               </div>

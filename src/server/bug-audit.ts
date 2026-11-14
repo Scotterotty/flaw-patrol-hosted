@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity";
-import { auditComment, auditNeedsComment, claimLive, fieldChanges, isOutcome, parseFilterInput, pickNext, type Editable } from "@/lib/bug-audit";
+import { auditComment, auditNeedsComment, auditNoteRequired, claimLive, fieldChanges, isOutcome, parseFilterInput, pickNext, type Editable } from "@/lib/bug-audit";
 import { auditClaims, auditIssues, forgetAudit } from "@/lib/bug-audit-server";
 import { ISSUE_KEY, loadTicket } from "@/lib/bug-board-server";
 import { db } from "@/lib/db";
@@ -38,7 +38,8 @@ async function forAudit(auditId: string) {
   const audit = await db.bugAudit.findUnique({ where: { id: auditId } });
   const u = audit && (await loadUmbrella(audit.groupId, user));
   if (!audit || !u || !can(u.who, "run:execute")) throw new UserError("You can't check bugs in this audit.");
-  return { user, audit, u, me: user.name || user.email };
+  // The name that signs Jira comments: never the email, which Jira readers shouldn't see.
+  return { user, audit, u, me: user.name?.trim() || user.email.split("@")[0] };
 }
 
 const setupSchema = z.object({
@@ -196,6 +197,27 @@ export async function openAuditBug(auditId: string, key: string) {
   });
 }
 
+/** A bug's summary, or a plain message when Jira has no such bug. */
+async function titleOf(client: JiraClient, key: string) {
+  try {
+    const r = await client.read<{ fields: { summary?: string } }>(`/rest/api/3/issue/${encodeURIComponent(key)}?fields=summary`);
+    return r.fields.summary ?? "";
+  } catch (e) {
+    if (e instanceof JiraError && /not found/i.test(e.message)) throw new UserError(`Couldn't find ${key} in Jira. Check the key.`);
+    throw e instanceof JiraError ? new UserError(e.message) : e;
+  }
+}
+
+/** Duplicate (ver_256): the other bug's summary, so the person sees they typed the right key. */
+export async function auditBugTitle(auditId: string, key: string) {
+  return attempt(async () => {
+    const { u } = await forAudit(auditId);
+    const k = key.trim().toUpperCase();
+    if (!ISSUE_KEY.test(k)) throw new UserError("Type a bug key, like OB-3921.");
+    return { title: await titleOf(await jiraOf(u.hub.id), k) };
+  });
+}
+
 const listOf = z.array(z.string().trim().min(1).max(200)).max(50);
 const editableSchema = z.object({ summary: z.string().trim().min(1, "The summary can't be empty.").max(255), priority: z.string().max(100), components: listOf, versions: listOf });
 const verifySchema = z.object({
@@ -208,20 +230,27 @@ const verifySchema = z.object({
   seen: editableSchema.extend({ summary: z.string().max(255) }),
   seenUpdated: z.string().max(60),
   moveTo: z.string().max(40).default(""),
+  /** Duplicate (ver_256): the bug it duplicates, linked in Jira. */
+  duplicateOf: z.string().trim().toUpperCase().max(40).default(""),
   /** Save even though someone changed the bug in Jira since it was opened. */
   force: z.boolean().default(false),
 });
 
 /**
- * Verify: save any field changes, add the audit's label (whatever was found), move it if asked,
- * and leave a comment saying what was found, unless it still happens and there's no note (ver_255:
- * then the label is all). A bug that still happens stays open.
+ * Save and next (ver_256, was Verify): save any field changes, add the audit's label (whatever was
+ * found), link a duplicate, move it if asked, and leave the person's note as a comment, signed with
+ * their name. Still happens with no note is the label only (ver_255). A bug that still happens stays open.
  */
 export async function verifyAuditBug(auditId: string, key: string, input: z.input<typeof verifySchema>) {
   return attempt(async () => {
     const { user, audit, u, me } = await forAudit(auditId);
     if (!ISSUE_KEY.test(key)) throw new UserError("That isn't a Jira key.");
     const v = verifySchema.parse(input);
+    if (auditNoteRequired(v.outcome as never) && !v.note) throw new UserError("Say why in the note first. It goes in the Jira comment.");
+    if (v.outcome === "dupe") {
+      if (!ISSUE_KEY.test(v.duplicateOf)) throw new UserError("Type the key of the bug it duplicates, like OB-3921.");
+      if (v.duplicateOf === key) throw new UserError("A bug can't duplicate itself. Type the other bug's key.");
+    }
     const existing = await db.bugAuditCheck.findUnique({ where: { auditId_issueKey: { auditId, issueKey: key } } });
     if (existing && claimLive(existing, new Date()) && existing.claimedById !== user.id) throw new UserError(`${existing.claimedBy.split(/\s+/)[0]} is checking ${key}.`);
     const client = await jiraOf(u.hub.id);
@@ -229,8 +258,10 @@ export async function verifyAuditBug(auditId: string, key: string, input: z.inpu
     // Someone changed it in Jira while it was open here: say what, and let the person decide.
     if (!v.force && now.updated && v.seenUpdated && now.updated !== v.seenUpdated) {
       const theirs = fieldChanges(v.seen, now.editable);
-      if (theirs.length) return { conflict: theirs, current: now.editable, updated: now.updated, movedTo: "" };
+      if (theirs.length) return { conflict: theirs, current: now.editable, updated: now.updated, movedTo: "", commented: false };
     }
+    // The original must exist before anything is written, so a typo stops the save cleanly.
+    if (v.outcome === "dupe") await titleOf(client, v.duplicateOf);
     const changes = fieldChanges(now.editable, v.edits);
     const fields: Record<string, unknown> = {};
     if (now.editable.summary.trim() !== v.edits.summary.trim()) fields.summary = v.edits.summary;
@@ -239,6 +270,10 @@ export async function verifyAuditBug(auditId: string, key: string, input: z.inpu
     if (changes.some((c) => c.startsWith("Affects version:"))) fields.versions = v.edits.versions.map((name) => ({ name }));
     // The label goes on every checked bug, so it drops off the audit's filter.
     await inJira(() => client.editIssue(key, { ...(Object.keys(fields).length ? { fields } : {}), update: { labels: [{ add: audit.label }] } }));
+    if (v.outcome === "dupe") {
+      await inJira(() => client.markDuplicate(key, v.duplicateOf));
+      changes.push(`Duplicate of ${v.duplicateOf}`);
+    }
     let movedTo = "";
     if (v.moveTo) {
       const move = (await inJira(() => client.transitions(key))).find((t) => t.id === v.moveTo);
@@ -246,7 +281,7 @@ export async function verifyAuditBug(auditId: string, key: string, input: z.inpu
       await inJira(() => client.transition(key, move.id));
       movedTo = move.to;
     }
-    if (auditNeedsComment(v.outcome as never, v.note)) await inJira(() => client.addComment(key, auditComment({ label: audit.label, outcome: v.outcome as never, clients: v.clients, build: v.build, note: v.note, by: me, changes, movedTo })));
+    if (auditNeedsComment(v.outcome as never, v.note)) await inJira(() => client.addComment(key, auditComment({ clients: v.clients, build: v.build, note: v.note, by: me })));
     const done = { outcome: v.outcome, clients: v.clients, build: v.build, note: v.note, changes, movedTo, title: v.edits.summary, checkedById: user.id, checkedBy: me, checkedAt: new Date() };
     await db.bugAuditCheck.upsert({
       where: { auditId_issueKey: { auditId, issueKey: key } },
@@ -255,6 +290,6 @@ export async function verifyAuditBug(auditId: string, key: string, input: z.inpu
     });
     forgetAudit(auditId);
     revalidatePath(`/g/${audit.groupId}/bugs/audit`);
-    return { conflict: null, current: null, updated: null, movedTo };
+    return { conflict: null, current: null, updated: null, movedTo, commented: auditNeedsComment(v.outcome as never, v.note) };
   });
 }

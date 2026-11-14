@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aboutPlatform, auditComment, auditNeedsComment, CLAIM_MS, LABEL_LAG_MS, reopenedChecks, claimLive, fieldChanges, pace, parseFilterInput, pickNext, type AuditClaim, type AuditIssue } from "./bug-audit";
+import { aboutPlatform, auditComment, auditJql, auditNoteRequired, auditNeedsComment, CLAIM_MS, LABEL_LAG_MS, reopenedChecks, claimLive, fieldChanges, pace, parseFilterInput, pickNext, type AuditClaim, type AuditIssue } from "./bug-audit";
 
 const bug = (key: string, title: string, components: string[] = [], labels: string[] = []): AuditIssue => ({ key, title, status: "Ready for Development", priority: "Low", components, labels, created: "2024-01-01" });
 const now = new Date("2026-11-14T12:00:00Z");
@@ -30,7 +30,7 @@ describe("aboutPlatform", () => {
 });
 
 describe("claimLive", () => {
-  it("lasts 15 minutes and ends once the bug is checked", () => {
+  it("lasts 30 minutes and ends once the bug is checked", () => {
     expect(claimLive(claim("OB-1", "u1", ago(CLAIM_MS - 1000)), now)).toBe(true);
     expect(claimLive(claim("OB-1", "u1", ago(CLAIM_MS + 1000)), now)).toBe(false);
     expect(claimLive(claim("OB-1", "u1", ago(1000), ago(500)), now)).toBe(false);
@@ -73,11 +73,9 @@ describe("fieldChanges and auditComment", () => {
     expect(fieldChanges(before, { ...before, priority: "Medium", components: ["UI", "Avatars"] })).toEqual(["Priority: Low → Medium", "Components: UI → UI, Avatars"]);
     expect(fieldChanges(before, { ...before, components: ["UI"] })).toEqual([]);
   });
-  it("writes one comment with the outcome, note, changes and checker", () => {
-    expect(auditComment({ label: "2026audit", outcome: "still", clients: ["Web", "Unity"], build: "R24", note: " é and ñ vanish ", by: "Scott Smith", changes: ["Priority: Low → Medium"], movedTo: "" })).toBe(
-      "Bug audit (2026audit): Still happens on Web, Unity, build R24.\nNote: é and ñ vanish\nChanged: Priority: Low → Medium.\nChecked by Scott Smith in Flaw Patrol.",
-    );
-    expect(auditComment({ label: "2026audit", outcome: "cant", clients: [], build: "", note: "", by: "Ryan", changes: [], movedTo: "Closed" })).toBe("Bug audit (2026audit): Can't reproduce.\nMoved to Closed.\nChecked by Ryan in Flaw Patrol.");
+  it("writes the person's note, then who checked it and on what", () => {
+    expect(auditComment({ clients: ["Web", "Unity"], build: " R24 ", note: " é and ñ vanish ", by: "Scott Smith" })).toBe("é and ñ vanish\n— Scott Smith · Web, Unity · build R24");
+    expect(auditComment({ clients: [], build: "", note: "Tried 10 times.", by: "Ryan" })).toBe("Tried 10 times.\n— Ryan");
   });
 });
 
@@ -102,5 +100,23 @@ describe("auditNeedsComment", () => {
   it("comments when there's news: any other outcome, or a typed note", () => {
     expect(auditNeedsComment("still", "Worse on Unity now")).toBe(true);
     for (const o of ["cant", "fixed", "dupe", "info"] as const) expect(auditNeedsComment(o, ""), o).toBe(true);
+  });
+});
+
+describe("auditNoteRequired", () => {
+  it("asks why for anything but Still happens", () => {
+    expect(auditNoteRequired("still")).toBe(false);
+    expect(auditNoteRequired(null)).toBe(false);
+    for (const o of ["cant", "fixed", "dupe", "info"] as const) expect(auditNoteRequired(o), o).toBe(true);
+  });
+});
+
+describe("auditJql", () => {
+  it("leaves out bugs that already have the label, so they never count as left", () => {
+    expect(auditJql("filter = 23539", "2026audit")).toBe('(filter = 23539) AND (labels is EMPTY OR labels not in ("2026audit"))');
+  });
+  it("keeps a typed ORDER BY at the end", () => {
+    expect(auditJql('project = OB AND type = Bug ORDER BY created ASC', "2026audit")).toBe('(project = OB AND type = Bug) AND (labels is EMPTY OR labels not in ("2026audit")) ORDER BY created ASC');
+    expect(auditJql("order by priority", "x")).toBe('(labels is EMPTY OR labels not in ("x")) order by priority');
   });
 });
