@@ -66,7 +66,8 @@ export function AuditWorkbench({
   const [skipped, setSkipped] = useState<string[]>([]);
   const [bug, setBug] = useState<{ key: string; data: Opened | null; heldBy: string | null } | null>(null);
   const [none, setNone] = useState(false);
-  const [browse, setBrowse] = useState(false);
+  // The list is open whenever no bug is (ver_251): it folds away while you check one.
+  const [browse, setBrowse] = useState(true);
   useEffect(() => {
     try {
       const saved = JSON.parse(store.get(PICK_KEY) || "{}");
@@ -78,10 +79,12 @@ export function AuditWorkbench({
 
   const open = useCallback(async (key: string, heldBy: string | null) => {
     setBug({ key, data: null, heldBy });
+    setBrowse(false);
     const r = await openAuditBug(audit.id, key);
     if (!r.ok) {
       setError(r.error);
       setBug(null);
+      setBrowse(true);
       return;
     }
     setBug({ key, data: r, heldBy });
@@ -95,6 +98,7 @@ export function AuditWorkbench({
       if (!r.ok) return setError(r.error);
       if (!r.key) {
         setBug(null);
+        setBrowse(true);
         setNone(true);
         return;
       }
@@ -226,6 +230,7 @@ export function AuditWorkbench({
             start(async () => {
               await releaseAuditBug(audit.id, bug.key);
               setBug(null);
+              setBrowse(true);
               router.refresh();
             })
           }
