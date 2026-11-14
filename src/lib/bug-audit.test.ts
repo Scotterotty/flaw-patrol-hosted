@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aboutPlatform, auditComment, CLAIM_MS, claimLive, fieldChanges, pace, parseFilterInput, pickNext, type AuditClaim, type AuditIssue } from "./bug-audit";
+import { aboutPlatform, auditComment, CLAIM_MS, LABEL_LAG_MS, reopenedChecks, claimLive, fieldChanges, pace, parseFilterInput, pickNext, type AuditClaim, type AuditIssue } from "./bug-audit";
 
 const bug = (key: string, title: string, components: string[] = [], labels: string[] = []): AuditIssue => ({ key, title, status: "Ready for Development", priority: "Low", components, labels, created: "2024-01-01" });
 const now = new Date("2026-11-14T12:00:00Z");
@@ -78,5 +78,17 @@ describe("fieldChanges and auditComment", () => {
       "Bug audit (2026audit): Still happens on Web, Unity, build R24.\nNote: é and ñ vanish\nChanged: Priority: Low → Medium.\nChecked by Scott Smith in Flaw Patrol.",
     );
     expect(auditComment({ label: "2026audit", outcome: "cant", clients: [], build: "", note: "", by: "Ryan", changes: [], movedTo: "Closed" })).toBe("Bug audit (2026audit): Can't reproduce.\nMoved to Closed.\nChecked by Ryan in Flaw Patrol.");
+  });
+});
+
+describe("reopenedChecks", () => {
+  it("undoes a check once the bug is back on the filter, after Jira's search has had time to catch up", () => {
+    const checks = [
+      { issueKey: "OB-2217", checkedAt: ago(LABEL_LAG_MS * 5) },
+      { issueKey: "OB-2927", checkedAt: ago(30_000) },
+      { issueKey: "OB-3185", checkedAt: ago(LABEL_LAG_MS * 5) },
+      { issueKey: "OB-3510", checkedAt: null },
+    ];
+    expect(reopenedChecks(checks, new Set(["OB-2217", "OB-2927", "OB-3510"]), now)).toEqual(["OB-2217"]);
   });
 });
