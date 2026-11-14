@@ -625,6 +625,25 @@ export class JiraClient {
     });
   }
 
+  /**
+   * Bug audit (ver_256): mark a bug as a duplicate of another with Jira's "Duplicate" link, so the bug
+   * shows "duplicates OB-3921". A site without that link type gets a "Relates" link instead.
+   */
+  async markDuplicate(bugKey: string, originalKey: string) {
+    const link = (name: string) =>
+      this.call("/rest/api/3/issueLink", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: { name }, inwardIssue: { key: bugKey }, outwardIssue: { key: originalKey } }),
+      });
+    try {
+      await link("Duplicate");
+    } catch (e) {
+      if (!(e instanceof JiraError) || /permission|rejected/i.test(e.message)) throw e;
+      await link("Relates");
+    }
+  }
+
   /** Bugs in the connected Jira project matching the text, newest first. */
   async searchBugs(text: string) {
     const q = text.replace(/["\\]/g, " ").trim();

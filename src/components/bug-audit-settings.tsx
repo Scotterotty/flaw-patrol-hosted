@@ -37,9 +37,9 @@ export function BugAuditSettings({ groupId, audit, canEdit }: { groupId: string;
     >
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
       <p className="text-sm text-slate-700">
-        Check a Jira filter of old bugs as a team, before a bug bash. Each person presses Next bug, checks it, and marks what they found. Flaw Patrol adds the label below to the bug in Jira, whatever they found, so it drops off the filter. Bugs that still happen stay open.
+        Check a Jira filter of old bugs as a team, before a bug bash. Each person presses Next bug, checks it, marks what they found and presses Save and next. Flaw Patrol adds the label below to the bug in Jira, whatever they found, so it drops off the list. Closing a bug or asking for info needs a note, which goes in Jira as a comment signed with their name. Bugs that still happen stay open.
       </p>
-      <Field label="Jira filter" hint="The filter's link or number, like magnopus.atlassian.net/issues/?filter=23539. It should leave out bugs that already have the label. JQL works too.">
+      <Field label="Jira filter" hint="The filter's link or number, like magnopus.atlassian.net/issues/?filter=23539. JQL works too. Bugs that already have the label are left out for you.">
         <Input value={s.filter} disabled={!canEdit} onChange={(e) => setS({ ...s, filter: e.target.value })} placeholder="https://your-site.atlassian.net/issues/?filter=12345" className="w-full" aria-label="Jira filter" />
       </Field>
       <div className="flex flex-wrap gap-4">
