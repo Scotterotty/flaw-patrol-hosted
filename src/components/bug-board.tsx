@@ -429,7 +429,7 @@ export function BugViewSwitch({ view, audit, base = "" }: { view: "table" | "boa
       {item("table", "Table")}
       {item("board", "Board")}
       {audit && (
-        <Link href={audit} aria-current={view === "audit" ? "page" : undefined} data-testid="bugs-audit-link" className={cx("px-3 py-1 text-sm font-medium", view === "audit" ? "bg-accent-600 text-white" : "text-slate-700 hover:bg-slate-100")}>
+        <Link href={audit} aria-current={view === "audit" ? "page" : undefined} data-testid="bugs-audit-link" data-howto="bugs-audit-link" className={cx("px-3 py-1 text-sm font-medium", view === "audit" ? "bg-accent-600 text-white" : "text-slate-700 hover:bg-slate-100")}>
           Audit
         </Link>
       )}

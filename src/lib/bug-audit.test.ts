@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aboutPlatform, auditComment, CLAIM_MS, LABEL_LAG_MS, reopenedChecks, claimLive, fieldChanges, pace, parseFilterInput, pickNext, type AuditClaim, type AuditIssue } from "./bug-audit";
+import { aboutPlatform, auditComment, auditNeedsComment, CLAIM_MS, LABEL_LAG_MS, reopenedChecks, claimLive, fieldChanges, pace, parseFilterInput, pickNext, type AuditClaim, type AuditIssue } from "./bug-audit";
 
 const bug = (key: string, title: string, components: string[] = [], labels: string[] = []): AuditIssue => ({ key, title, status: "Ready for Development", priority: "Low", components, labels, created: "2024-01-01" });
 const now = new Date("2026-11-14T12:00:00Z");
@@ -91,5 +91,16 @@ describe("reopenedChecks", () => {
       { issueKey: "OB-3510", checkedAt: null }, // never checked
     ];
     expect(reopenedChecks(checks, new Set(["OB-3185"]), now)).toEqual(["OB-2217", "OB-2388"]);
+  });
+});
+
+describe("auditNeedsComment", () => {
+  it("leaves Still happens with no note as the label only", () => {
+    expect(auditNeedsComment("still", "")).toBe(false);
+    expect(auditNeedsComment("still", "   ")).toBe(false);
+  });
+  it("comments when there's news: any other outcome, or a typed note", () => {
+    expect(auditNeedsComment("still", "Worse on Unity now")).toBe(true);
+    for (const o of ["cant", "fixed", "dupe", "info"] as const) expect(auditNeedsComment(o, ""), o).toBe(true);
   });
 });

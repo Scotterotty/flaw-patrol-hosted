@@ -1047,6 +1047,21 @@ export const HOW_TO: HowToTask[] = [
     ],
     next: "bug-templates",
   },
+  // ver_255: Bugs → Audit (ver_250) had no task.
+  {
+    id: "bug-audit",
+    group: "Bugs",
+    title: "Check bugs in a bug audit",
+    sub: "Go through a Jira filter of old bugs as a team",
+    words: "bug audit old bugs jira filter label 2026audit next bug verify still happens can't reproduce already fixed duplicate needs info triage clean up backlog",
+    steps: [
+      { text: "In the left menu, under **Results**, press **Bugs**.", see: "The Bugs page. While your umbrella has a bug audit going, **Audit** shows next to **Table** and **Board**.", target: "menu-bugs" },
+      { text: "Press **Audit**.", see: "How many bugs are left, and the list of bugs in the audit.", target: "bugs-audit-link" },
+      { text: "Press **▶ Next bug**. To stick to one platform or component, pick it next to the button first.", see: "The next bug nobody has, open in full. It's yours until you check it or press **Release**.", target: "audit-next" },
+      { text: "Try the bug. Fix its summary, priority or components if they're wrong, then pick what you found under **What did you find?**", see: "Your pick highlighted, and the line by **Verify and next** saying what will land in Jira.", target: "audit-outcome" },
+      { text: "Press **Verify and next**.", see: "The audit label added in Jira, and your next bug. **Still happens** only adds the label. **Can't reproduce**, **Already fixed**, **Duplicate**, **Needs info**, or a note you type, also leave a comment.", target: "audit-verify", saves: true },
+    ],
+  },
   {
     id: "bug-templates",
     group: "Bugs",

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity";
-import { auditComment, claimLive, fieldChanges, isOutcome, parseFilterInput, pickNext, type Editable } from "@/lib/bug-audit";
+import { auditComment, auditNeedsComment, claimLive, fieldChanges, isOutcome, parseFilterInput, pickNext, type Editable } from "@/lib/bug-audit";
 import { auditClaims, auditIssues, forgetAudit } from "@/lib/bug-audit-server";
 import { ISSUE_KEY, loadTicket } from "@/lib/bug-board-server";
 import { db } from "@/lib/db";
@@ -214,7 +214,8 @@ const verifySchema = z.object({
 
 /**
  * Verify: save any field changes, add the audit's label (whatever was found), move it if asked,
- * and leave a comment saying what was found. A bug that still happens stays open.
+ * and leave a comment saying what was found, unless it still happens and there's no note (ver_255:
+ * then the label is all). A bug that still happens stays open.
  */
 export async function verifyAuditBug(auditId: string, key: string, input: z.input<typeof verifySchema>) {
   return attempt(async () => {
@@ -245,7 +246,7 @@ export async function verifyAuditBug(auditId: string, key: string, input: z.inpu
       await inJira(() => client.transition(key, move.id));
       movedTo = move.to;
     }
-    await inJira(() => client.addComment(key, auditComment({ label: audit.label, outcome: v.outcome as never, clients: v.clients, build: v.build, note: v.note, by: me, changes, movedTo })));
+    if (auditNeedsComment(v.outcome as never, v.note)) await inJira(() => client.addComment(key, auditComment({ label: audit.label, outcome: v.outcome as never, clients: v.clients, build: v.build, note: v.note, by: me, changes, movedTo })));
     const done = { outcome: v.outcome, clients: v.clients, build: v.build, note: v.note, changes, movedTo, title: v.edits.summary, checkedById: user.id, checkedBy: me, checkedAt: new Date() };
     await db.bugAuditCheck.upsert({
       where: { auditId_issueKey: { auditId, issueKey: key } },

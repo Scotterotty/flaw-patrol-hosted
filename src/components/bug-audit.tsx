@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { CLAIM_MS, KEEP_MS, OUTCOMES, outcomeLabel, type AuditIssue, type Editable, type Outcome } from "@/lib/bug-audit";
+import { auditNeedsComment, CLAIM_MS, fieldChanges, KEEP_MS, OUTCOMES, outcomeLabel, type AuditIssue, type Editable, type Outcome } from "@/lib/bug-audit";
 import { fileSize } from "@/lib/bug-board";
 import { claimAuditBug, keepAuditBug, nextAuditBug, openAuditBug, releaseAuditBug, verifyAuditBug } from "@/server/bug-audit";
 import { JiraAdf } from "./jira-adf";
@@ -185,7 +185,7 @@ export function AuditWorkbench({
 
       {canCheck && (
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="primary" onClick={() => next()} disabled={pending} data-testid="audit-next">
+          <Button variant="primary" onClick={() => next()} disabled={pending} data-testid="audit-next" data-howto="audit-next">
             ▶ Next bug
           </Button>
           <span className="text-sm text-slate-600">from</span>
@@ -303,7 +303,7 @@ function ListField({ label, value, options, onChange }: { label: string; value: 
       <p className="mb-1 text-xs font-medium text-slate-600">{label}</p>
       <div className="flex flex-wrap items-center gap-1">
         {value.map((v) => (
-          <button key={v} type="button" onClick={() => onChange(value.filter((x) => x !== v))} className="rounded-full border border-slate-300 px-2 py-0.5 text-xs text-slate-800 hover:border-red-400" aria-label={`Remove ${v}`}>
+          <button key={v} type="button" onClick={() => onChange(value.filter((x) => x !== v))} className="inline-flex min-h-9 items-center rounded-full border border-slate-300 px-3 text-xs text-slate-800 hover:border-red-400 sm:min-h-0 sm:px-2 sm:py-0.5" aria-label={`Remove ${v}`}>
             {v} ✕
           </button>
         ))}
@@ -453,6 +453,10 @@ function BugCheck({
   const file = (id: string, name: string) => `/api/bug-board/file?g=${encodeURIComponent(groupId)}&id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}`;
   const closeMove = data?.moves.find((m) => CLOSING.test(m.to));
   const suggestClose = (outcome === "cant" || outcome === "fixed" || outcome === "dupe") && closeMove && moveTo !== closeMove.id;
+  // ver_255: say exactly what lands in Jira, and change as the outcome, note, fields and status change.
+  const comment = outcome ? auditNeedsComment(outcome, note) : null;
+  const saving = data && edits && fieldChanges(data.editable, edits).length > 0;
+  const moving = data?.moves.find((m) => m.id === moveTo)?.to;
 
   return (
     <Card className="flex flex-col gap-3 p-4 ring-1 ring-accent-500" data-testid="audit-bug">
@@ -586,11 +590,12 @@ function BugCheck({
               )}
               <div>
                 <p className="mb-1 text-xs font-medium text-slate-600">What did you find?</p>
-                <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="What did you find?">
+                <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="What did you find?" data-howto="audit-outcome">
                   {OUTCOMES.map((o) => (
                     <button key={o.id} type="button" role="radio" aria-checked={outcome === o.id} className={chip(outcome === o.id)} onClick={() => setOutcome(o.id)}>
                       {o.label}
-                      <kbd className="rounded border border-slate-300 px-1 text-[10px] text-slate-500">{o.key}</kbd>
+                      {/* Number keys mean nothing on a touchscreen (ver_255): the hint shows only with a mouse; the keys still work. */}
+                      <kbd className="hidden rounded border border-slate-300 px-1 text-[10px] text-slate-500 pointer-fine:inline">{o.key}</kbd>
                     </button>
                   ))}
                 </div>
@@ -623,7 +628,7 @@ function BugCheck({
                 </div>
               )}
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="primary" onClick={() => verify()} disabled={pending} data-testid="audit-verify">
+                <Button variant="primary" onClick={() => verify()} disabled={pending} data-testid="audit-verify" data-howto="audit-verify">
                   Verify and next
                 </Button>
                 <Button onClick={onSkip} disabled={pending}>
@@ -632,8 +637,11 @@ function BugCheck({
                 <Button onClick={onLetGo} disabled={pending} title="Let it go without checking it, so someone else can take it. Nothing changes in Jira." data-testid="audit-release">
                   Release
                 </Button>
-                <span className="text-xs text-slate-500">
-                  Saves your changes to Jira, adds <code className="text-accent-700">{label}</code> and a comment. Only moves it if you pick a status.
+                <span className="text-xs text-slate-600" aria-live="polite" data-testid="audit-verify-hint">
+                  {saving && "Saves your changes to Jira. "}
+                  Adds <code className="text-accent-700">{label}</code>
+                  {comment === null ? ". Pick what you found: Still happens adds no comment unless you type a note." : comment ? " and a comment." : ". No comment. Type a note if you want one."}
+                  {moving && ` Moves it to ${moving}.`}
                 </span>
               </div>
             </div>
