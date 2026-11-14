@@ -1,5 +1,6 @@
 "use client";
 
+import { pageScroller } from "@/lib/page-scroll";
 import { CloseMatchesLabel } from "./close-matches";
 import { matchCount } from "@/lib/fuzzy";
 import Link from "next/link";
@@ -839,8 +840,8 @@ function startEdgeScroll() {
   document.addEventListener("dragover", trackY);
   edgeTimer = setInterval(() => {
     if (edgeY < 0) return;
-    if (edgeY < 80) window.scrollBy(0, -18);
-    else if (edgeY > window.innerHeight - 80) window.scrollBy(0, 18);
+    if (edgeY < 80) pageScroller().scrollBy(0, -18);
+    else if (edgeY > window.innerHeight - 80) pageScroller().scrollBy(0, 18);
   }, 30);
 }
 function stopEdgeScroll() {

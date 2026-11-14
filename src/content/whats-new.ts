@@ -22,6 +22,17 @@ export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    version: 247,
+    date: "2026-11-13",
+    items: [
+      {
+        kind: "fix",
+        title: "The How-to guide has one scroll bar",
+        text: "The How-to guide showed two scroll bars side by side. Now the page scrolls with one, like every other page.",
+      },
+    ],
+  },
+  {
     version: 246,
     date: "2026-11-13",
     items: [
