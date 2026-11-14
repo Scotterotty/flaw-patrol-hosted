@@ -21,6 +21,7 @@ export type WhatsNewItem = {
 export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
+  { version: 248, date: "2026-11-13", items: [{ kind: "new", title: "Never lose what you're typing", text: "Bugs, bug bashes, test cases and Feedback keep what you type in this browser. A refresh or closed tab brings it back, with Start fresh to throw it away." }] },
   {
     version: 247,
     date: "2026-11-13",
