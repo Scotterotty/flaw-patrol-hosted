@@ -15,14 +15,29 @@ const FIELDS = ["summary", "status", "priority", "components", "labels", "create
 
 type RawIssue = { key: string; fields: { summary?: string; status?: { name?: string }; priority?: { name?: string } | null; components?: { name?: string }[]; labels?: string[]; created?: string } };
 
-const cache = new Map<string, { at: number; issues: AuditIssue[]; more: boolean; done: number }>();
+const cache = new Map<string, CacheEntry>();
 
-export const forgetAudit = (auditId: string) => cache.delete(auditId);
+export const forgetAudit = (auditId: string) => {
+  cache.delete(auditId);
+  reading.delete(auditId);
+};
+
+/** Reads from Jira under way, so pages asking at the same moment share one (ver_256). */
+const reading = new Map<string, Promise<CacheEntry>>();
+type CacheEntry = { at: number; issues: AuditIssue[]; more: boolean; done: number };
 
 /** The bugs still on the filter, in its own order, and how many already carry the label in Jira. */
-export async function auditIssues(audit: { id: string; jql: string; label: string }, client: JiraClient) {
+export async function auditIssues(audit: { id: string; jql: string; label: string }, client: JiraClient): Promise<CacheEntry> {
   const hit = cache.get(audit.id);
   if (hit && Date.now() - hit.at < TTL) return hit;
+  const going = reading.get(audit.id);
+  if (going) return going;
+  const read = readAudit(audit, client).finally(() => reading.delete(audit.id));
+  reading.set(audit.id, read);
+  return read;
+}
+
+async function readAudit(audit: { id: string; jql: string; label: string }, client: JiraClient): Promise<CacheEntry> {
   const [found, labelled] = await Promise.all([
     client.searchFields<RawIssue>(auditJql(audit.jql, audit.label), FIELDS, MAX_AUDIT_BUGS),
     // Every bug carrying the label in Jira (ver_254): the checked count, and what Checked so far must match.

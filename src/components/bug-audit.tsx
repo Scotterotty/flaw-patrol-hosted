@@ -18,6 +18,7 @@ type Progress = { left: number; done: number; holding: number; pace: { days: num
 
 const BUILD_KEY = "fp-audit-build";
 const PICK_KEY = "fp-audit-pick";
+const LIVE_MS = 15_000;
 const store = {
   get(k: string) {
     try {
@@ -132,6 +133,24 @@ export function AuditWorkbench({
       await open(key, null);
       router.refresh();
     });
+
+  // Live (ver_256): refresh every 15 seconds while the page is on screen, and as soon as you come back
+  // to the tab, so everyone's checks, claims and counts show up without reloading. A refresh keeps the
+  // open bug and anything typed in it. Checks made here show within 15 seconds; labels changed in Jira
+  // take up to a minute or two (the Jira read is shared and cached for a minute).
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible" && !pendingRef.current) router.refresh();
+    };
+    const timer = setInterval(refresh, LIVE_MS);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [router]);
 
   // Back on the page with a bug still yours: carry on with it.
   const resumed = useRef(false);
