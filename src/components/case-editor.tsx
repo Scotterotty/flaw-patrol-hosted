@@ -22,6 +22,7 @@ import { saveSharedStep } from "@/server/shared-steps";
 import { testDataProblem, type TestData } from "@/lib/test-data";
 import { TestDataBox } from "./test-data-box";
 import { Button, cx, ErrorText, Field, Input, Label, Select, Textarea } from "./ui";
+import { keptStamp } from "@/lib/kept-draft";
 import { KeptNote, KeptSaved, useKeptDraft } from "./kept-draft";
 import { NEW_PERSONA, TagInput, CharterFields, PromptRows, SharedItem, SmallBtn, SharedPicker, ConvertDialog } from "./case-editor-parts";
 
@@ -178,9 +179,10 @@ export function CaseEditor(props: CaseEditorProps) {
 
   // Keep what you're typing (Nov 13 2026): a refresh or closed tab keeps the case as you left it, so
   // there's no "Leave site?" question any more. Edits are kept per version: once someone saves a
-  // newer one, an older draft isn't offered on top of it.
+  // newer one, an older draft isn't offered on top of it. A new case opened with its own start
+  // (a charter from a finding, a case from a requirement) keeps its draft apart from a blank one.
   const kept = useKeptDraft(
-    caseId ? `case:${caseId}:${props.version ?? 0}` : `case-new:${projectId}:${props.linkTo ?? ""}`,
+    caseId ? `case:${caseId}:${props.version ?? 0}` : `case-new:${projectId}:${props.linkTo ?? ""}:${keptStamp(initial)}`,
     { title, preconditions, priority, type, automationId, tags, folderId, items, changeNote, testData, charter, personaId, areaAdded, areaNo },
     (k) => {
       setTitle(k.title);
