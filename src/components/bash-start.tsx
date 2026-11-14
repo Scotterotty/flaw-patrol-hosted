@@ -3,6 +3,7 @@
 import { onStartKind, onStartPrefetch } from "@/lib/start-kind";
 import { prefetchOn, useLazy } from "@/lib/use-lazy";
 import { BoxWait } from "./box-wait";
+import { KeptNote, KeptSaved, useKeptDraft } from "./kept-draft";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, type ReactNode } from "react";
@@ -97,21 +98,22 @@ export function StartBashAuto({ projectId }: { projectId: string }) {
 /** Until its data arrives the box takes a Name and How long; the area ideas show a spinner. */
 const NO_DATA: StartBoxData = { homeId: "", homeKey: "", homeName: "", releases: [], suggestions: [], last: null, templates: [], slackChannels: 0, bugTemplates: [], bugTemplateDefault: null, platforms: [], askPlatform: false, environments: [] };
 
-function StartBashForm({
-  data: loaded,
-  failed,
-  retry,
-  again,
-  preset,
-  onClose,
-}: {
+type FormProps = {
   data: StartBoxData | null;
   failed: boolean;
   retry: () => void;
   again?: { name: string; areas: string[]; minutes: number };
   preset?: RiskPreset;
   onClose: () => void;
-}) {
+};
+
+/** Start fresh (keep what you're typing) opens a new, empty form. */
+function StartBashForm(props: FormProps) {
+  const [fresh, setFresh] = useState(0);
+  return <StartBashFields key={fresh} {...props} onFresh={() => setFresh((n) => n + 1)} />;
+}
+
+function StartBashFields({ data: loaded, failed, retry, again, preset, onClose, onFresh }: FormProps & { onFresh: () => void }) {
   const data = loaded ?? NO_DATA;
   const router = useRouter();
   const riskArea = (p: RiskPreset["picks"][number]): Area => ({ name: p.title || p.key, template: null, links: [{ kind: "jira", key: p.key, title: p.title, url: p.url }] });
@@ -172,6 +174,36 @@ function StartBashForm({
   };
   const suggestions = data.suggestions.filter((s) => !has(s.name) && !(s.link && isPicked(s.link.key)));
 
+  // Keep what you're typing (Nov 13 2026): a half set-up bug bash comes back after a refresh.
+  // "Run it again" and a risk pick start from their own answers, so they keep nothing.
+  const kept = useKeptDraft(
+    loaded && !again && !preset ? `bash-start:${loaded.homeId}` : null,
+    { name, minutes, areas, draft, more, later, day, time, release, tours, collectFirst, slackPick, fun, tplPick, askPick, platPick, platDraft, build, environment, link },
+    (k) => {
+      setName(k.name);
+      setMinutes(k.minutes);
+      setAreas(k.areas);
+      setDraft(k.draft);
+      setMore(k.more);
+      setLaterOn(k.later);
+      setDay(k.day);
+      setTime(k.time);
+      setRelease(k.release);
+      setTours(k.tours);
+      setCollectFirst(k.collectFirst);
+      setSlack(k.slackPick);
+      setFun(k.fun);
+      setTpl(k.tplPick);
+      setAsk(k.askPick);
+      setPlats(k.platPick);
+      setPlatDraft(k.platDraft);
+      setBuild(k.build);
+      setEnvironment(k.environment);
+      setLink(k.link);
+    },
+    { reset: onFresh },
+  );
+
   if (done) return <Invite bashId={done.id} homeKey={done.key} posted={done.posted} later={done.later} onClose={onClose} />;
 
   const submit = () =>
@@ -187,6 +219,7 @@ function StartBashForm({
       const plats = platDraft.trim() ? [...platforms, platDraft.trim()] : platforms;
       const res = await startBugBash(data.homeId, { name, minutes, areas: all, startsAt, release, collectFirst, slack, funExtras: fun, bugTemplateId: bugTemplateId || null, platforms: askPlatform ? plats : [], build, environment, link });
       if (!res.ok) return setError(res.error);
+      kept.clear();
       setDone({ id: res.id, key: res.key, posted: res.posted, later: at ? { id: res.id, name: name.trim(), startsAt: at.toISOString(), endsAt: new Date(at.getTime() + minutes * 60_000).toISOString(), areas: all.map((a) => a.name), by: res.by, homeKey: res.key } : null });
       router.refresh();
       retry();
@@ -202,6 +235,7 @@ function StartBashForm({
     >
       <h2 className="text-lg font-semibold text-slate-900">Start a bug bash</h2>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+      <KeptNote kept={kept} what="the bug bash you were setting up" />
       <Field label="Name" htmlFor="bash-name">
         <Input id="bash-name" data-howto="bash-name" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Checkout bash" />
       </Field>
@@ -485,7 +519,8 @@ function StartBashForm({
           </p>
         )}
       </div>
-      <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
+      <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 pt-3">
+        <KeptSaved kept={kept} className="mr-auto" />
         <Button onClick={onClose}>Cancel</Button>
         <Button type="submit" variant="primary" disabled={pending || !loaded || !name.trim() || (!areas.length && !draft.trim())} data-howto="bash-go">
           {pending ? "Starting…" : later ? "Schedule bug bash" : "Start bug bash"}

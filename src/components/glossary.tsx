@@ -8,6 +8,7 @@ import { findTerm, lookupText, matcherFor, splitTerms, type GlossaryLite, type T
 import { addGlossaryTerm, askGlossaryTerm, glossaryForPage, glossaryLookedUp, setGlossaryUnderline } from "@/server/glossary";
 import { Modal } from "./modal";
 import { Button, cx, Field, Input, Select, Textarea } from "./ui";
+import { KeptNote, KeptSaved, useKeptDraft } from "./kept-draft";
 
 // Glossary: the team's words, explained once and found everywhere. This file holds
 // what every page shares: the dotted underlines, the meaning card, Look it up on selected text
@@ -368,6 +369,27 @@ export function AddTermForm({
   const [busy, setBusy] = useState(false);
   const ask = initial.mode === "ask" || !g?.canEdit;
   const found = initial.found;
+  // Keep what you're typing (Nov 13 2026), one draft per word you were adding or asking about.
+  const kept = useKeptDraft(
+    `glossary-${ask ? "ask" : "add"}:${initial.term.trim().toLowerCase()}`,
+    { term, aliases, meaning, question, groupId },
+    (k) => {
+      setTerm(k.term);
+      setAliases(k.aliases);
+      setMeaning(k.meaning);
+      setQuestion(k.question);
+      setGroupId(k.groupId);
+    },
+    {
+      reset: () => {
+        setTerm(initial.term);
+        setAliases("");
+        setMeaning("");
+        setQuestion("");
+        setGroupId("");
+      },
+    },
+  );
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -377,11 +399,13 @@ export function AddTermForm({
       : await addGlossaryTerm({ term, aliases, meaning, groupId: groupId || null, foundLabel: found?.label ?? "", foundUrl: found?.url ?? "" });
     setBusy(false);
     if (!res.ok) return setError(res.error);
+    kept.clear();
     router.refresh();
     onDone(res.slug);
   };
   return (
     <form onSubmit={submit} className="space-y-3" data-glossary-ignore>
+      <KeptNote kept={kept} what={ask ? "the question you were writing" : "the term you were writing"} />
       <Field label="Term" htmlFor="gl-term">
         <Input id="gl-term" value={term} onChange={(e) => setTerm(e.target.value)} maxLength={80} required autoFocus={!initial.term} />
       </Field>
@@ -423,6 +447,7 @@ export function AddTermForm({
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2">
+        <KeptSaved kept={kept} />
         <Button type="submit" variant="primary" disabled={busy}>
           {ask ? "Ask the team" : "Add term"}
         </Button>

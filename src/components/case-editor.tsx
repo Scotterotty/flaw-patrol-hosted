@@ -22,6 +22,8 @@ import { saveSharedStep } from "@/server/shared-steps";
 import { testDataProblem, type TestData } from "@/lib/test-data";
 import { TestDataBox } from "./test-data-box";
 import { Button, cx, ErrorText, Field, Input, Label, Select, Textarea } from "./ui";
+import { keptStamp } from "@/lib/kept-draft";
+import { KeptNote, KeptSaved, useKeptDraft } from "./kept-draft";
 import { NEW_PERSONA, TagInput, CharterFields, PromptRows, SharedItem, SmallBtn, SharedPicker, ConvertDialog } from "./case-editor-parts";
 
 type Item = CaseStepItem & { uid: string };
@@ -141,7 +143,8 @@ export function CaseEditor(props: CaseEditorProps) {
   const [glow, setGlow] = useState<string | null>(null);
   const [converting, setConverting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dirty, setDirty] = useState(false);
+  // Changed since it opened (the "Leave site?" question it drove is gone: what you type is kept).
+  const [, setDirty] = useState(false);
   const [saving, start] = useTransition();
   // Saved and opening the next page: the buttons keep saying Saving… until it shows.
   const [leaving, setLeaving] = useState(false);
@@ -174,12 +177,52 @@ export function CaseEditor(props: CaseEditorProps) {
     touch();
   };
 
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  // Keep what you're typing (Nov 13 2026): a refresh or closed tab keeps the case as you left it, so
+  // there's no "Leave site?" question any more. Edits are kept per version: once someone saves a
+  // newer one, an older draft isn't offered on top of it. A new case opened with its own start
+  // (a charter from a finding, a case from a requirement) keeps its draft apart from a blank one.
+  const kept = useKeptDraft(
+    caseId ? `case:${caseId}:${props.version ?? 0}` : `case-new:${projectId}:${props.linkTo ?? ""}:${keptStamp(initial)}`,
+    { title, preconditions, priority, type, automationId, tags, folderId, items, changeNote, testData, charter, personaId, areaAdded, areaNo },
+    (k) => {
+      setTitle(k.title);
+      setPreconditions(k.preconditions);
+      setPriority(k.priority);
+      setType(k.type);
+      setAutomationId(k.automationId);
+      setTags(k.tags);
+      setFolderId(k.folderId);
+      // New ids, so steps added from here on never share one with a kept step.
+      setItems(k.items.map((it) => ({ ...it, uid: uid() })));
+      setChangeNote(k.changeNote);
+      setTestDataRaw(k.testData);
+      setCharter(k.charter);
+      setPersonaId(k.personaId);
+      setAreaAdded(k.areaAdded);
+      setAreaNo(k.areaNo);
+      setDirty(true);
+    },
+    {
+      reset: () => {
+        setTitle(initial.title);
+        setPreconditions(initial.preconditions);
+        setPriority(initial.priority);
+        setType(initial.type);
+        setAutomationId(initial.automationId ?? "");
+        setTags(initial.tags);
+        setFolderId(initial.folderId ?? "");
+        setItems(initial.steps.length ? initial.steps.map(withUid) : [blankStep()]);
+        setChangeNote("");
+        setTestDataRaw(initial.testData ?? null);
+        setCharter(initial.charter ?? BLANK_CHARTER);
+        setPersonaId(initial.personaId ?? "");
+        setAreaAdded([]);
+        setAreaNo([]);
+        setDirty(false);
+      },
+    },
+  );
+  const clearKept = kept.clear;
 
   useEffect(() => {
     if (!focusUid.current) return;
@@ -216,6 +259,7 @@ export function CaseEditor(props: CaseEditorProps) {
         changeNote,
       }, { leaving });
       if (!res.ok) return setError(res.error);
+      clearKept();
       setDirty(false);
       if (res.caseId && res.changed !== false) noteSavedVersion(res.caseId, res.version);
       if (!caseId && props.linkTo && res.caseId) {
@@ -257,6 +301,7 @@ export function CaseEditor(props: CaseEditorProps) {
     projectKey,
     router,
     leave,
+    clearKept,
     isCharter,
     charter,
     personaId,
@@ -658,6 +703,7 @@ export function CaseEditor(props: CaseEditorProps) {
         </p>
       )}
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+      <KeptNote kept={kept} what={caseId ? "the changes you were making" : "the case you were writing"} className="mb-3" />
       {made && (
         <p role="status" className="flex flex-wrap items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
           <span className="flex-1">
@@ -1011,7 +1057,8 @@ export function CaseEditor(props: CaseEditorProps) {
         </div>
       )}
 
-      <div className="mt-6 flex justify-end gap-2">
+      <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
+        <KeptSaved kept={kept} className="mr-auto" />
         <Button onClick={() => router.back()}>Cancel</Button>
         {!caseId && (
           <Button disabled={pending} onClick={() => save(true)}>

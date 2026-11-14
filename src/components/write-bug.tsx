@@ -24,6 +24,7 @@ import { RecordingBar, takeScreenshot, useCaptureSupport, useScreenRecorder } fr
 import type { CurrentLayout } from "@/lib/bug-templates-data";
 import { missingLine, TemplatedForm, TemplatePicker, type TemplateChoice, type TemplatedDraft } from "./templated-bug-form";
 import { Button, cx, ErrorText, Input } from "./ui";
+import { KeptNote, KeptSaved, useKeptDraft } from "./kept-draft";
 
 /** An empty Repro rate, or an empty Repros cell in the Reproduction History row, starts at 1/1. */
 function startOneOfOne(a: Answer): Answer {
@@ -77,6 +78,8 @@ export function WriteBugButton({ projectId, scale, variant = "primary" }: { proj
   const router = useRouter();
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  // Start fresh opens a new, empty box.
+  const [fresh, setFresh] = useState(0);
   // Opened by a link from Overview, the left menu or Ctrl+K.
   const asked = params.get("write") === "1";
   const prefill: BugPrefill | null = asked && (params.get("title") || params.get("note")) ? { title: (params.get("title") ?? "").slice(0, 250), build: (params.get("build") ?? "").slice(0, 100), note: (params.get("note") ?? "").slice(0, 2000) } : null;
@@ -97,12 +100,24 @@ export function WriteBugButton({ projectId, scale, variant = "primary" }: { proj
       <Button variant={variant} onClick={() => setOpen(true)} data-testid="write-bug">
         + Write a bug
       </Button>
-      {open && <WriteBugBox projectId={projectId} scale={scale} prefill={prefill} onClose={close} onSaved={() => router.refresh()} />}
+      {open && <WriteBugBox key={fresh} projectId={projectId} scale={scale} prefill={prefill} onClose={close} onSaved={() => router.refresh()} onFresh={() => setFresh((n) => n + 1)} />}
     </>
   );
 }
 
-function WriteBugBox({ projectId, scale, prefill, onClose, onSaved }: { projectId: string; scale: SeverityScale; prefill?: BugPrefill | null; onClose: () => void; onSaved: () => void }) {
+type WriteKept = {
+  projectId: string;
+  chosen: string;
+  draft: TemplatedDraft | null;
+  severity: Severity;
+  foundIn: string;
+  alsoJira: boolean;
+  files: { id: string; fileName: string; contentType: string; size?: number }[];
+  left: string[];
+  useUsual: boolean;
+};
+
+function WriteBugBox({ projectId, scale, prefill, onClose, onSaved, onFresh }: { projectId: string; scale: SeverityScale; prefill?: BugPrefill | null; onClose: () => void; onSaved: () => void; onFresh: () => void }) {
   // The link's build and note go in once, when the first template loads; switching templates carries them like typed text.
   const prefilled = useRef(false);
   const [choices, setChoices] = useState<TemplateChoice[]>([]);
@@ -198,6 +213,30 @@ function WriteBugBox({ projectId, scale, prefill, onClose, onSaved }: { projectI
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
+  // Keep what you're typing (Nov 13 2026): a refresh, Esc or closed tab brings it all back next time.
+  // One draft per person; a link that opens the box with its own text starts a new one.
+  // A draft kept for another project's bug list stays put and comes back there.
+  const apply = (k: WriteKept) => {
+    setChosen(k.chosen);
+    setDraft(k.draft);
+    setSeverity(k.severity);
+    setFoundIn(k.foundIn);
+    setAlsoJira(k.alsoJira);
+    setFiles(k.files);
+    setLeft(new Set(k.left));
+    setUseUsual(k.useUsual);
+    usualRef.current = { usual: usualRef.current.usual, on: k.useUsual };
+  };
+  const kept = useKeptDraft<WriteKept>(
+    prefill ? null : `write-bug:${projectId}`,
+    { projectId, chosen, draft, severity, foundIn, alsoJira, files, left: [...left], useUsual },
+    (k) => {
+      if (!k.draft || k.projectId !== projectId) return false;
+      return apply(k);
+    },
+    { ready: loadedFor === projectId && !!draft && !loading, reset: onFresh },
+  );
+
   // Take screenshot / Record screen right here, as in a run's Report a bug box.
   const support = useCaptureSupport();
   const recorder = useScreenRecorder(
@@ -269,6 +308,7 @@ function WriteBugBox({ projectId, scale, prefill, onClose, onSaved }: { projectI
         jira: toJira,
       });
       if (!res.ok) return setError(res.error);
+      kept.clear();
       onSaved();
       const lines = [res.attachError && `${res.defect.externalKey} was created, but attaching files failed: ${res.attachError}`, res.reporterNote].filter((n): n is string => !!n);
       if (!lines.length) return onClose();
@@ -301,6 +341,7 @@ function WriteBugBox({ projectId, scale, prefill, onClose, onSaved }: { projectI
           }}
         >
           <RecordingBar r={recorder} inline />
+          <KeptNote kept={kept} what="the bug you were writing" />
           <p className="text-sm text-slate-600">For a bug you found outside a test: no test case, run or bug bash needed.</p>
           <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
           {/* Only one template (ver_187): nothing to pick, so no Template row to read. */}
@@ -433,6 +474,7 @@ function WriteBugBox({ projectId, scale, prefill, onClose, onSaved }: { projectI
             </p>
           )}
           <div className="flex flex-wrap items-center justify-end gap-2">
+            <KeptSaved kept={kept} className="mr-auto" />
             {gaps && (
               <span className="text-xs text-amber-800" data-testid="template-missing">
                 {gaps}

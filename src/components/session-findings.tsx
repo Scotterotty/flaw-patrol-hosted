@@ -11,6 +11,7 @@ import { answerQuestion } from "@/server/findings";
 import { PersonaChip } from "./charter-view";
 import { useSpelling, useZone } from "./spelling";
 import { Button, Card, cx, ErrorText, Textarea } from "./ui";
+import { KeptNote, KeptSaved, useKeptDraft } from "./kept-draft";
 
 const KIND_STYLE: Record<LogKind, string> = {
   covered: "text-accent-700 ring-accent-300",
@@ -57,10 +58,13 @@ function FindingRow({ f, group, projectId, projectKey, canAnswer, canWrite }: { 
   const spelling = useSpelling();
   const zone = useZone();
   const { note } = f;
+  // Keep what you're typing (Nov 13 2026): click Answer again after a refresh and it's there.
+  const kept = useKeptDraft(answering ? `finding-answer:${note.id}` : null, text, setText, { reset: () => setText(f.answer?.text ?? "") });
   const save = (value: string) =>
     start(async () => {
       const r = await answerQuestion(projectId, f.resultId, note.id, value);
       if (!r.ok) return setError(r.error);
+      kept.clear();
       setAnswering(false);
       router.refresh();
     });
@@ -118,8 +122,9 @@ function FindingRow({ f, group, projectId, projectKey, canAnswer, canWrite }: { 
             }}
           >
             <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+            <KeptNote kept={kept} what="the answer you were writing" />
             <Textarea rows={2} autoFocus value={text} onChange={(e) => setText(e.target.value)} aria-label="Answer" placeholder="What did you find out?" />
-            <div className="flex gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               <Button size="sm" type="submit" variant="primary" disabled={pending || !text.trim()}>
                 Save answer
               </Button>
@@ -131,6 +136,7 @@ function FindingRow({ f, group, projectId, projectKey, canAnswer, canWrite }: { 
               <Button size="sm" onClick={() => setAnswering(false)}>
                 Cancel
               </Button>
+              <KeptSaved kept={kept} />
             </div>
           </form>
         )}

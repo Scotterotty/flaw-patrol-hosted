@@ -19,6 +19,7 @@ import { listWords } from "@/lib/bug-layout";
 import { TemplatePicker } from "./templated-bug-form";
 import { AnswerTables, FilledForYou, NeedsTag, seenHere, TemplateFields } from "./bash-template";
 import { AskedOfYou, AskFinder, FileOrNot, FilledLine, OkoFill, ReadyLine } from "./bash-oko";
+import { KeptNote, KeptSaved, useKeptDraft } from "./kept-draft";
 import { ASK_FOR_JIRA, CANT_REPRODUCE, notABugLine } from "@/lib/bash-oko";
 import { autoNumber } from "./bug-template-form";
 import { FIND_LABEL, FindCounts, FindDetail, KindTag, LinkChips, LiveFinds, NewTag, SetupStrip, useLiveFinds, useNewArea, WhatYoureTesting, type FindKind, type LiveData } from "./bash-live";
@@ -422,6 +423,38 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
     return () => window.removeEventListener("paste", onPaste);
   }, [upload, live]);
 
+  // Keep what you're typing (Nov 13 2026): a refresh or closed tab mid-bash brings your find back.
+  const kept = useKeptDraft(
+    `bash-log:${bash.id}`,
+    { kind, text, details, showDetails, severity, files, tplPick, values, asked, askOpen },
+    (k) => {
+      setKind(k.kind);
+      setText(k.text);
+      setDetails(k.details);
+      setShowDetails(k.showDetails);
+      setSeverity(k.severity);
+      setFiles(k.files);
+      setTplPick(k.tplPick);
+      setValues(k.values);
+      setAsked(k.asked);
+      setAskOpen(k.askOpen);
+    },
+    {
+      reset: () => {
+        setKind("bug");
+        setText("");
+        setDetails("");
+        setShowDetails(false);
+        setSeverity("PROBLEMATIC");
+        setFiles([]);
+        setTplPick(null);
+        setValues({});
+        setAsked({});
+        setAskOpen(false);
+      },
+    },
+  );
+
   // Someone else's find of the same kind that sounds like this one (ver_96: every kind, not only bugs).
   const match = text.trim().length > 8 ? similarBugs(text, data.items.filter((b) => b.kind === kind && b.byId !== bash.me.id && !different.has(b.id)))[0] : undefined;
   const covered = new Set(bash.items.filter((i) => i.kind === "covered" && i.areaId === area.id && i.byId === bash.me.id).map((i) => i.text));
@@ -439,6 +472,7 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
       const r = await logBashItem(bash.id, { kind, text, details, severity, attachmentIds: files.map((f) => f.id), templateId: tpl?.id ?? null, values: tpl ? values : okoAsk ? Object.fromEntries(Object.entries(asked).filter(([, t]) => t.trim() && !/^\d+\.$/.test(t.trim())).map(([id, text]) => [id, { text, files: [] }])) : {}, seen: seenHere() });
       if (!r.ok) return setError(r.error);
       // Only clear what was sent: anything typed while it saved stays.
+      kept.clear();
       setText((t) => (t === sent ? "" : t));
       setDetails("");
       setShowDetails(false);
@@ -486,6 +520,7 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
         </div>
         <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
         {note && <p className="mt-2 rounded-md bg-emerald-50 px-3 py-1.5 text-sm text-emerald-800">{note}</p>}
+        <KeptNote kept={kept} what="what you were logging" className="mt-2" />
         <textarea
           ref={box}
           aria-label="What did you find?"
@@ -645,6 +680,7 @@ export function BashExplore({ bash, finds }: { bash: BashView; finds: LiveData }
             )}{" "}
             Everyone in this bash sees what you log.
           </span>
+          <KeptSaved kept={kept} />
           <Button variant="primary" disabled={!live || pending || !text.trim()} onClick={log} data-howto="bash-log-go">
             Log {KIND_LABEL[kind].toLowerCase()}
           </Button>
