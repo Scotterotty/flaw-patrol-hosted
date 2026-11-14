@@ -9,6 +9,8 @@ import { saveSuite } from "@/server/suites";
 import { PriorityBadge } from "./badges";
 import { CantFindCase, FolderList, inFolder, type ListFolder } from "./folder-list";
 import { Button, Card, ErrorText, Field, InfoTip, Input, Select, Textarea } from "./ui";
+import { keptStamp } from "@/lib/kept-draft";
+import { KeptNote, KeptSaved, useKeptDraft } from "./kept-draft";
 
 export type PickCase = { id: string; number: number; key: string; title: string; folderId: string | null; folderPath: string; priority: Priority; tags: string[] };
 
@@ -48,6 +50,26 @@ export function SuiteEditor({
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
+  // Keep what you're typing (Nov 13 2026), until it's saved or someone saves a newer version.
+  const kept = useKeptDraft(
+    `suite:${suiteId ?? `new:${projectId}`}:${keptStamp(initial)}`,
+    { name, description, changeNote, selected },
+    (k) => {
+      setName(k.name);
+      setDescription(k.description);
+      setChangeNote(k.changeNote);
+      setSelected(k.selected);
+    },
+    {
+      reset: () => {
+        setName(initial.name);
+        setDescription(initial.description);
+        setChangeNote("");
+        setSelected(initial.caseIds);
+      },
+    },
+  );
+
   const byId = useMemo(() => new Map(cases.map((c) => [c.id, c])), [cases]);
   const selectedSet = new Set(selected);
   const inPicked = inFolder(folders, folder);
@@ -81,6 +103,7 @@ export function SuiteEditor({
       setError(null);
       const res = await saveSuite(projectId, suiteId, { name, description, caseIds: selected, changeNote });
       if (!res.ok) return setError(res.error);
+      kept.clear();
       router.push(`/p/${projectKey}/suites/${res.id}`);
       router.refresh();
     });
@@ -98,6 +121,7 @@ export function SuiteEditor({
               Still needed: {todo.join(", ").toLowerCase().replace(/^./, (x) => x.toUpperCase())}
             </span>
           )}
+          <KeptSaved kept={kept} />
           <Button onClick={() => router.back()}>Cancel</Button>
           <Button variant="primary" onClick={save} disabled={pending || todo.length > 0} data-howto="suite-save">
             {suiteId ? "Save suite" : "Create suite"}
@@ -105,6 +129,7 @@ export function SuiteEditor({
         </div>
       </div>
       <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
+      <KeptNote kept={kept} what="the suite you were working on" />
       <Card className="grid gap-4 p-5 md:grid-cols-2">
         <Field label="1. Name" htmlFor="suite-name">
           <Input id="suite-name" data-howto="suite-name" aria-label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Checkout regression" autoFocus={!suiteId} />

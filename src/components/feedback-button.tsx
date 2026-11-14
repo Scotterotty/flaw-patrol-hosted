@@ -8,6 +8,7 @@ import { browserName, FEEDBACK_KINDS, MAX_SHOTS, type FeedbackKind } from "@/lib
 import { sendFeedback } from "@/server/feedback";
 import { FeedbackMarkup, flatten, type Mark } from "./feedback-markup";
 import { useMenuPlace } from "./menu-place";
+import { KeptNote, KeptSaved, useKeptDraft } from "./kept-draft";
 import { Modal } from "./modal";
 import { Button, cx, Textarea } from "./ui";
 
@@ -154,6 +155,24 @@ export function FeedbackButton({ unseen = 0, waiting = 0 }: { unseen?: number; w
     }
   };
 
+  // Keep what you're typing (Nov 13 2026): the note and its kind come back after a refresh. Pictures don't.
+  const kept = useKeptDraft(
+    stage === "send" ? "feedback" : null,
+    { kind, message, anonymous },
+    (k) => {
+      setKind(k.kind);
+      setMessage(k.message);
+      setAnonymous(k.anonymous);
+    },
+    {
+      reset: () => {
+        setKind(null);
+        setMessage("");
+        setAnonymous(false);
+      },
+    },
+  );
+
   const send = async () => {
     if (!kind) return setError("Pick what kind of feedback it is.");
     if (!message.trim() && !shots.length) return setError("Write a note or add a picture.");
@@ -165,6 +184,7 @@ export function FeedbackButton({ unseen = 0, waiting = 0 }: { unseen?: number; w
     const res = await sendFeedback(form).catch(() => ({ ok: false as const, error: "Couldn't send it. Check your connection and try again." }));
     setBusy(false);
     if (!res.ok) return setError(res.error);
+    kept.clear();
     setStage("sent");
   };
 
@@ -259,6 +279,7 @@ export function FeedbackButton({ unseen = 0, waiting = 0 }: { unseen?: number; w
       )}
       <Modal open={stage === "send"} onClose={closeFrom("send")} title="Send feedback" wide locked={busy}>
         <div className="space-y-4" data-testid="feedback-send">
+          <KeptNote kept={kept} what="the note you were writing" />
           <fieldset>
             <legend className="mb-1.5 text-sm font-medium text-slate-800">What kind of feedback?</legend>
             <div className="flex flex-wrap gap-2">
@@ -328,7 +349,8 @@ export function FeedbackButton({ unseen = 0, waiting = 0 }: { unseen?: number; w
               {error}
             </p>
           )}
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <KeptSaved kept={kept} className="mr-auto" />
             <Button onClick={close} disabled={busy}>
               Cancel
             </Button>

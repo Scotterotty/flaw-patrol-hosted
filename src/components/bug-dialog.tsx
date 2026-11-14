@@ -22,6 +22,7 @@ import { JIRA_FILE_LIMIT, tooBigForJira } from "@/lib/jira-files";
 import { BugTemplateForm, type BugFrom, type TemplateOptions } from "./bug-template-form";
 import { PriorityLine } from "./jira-priority";
 import { RecordingBar, takeScreenshot, useCaptureSupport, useScreenRecorder } from "./screen-capture";
+import { KeptNote, KeptSaved, useKeptDraft } from "./kept-draft";
 import { Modal } from "./modal";
 import { Button, cx, ErrorText, Field, InfoTip, Input, Select, Textarea } from "./ui";
 
@@ -150,6 +151,13 @@ export function BugDialog({
   const [chosen, setChosen] = useState("");
   const [draft, setDraft] = useState<TemplatedDraft | null>(null);
   const [loadingTemplate, startTemplate] = useTransition();
+  // Keep what you're typing: what's still loading as the box opens, and Start fresh's reload.
+  const [loads, setLoads] = useState(0);
+  const [fresh, setFresh] = useState(0);
+  const track = <R,>(p: Promise<R>) => {
+    setLoads((n) => n + 1);
+    return p.finally(() => setLoads((n) => n - 1));
+  };
   // Found-in version: the Jira version picked for you, and what the person picked.
   const [foundDraft, setFoundDraft] = useState<FoundInDraft | null>(null);
   const [foundIn, setFoundIn] = useState("");
@@ -217,12 +225,12 @@ export function BugDialog({
     setChosen("");
     setFoundDraft(null);
     if (jiraConnected)
-      void previewFoundIn(projectId, entryId).then((res) => {
+      void track(previewFoundIn(projectId, entryId)).then((res) => {
         if (!res.ok || !res.foundIn) return;
         setFoundDraft(res.foundIn);
         setFoundIn(res.foundIn.value);
       });
-    void bugTemplateChoices(projectId).then((res) => {
+    void track(bugTemplateChoices(projectId)).then((res) => {
       if (!res.ok) return;
       setChoices(res.templates.length ? { current: res.current, templates: res.templates } : null);
       if (res.defaultId) pickTemplate(res.defaultId, res.templates, null);
@@ -231,7 +239,7 @@ export function BugDialog({
       setSummary(prefill?.title ?? suggested ?? (stepIndex === null ? "" : `${stepLabel} failed`));
       if (prefill) setSeverity(prefill.severity);
       setHappened("");
-      void previewLocalBug(projectId, entryId, stepIndex, actual, focus).then((res) => res.ok && setHappened((n) => n || res.body));
+      void track(previewLocalBug(projectId, entryId, stepIndex, actual, focus)).then((res) => res.ok && setHappened((n) => n || res.body));
       return;
     }
     start(async () => {
@@ -257,9 +265,9 @@ export function BugDialog({
         setSevPicked(!res.imported || !!prefill);
       } else setError(res.error);
     });
-    // Only when the dialog opens for a step.
+    // Only when the dialog opens for a step (or Start fresh empties it).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, stepIndex]);
+  }, [open, stepIndex, fresh]);
 
   useEffect(() => {
     if (!open || tab !== "link" || !jiraConnected) return;
@@ -305,12 +313,56 @@ export function BugDialog({
     });
   };
 
+  // Keep what you're typing (Nov 13 2026): one draft per step of a run's case (or per bug sent to Jira),
+  // back after a refresh, Esc or a closed tab, the same as Write a bug and a bug bash.
+  const kept = useKeptDraft(
+    open ? (fromDefect ? `send-bug:${fromDefect.id}` : `report-bug:${entryId}:${stepIndex ?? "case"}`) : null,
+    {
+      summary,
+      body,
+      happened,
+      severity,
+      sevPicked,
+      template,
+      imported,
+      added,
+      include: [...include],
+      linkTo: [...linkTo],
+      notThis,
+      markReg,
+      sentryList,
+      chosen,
+      draft,
+      foundIn,
+    },
+    (k) => {
+      setSummary(k.summary);
+      setBody(k.body);
+      setHappened(k.happened);
+      setSeverity(k.severity);
+      setSevPicked(k.sevPicked);
+      setTemplate(k.template);
+      setImported(k.imported);
+      setAdded(k.added);
+      setInclude(new Set(k.include));
+      setLinkTo(new Set(k.linkTo));
+      setNotThis(k.notThis);
+      setMarkReg(k.markReg);
+      setSentryList(k.sentryList);
+      setChosen(k.chosen);
+      setDraft(k.draft);
+      setFoundIn(k.foundIn);
+    },
+    { ready: open && loads === 0 && !pending && !loadingTemplate, reset: () => setFresh((n) => n + 1) },
+  );
+
   // Hidden when the bug's own layout already has that Jira field (a copied layout's version field).
   const layoutFields = chosen ? (draft?.fields ?? []) : imported ? imported.fields : [];
   const foundShown = !!foundDraft && jiraConnected && !layoutFields.some((f) => f.id === foundDraft.field);
   const foundBox = foundShown && foundDraft ? <FoundInLine key={`${entryId}-${stepIndex}`} draft={foundDraft} value={foundIn} onChange={setFoundIn} /> : null;
 
   const done = (d: LinkedDefect) => {
+    kept.clear();
     onLinked(d);
     onClose();
   };
@@ -341,6 +393,7 @@ export function BugDialog({
         if (!res.ok) return setError(res.error);
         const notes = [res.attachError && `${res.defect.externalKey} was created, but attaching files failed: ${res.attachError}`, res.reporterNote, res.linkError].filter((n): n is string => !!n);
         if (!notes.length) return done(res.defect);
+        kept.clear();
         onLinked(res.defect);
         setFiled({ key: res.defect.externalKey ?? `#${res.defect.number}`, notes });
         return;
@@ -381,6 +434,7 @@ export function BugDialog({
         res.linkError,
       ].filter((n): n is string => !!n);
       if (!notes.length) return done(res.defect);
+      kept.clear();
       onLinked(res.defect);
       setFiled({ key: res.defect.externalKey ?? `#${res.defect.number}`, notes });
     });
@@ -432,6 +486,7 @@ export function BugDialog({
           {/* At the top and sticky (ver_192): at the bottom it was off screen under a long template. */}
           <RecordingBar r={recorder} inline />
           {caseRecording && <RecordingBar r={caseRecording} inline />}
+          <KeptNote kept={kept} what="the bug you were writing" className="mb-3" />
           <div className="mb-4 flex gap-1 rounded-md bg-slate-100 p-1 text-sm">
             {(fromDefect ? (["new"] as const) : (["new", "link"] as const)).map((t) => (
               <button
@@ -465,6 +520,7 @@ export function BugDialog({
                         variant="primary"
                         onClick={() => {
                           onKnownStill?.(b);
+                          kept.clear();
                           onClose();
                         }}
                       >
@@ -645,6 +701,7 @@ export function BugDialog({
                 </label>
               )}
               <div className="flex flex-wrap items-center justify-end gap-2">
+                <KeptSaved kept={kept} className="mr-auto" />
                 {chosen && draft && missingLine(draft, shots) && (
                   <span className="text-xs text-amber-800" data-testid="template-missing">
                     {missingLine(draft, shots)}

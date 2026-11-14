@@ -109,6 +109,7 @@ import { WhatsNewWindow } from "@/components/whats-new";
 import { BUILD, unseenFor } from "@/lib/whats-new";
 import { viewerOf } from "@/lib/whats-new-viewer";
 import { NavOrderProvider } from "@/components/nav-order";
+import { KeptOwnerProvider } from "@/components/kept-draft";
 import { parseNavOrder } from "@/lib/nav-order";
 import { GlossaryProvider } from "@/components/glossary";
 import { BusyCorner } from "@/components/busy-corner";
@@ -167,6 +168,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <SpellingProvider spelling={spelling} zone={zone}>
           <ZoneCookie zone={zone} />
           <NavOrderProvider order={parseNavOrder(user?.navOrder)}>
+          {/* Keep what you're typing: drafts are filed under your sign-in. */}
+          <KeptOwnerProvider owner={user?.id ?? ""}>
           {/* The radio is up here so it keeps playing from page to page and project to project. */}
           {(() => {
             const page = user?.radioEnabled ? (
@@ -187,6 +190,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {whatsNew.length > 0 && <WhatsNewWindow entries={whatsNew} />}
           {/* The How-to guide: closed until someone opens it from the left menu or Search. */}
           {user && <HowToGuide startHidden={firstDay(user.openCards).startHidden} />}
+          </KeptOwnerProvider>
           </NavOrderProvider>
         </SpellingProvider>
       </body>
