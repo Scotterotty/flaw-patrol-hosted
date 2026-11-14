@@ -106,6 +106,16 @@ export function AuditWorkbench({
       router.refresh();
     });
 
+  // Release (ver_252): let a bug go without checking it, from the bug or from the list. Nothing changes in Jira.
+  const release = (key: string) =>
+    start(async () => {
+      const r = await releaseAuditBug(audit.id, key);
+      if (!r.ok) return setError(r.error);
+      setBug((b) => (b?.key === key ? null : b));
+      setBrowse(true);
+      router.refresh();
+    });
+
   const take = (key: string) =>
     start(async () => {
       setError(null);
@@ -203,7 +213,7 @@ export function AuditWorkbench({
 
       {none && <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">Nothing left that fits. Try Any platform and Any component, or everything&apos;s been checked.</p>}
 
-      {(browse || !canCheck) && <BugList issues={issues} holders={holders} onPick={canCheck ? take : null} />}
+      {(browse || !canCheck) && <BugList issues={issues} holders={holders} onPick={canCheck ? take : null} onRelease={canCheck ? release : null} openKey={bug?.key ?? null} />}
 
       {bug && (
         <BugCheck
@@ -226,14 +236,7 @@ export function AuditWorkbench({
             setSkipped(skip);
             next(skip);
           }}
-          onLetGo={() =>
-            start(async () => {
-              await releaseAuditBug(audit.id, bug.key);
-              setBug(null);
-              setBrowse(true);
-              router.refresh();
-            })
-          }
+          onLetGo={() => release(bug.key)}
         />
       )}
 
@@ -242,7 +245,7 @@ export function AuditWorkbench({
   );
 }
 
-function BugList({ issues, holders, onPick }: { issues: AuditListBug[]; holders: Record<string, Holder>; onPick: ((key: string) => void) | null }) {
+function BugList({ issues, holders, onPick, onRelease, openKey }: { issues: AuditListBug[]; holders: Record<string, Holder>; onPick: ((key: string) => void) | null; onRelease: ((key: string) => void) | null; openKey: string | null }) {
   const [q, setQ] = useState("");
   const shown = issues.filter((i) => !q || `${i.key} ${i.title} ${i.components.join(" ")}`.toLowerCase().includes(q.toLowerCase())).slice(0, 200);
   return (
@@ -260,8 +263,22 @@ function BugList({ issues, holders, onPick }: { issues: AuditListBug[]; holders:
                 <span className="block truncate text-slate-900">{i.title}</span>
                 <span className="block truncate text-xs text-slate-500">{[i.components.join(", "), i.status, i.priority].filter(Boolean).join(" · ")}</span>
               </span>
-              {h ? (
-                <span className={cx("shrink-0 rounded-full px-2 py-0.5 text-xs", h.mine ? "bg-accent-50 text-accent-700" : "bg-amber-50 text-amber-800")}>{h.mine ? "Yours" : `${h.name} checking`}</span>
+              {h?.mine ? (
+                <span className="flex shrink-0 items-center gap-1.5">
+                  <span className="rounded-full bg-accent-50 px-2 py-0.5 text-xs text-accent-700">Yours</span>
+                  {onPick && openKey !== i.key && (
+                    <Button size="sm" onClick={() => onPick(i.key)}>
+                      Open
+                    </Button>
+                  )}
+                  {onRelease && (
+                    <Button size="sm" onClick={() => onRelease(i.key)} title="Let it go without checking it. Nothing changes in Jira." data-testid="audit-list-release">
+                      Release
+                    </Button>
+                  )}
+                </span>
+              ) : h ? (
+                <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-800">{h.name} checking</span>
               ) : (
                 onPick && (
                   <Button size="sm" onClick={() => onPick(i.key)}>
@@ -612,9 +629,9 @@ function BugCheck({
                 <Button onClick={onSkip} disabled={pending}>
                   Skip
                 </Button>
-                <button type="button" className="text-sm text-slate-600 hover:underline" onClick={onLetGo} disabled={pending}>
-                  Stop for now
-                </button>
+                <Button onClick={onLetGo} disabled={pending} title="Let it go without checking it, so someone else can take it. Nothing changes in Jira." data-testid="audit-release">
+                  Release
+                </Button>
                 <span className="text-xs text-slate-500">
                   Saves your changes to Jira, adds <code className="text-accent-700">{label}</code> and a comment. Only moves it if you pick a status.
                 </span>
