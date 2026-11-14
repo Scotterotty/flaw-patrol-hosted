@@ -46,10 +46,8 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
   if (jira) await Promise.all(projects.map((p) => refreshDefectStatuses(p.id).catch(() => null)));
   const canRun = can(u.who, "run:execute");
   const canEdit = can(u.who, "defect:edit");
-  // Write a bug: it goes to one of the current test cycles (the first one to start), or the umbrella itself when there are none.
+  // Write a bug: kept on the umbrella itself, with no RC to pick; triage decides which RC gets the fix (Nov 13 2026).
   const canWrite = canRun && !u.group.archivedAt;
-  const shortName = (name: string) => (name.startsWith(`${u.group.name} `) ? name.slice(u.group.name.length + 1) : name);
-  const writeTo = u.current.length ? u.current.map((p) => ({ id: p.id, name: shortName(p.name) })) : [{ id: u.hub.id, name: u.group.name }];
   // Board (ver_211): every bug on the Jira board, in its columns. Only with Jira connected.
   // ver_232: Table and Board share the Jira board and the filters, saved on the account too.
   const setup = await bugsSetup(sp, user.id, jira?.jiraProjectKey ?? null);
@@ -60,7 +58,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
     (jira && canRun) || canWrite ? (
       <div className="flex flex-wrap gap-2">
         {jira && canRun && <RefreshJiraButton projectId={u.hub.id} projectIds={projects.map((p) => p.id)} />}
-        {canWrite && <WriteBugButton cycles={writeTo} scale={scale} />}
+        {canWrite && <WriteBugButton projectId={u.hub.id} scale={scale} />}
       </div>
     ) : null;
   if (view === "board") {

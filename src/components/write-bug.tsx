@@ -23,7 +23,7 @@ import { draftToOko, okoIntoDraft } from "@/lib/oko-draft";
 import { RecordingBar, takeScreenshot, useCaptureSupport, useScreenRecorder } from "./screen-capture";
 import type { CurrentLayout } from "@/lib/bug-templates-data";
 import { missingLine, TemplatedForm, TemplatePicker, type TemplateChoice, type TemplatedDraft } from "./templated-bug-form";
-import { Button, cx, ErrorText, Input, Select } from "./ui";
+import { Button, cx, ErrorText, Input } from "./ui";
 
 /** An empty Repro rate, or an empty Repros cell in the Reproduction History row, starts at 1/1. */
 function startOneOfOne(a: Answer): Answer {
@@ -61,7 +61,6 @@ function withPrefill(d: TemplatedDraft, p: BugPrefill): TemplatedDraft {
   };
 }
 
-export type WriteBugCycle = { id: string; name: string };
 
 /** "Plain" is the built-in choice: three boxes to write in. */
 const PLAIN: CurrentLayout = { name: "Plain", kind: "plain" };
@@ -69,10 +68,11 @@ const PLAIN: CurrentLayout = { name: "Plain", kind: "plain" };
 const PLAIN_CHOICE: TemplateChoice = { id: PLAIN_ID, name: "Plain", hint: "Three boxes to write in", layout: plainLayout() };
 
 /**
- * The + Write a bug button and its box. `cycles`: where the bug can go (an umbrella's current
- * test cycles, or just this one); the first is picked to start. `?write=1` opens it on arrival.
+ * The + Write a bug button and its box. `projectId`: where the bug is kept (an umbrella's own
+ * hub, or this test cycle). No RC to pick (Nov 13 2026): triage decides which RC gets the fix.
+ * `?write=1` opens it on arrival.
  */
-export function WriteBugButton({ cycles, scale, variant = "primary" }: { cycles: WriteBugCycle[]; scale: SeverityScale; variant?: "primary" | "secondary" }) {
+export function WriteBugButton({ projectId, scale, variant = "primary" }: { projectId: string; scale: SeverityScale; variant?: "primary" | "secondary" }) {
   const params = useSearchParams();
   const router = useRouter();
   const path = usePathname();
@@ -92,21 +92,19 @@ export function WriteBugButton({ cycles, scale, variant = "primary" }: { cycles:
       router.replace(next.size ? `${path}?${next}` : path, { scroll: false });
     }
   };
-  if (!cycles.length) return null;
   return (
     <>
       <Button variant={variant} onClick={() => setOpen(true)} data-testid="write-bug">
         + Write a bug
       </Button>
-      {open && <WriteBugBox cycles={cycles} scale={scale} prefill={prefill} onClose={close} onSaved={() => router.refresh()} />}
+      {open && <WriteBugBox projectId={projectId} scale={scale} prefill={prefill} onClose={close} onSaved={() => router.refresh()} />}
     </>
   );
 }
 
-function WriteBugBox({ cycles, scale, prefill, onClose, onSaved }: { cycles: WriteBugCycle[]; scale: SeverityScale; prefill?: BugPrefill | null; onClose: () => void; onSaved: () => void }) {
+function WriteBugBox({ projectId, scale, prefill, onClose, onSaved }: { projectId: string; scale: SeverityScale; prefill?: BugPrefill | null; onClose: () => void; onSaved: () => void }) {
   // The link's build and note go in once, when the first template loads; switching templates carries them like typed text.
   const prefilled = useRef(false);
-  const [projectId, setProjectId] = useState(cycles[0].id);
   const [choices, setChoices] = useState<TemplateChoice[]>([]);
   const [chosen, setChosen] = useState("");
   // The first choice: the test cycle's own layout (Settings → Bug templates, first row), or Plain.
@@ -115,6 +113,7 @@ function WriteBugBox({ cycles, scale, prefill, onClose, onSaved }: { cycles: Wri
   const [loadedFor, setLoadedFor] = useState("");
   const [draft, setDraft] = useState<TemplatedDraft | null>(null);
   const [severity, setSeverity] = useState<Severity>(defaultSeverityOf(scale));
+  // Found in starts blank: people type the build number (Nov 13 2026). Bugs from a run keep their RC.
   const [foundIn, setFoundIn] = useState("");
   const [jiraKey, setJiraKey] = useState<string | null>(null);
   const [priority, setPriority] = useState<string | null>(null);
@@ -176,14 +175,13 @@ function WriteBugBox({ cycles, scale, prefill, onClose, onSaved }: { cycles: Wri
     });
   };
 
-  // Each test cycle has its own templates, Jira and release: load them when the box opens or "Goes to" changes.
+  // The templates and Jira: load them when the box opens.
   useEffect(() => {
     setError(null);
     setFiles([]);
     startLoad(async () => {
       const [s, c] = await Promise.all([writeBugStart(projectId), bugTemplateChoices(projectId)]);
       if (!s.ok) return setError(s.error);
-      setFoundIn(s.foundIn);
       setJiraKey(s.jiraKey);
       setPriority(s.priority);
       const top = c.ok && c.currentLayout ? { label: c.current, layout: c.currentLayout } : { label: PLAIN, layout: null };
@@ -196,7 +194,7 @@ function WriteBugBox({ cycles, scale, prefill, onClose, onSaved }: { cycles: Wri
       setLoadedFor(projectId);
       pick(c.ok && c.defaultId && list.some((t) => t.id === c.defaultId) ? c.defaultId : "", list, projectId, top);
     });
-    // Only when the test cycle changes.
+    // Once, when the box opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
@@ -267,7 +265,7 @@ function WriteBugBox({ cycles, scale, prefill, onClose, onSaved }: { cycles: Wri
         answers: draft.answers,
         attachmentIds: files.filter((f) => !left.has(f.id)).map((f) => f.id),
         fields: Object.fromEntries(draft.fields.map((f) => [f.id, f.value])),
-        foundIn: foundIn.trim() || null,
+        foundIn: (!draft.layout.oko && foundIn.trim()) || null,
         jira: toJira,
       });
       if (!res.ok) return setError(res.error);
@@ -305,20 +303,6 @@ function WriteBugBox({ cycles, scale, prefill, onClose, onSaved }: { cycles: Wri
           <RecordingBar r={recorder} inline />
           <p className="text-sm text-slate-600">For a bug you found outside a test: no test case, run or bug bash needed.</p>
           <ErrorText onDismiss={() => setError(null)}>{error}</ErrorText>
-          {cycles.length > 1 && (
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="wb-cycle">
-                Goes to
-              </label>
-              <Select id="wb-cycle" value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-auto min-w-56 max-w-full">
-                {cycles.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          )}
           {/* Only one template (ver_187): nothing to pick, so no Template row to read. */}
           {!(loadedFor === projectId && choices.length === 0) && (
             <div className="rounded-lg bg-accent-50 px-3 py-2.5" data-howto="write-bug-template">
@@ -391,12 +375,15 @@ function WriteBugBox({ cycles, scale, prefill, onClose, onSaved }: { cycles: Wri
               ) : (
                 <TemplatedForm projectId={projectId} draft={draft} setDraft={(fn) => setDraft((d) => (d ? fn(d) : d))} severity={severity} setSeverity={setSeverity} scale={scale} setError={setError} />
               )}
+              {/* The OKO layout asks for the build in its own Client box, so no second box (Nov 13 2026). */}
+              {!draft.layout.oko && (
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="wb-found">
                   Found in <span className="font-normal text-slate-400">(optional)</span>
                 </label>
-                <Input id="wb-found" value={foundIn} onChange={(e) => setFoundIn(e.target.value)} placeholder="A version, a build or a date" className="max-w-sm" />
+                <Input id="wb-found" value={foundIn} onChange={(e) => setFoundIn(e.target.value)} placeholder="The build number, like 2.4.2.1187" className="max-w-sm" />
               </div>
+              )}
               <div className={cx("space-y-1.5", draft.layout.oko && "hidden")}>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button type="button" size="sm" onClick={() => fileInput.current?.click()} disabled={uploading}>

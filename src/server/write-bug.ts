@@ -5,7 +5,6 @@
 // are the extra pieces the Write a bug box and the Bugs page need.
 
 import { db } from "@/lib/db";
-import { foundInRelease } from "@/lib/found-in";
 import { jiraFor } from "@/lib/jira";
 import { SAVED_ID, parseAnswers } from "@/lib/bug-layout";
 import { requireProjectAction } from "@/lib/session";
@@ -13,7 +12,7 @@ import { jiraConfigFor } from "@/lib/umbrella";
 import { fileTemplatedBug } from "./jira";
 import { attempt, UserError } from "./result";
 
-/** What the box starts with for a test cycle: the release it's testing and its Jira project, if connected. */
+/** What the box starts with: its Jira project and Priority, if connected. No release: Found in starts blank. */
 export async function writeBugStart(projectId: string) {
   return attempt(async () => {
     const { project } = await requireProjectAction(projectId, "run:execute");
@@ -21,7 +20,7 @@ export async function writeBugStart(projectId: string) {
     // Jira Priority, as a run's Report a bug shows it (Nov 12 2026, same form everywhere).
     const client = jira ? await jiraFor(project.id).catch(() => null) : null;
     const priority = client ? await client.priorityName().catch(() => null) : null;
-    return { foundIn: foundInRelease({ run: "", cycle: project.rcName }).name, jiraKey: jira?.jiraProjectKey ?? null, priority };
+    return { jiraKey: jira?.jiraProjectKey ?? null, priority };
   });
 }
 
