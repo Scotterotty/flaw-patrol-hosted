@@ -45,6 +45,8 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
   const [jira, scale] = await Promise.all([jiraConfigFor(u.hub.id), severityScaleFor(u.hub.id)]);
   if (jira) await Promise.all(projects.map((p) => refreshDefectStatuses(p.id).catch(() => null)));
   const canRun = can(u.who, "run:execute");
+  // Bug audit (ver_250): the Audit view shows only while an audit is set up in Settings.
+  const auditHref = jira && canRun && (await db.bugAudit.count({ where: { groupId: id, endedAt: null } })) ? `/g/${id}/bugs/audit` : undefined;
   const canEdit = can(u.who, "defect:edit");
   // Write a bug: kept on the umbrella itself, with no RC to pick; triage decides which RC gets the fix (Nov 13 2026).
   const canWrite = canRun && !u.group.archivedAt;
@@ -65,7 +67,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
     const local = await db.defect.findMany({ where: { projectId: { in: scopeIds }, externalKey: null, status: "OPEN" }, orderBy: { createdAt: "desc" }, take: 200, select: { id: true, number: true, title: true, createdBy: true, foundIn: true, projectId: true } });
     return (
       <div>
-        <PageHeader title="Bugs" beside={<BugViewSwitch view="board" />} subtitle={`Bugs on your Jira board for ${jira!.jiraProjectKey}. Click one for its details.`} actions={actions} />
+        <PageHeader title="Bugs" beside={<BugViewSwitch view="board" audit={auditHref} />} subtitle={`Bugs on your Jira board for ${jira!.jiraProjectKey}. Click one for its details.`} actions={actions} />
         <BugBoardSection
           where={{ groupId: id }}
           jiraProjectId={u.hub.id}
@@ -164,7 +166,7 @@ export default async function UmbrellaBugsPage({ params, searchParams }: { param
     <div className="page page-list">
       <PageHeader
         title="Bugs"
-        beside={jira ? <BugViewSwitch view="table" /> : undefined}
+        beside={jira ? <BugViewSwitch view="table" audit={auditHref} /> : undefined}
         subtitle={`${openRows.length} open across ${projectCount} ${projectCount === 1 ? "test cycle" : "test cycles"}${critical ? ` · ${critical} critical` : ""}. A bug filed from more than one platform shows once.`}
         actions={actions}
       />

@@ -456,6 +456,52 @@ export class JiraClient {
     return this.call<T>(path);
   }
 
+  /** Bug audit (ver_250): the fields this issue's Edit screen takes, with their choices. */
+  async issueEditMeta(key: string): Promise<MetaField[]> {
+    const raw = await this.call<{ fields?: Record<string, RawMeta> }>(`/rest/api/3/issue/${encodeURIComponent(key)}/editmeta`);
+    return Object.entries(raw.fields ?? {}).map(([id, f]) => toMeta(f, f.fieldId ?? f.key ?? id));
+  }
+
+  /** Bug audit: change fields on an issue (`fields` sets, `update` adds, like a label). */
+  async editIssue(key: string, body: { fields?: Record<string, unknown>; update?: Record<string, unknown> }) {
+    await this.call(`/rest/api/3/issue/${encodeURIComponent(key)}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  }
+
+  /** Bug audit: a plain-text comment, one paragraph per line. */
+  async addComment(key: string, text: string) {
+    const content = text
+      .split("\n")
+      .filter((l) => l.trim())
+      .map((l) => ({ type: "paragraph", content: [{ type: "text", text: l }] }));
+    await this.call(`/rest/api/3/issue/${encodeURIComponent(key)}/comment`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: { type: "doc", version: 1, content } }),
+    });
+  }
+
+  /** Bug audit: the statuses this issue can move to now, from Jira's own workflow. */
+  async transitions(key: string) {
+    const raw = await this.call<{ transitions?: { id: string; name?: string; to?: { name?: string } }[] }>(`/rest/api/3/issue/${encodeURIComponent(key)}/transitions`);
+    return (raw.transitions ?? []).map((t) => ({ id: String(t.id), name: t.name ?? "", to: t.to?.name ?? t.name ?? "" }));
+  }
+
+  async transition(key: string, id: string) {
+    await this.call(`/rest/api/3/issue/${encodeURIComponent(key)}/transitions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transition: { id } }) });
+  }
+
+  /** How many issues a JQL search finds; falls back to counting keys where Jira has no count. */
+  async count(jql: string, max = 5000) {
+    try {
+      const res = await this.call<{ count?: number }>("/rest/api/3/search/approximate-count", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jql }) });
+      if (typeof res?.count === "number") return res.count;
+    } catch (e) {
+      // Sites without the count endpoint answer 404: count the keys instead.
+      if (!(e instanceof JiraError && e.message === "Not found in Jira.")) throw e;
+    }
+    return (await this.searchFields<{ key: string }>(jql, [], max)).issues.length;
+  }
+
   /** Issues with exactly these fields, page by page up to `max` (bug board, ver_211). */
   async searchFields<T>(jql: string, fields: string[], max: number) {
     const raw: T[] = [];

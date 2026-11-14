@@ -58,6 +58,7 @@ import { cycleHash } from "@/lib/cycle-hash";
 import { BugTemplatesSettings } from "@/components/bug-templates";
 import { loadBugTemplates } from "@/lib/bug-templates-data";
 import { ToolsPanel } from "@/components/tools";
+import { BugAuditSettings } from "@/components/bug-audit-settings";
 import { toolHoldings } from "@/lib/tools-data";
 import { everything, toolsLine, TOOL_IDS, type ToolId } from "@/lib/tools";
 import { NOT_PRACTICE } from "@/lib/practice";
@@ -95,6 +96,9 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
   const myRolesP = db.projectMember.findMany({ where: { userId: user.id, projectId: { in: ids } }, select: { projectId: true, role: true } }).then((x) => x);
   // Renaming and moving test cycles follow the umbrella's own Roles card, not a role on any team.
   const groupManagerP = Promise.resolve(can(u.who, "umbrella:manage"));
+  // Bug audit (ver_250): the one going now, if any.
+  const auditP = db.bugAudit.findFirst({ where: { groupId: u.group.id, endedAt: null }, orderBy: { createdAt: "desc" } });
+  const audit = await auditP;
   const [
     [jira, members, ownJira, { template, shared }, sentry, requests, bugTemplates, archive, kindSuites, slack, usage, spelling, repos, ciTokens, groupManager, myRoles, cycleMembers, askAdmins],
     [invites, cycleInvites, cycleViews, cycleRequests, ownSlack, visible, loose, holdings, digest],
@@ -482,6 +486,24 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                 />
               </ExpandRow>
               </>)}
+              {keep(manage, <>
+              {jira && (
+                // Bug audit (ver_250): the Audit button on Bugs shows once a filter is saved here.
+                <ExpandRow
+                  id="bug-audit"
+                  hashes={["bug-audit"]}
+                  title="Bug audit"
+                  text={audit ? `${audit.name} · label ${audit.label}${audit.dueOn ? ` · finish by ${audit.dueOn.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })}` : ""}` : "Off. Check a Jira filter of old bugs as a team before a bug bash."}
+                  label={manage ? (audit ? "Change" : "Set up") : "View"}
+                >
+                  <BugAuditSettings
+                    groupId={u.group.id}
+                    canEdit={manage && !u.group.archivedAt}
+                    audit={audit && { id: audit.id, name: audit.name, filter: audit.filterId ? `${jira.siteUrl.replace(/\/+$/, "")}/issues/?filter=${audit.filterId}` : audit.jql, label: audit.label, dueOn: audit.dueOn ? audit.dueOn.toISOString().slice(0, 10) : "" }}
+                  />
+                </ExpandRow>
+              )}
+              </>)}
               {keep(can(u.who, "run:manage"), <>
               {on("runs") && (
               <ExpandRow howto="settings-regression"
@@ -684,7 +706,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
         {foldLookOnly && lookOnly.length > 0 && (
           <Card className="mb-6">
             <ul>
-              <FoldedRows title="Team setup · Admins change these" sub={lookOnly.length === 1 ? "1 setting you can look at" : `${lookOnly.length} settings you can look at`} hashes={["tools", "jira", "stories", "slack", "email-digests", "sentry", "github", "ci-uploads", "teamcity", "qase", "run-fields", "run-kinds", "regression", "automation-files", "crowns", "bug-templates"]}>
+              <FoldedRows title="Team setup · Admins change these" sub={lookOnly.length === 1 ? "1 setting you can look at" : `${lookOnly.length} settings you can look at`} hashes={["tools", "jira", "stories", "slack", "email-digests", "sentry", "github", "ci-uploads", "teamcity", "qase", "run-fields", "run-kinds", "regression", "automation-files", "crowns", "bug-templates", "bug-audit"]}>
                 {lookOnly}
               </FoldedRows>
             </ul>

@@ -21,6 +21,24 @@ export type WhatsNewItem = {
 export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
+  {
+    version: 250,
+    date: "2026-11-14",
+    items: [
+      {
+        kind: "new",
+        title: "Bug audit",
+        text: "Check a Jira filter of old bugs as a team, before a bug bash. On Bugs → Audit, press Next bug, fix the ticket if it needs it, pick what you found and press Verify and next. Flaw Patrol adds the audit label and a comment in Jira, so the bug drops off the filter. Bugs that still happen stay open.",
+        link: "/g/{umbrella}/bugs/audit",
+      },
+      {
+        kind: "new",
+        title: "Set up a bug audit",
+        text: "Umbrella Settings → Bug audit: paste the Jira filter link, the label checked bugs get, and when to finish by. The Audit button shows on Bugs once it is set up.",
+        who: "lead",
+      },
+    ],
+  },
   { version: 249, date: "2026-11-13", items: [{ kind: "better", title: "Write a bug is simpler", text: "Write a bug no longer asks which test cycle the bug goes to, and Found in starts blank so you fill in the build you saw it on. Triage decides which release gets the fix." }] },
   { version: 248, date: "2026-11-13", items: [{ kind: "new", title: "Never lose what you're typing", text: "Bugs, bug bashes, test cases and Feedback keep what you type in this browser. A refresh or closed tab brings it back, with Start fresh to throw it away." }] },
   {

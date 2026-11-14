@@ -408,7 +408,7 @@ function FoundAtBox({ f, open, onOpen }: { f: FoundAt } & FoldProps) {
 
 /** Table | Board on the Bugs page. Your pick is remembered, so Bugs opens the way you left it. */
 /** Table | Board (ver_211). It keeps every filter and the Jira board (ver_232). */
-export function BugViewSwitch({ view }: { view: "table" | "board" }) {
+export function BugViewSwitch({ view, audit, base = "" }: { view: "table" | "board" | "audit"; /** Bug audit (ver_250): the umbrella's Audit page, shown as a third view. */ audit?: string; /** The Bugs page, when the switch is shown on another page (the Audit page). */ base?: string }) {
   const params = useSearchParams();
   const remember = (v: "table" | "board") => {
     // The page saves the pick on the account when it opens with ?view= (src/components/bug-board-section.tsx).
@@ -416,7 +416,7 @@ export function BugViewSwitch({ view }: { view: "table" | "board" }) {
   };
   const item = (v: "table" | "board", label: string) => (
     <Link
-      href={switchHref(params.toString(), v)}
+      href={base ? `${base}?view=${v}` : switchHref(params.toString(), v)}
       onClick={() => remember(v)}
       aria-current={view === v ? "page" : undefined}
       className={cx("px-3 py-1 text-sm font-medium", view === v ? "bg-accent-600 text-white" : "text-slate-700 hover:bg-slate-100")}
@@ -428,6 +428,11 @@ export function BugViewSwitch({ view }: { view: "table" | "board" }) {
     <span className="inline-flex overflow-hidden rounded-md border border-slate-300" role="group" aria-label="View" data-howto="bugs-board-switch">
       {item("table", "Table")}
       {item("board", "Board")}
+      {audit && (
+        <Link href={audit} aria-current={view === "audit" ? "page" : undefined} data-testid="bugs-audit-link" className={cx("px-3 py-1 text-sm font-medium", view === "audit" ? "bg-accent-600 text-white" : "text-slate-700 hover:bg-slate-100")}>
+          Audit
+        </Link>
+      )}
     </span>
   );
 }

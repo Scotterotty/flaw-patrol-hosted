@@ -346,6 +346,64 @@ model ProjectGroup {
   ciTokens        CiToken[]
   qase            QaseConfig?
   teamcity        TeamCityConfig?
+  bugAudits       BugAudit[]
+}
+
+/**
+ * Bug audit (ver_250): a team pass over a Jira filter of old bugs, like the "2026 Bug Audit" before a
+ * bug bash. Jira stays the source of truth: the list is the filter, and every checked bug gets `label`
+ * in Jira (whatever was found, so it drops off). Flaw Patrol keeps who has which bug and what they
+ * found. See src/lib/bug-audit.ts.
+ */
+model BugAudit {
+  id          String          @id @default(cuid())
+  group       ProjectGroup    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId     String
+  name        String
+  /// The bugs still to check, as JQL ("filter = 23539" when it was set up from a Jira filter).
+  jql         String
+  /// The Jira filter it was set up from, for the Open in Jira link; null when JQL was typed.
+  filterId    String?
+  /// Added in Jira to each checked bug, like "2026audit".
+  label       String
+  /// When the checking should be done by (the bug bash), for the pace line.
+  dueOn       DateTime?
+  createdById String?
+  createdBy   String          @default("")
+  createdAt   DateTime        @default(now())
+  /// Ended: the page shows the results but hands out no more bugs.
+  endedAt     DateTime?
+  checks      BugAuditCheck[]
+
+  @@index([groupId])
+}
+
+/** One bug in an audit: who has it now (a claim) and, once checked, what they found. */
+model BugAuditCheck {
+  id          String    @id @default(cuid())
+  audit       BugAudit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  auditId     String
+  issueKey    String
+  /// The summary when it was claimed or checked, for the lists (Jira has the current one).
+  title       String    @default("")
+  claimedById String?
+  claimedBy   String    @default("")
+  claimedAt   DateTime?
+  /// still, cant, fixed, dupe or info (OUTCOMES in src/lib/bug-audit.ts); "" until checked.
+  outcome     String    @default("")
+  clients     String[]  @default([])
+  build       String    @default("")
+  note        String    @default("")
+  /// Jira fields changed while checking it, in words ("Priority: Low → Medium").
+  changes     String[]  @default([])
+  /// The status it was moved to in Jira while checking it, if anyone did.
+  movedTo     String    @default("")
+  checkedById String?
+  checkedBy   String    @default("")
+  checkedAt   DateTime?
+
+  @@unique([auditId, issueKey])
+  @@index([auditId, checkedAt])
 }
 
 /**
