@@ -21,6 +21,7 @@ export type WhatsNewItem = {
 export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
+  { version: 251, date: "2026-11-14", items: [{ kind: "better", title: "The bug audit list starts open", text: "Bugs → Audit opens with the list of bugs showing. It folds away while you check a bug, and comes back when you stop.", link: "/g/{umbrella}/bugs/audit" }] },
   {
     version: 250,
     date: "2026-11-14",
