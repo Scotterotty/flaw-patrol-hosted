@@ -82,13 +82,14 @@ describe("fieldChanges and auditComment", () => {
 });
 
 describe("reopenedChecks", () => {
-  it("undoes a check once the bug is back on the filter, after Jira's search has had time to catch up", () => {
+  it("undoes a check whose bug lost the label in Jira, after Jira's search has had time to catch up", () => {
     const checks = [
-      { issueKey: "OB-2217", checkedAt: ago(LABEL_LAG_MS * 5) },
-      { issueKey: "OB-2927", checkedAt: ago(30_000) },
-      { issueKey: "OB-3185", checkedAt: ago(LABEL_LAG_MS * 5) },
-      { issueKey: "OB-3510", checkedAt: null },
+      { issueKey: "OB-2217", checkedAt: ago(LABEL_LAG_MS * 5) }, // label removed, bug open
+      { issueKey: "OB-2388", checkedAt: ago(LABEL_LAG_MS * 5) }, // label removed, bug closed: still undone
+      { issueKey: "OB-2927", checkedAt: ago(30_000) }, // just verified, Jira's search may not show the label yet
+      { issueKey: "OB-3185", checkedAt: ago(LABEL_LAG_MS * 5) }, // still labelled
+      { issueKey: "OB-3510", checkedAt: null }, // never checked
     ];
-    expect(reopenedChecks(checks, new Set(["OB-2217", "OB-2927", "OB-3510"]), now)).toEqual(["OB-2217"]);
+    expect(reopenedChecks(checks, new Set(["OB-3185"]), now)).toEqual(["OB-2217", "OB-2388"]);
   });
 });

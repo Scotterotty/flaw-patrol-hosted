@@ -72,11 +72,12 @@ export function pickNext(issues: AuditIssue[], claims: Map<string, AuditClaim>, 
 export const LABEL_LAG_MS = 2 * 60_000;
 
 /**
- * Checks Jira has undone (ver_253): bugs checked here that are back on the audit's filter, because
- * someone removed the label in Jira. Jira decides, so they count as unchecked again.
+ * Checks Jira has undone (ver_253, ver_254): bugs checked here that no longer carry the audit's label
+ * in Jira, because someone removed it (open or closed bug alike). Jira decides, so they count as
+ * unchecked again. A check newer than LABEL_LAG_MS is left alone while Jira's search catches up.
  */
-export function reopenedChecks(checks: { issueKey: string; checkedAt: Date | null }[], onFilter: Set<string>, now: Date) {
-  return checks.filter((c) => c.checkedAt && onFilter.has(c.issueKey) && now.getTime() - c.checkedAt.getTime() > LABEL_LAG_MS).map((c) => c.issueKey);
+export function reopenedChecks(checks: { issueKey: string; checkedAt: Date | null }[], labelled: Set<string>, now: Date) {
+  return checks.filter((c) => c.checkedAt && !labelled.has(c.issueKey) && now.getTime() - c.checkedAt.getTime() > LABEL_LAG_MS).map((c) => c.issueKey);
 }
 
 /** A Jira filter link or number becomes "filter = 23539"; anything else is taken as JQL. */
