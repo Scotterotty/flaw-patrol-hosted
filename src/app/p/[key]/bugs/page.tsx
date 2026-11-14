@@ -56,7 +56,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
             canWriteBoard ? (
               <div className="flex flex-wrap gap-2">
                 <RefreshJiraButton projectId={project.id} />
-                <WriteBugButton cycles={[{ id: project.id, name: project.name }]} scale={await severityScaleFor(project.id)} />
+                <WriteBugButton projectId={project.id} scale={await severityScaleFor(project.id)} />
               </div>
             ) : null
           }
@@ -135,7 +135,7 @@ export default async function DefectsPage({ params, searchParams }: { params: Pr
           jira || canWrite ? (
             <div className="flex flex-wrap gap-2">
               {jira && canWrite && <RefreshJiraButton projectId={project.id} />}
-              {canWrite && <WriteBugButton cycles={[{ id: project.id, name: project.name }]} scale={scale} />}
+              {canWrite && <WriteBugButton projectId={project.id} scale={scale} />}
             </div>
           ) : null
         }

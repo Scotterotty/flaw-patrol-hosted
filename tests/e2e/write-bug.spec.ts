@@ -11,7 +11,7 @@ const TAG = Date.now().toString(36).slice(-4).toUpperCase();
 const KEY = `WB${TAG}`;
 const HUB = `WH${TAG}`;
 const NAME = `Writing ${TAG}`;
-const ids = { project: "", group: "", ios: "", android: "" };
+const ids = { project: "", group: "", hub: "", ios: "", android: "" };
 
 test.beforeAll(async () => {
   const db = new PrismaClient();
@@ -35,6 +35,7 @@ test.beforeAll(async () => {
     const hub = await db.project.create({ data: { key: HUB, name: NAME, members: { create: [{ userId: tester.id, role: "TESTER" }, { userId: lead.id, role: "VIEWER" }] } } });
     const group = await db.projectGroup.create({ data: { name: NAME, hubProjectId: hub.id, platforms: [{ name: "iOS" }, { name: "Android" }] } });
     ids.group = group.id;
+    ids.hub = hub.id;
     await db.project.update({ where: { id: hub.id }, data: { groupId: group.id } });
     const cycle = (key: string, platform: string) => db.project.create({ data: { key, name: `${NAME} ${platform} 1.4`, groupId: group.id, platform, members: { create: [{ userId: tester.id, role: "TESTER" }, { userId: lead.id, role: "VIEWER" }] } } });
     ids.ios = (await cycle(`WI${TAG}`, "iOS")).id;
@@ -103,7 +104,7 @@ test("write a bug from Overview and the left menu, with Plain or a template", as
   await expect(page.getByText("No bugs match")).toBeVisible();
 });
 
-test("in an umbrella you pick the test cycle, Ctrl+K finds it, and Viewers don't see it", async ({ page, browser }) => {
+test("in an umbrella there's no RC to pick, Found in starts blank, Ctrl+K finds it, and Viewers don't see it", async ({ page, browser }) => {
   test.setTimeout(180_000);
   await signIn(page, "tester@example.com", "Sam Tester");
   await page.goto(`/g/${ids.group}`);
@@ -114,10 +115,9 @@ test("in an umbrella you pick the test cycle, Ctrl+K finds it, and Viewers don't
   await expect(page).toHaveURL(new RegExp(`/g/${ids.group}/bugs`));
   const box = page.getByRole("dialog", { name: "Write a bug" });
   await expect(box).toBeVisible();
-  const goesTo = box.getByLabel("Goes to");
-  await expect(goesTo).toContainText("iOS 1.4");
-  await expect(goesTo).toContainText("Android 1.4");
-  await goesTo.selectOption({ label: "Android 1.4" });
+  // Nov 13 2026: no "Goes to" test cycle picker; triage decides which RC gets the fix.
+  await expect(box.getByLabel("Goes to")).toHaveCount(0);
+  await expect(box.getByLabel("Found in")).toHaveValue("");
   await box.getByLabel("Summary").fill(`Back button skips a screen ${TAG}`);
   await box.getByLabel("What happened").fill("It goes two screens back");
   await box.getByRole("button", { name: "Save bug" }).click();
@@ -126,7 +126,8 @@ test("in an umbrella you pick the test cycle, Ctrl+K finds it, and Viewers don't
   const db = new PrismaClient();
   try {
     const bug = await db.defect.findFirstOrThrow({ where: { title: `Back button skips a screen ${TAG}` } });
-    expect(bug.projectId).toBe(ids.android);
+    expect(bug.projectId).toBe(ids.hub);
+    expect(bug.foundIn).toBe("");
     expect(bug.createdBy).toBe("Sam Tester");
   } finally {
     await db.$disconnect();
