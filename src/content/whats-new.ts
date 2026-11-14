@@ -21,6 +21,7 @@ export type WhatsNewItem = {
 export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
+  { version: 253, date: "2026-11-14", items: [{ kind: "fix", title: "Bug audit follows Jira when a label is removed", text: "Take the audit label off a bug in Jira and Bugs → Audit treats it as unchecked again: it leaves Checked so far and Next bug can hand it out. It shows within a minute or two.", link: "/g/{umbrella}/bugs/audit" }] },
   { version: 252, date: "2026-11-14", items: [{ kind: "better", title: "Release a bug in the audit", text: "Don't want a bug you took in Bugs → Audit? Press Release on it, or on your bug in the list, and it goes back for someone else. Nothing changes in Jira.", link: "/g/{umbrella}/bugs/audit" }] },
   { version: 251, date: "2026-11-14", items: [{ kind: "better", title: "The bug audit list starts open", text: "Bugs → Audit opens with the list of bugs showing. It folds away while you check a bug, and comes back when you stop.", link: "/g/{umbrella}/bugs/audit" }] },
   {

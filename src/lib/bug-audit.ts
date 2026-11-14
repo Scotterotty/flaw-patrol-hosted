@@ -68,6 +68,17 @@ export function pickNext(issues: AuditIssue[], claims: Map<string, AuditClaim>, 
   return fits.find((i) => !claims.get(i.key)?.checkedAt && !claimLive(claims.get(i.key), now)) ?? null;
 }
 
+/** How long after Verify a bug may still show on the filter while Jira's search catches up with the label. */
+export const LABEL_LAG_MS = 2 * 60_000;
+
+/**
+ * Checks Jira has undone (ver_253): bugs checked here that are back on the audit's filter, because
+ * someone removed the label in Jira. Jira decides, so they count as unchecked again.
+ */
+export function reopenedChecks(checks: { issueKey: string; checkedAt: Date | null }[], onFilter: Set<string>, now: Date) {
+  return checks.filter((c) => c.checkedAt && onFilter.has(c.issueKey) && now.getTime() - c.checkedAt.getTime() > LABEL_LAG_MS).map((c) => c.issueKey);
+}
+
 /** A Jira filter link or number becomes "filter = 23539"; anything else is taken as JQL. */
 export function parseFilterInput(input: string): { jql: string; filterId: string | null } | null {
   const v = input.trim();

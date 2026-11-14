@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "./db";
-import { claimLive, pace, type AuditClaim, type AuditIssue } from "./bug-audit";
+import { claimLive, pace, reopenedChecks, type AuditClaim, type AuditIssue } from "./bug-audit";
 import type { JiraClient } from "./jira";
 
 // Bug audit (ver_250): reading the audit's Jira filter. Cached for a minute so a team clicking
@@ -34,6 +34,15 @@ export async function auditIssues(audit: { id: string; jql: string; label: strin
     labels: r.fields.labels ?? [],
     created: r.fields.created ?? "",
   }));
+  // Someone removed the label in Jira: the bug is back on the filter, so it isn't checked any more.
+  const checked = await db.bugAuditCheck.findMany({ where: { auditId: audit.id, checkedAt: { not: null } }, select: { issueKey: true, checkedAt: true } });
+  const reopened = reopenedChecks(checked, new Set(issues.map((i) => i.key)), new Date());
+  if (reopened.length) {
+    await db.bugAuditCheck.updateMany({
+      where: { auditId: audit.id, issueKey: { in: reopened } },
+      data: { checkedAt: null, checkedById: null, checkedBy: "", outcome: "", claimedById: null, claimedBy: "", claimedAt: null },
+    });
+  }
   const entry = { at: Date.now(), issues, more: found.more, done };
   cache.set(audit.id, entry);
   return entry;
