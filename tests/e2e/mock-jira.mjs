@@ -132,6 +132,13 @@ const person = (displayName, emailAddress) => ({ displayName, emailAddress });
 const adf = (...lines) => ({ type: "doc", version: 1, content: lines.map((t) => (typeof t === "string" ? p_(t) : t)) });
 const bb = (n, summary, status, priority, extra = {}) =>
   issues.set(`BB-${n}`, { summary, status, category: STATUSES.find((s) => s.name === status).statusCategory.key, attachments: 0, priority, fields: { labels: [], versions: [], created: "2026-11-02T18:14:00.000+0000", reporter: person("Priya Patel", "priya@example.com"), comment: { comments: [] }, attachment: [], ...extra } });
+// Bug audit (ver_256): Jira filter 900 is old bugs AU-1..AU-4. Saving adds a label, a comment, a link or a move.
+const au = (n, summary, components, extra = {}) =>
+  issues.set(`AU-${n}`, { summary, status: "Open", category: "new", attachments: 0, priority: "Medium", audit: true, comments: [], fields: { labels: [], versions: [], components: components.map((name) => ({ name })), created: "2025-03-02T18:14:00.000+0000", reporter: person("Priya Patel", "priya@example.com"), attachment: [], ...extra } });
+au(1, "Avatar hands jitter after teleport", ["Avatars"]);
+au(2, "Lobby music doubles after rejoin", ["Audio"]);
+au(3, "Seat swap breaks hand tracking", ["Avatars"]);
+au(4, "Old web menu flickers", ["Web app"], { labels: ["2026audit"] });
 bb(1, "Clone button does nothing on second try", "New", "High", { labels: ["Support Duty"], assignee: null });
 bb(2, "Panel background wrong when viewed on phone", "Open", "Medium", { assignee: person("Jordan Lee", "jordan@example.com"), versions: [{ name: "2.4.2" }] });
 bb(3, "Material list splits after another user edits", "Needs QA", "Medium", {
@@ -293,8 +300,13 @@ http
       const m = /text ~ "([^"*]*)\*?"/.exec(jql ?? "");
       const keyIn = /key in \(([^)]*)\)/.exec(jql ?? "");
       const parentIn = /parent in \(([^)]*)\)/.exec(jql ?? "");
-      let keys = [...issues.keys()];
-      if (keyIn) {
+      let keys = [...issues.keys()].filter((k) => !issues.get(k).audit);
+      const labelOf = (k) => issues.get(k).fields?.labels ?? [];
+      const labelEq = /^labels = "([^"]+)"$/.exec(jql ?? "");
+      const notLabel = /labels not in \("([^"]+)"\)/.exec(jql ?? "");
+      if (/filter = 900/.test(jql ?? "")) keys = [...issues.keys()].filter((k) => issues.get(k).audit && (!notLabel || !labelOf(k).includes(notLabel[1])));
+      else if (labelEq) keys = [...issues.keys()].filter((k) => labelOf(k).includes(labelEq[1]));
+      else if (keyIn) {
         keys = keyIn[1].split(",").map((k) => k.trim().replace(/"/g, ""));
         // Like Jira, one missing key fails the whole search.
         const missing = keys.find((k) => !issues.has(k));
@@ -371,7 +383,31 @@ http
       const list = edit[1].startsWith("OB-") ? OB_EDIT : BASIC_FIELDS;
       return send(res, 200, { fields: Object.fromEntries(list.filter((f) => f.fieldId !== "reporter").map(({ fieldId, ...f }) => [fieldId, { ...f, key: fieldId }])) });
     }
+    const sub = /^\/rest\/api\/3\/issue\/([^/]+)\/(comment|transitions)$/.exec(p);
+    if (sub && issues.get(sub[1])?.audit) {
+      const i = issues.get(sub[1]);
+      if (sub[2] === "comment" && req.method === "POST") {
+        const text = JSON.parse(body.toString()).body.content.map((para) => para.content.map((t) => t.text).join("")).join("\n");
+        i.comments.push(text);
+        return send(res, 201, { id: String(i.comments.length) });
+      }
+      if (sub[2] === "transitions" && req.method === "POST") {
+        const { transition } = JSON.parse(body.toString());
+        if (transition.id === "31") (i.status = "Closed"), (i.category = "done");
+        return send(res, 204);
+      }
+      if (sub[2] === "transitions") return send(res, 200, { transitions: [{ id: "31", name: "Close", to: { name: "Closed" } }] });
+    }
     const one = /^\/rest\/api\/3\/issue\/([^/]+)$/.exec(p);
+    if (one && req.method === "PUT" && issues.get(one[1])?.audit) {
+      const { fields = {}, update = {} } = JSON.parse(body.toString());
+      const i = issues.get(one[1]);
+      for (const { add } of update.labels ?? []) if (add && !i.fields.labels.includes(add)) i.fields.labels.push(add);
+      if (fields.priority) i.priority = fields.priority.name;
+      if (fields.summary) i.summary = fields.summary;
+      i.fields.updated = new Date().toISOString();
+      return send(res, 204);
+    }
     if (one && req.method === "PUT") {
       if (!issues.has(one[1])) return send(res, 404, { errorMessages: ["Issue does not exist"] });
       // Like Jira for anyone but an admin: turning off the update email is refused.

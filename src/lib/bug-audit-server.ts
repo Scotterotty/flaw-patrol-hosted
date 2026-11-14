@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "./db";
-import { claimLive, pace, reopenedChecks, type AuditClaim, type AuditIssue } from "./bug-audit";
+import { auditJql, claimLive, pace, reopenedChecks, type AuditClaim, type AuditIssue } from "./bug-audit";
 import type { JiraClient } from "./jira";
 
 // Bug audit (ver_250): reading the audit's Jira filter. Cached for a minute so a team clicking
@@ -39,7 +39,7 @@ export async function auditIssues(audit: { id: string; jql: string; label: strin
 
 async function readAudit(audit: { id: string; jql: string; label: string }, client: JiraClient): Promise<CacheEntry> {
   const [found, labelled] = await Promise.all([
-    client.searchFields<RawIssue>(audit.jql, FIELDS, MAX_AUDIT_BUGS),
+    client.searchFields<RawIssue>(auditJql(audit.jql, audit.label), FIELDS, MAX_AUDIT_BUGS),
     // Every bug carrying the label in Jira (ver_254): the checked count, and what Checked so far must match.
     client.searchFields<{ key: string }>(`labels = "${audit.label.replace(/["\\]/g, "")}"`, [], MAX_LABELLED).catch(() => null),
   ]);
