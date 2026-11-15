@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { relativeTime } from "@/lib/format";
-import { groupCards, summaryLine, writeBugHref, type SentryBoard, type StatusCard, type StatusDot, type StatusSource } from "@/lib/status-cards";
+import { groupCards, SENTRY_ISSUES, summaryLine, writeBugHref, type SentryBoard, type SentryRow, type StatusCard, type StatusDot, type StatusSource } from "@/lib/status-cards";
 import { statusCheck, statusSummary } from "@/server/status";
 import { Button, Card, cx } from "./ui";
 
@@ -103,7 +103,7 @@ export function StatusBoard({ groupId, name, sources, canManage, canBug }: { gro
           <h2 id="st-bad" className="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">
             Needs a look
           </h2>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid items-start gap-3 md:grid-cols-2">
             {bad.map((c) => (
               <BigCard key={c.key} c={c} groupId={groupId} canBug={canBug} />
             ))}
@@ -333,6 +333,7 @@ function SentryRows({ s, groupId, canBug }: { s: SentryBoard; groupId: string; c
                   )}
                 </p>
                 {r.sentryRelease && <p className="text-xs break-all text-slate-500">Sentry calls it {r.sentryRelease}</p>}
+                {r.issues && r.issues.length > 0 && <SentryIssues r={r} />}
               </li>
             ))}
           </ul>
@@ -370,6 +371,71 @@ function SentryRows({ s, groupId, canBug }: { s: SentryBoard; groupId: string; c
     </div>
   );
 }
+
+/**
+ * A build's new errors, right on the card (ver_263): the top few, not in a bug yet first, and
+ * "Show all" for the rest. Stays inside the row: long titles are cut short, and the full list
+ * scrolls in its own box so the card never grows past a screenful.
+ */
+function SentryIssues({ r }: { r: SentryRow }) {
+  const [all, setAll] = useState(false);
+  const issues = r.issues ?? [];
+  const shown = all ? issues : issues.slice(0, SENTRY_ISSUES);
+  const total = r.issueTotal ?? issues.length;
+  const link = "font-medium text-accent-700 underline hover:no-underline";
+  return (
+    <div className="mt-1.5 rounded-md bg-slate-50 px-2.5 py-1.5" data-testid="sentry-issues">
+      <p className="text-xs text-slate-500">Top errors · not in a bug yet first, then most events</p>
+      <ul className={cx("divide-y divide-dashed divide-slate-200", all && "max-h-72 overflow-y-auto pr-1")}>
+        {shown.map((i) => (
+          <li key={i.id} className="py-1.5" data-testid="sentry-issue">
+            <div className="flex min-w-0 items-start justify-between gap-2">
+              <a href={i.url} target="_blank" rel="noreferrer" className="min-w-0 truncate text-xs font-medium text-slate-900 hover:underline" title={i.title}>
+                {i.title}
+              </a>
+              {i.filed ? (
+                <span className="shrink-0 rounded bg-slate-200/70 px-1.5 py-px text-xs whitespace-nowrap text-slate-700">
+                  {i.bug ? (
+                    <>
+                      In bug{" "}
+                      <Link href={i.bug.href} className="font-mono font-medium hover:underline">
+                        {i.bug.key}
+                      </Link>
+                    </>
+                  ) : (
+                    "In a bug"
+                  )}
+                </span>
+              ) : (
+                <span className="shrink-0 rounded bg-red-50 px-1.5 py-px text-xs font-medium whitespace-nowrap text-red-700">Not in a bug</span>
+              )}
+            </div>
+            <p className="truncate text-xs text-slate-500" title={i.culprit || undefined}>
+              {[i.culprit, count(i.count, "event"), i.users ? count(i.users, "user") : "", i.lastSeen ? `last seen ${relativeTime(new Date(i.lastSeen))}` : ""].filter(Boolean).join(" · ")}
+            </p>
+          </li>
+        ))}
+      </ul>
+      {(issues.length > SENTRY_ISSUES || total > issues.length) && (
+        <p className="flex flex-wrap gap-x-3 pt-1 text-xs">
+          {issues.length > SENTRY_ISSUES && (
+            <button type="button" onClick={() => setAll((v) => !v)} className={link} aria-expanded={all} data-testid="sentry-issues-all">
+              {all ? "Show fewer" : `Show all ${issues.length}`}
+            </button>
+          )}
+          {total > issues.length && r.open && (
+            <a href={r.open.url} target="_blank" rel="noreferrer" className={link}>
+              All {total >= 100 ? "100+" : total} in Sentry ↗
+            </a>
+          )}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** "1 event", "212 events", "1.2k events". */
+const count = (n: number, w: string) => `${n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : n} ${n === 1 ? w : `${w}s`}`;
 
 /** Overview's one line: "2 things need a look · Open Status". Hidden when nothing is connected. */
 export function StatusLine({ groupId }: { groupId: string }) {

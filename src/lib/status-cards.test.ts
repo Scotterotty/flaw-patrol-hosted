@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ciCard, githubCard, groupCards, noPeople, otherBuildsQuery, sentryCard, summaryLine, teamcityCard, writeBugHref, type SentryBuildIn, type StatusCard } from "./status-cards";
+import { ciCard, githubCard, groupCards, noPeople, otherBuildsQuery, sentryCard, sentryIssueRows, summaryLine, teamcityCard, writeBugHref, type SentryBuildIn, type StatusCard } from "./status-cards";
 import { parseBuildTypes } from "./teamcity-config";
 
 vi.mock("server-only", () => ({}));
@@ -54,6 +54,23 @@ describe("Status cards (ver_228)", () => {
     expect(githubCard(gh, [run(3, "success")], null, NOW)).toMatchObject({ state: "good", line: "Run 3 passed." });
     expect(githubCard(gh, [run(4, "cancelled")], null, NOW)).toMatchObject({ state: "quiet", pill: "Cancelled" });
     expect(githubCard(gh, [], null, NOW)).toMatchObject({ state: "quiet", pill: "No runs yet" });
+  });
+
+  it("previews a build's new errors, not in a bug yet first, then most events (ver_263)", () => {
+    const i = (id: string, count: number, lastSeen = "2026-11-14T10:00:00Z") => ({ id, shortId: `OKO-${id}`, title: `Error ${id}`, culprit: "Spawn.Update", url: `https://sentry.io/i/${id}`, count, users: 1, lastSeen });
+    const rows = sentryIssueRows([i("1", 5), i("2", 900), i("3", 50), i("4", 50, "2026-11-14T12:00:00Z")], ["2"], { "2": { key: "OKO-4812", href: "/p/OKO/bugs#OKO-4812" } });
+    expect(rows.map((r) => r.id)).toEqual(["4", "3", "1", "2"]);
+    expect(rows[3]).toMatchObject({ filed: true, bug: { key: "OKO-4812" } });
+    expect(rows[0]).toMatchObject({ filed: false, bug: null });
+    expect(sentryIssueRows(Array.from({ length: 30 }, (_, n) => i(String(n), n)), [])).toHaveLength(20);
+
+    const src = { key: "sentry", tool: "Sentry" as const, title: "Sentry" };
+    const card = sentryCard(
+      src,
+      { builds: [{ build: "6.4.2", platform: "Unreal", tags: [], sentryRelease: "6.4.2", freshIds: ["1", "2"], issues: [i("1", 5), i("2", 9)], inBugIds: [], crashFree: null, newUrl: "u", releaseUrl: "r" }], other: null, none: null, missing: null },
+      NOW,
+    );
+    expect(card.sentry!.rows[0]).toMatchObject({ issueTotal: 2, issues: [{ id: "2" }, { id: "1" }] });
   });
 
   it("sorts Sentry errors by build, red only for new errors not in a bug yet (ver_258)", () => {

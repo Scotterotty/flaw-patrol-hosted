@@ -199,23 +199,39 @@ async function askSentry(u: Umbrella, src: StatusSource, now: string): Promise<S
 
   // Errors already in a bug: the Sentry errors saved on failed steps of results that have a bug.
   const filed = builds.size
-    ? await db.testResult.findMany({ where: { runId: { in: [...builds.values()].flatMap((b) => b.runIds) }, defects: { some: {} } }, select: { runId: true, sentry: true } })
+    ? await db.testResult.findMany({
+        where: { runId: { in: [...builds.values()].flatMap((b) => b.runIds) }, defects: { some: {} } },
+        select: { runId: true, sentry: true, defects: { take: 1, select: { defect: { select: { number: true, externalKey: true, project: { select: { key: true } } } } } } },
+      })
     : [];
   const filedIn = (runIds: string[]) => filed.filter((f) => runIds.includes(f.runId)).flatMap((f) => parseSentryRefs(f.sentry).map((x) => x.id));
+  // Which bug each filed Sentry error is in, for the card's preview (ver_263).
+  const bugOf = (runIds: string[]) => {
+    const out: Record<string, { key: string; href: string }> = {};
+    for (const f of filed) {
+      const d = f.defects[0]?.defect;
+      if (!d || !runIds.includes(f.runId)) continue;
+      const key = d.externalKey ?? `D-${d.number}`;
+      for (const x of parseSentryRefs(f.sentry)) out[x.id] ??= { key, href: `/p/${d.project.key}/bugs#${key}` };
+    }
+    return out;
+  };
 
   // Up to three builds get Sentry's answer; the rest are only counted.
   const list = [...builds.entries()];
   const shown = await Promise.all(
     list.slice(0, SENTRY_ROWS).map(async ([build, b]): Promise<SentryBuildIn> => {
       const rel = await client.releaseFor(build, ids).catch(() => null);
-      const [crashFree, freshIds] = rel ? await Promise.all([client.crashFree(rel, ids), client.newIssueIds(rel, ids)]) : [null, null];
+      const [crashFree, fresh] = rel ? await Promise.all([client.crashFree(rel, ids), client.newIssues(rel, ids)]) : [null, null];
       return {
         build,
         platform: b.platform,
         tags: [...b.tags],
         sentryRelease: rel,
-        freshIds,
+        freshIds: fresh ? fresh.map((i) => i.id) : null,
+        issues: fresh ?? undefined,
         inBugIds: filedIn(b.runIds),
+        bugOf: bugOf(b.runIds),
         crashFree,
         newUrl: rel ? client.searchUrl(`first-release:"${rel}"`, ids) : null,
         releaseUrl: rel ? client.searchUrl(`release:"${rel}"`, ids) : null,

@@ -15,6 +15,8 @@ export type SentryIssue = {
   url: string;
   project: string;
   count: number;
+  /** How many people hit it. */
+  users: number;
   firstSeen: string;
   lastSeen: string;
 };
@@ -140,15 +142,18 @@ export class SentryClient {
 
   /** How many issues first appeared in this release (up to 100). */
   async newInRelease(release: string, projectIds: string[]): Promise<number> {
-    return (await this.newIssueIds(release, projectIds)).length;
+    return (await this.newIssues(release, projectIds)).length;
   }
 
-  /** The issues that first appeared in this release (up to 100), by id, to check against errors already in bugs. */
-  async newIssueIds(release: string, projectIds: string[]): Promise<string[]> {
+  /**
+   * The issues that first appeared in this release (up to 100), to check against errors already in
+   * bugs and to preview on the Status card. One list call: titles, counts and users come with it.
+   */
+  async newIssues(release: string, projectIds: string[]): Promise<SentryIssue[]> {
     const params = new URLSearchParams({ query: `first-release:"${release}"`, statsPeriod: "90d", limit: "100" });
     for (const p of projectIds) params.append("project", p);
     const list = await this.call<RawIssue[]>(`/organizations/${enc(this.org)}/issues/?${params}`).catch(() => []);
-    return list.map((i) => String(i.id));
+    return list.map(issueOf);
   }
 
   /** How many issues match a search with events in the last day (up to 100). Throws when Sentry can't answer it. */
@@ -167,7 +172,7 @@ export class SentryClient {
   }
 }
 
-type RawIssue = { id: string; shortId: string; title: string; culprit?: string; permalink: string; project?: { slug?: string }; count?: string | number; firstSeen: string; lastSeen: string };
+type RawIssue = { id: string; shortId: string; title: string; culprit?: string; permalink: string; project?: { slug?: string }; count?: string | number; userCount?: string | number; firstSeen: string; lastSeen: string };
 type Frame = { function?: string; filename?: string; module?: string; lineNo?: number; inApp?: boolean };
 const enc = encodeURIComponent;
 const issueOf = (i: RawIssue): SentryIssue => ({
@@ -178,6 +183,7 @@ const issueOf = (i: RawIssue): SentryIssue => ({
   url: i.permalink,
   project: i.project?.slug ?? "",
   count: Number(i.count ?? 0),
+  users: Number(i.userCount ?? 0),
   firstSeen: i.firstSeen,
   lastSeen: i.lastSeen,
 });
