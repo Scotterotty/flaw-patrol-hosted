@@ -22,6 +22,7 @@
 #   FP_COMPOSE_FILE=docker-compose.hosting.yml
 #   FP_BACKUP=1  FP_KEEP_BACKUPS=5              database backup before each update, in ./backups
 #   FP_BACKUP_TRIES=5  FP_BACKUP_WAIT=15        tries (and seconds between) when the database is busy
+#   FP_DOCKER_CLEANUP=1                         clear unused old images and week-old build cache each update
 #   FP_CHECK_EVERY=300                          seconds between looks for new code
 #   FP_ROOT=/path/to/flaw-patrol                the code folder (install sets this for the service)
 set -uo pipefail
@@ -49,6 +50,7 @@ KEEP_BACKUPS=${FP_KEEP_BACKUPS:-5}
 BACKUP_TRIES=${FP_BACKUP_TRIES:-5}
 BACKUP_WAIT=${FP_BACKUP_WAIT:-15}
 CHECK_EVERY=${FP_CHECK_EVERY:-300}
+DOCKER_CLEANUP=${FP_DOCKER_CLEANUP:-1}
 APP=${FP_APP_CONTAINER:-flaw-patrol}
 # The Flaw Patrol container runs as this user and group (see Dockerfile); it must be able to
 # leave its note in the server-update folder.
@@ -65,6 +67,22 @@ now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 oneline() { printf '%s' "$1" | tr '\r\n\t' '   ' | cut -c1-400; }
 version_at() { git_ show "$1:package.json" 2>/dev/null | sed -n 's/^ *"version": *"\([^"]*\)".*/\1/p' | head -n1; }
 say() { echo "[$(date '+%H:%M:%S')] $*"; }
+# Docker's leftovers (ver_262). Every build leaves the old image and its build cache behind, and
+# after enough updates the disk fills and the next build fails partway ("no space left on device").
+# Only images nothing uses (no tag, no container; on a shared server, other apps' too) and build
+# cache go: running containers, the database and its data are never touched. "all" clears every bit of build cache, for when the disk is full.
+clean_docker() {
+  [ "$DOCKER_CLEANUP" = 1 ] || return 0
+  echo "== Clearing Docker's leftovers (old images and build cache)" >>"$CHANNEL/update.log"
+  docker image prune -f >>"$CHANNEL/update.log" 2>&1 || true
+  if [ "${1:-}" = all ]; then
+    docker builder prune -f >>"$CHANNEL/update.log" 2>&1 || true
+  else
+    docker builder prune -f --filter until=168h >>"$CHANNEL/update.log" 2>&1 || true
+  fi
+}
+disk_full() { tail -n 200 "$CHANNEL/update.log" | grep -qi "no space left on device"; }
+
 # True when the service's copy is older than the script in the code (an update changed it).
 helper_outdated() { [ -f "$HELPER" ] && [ -f "$REPO_SCRIPT" ] && ! cmp -s "$HELPER" "$REPO_SCRIPT"; }
 
@@ -203,9 +221,26 @@ update() {
   fi
 
   step "Building $TO (about 4 minutes)"
-  if ! compose build flaw-patrol >>"$CHANNEL/update.log" 2>&1; then
+  clean_docker
+  local built=0
+  if compose build flaw-patrol >>"$CHANNEL/update.log" 2>&1; then
+    built=1
+  elif [ "$DOCKER_CLEANUP" = 1 ] && disk_full; then
+    # The disk filled up partway: clear all the build cache and try once more.
+    echo "== The server's disk is full. Clearing all Docker build cache and building again." >>"$CHANNEL/update.log"
+    step "Disk was full, building $TO again"
+    clean_docker all
+    compose build flaw-patrol >>"$CHANNEL/update.log" 2>&1 && built=1
+  fi
+  if [ "$built" != 1 ]; then
+    local full=0
+    disk_full && full=1
     git_ reset --keep "$old" >>"$CHANNEL/update.log" 2>&1
-    fail "$TO didn't build, so $FROM is still running and the code is back where it was. See the log."
+    if [ "$full" = 1 ]; then
+      fail "$TO didn't build because the server's disk is full, so $FROM is still running and the code is back where it was. Free up space on the server (df -h shows how much is left; see the README), then press Update now again."
+    else
+      fail "$TO didn't build, so $FROM is still running and the code is back where it was. See the log."
+    fi
     return 1
   fi
 
@@ -233,6 +268,8 @@ update() {
     return 1
   fi
 
+  # The image $FROM ran from is unused now: clear it so updates don't slowly fill the disk.
+  clean_docker
   STATE=done MESSAGE="Updated from $FROM to $TO." FINISHED=$(now) STEP=""
   # The service keeps running its installed copy until someone reinstalls it on purpose.
   if helper_outdated; then
