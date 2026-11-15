@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ciCard, githubCard, groupCards, noPeople, sentryCard, summaryLine, teamcityCard, writeBugHref, type StatusCard } from "./status-cards";
+import { ciCard, githubCard, groupCards, noPeople, otherBuildsQuery, sentryCard, summaryLine, teamcityCard, writeBugHref, type SentryBuildIn, type StatusCard } from "./status-cards";
 import { parseBuildTypes } from "./teamcity-config";
 
 vi.mock("server-only", () => ({}));
@@ -56,13 +56,52 @@ describe("Status cards (ver_228)", () => {
     expect(githubCard(gh, [], null, NOW)).toMatchObject({ state: "quiet", pill: "No runs yet" });
   });
 
-  it("follows the current release candidate in Sentry", () => {
+  it("sorts Sentry errors by build, red only for new errors not in a bug yet (ver_258)", () => {
     const src = { key: "sentry", tool: "Sentry" as const, title: "Sentry" };
-    const base = { release: "RC 23", label: "Unity v2.4.2 · RC 23", build: "2.4.2", sentryRelease: "unity@2.4.2", crashFree: 0.981, newUrl: "https://sentry.io/new", releaseUrl: "https://sentry.io/rel" };
-    expect(sentryCard(src, { ...base, fresh: 5 }, NOW)).toMatchObject({ title: "Sentry · RC 23", state: "bad", pill: "New errors", line: "5 new errors in this build. 98.1% of sessions had no crash.", label: "Unity v2.4.2 · RC 23" });
-    expect(sentryCard(src, { ...base, fresh: 0 }, NOW)).toMatchObject({ state: "good", pill: "No new errors" });
-    expect(sentryCard(src, { ...base, fresh: null, sentryRelease: null }, NOW)).toMatchObject({ state: "quiet", line: "No Sentry release matches build 2.4.2 yet." });
-    expect(sentryCard(src, null, NOW).state).toBe("quiet");
+    const b = (extra: Partial<SentryBuildIn> = {}): SentryBuildIn => ({
+      build: "24.0.1183",
+      platform: "Unreal",
+      tags: ["RC 24"],
+      sentryRelease: "oko-unreal@24.0.1183",
+      freshIds: ["1", "2", "3"],
+      inBugIds: ["2", "3", "99"],
+      crashFree: 0.994,
+      newUrl: "https://sentry.io/new",
+      releaseUrl: "https://sentry.io/rel",
+      ...extra,
+    });
+    const none = { other: null, none: null, missing: null };
+    const red = sentryCard(src, { builds: [b(), b({ build: "2.4.2.88", platform: "Unity", tags: ["RC 23"], freshIds: [] })], ...none }, NOW);
+    expect(red).toMatchObject({ title: "Sentry · by build", state: "bad", pill: "New errors", line: "1 new error not in a bug yet in build 24.0.1183." });
+    expect(red.sentry!.rows[0]).toMatchObject({ state: "bad", pill: "3 new errors", line: "1 not in a bug yet · 2 already in bugs · 99.4% of sessions had no crash", open: { url: "https://sentry.io/new", label: "Open in Sentry" } });
+    expect(red.sentry!.rows[0]!.bug).toEqual({ title: "New Sentry errors in build 24.0.1183 (Unreal RC 24)", build: "24.0.1183", note: "1 new Sentry error not in a bug yet in build 24.0.1183 (Unreal RC 24).\nhttps://sentry.io/new" });
+    expect(red.sentry!.rows[1]).toMatchObject({ state: "good", pill: "No new errors", open: { url: "https://sentry.io/rel", label: "Open in Sentry" } });
+    expect(red.sentry!.rows[1]!.bug).toBeUndefined();
+
+    // Once they're all filed, the card goes green.
+    const filed = sentryCard(src, { builds: [b({ inBugIds: ["1", "2", "3"] })], ...none }, NOW);
+    expect(filed).toMatchObject({ state: "good", line: "New errors in the builds you're testing are all in bugs." });
+    expect(filed.sentry!.rows[0]).toMatchObject({ state: "good", pill: "3 new errors", line: "All already in bugs · 99.4% of sessions had no crash" });
+
+    // A build Sentry doesn't know is quiet, never red.
+    expect(sentryCard(src, { builds: [b({ sentryRelease: null, freshIds: null })], ...none }, NOW)).toMatchObject({ state: "quiet", pill: "No match" });
+    expect(sentryCard(src, { builds: [b({ sentryRelease: null, freshIds: null })], ...none }, NOW).sentry!.rows[0]).toMatchObject({ pill: "Not in Sentry yet", line: "Sentry has no release that matches build 24.0.1183 yet." });
+
+    // Up to three rows, then "and N more".
+    const many = sentryCard(src, { builds: ["1", "2", "3", "4", "5"].map((n) => b({ build: n, freshIds: [] })), ...none }, NOW);
+    expect(many.sentry!.rows.map((r) => r.build)).toEqual(["1", "2", "3"]);
+    expect(many.sentry!.more).toBe(2);
+
+    // Nothing being tested: quiet, and says why. The bottom rows and the run with no build still show.
+    const missing = { name: "Unreal RC 24 run", href: "/p/OKO/runs/7", others: 0 };
+    const quiet = sentryCard(src, { builds: [], other: { count: 7, url: "u1" }, none: { count: 12, url: "u2" }, missing }, NOW);
+    expect(quiet).toMatchObject({ state: "quiet", pill: "Nothing being tested", line: "The runs being tested have no build yet, so Sentry can't tell which errors are theirs." });
+    expect(quiet.sentry).toMatchObject({ other: { count: 7 }, none: { count: 12 }, missing });
+  });
+
+  it("searches Sentry for builds that aren't being tested", () => {
+    expect(otherBuildsQuery([])).toBe("has:release");
+    expect(otherBuildsQuery(["a@1", 'b"2'])).toBe('has:release !release:["a@1","b\\"2"]');
   });
 
   it("says when CI results came in, and how many failed", () => {

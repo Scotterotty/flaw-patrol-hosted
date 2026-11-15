@@ -1235,6 +1235,22 @@ export const HOW_TO: HowToTask[] = [
       { text: "To turn it into a bug, press **Write a bug** on the card.", see: "The same bug form as everywhere, with the build and a link to it filled in. You can change them." },
       { text: "Press **Refresh** to check again.", see: "**Checked just now** at the top.", target: "status-refresh" },
     ],
+    next: "sentry-builds",
+  },
+  {
+    id: "sentry-builds",
+    group: "Results",
+    title: "See Sentry errors for the build you're testing",
+    sub: "New errors per build, and which are already in bugs",
+    words: "sentry errors crash new build builds rc release candidate bug bash tested testing not in a bug filed status other no build editor",
+    steps: [
+      { text: "In the left menu, under **Results**, press **Status**.", see: "**Status**, with a **Sentry · by build** card when Sentry is connected.", target: "menu-status" },
+      { text: "Find the row with your RC tag (or **Bug bash**) on the **Sentry · by build** card. A build shows here when its run has results from the last 7 days, or a live bug bash.", see: "**Build** and its number, how many new errors it has, how many are **not in a bug yet** and how many are **already in bugs**, and what Sentry calls the build.", target: "status-sentry-builds" },
+      { text: "Press **Open in Sentry** on the row.", see: "That build's new errors in Sentry, in a new tab. Flaw Patrol only reads from Sentry." },
+      { text: "For an error that isn't in a bug yet, press **Write a bug** on the row.", see: "The same bug form as everywhere, with the build and the Sentry link filled in. You can change them." },
+      { text: "Under **Everything else, last day**, press **See them in Sentry** on **Other builds** or **No build**.", see: "Errors from builds nobody is testing, or from the editor and dev machines." },
+      { text: "If it says a run has no build, press **Add its build**.", see: "That run's page. Press **Add version** (or **More** → **Edit details**), type its build and save. The card picks it up." },
+    ],
     next: "reports",
   },
   {

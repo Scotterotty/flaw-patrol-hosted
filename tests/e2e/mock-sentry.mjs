@@ -32,6 +32,8 @@ http
       if (q.includes("first-release:")) return send(200, ISSUES.slice(0, 1).map((i) => ({ ...i, permalink: `http://localhost:${port}/issues/${i.id}/`, firstSeen: now(), lastSeen: now() })));
       // The app doesn't send user emails: only-mine searches find nothing, so Flaw Patrol falls back to everyone's.
       if (q.includes("user.email:")) return send(200, []);
+      // Status's Sentry card (ver_258): errors in the last day from no build, and from builds nobody is testing.
+      if (q.startsWith("!has:release")) return send(200, ISSUES.slice(1).map((i) => ({ ...i, permalink: `http://localhost:${port}/issues/${i.id}/`, firstSeen: now(), lastSeen: now() })));
       return send(
         200,
         ISSUES.map((i) => ({ ...i, permalink: `http://localhost:${port}/organizations/acme/issues/${i.id}/`, firstSeen: i.old ? "2026-10-01T10:00:00Z" : now(), lastSeen: now() })),

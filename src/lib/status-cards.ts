@@ -32,6 +32,8 @@ export type StatusCard = StatusSource & {
   bug?: { title: string; build: string; note: string };
   /** Settings row an Admin fixes a can't-reach card in. */
   fix?: string;
+  /** The Sentry card's rows, one per build being tested (ver_258). */
+  sentry?: SentryBoard;
   checkedAt: string;
 };
 
@@ -100,23 +102,112 @@ export function githubCard(
   return { ...base, state: "quiet", pill: r.conclusion === "cancelled" ? "Cancelled" : "Skipped", line: `Run ${r.number} was ${r.conclusion === "cancelled" ? "cancelled" : "skipped"}.${going}` };
 }
 
-/** The Sentry card for the current release candidate. */
+/** One build being tested, as Sentry sees it (ver_258). */
+export type SentryBuildIn = {
+  build: string;
+  /** "Unreal" */
+  platform: string;
+  /** RC names of the runs testing it ("RC 24"), and "Bug bash" when a live bash is on it. */
+  tags: string[];
+  /** What Sentry calls the build, or null when Sentry doesn't know it yet. */
+  sentryRelease: string | null;
+  /** New errors first seen in this build (up to 100), by Sentry issue id. */
+  freshIds: string[] | null;
+  /** Sentry issue ids already in a bug (saved on failed steps that have a bug). */
+  inBugIds: string[];
+  crashFree: number | null;
+  newUrl: string | null;
+  releaseUrl: string | null;
+};
+
+/** One row on the Sentry card. */
+export type SentryRow = {
+  build: string;
+  platform: string;
+  tags: string[];
+  sentryRelease: string | null;
+  /** bad: new errors not in a bug yet. good: none, or all in bugs. quiet: Sentry doesn't know the build. */
+  state: "bad" | "good" | "quiet";
+  /** "3 new errors", "No new errors", "Not in Sentry yet" */
+  pill: string;
+  /** "1 not in a bug yet · 2 already in bugs · 99.4% of sessions had no crash" */
+  line: string;
+  notInBug: number;
+  open?: { url: string; label: string };
+  bug?: { title: string; build: string; note: string };
+};
+
+/** "Other builds" and "No build": errors in the last day outside the tested builds. Null when Sentry can't answer. */
+export type SentryElse = { count: number; url: string } | null;
+
+export type SentryBoard = {
+  rows: SentryRow[];
+  /** Tested builds past the first three. */
+  more: number;
+  other: SentryElse;
+  none: SentryElse;
+  /** The newest tested run that has no build, so it's left out. */
+  missing: { name: string; href: string; others: number } | null;
+};
+
+/** Up to three tested builds on the card; the rest are "and N more". */
+export const SENTRY_ROWS = 3;
+
+/** Sentry search for errors in releases that aren't being tested. */
+export function otherBuildsQuery(releases: string[]) {
+  const q = (r: string) => `"${r.replace(/["\\]/g, "\\$&")}"`;
+  return releases.length ? `has:release !release:[${releases.map(q).join(",")}]` : "has:release";
+}
+
+function sentryRow(b: SentryBuildIn): SentryRow {
+  const name = `build ${b.build}`;
+  const about = [b.platform, ...b.tags].filter(Boolean).join(" ");
+  const base = { build: b.build, platform: b.platform, tags: b.tags, sentryRelease: b.sentryRelease };
+  if (!b.sentryRelease) return { ...base, state: "quiet", pill: "Not in Sentry yet", line: `Sentry has no release that matches ${name} yet.`, notInBug: 0 };
+  const crash = b.crashFree === null ? "" : `${(b.crashFree * 100).toFixed(1)}% of sessions had no crash`;
+  const fresh = b.freshIds ?? [];
+  const filed = new Set(b.inBugIds);
+  const inBugs = fresh.filter((id) => filed.has(id)).length;
+  const notInBug = fresh.length - inBugs;
+  if (!fresh.length)
+    return { ...base, state: "good", pill: "No new errors", line: crash, notInBug: 0, open: b.releaseUrl ? { url: b.releaseUrl, label: "Open in Sentry" } : undefined };
+  const line = [notInBug ? `${notInBug} not in a bug yet` : "", inBugs ? `${inBugs} already in ${inBugs === 1 ? "a bug" : "bugs"}` : "", crash].filter(Boolean).join(" · ");
+  const open = b.newUrl ? { url: b.newUrl, label: "Open in Sentry" } : undefined;
+  const pill = `${fresh.length >= 100 ? "100+" : fresh.length} new ${fresh.length === 1 ? "error" : "errors"}`;
+  if (!notInBug) return { ...base, state: "good", pill, line: `${inBugs === 1 ? "It's" : "All"} already in ${inBugs === 1 ? "a bug" : "bugs"}${crash ? ` · ${crash}` : ""}`, notInBug: 0, open };
+  const said = `${plural(notInBug, "new Sentry error")} not in a bug yet in ${name}${about ? ` (${about})` : ""}.`;
+  return { ...base, state: "bad", pill, line, notInBug, open, bug: { title: `New Sentry errors in ${name}${about ? ` (${about})` : ""}`, build: b.build, note: [said, b.newUrl].filter(Boolean).join("\n") } };
+}
+
+/**
+ * The Sentry card (ver_258), sorted by build: one row per build being tested (results in the last
+ * 7 days, or a live bug bash), then errors in the last day from other builds and from no build.
+ * Red only for new errors in a tested build that aren't in a bug yet.
+ */
 export function sentryCard(
   src: StatusSource,
-  s: { release: string; label: string; build: string; sentryRelease: string | null; fresh: number | null; crashFree: number | null; newUrl: string | null; releaseUrl: string | null } | null,
+  s: { builds: SentryBuildIn[]; other: SentryElse; none: SentryElse; missing: SentryBoard["missing"] },
   checkedAt: string,
 ): StatusCard {
-  if (!s) return { ...src, state: "quiet", pill: "No release yet", line: "Once a run has a release candidate, this card follows that build in Sentry.", checkedAt };
-  const title = `Sentry · ${s.release}`;
-  const base = { ...src, title, label: s.label, checkedAt };
-  if (!s.sentryRelease)
-    return { ...base, state: "quiet", pill: "No match", line: s.build ? `No Sentry release matches build ${s.build} yet.` : "The newest run in this release has no build, so Sentry can't tell which release it is." };
-  const crash = s.crashFree === null ? "" : ` ${(s.crashFree * 100).toFixed(1)}% of sessions had no crash.`;
-  if (s.fresh && s.fresh > 0) {
-    const line = `${plural(s.fresh, "new error")} in this build.${crash}`;
-    return { ...base, state: "bad", pill: "New errors", line, open: s.newUrl ? { url: s.newUrl, label: "Open in Sentry" } : undefined, bug: { title: `New Sentry errors in ${s.label}`, build: s.build, note: [line, s.newUrl].filter(Boolean).join("\n") } };
+  const all = s.builds.map(sentryRow);
+  const rows = all.slice(0, SENTRY_ROWS);
+  const sentry: SentryBoard = { rows, more: all.length - rows.length, other: s.other, none: s.none, missing: s.missing };
+  const base = { ...src, title: "Sentry · by build", sentry, checkedAt };
+  const red = all.filter((r) => r.state === "bad");
+  if (red.length) {
+    const n = red.reduce((t, r) => t + r.notInBug, 0);
+    const where = red.length === 1 ? ` in build ${red[0]!.build}` : ` in ${red.length} builds`;
+    return { ...base, state: "bad", pill: "New errors", line: `${plural(n, "new error")} not in a bug yet${where}.` };
   }
-  return { ...base, state: "good", pill: "No new errors", line: `No new errors in this build.${crash}`, open: s.releaseUrl ? { url: s.releaseUrl, label: "Open in Sentry" } : undefined };
+  if (!all.length)
+    return {
+      ...base,
+      state: "quiet",
+      pill: "Nothing being tested",
+      line: s.missing ? "The runs being tested have no build yet, so Sentry can't tell which errors are theirs." : "No run has results in the last 7 days, and no bug bash is on.",
+    };
+  if (all.every((r) => r.state === "quiet")) return { ...base, state: "quiet", pill: "No match", line: "Sentry doesn't know the builds you're testing yet." };
+  return { ...base, state: "good", pill: "No new errors", line: all.some((r) => r.pill !== "No new errors" && r.state === "good") ? "New errors in the builds you're testing are all in bugs." : "No new errors in the builds you're testing." };
 }
 
 /** CI uploads: the newest results file a pipeline sent, and the ones before it (newest first). */
