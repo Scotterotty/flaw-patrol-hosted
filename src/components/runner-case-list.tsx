@@ -40,12 +40,12 @@ export function RunnerCaseList({ items, empty, tuckDone = false }: { items: Item
   const left = items.filter((i) => !i.done).length;
   return (
     <>
-      <div className="flex items-baseline justify-between gap-2 border-b border-slate-200 px-3 pt-2.5 pb-2">
+      <div className="flex shrink-0 items-baseline justify-between gap-2 border-b border-slate-200 px-3 pt-2.5 pb-2">
         <h2 className="text-sm font-semibold text-slate-900">Run list</h2>
         <span className="text-xs text-slate-500 tabular-nums">{left === 0 ? "All done" : `${left} to go`}</span>
       </div>
       {items.length > 5 && (
-        <div className="border-b border-slate-200 px-3 py-2">
+        <div className="shrink-0 border-b border-slate-200 px-3 py-2">
           <Input
             type="search"
             value={query}
@@ -57,7 +57,9 @@ export function RunnerCaseList({ items, empty, tuckDone = false }: { items: Item
           />
         </div>
       )}
-      <ul aria-label="Run list" className="max-h-[40vh] divide-y divide-slate-100 overflow-y-auto lg:max-h-[calc(60vh-10rem)] bigtext:max-h-[40vh]">
+      {/* relative (ver_260): the rows' screen-reader words are positioned, and without it they hung far below the
+          list and stretched the page into a long empty scroll. */}
+      <ul aria-label="Run list" className="relative max-h-[40vh] min-h-0 divide-y divide-slate-100 overflow-y-auto lg:max-h-[calc(60vh-10rem)] lg:min-h-[10rem] bigtext:max-h-[40vh]">
         {shown.map((i, n) => (
           <Fragment key={i.id}>
             {n === closeStart && (
