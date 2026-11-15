@@ -113,6 +113,7 @@ model User {
   glossaryUnderline Boolean         @default(true)
   // Ask to join: teams this person asked to be added to from a shared link.
   joinRequests      JoinRequest[]
+  workspaceJoinRequest WorkspaceJoinRequest?
   delveSave         DelveSave?
 }
 
@@ -1604,4 +1605,13 @@ model SisterLink {
 
   @@unique([fromCaseId, fromClient, toCaseId])
   @@index([toCaseId])
+}
+
+/// Ask to be added (ver_259): someone signed in who isn't on any umbrella asks the workspace
+/// admins to add them. One per person; it goes when an admin adds them or ignores it.
+model WorkspaceJoinRequest {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @unique
+  createdAt DateTime @default(now())
 }

@@ -100,9 +100,11 @@ export async function joinRequestRows(teamId: string) {
  */
 export async function joinRequestsFor(user: { id: string; isAdmin: boolean }) {
   const where = user.isAdmin ? {} : { project: { members: { some: { userId: user.id, role: "ADMIN" as const } } } };
-  const [count, first] = await Promise.all([
+  const [count, first, waiting] = await Promise.all([
     db.joinRequest.count({ where }),
     db.joinRequest.findFirst({ where, orderBy: { createdAt: "asc" }, select: { project: { select: { id: true, key: true, name: true, groupId: true, keepMembersSeparate: true } } } }),
+    // Ask to be added from the welcome page (ver_259): workspace admins answer it in Workspace settings.
+    user.isAdmin ? db.workspaceJoinRequest.count() : 0,
   ]);
-  return { count, href: first ? membersHref(await teamOf(first.project)) : null };
+  return { count, href: first ? membersHref(await teamOf(first.project)) : null, waiting };
 }

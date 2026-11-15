@@ -33,6 +33,7 @@ vi.mock("@/lib/db", () => ({
     },
     projectMember: { findUnique: isMember, count: async () => 1 },
     joinRequest: { findMany: async () => [] },
+    workspaceJoinRequest: { findUnique: async () => null },
     attachment: {
       findUnique: async ({ where }: { where: { id: string } }) =>
         where.id === "a1" ? { id: "a1", projectId: "p1", uploadedById: "someone", bashItemId: null, contentType: "image/png", fileName: "shot.png", data: Buffer.from("png") } : null,

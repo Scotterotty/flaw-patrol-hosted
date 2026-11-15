@@ -18,9 +18,12 @@ import { pageScroller } from "@/lib/page-scroll";
 const EVENT = "fp:how-to";
 const STORE = "fp-how-to";
 
-/** Opens the guide, on a task when one is named. */
-export function openHowTo(task?: string) {
-  window.dispatchEvent(new CustomEvent(EVENT, { detail: { task: task ?? null, toggle: false } }));
+/**
+ * Opens the guide, on a task when one is named. With `at` (ver_259, How-to mode) it also starts
+ * on that step and makes its button glow, so a guided button can hold someone's hand from there.
+ */
+export function openHowTo(task?: string, at?: number) {
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: { task: task ?? null, toggle: false, at: at ?? null } }));
 }
 
 /** The menu link: opens the guide, or closes it when it's open. */
@@ -80,6 +83,8 @@ export function HowToGuide({ startHidden = false }: { startHidden?: boolean }) {
   atRef.current = at;
   const replaying = useRef(false);
   const moving = useRef(false);
+  // Opened by a guided button (openHowTo with a step): focus stays on the page, where the glow is.
+  const keepFocus = useRef(false);
   // After a click on a link to another page, the old page may still have the next step's button
   // (Create a run is on a suite's page too). Don't glow anything until the new page is here.
   const leaving = useRef<{ from: string; until: number } | null>(null);
@@ -126,7 +131,7 @@ export function HowToGuide({ startHidden = false }: { startHidden?: boolean }) {
 
   useEffect(() => {
     const on = (e: Event) => {
-      const d = (e as CustomEvent<{ task: string | null; toggle: boolean }>).detail;
+      const d = (e as CustomEvent<{ task: string | null; toggle: boolean; at?: number | null }>).detail;
       if (d.toggle) {
         setOpen((o) => {
           if (o) setShowing(false);
@@ -137,9 +142,12 @@ export function HowToGuide({ startHidden = false }: { startHidden?: boolean }) {
       setOpen(true);
       setNote("");
       if (d.task && howToById.has(d.task)) {
+        const steps = howToById.get(d.task)!.steps;
+        const at = d.at != null && d.at >= 0 && d.at < steps.length ? d.at : -1;
+        keepFocus.current = at >= 0;
         setTaskId(d.task);
-        setAt(-1);
-        setShowing(false);
+        setAt(at);
+        setShowing(at >= 0 && steps.slice(at).some((x) => !!x.target));
       }
     };
     window.addEventListener(EVENT, on);
@@ -149,6 +157,10 @@ export function HowToGuide({ startHidden = false }: { startHidden?: boolean }) {
   // Focus the panel's heading when it opens or the task changes, so keyboard users land in it.
   useEffect(() => {
     if (!open) return;
+    if (keepFocus.current) {
+      keepFocus.current = false;
+      return;
+    }
     requestAnimationFrame(() => (task ? heading.current?.focus({ preventScroll: true }) : searchBox.current?.focus({ preventScroll: true })));
   }, [open, task]);
 
@@ -251,7 +263,21 @@ export function HowToGuide({ startHidden = false }: { startHidden?: boolean }) {
           if (to.origin === location.origin && to.pathname + to.search !== location.pathname + location.search) leaving.current = { from: location.href, until: Date.now() + 15000 };
         }
         advance(i);
-      } else stop();
+      } else {
+        // ver_259: typed in the glowing box, then went straight for the next step's button (like
+        // Make after the name). That does both steps, instead of stopping the glow.
+        const n = task.steps.findIndex((x, k) => k > i && !!x.target);
+        const next = n > 0 ? findTarget(task.steps[n].target!) : null;
+        const box = findTarget(target);
+        const typed = !!s.type && box instanceof HTMLInputElement && !!box.value.trim();
+        if (typed && next && e.target instanceof Node && next.contains(e.target)) {
+          setTimeout(() => {
+            setAt(n + 1);
+            setNote("");
+            setShowing(task.steps.slice(n + 1).some((x) => !!x.target));
+          }, 0);
+        } else stop();
+      }
     };
     const onChange = (e: Event) => {
       if (replaying.current || !inGlow(e.target)) return;

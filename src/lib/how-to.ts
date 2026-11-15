@@ -45,27 +45,45 @@ export type HowToTask = {
 
 export const HOW_TO_GROUPS = ["Start here", "Write tests", "Run tests", "Bugs", "Bug bashes", "Results", "Settings", "Make it yours"] as const;
 /** "Start here" (ver_178): the first day, in the order you'd do it. */
-export const HOW_TO_START = ["first-ten-minutes", "practice-run", "find-your-way", "import-cases", "import-sheet-results", "write-case", "create-run", "test-case", "report-bug", "invite", "search", "start-here"];
+export const HOW_TO_START = ["first-ten-minutes", "no-umbrella", "practice-run", "find-your-way", "import-cases", "import-sheet-results", "write-case", "create-run", "test-case", "report-bug", "invite", "search", "start-here"];
 export type HowToGroup = (typeof HOW_TO_GROUPS)[number];
 
 /** Every task has Show me on the steps that have a button to point at (ver_174 did 13, ver_175 the rest). ver_176 added a task for every feature that had none (Scott: every feature goes in the guide, so a new feature adds its task in the same build). */
 export const HOW_TO: HowToTask[] = [
   // ───────────── Get started ─────────────
   // ver_216: the empty workspace's Show me how it works opens this one, since there's no left menu yet.
+  // ver_259: Make your first umbrella opens it on its own (How-to mode), on the Product name step.
   {
     id: "first-ten-minutes",
     group: "Start here",
     title: "Your first 10 minutes",
     sub: "Make your umbrella, bring cases, run them, invite your team",
-    words: "first time new start begin setup getting started empty workspace first day",
+    words: "first time new start begin setup getting started empty workspace first day make umbrella guided",
     steps: [
-      { text: "Press **Flaw Patrol** at the top left.", see: "The Umbrellas page. A brand-new workspace says **Start with an umbrella**.", target: "top-home" },
-      { text: "Press **Make your first umbrella** (or **New umbrella**), type your product's name and press **Make**. An umbrella is one product.", see: "Your umbrella's **Overview**, with a **Start here** list.", target: "new-umbrella", saves: true },
+      { text: "Press **Flaw Patrol** at the top left.", see: "Your home page. With no umbrella yet it says **Welcome**, with **Start a new product**.", target: "top-home" },
+      { text: "Press **Make your first umbrella** (or **New umbrella**). An umbrella is one product.", see: "The **New umbrella** box.", target: "new-umbrella" },
+      { text: "Type your product's name. If an umbrella with that name is already here, you can ask to join it instead.", see: "The **Key** fills in from the name.", target: "umbrella-name", type: true },
+      { text: "Press **Make** and the name.", see: "Your umbrella's **Overview**, with a **Start here** list.", target: "umbrella-make", saves: true },
       { text: "Bring your test cases: on **Start here**, press **Import cases** to load a CSV or Excel file. To write one instead, press **Case library** in the left menu, then **New case**.", see: "✓ Imported, with **Next: run these cases** under it.", target: "start-here" },
       { text: "Run them: press **Next: run these cases**, or **Create a run** at the top of the **Overview**. Then press **Create and test now**.", see: "The runner, open on your first case. Press P, F or B to mark each step.", target: "run-create" },
       { text: "Invite your team: on **Start here**, press **Invite**. (Only Admins invite people.)", see: "**Settings**, open at **Members**, where you add people by email.", target: "start-invite" },
     ],
     next: "find-your-way",
+  },
+  // ver_259: the welcome page for someone who isn't on any umbrella yet.
+  {
+    id: "no-umbrella",
+    group: "Start here",
+    title: "No umbrella yet? Get started",
+    sub: "Join your team, start a new product, or try a practice run",
+    words: "welcome new no umbrella not added waiting join team ask admin added access first day",
+    steps: [
+      { text: "Press **Flaw Patrol** at the top left.", see: "**Welcome**, with **Join your team** and **Start a new product**.", target: "top-home" },
+      { text: "Is your product already here? Press **Ask to be added**.", see: "Sent, with the names of the admins who'll see it. The page opens your umbrella as soon as one of them adds you.", target: "ask-to-be-added", saves: true },
+      { text: "Starting a new product instead? Press **Make your first umbrella**.", see: "The **New umbrella** box, with this guide walking you through it.", target: "new-umbrella" },
+      { text: "Just want to try it first? Press **Try a 2-minute practice run**.", see: "The runner, with a yellow **PRACTICE** note: only you see this run.", target: "welcome-practice", saves: true },
+    ],
+    next: "first-ten-minutes",
   },
   // ver_217: a private practice run, so the first run isn't real work.
   {
@@ -1362,6 +1380,22 @@ export const HOW_TO: HowToTask[] = [
     ],
   },
   // ───────────── Settings ─────────────
+  // ver_259: answering Ask to be added from the welcome page.
+  {
+    id: "waiting-to-be-added",
+    group: "Settings",
+    title: "Add someone who's waiting",
+    sub: "People who signed in but aren't on an umbrella yet",
+    admins: true,
+    words: "ask to be added waiting new person signed in no umbrella join request add someone access red dot",
+    steps: [
+      { text: "Press your name at the top right. A red dot on it means someone is waiting.", see: "Your account menu, with **people waiting to be added** at the top when someone is. Pressing it goes straight to them.", target: "top-account" },
+      { text: "Press **Workspace settings**. (Only workspace admins have it.)", see: "**Waiting to be added** at the top, with each person and when they asked.", target: "account-workspace" },
+      { text: "Pick the umbrella they belong in, and their role. **Member** fits most people.", see: "The umbrella and role you picked.", target: "waiting-umbrella" },
+      { text: "Press **Add**. (**Ignore** takes the request away without adding them.)", see: "They're gone from the list. Their page opens the umbrella by itself.", target: "waiting-add", saves: true },
+    ],
+    next: "roles",
+  },
   {
     id: "invite",
     group: "Start here",
@@ -1705,3 +1739,6 @@ const STOP = new Set(["a", "an", "the", "i", "my", "to", "do", "in", "on", "of",
 
 /** Typing these in Search shows the guide first. */
 export const isHowToQuery = (q: string) => /^\s*(how\b|help\b|guide\b|tutorial\b)/i.test(q);
+
+/** ver_259 How-to mode: Make your first umbrella opens the guide here, with the Product name box glowing. */
+export const GUIDED_MAKE = { task: "first-ten-minutes", at: howToById.get("first-ten-minutes")!.steps.findIndex((s) => s.target === "umbrella-name") };

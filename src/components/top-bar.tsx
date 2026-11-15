@@ -21,7 +21,7 @@ export async function TopBar({ user, project }: { user: { id: string; name: stri
   // Ask to join: a dot on admins' avatars while someone is waiting.
   // The join dot, the sign-in secret reminder and the live bug bash pill are asked for together.
   const [joins, secret, live, me, feedback] = await Promise.all([
-    joinRequestsFor({ id: user.id, isAdmin: !!user.isAdmin }).catch(() => ({ count: 0, href: null })),
+    joinRequestsFor({ id: user.id, isAdmin: !!user.isAdmin }).catch(() => ({ count: 0, href: null, waiting: 0 })),
     secretSoon(!!user.isAdmin),
     project ? liveBashFor(project.key, user.id) : null,
     currentUser(),
@@ -52,6 +52,7 @@ export async function TopBar({ user, project }: { user: { id: string; name: stri
           label={`${user.email} · your account`}
           admin={!!user.isAdmin}
           joins={joins.count && joins.href ? { count: joins.count, href: joins.href } : null}
+          waiting={joins.waiting}
           signOut={async () => {
             "use server";
             await signOut({ redirectTo: "/signin" });
@@ -59,9 +60,9 @@ export async function TopBar({ user, project }: { user: { id: string; name: stri
         >
           <span className="relative inline-flex">
             <Avatar person={{ ...user, ...badge }} size={26} />
-            {joins.count > 0 && (
+            {joins.count + joins.waiting > 0 && (
               <span data-testid="join-dot" className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-surface">
-                <span className="sr-only">{joins.count === 1 ? "1 person is asking to join" : `${joins.count} people are asking to join`}</span>
+                <span className="sr-only">{joins.count + joins.waiting === 1 ? "1 person is asking to join" : `${joins.count + joins.waiting} people are asking to join`}</span>
               </span>
             )}
           </span>

@@ -9,6 +9,10 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { Shortcut, ShortcutIcon as IconName } from "@/lib/umbrella";
 import { createUmbrella, makeUmbrella, moveCasesIntoUmbrella, setKeepCurrent, setKeepMembersSeparate, setShortcuts, setUmbrellaArchived } from "@/server/umbrella";
 import { setProjectGroup } from "@/server/groups";
+import { askToJoin } from "@/server/join-requests";
+import { umbrellaNameCheck } from "@/server/workspace-join";
+import { GUIDED_MAKE } from "@/lib/how-to";
+import { openHowTo } from "./how-to-guide";
 import { ToolPicker } from "./tools";
 import { TOOL_IDS, type ToolId } from "@/lib/tools";
 import type { GroupChoice } from "./group-dialogs";
@@ -104,8 +108,25 @@ const autoName = (umbrella: string, platform: string, rc: string) => [umbrella.t
  * start new work: the box can make the umbrella's first projects (one per platform)
  * and take in projects that aren't in an umbrella yet, cases and all.
  */
-export function NewUmbrellaButton({ choices, label = "New umbrella", variant = "primary" }: { choices: GroupChoice[]; label?: string; variant?: "primary" | "secondary" | "link" }) {
+type Clash = { id: string; name: string; umbrella: boolean; member: boolean; asked: boolean };
+
+export function NewUmbrellaButton({
+  choices,
+  label = "New umbrella",
+  variant = "primary",
+  guided = false,
+}: {
+  choices: GroupChoice[];
+  label?: string;
+  variant?: "primary" | "secondary" | "link";
+  /** ver_259 How-to mode: opening the box also opens the How-to guide on its next step, glowing. */
+  guided?: boolean;
+}) {
   const [open, setOpen] = useState(false);
+  const show = () => {
+    setOpen(true);
+    if (guided) openHowTo(GUIDED_MAKE.task, GUIDED_MAKE.at);
+  };
   const { pending, error, setError, run, router } = useAction();
   const [name, setName] = useState("");
   // The key follows the name until someone types their own.
@@ -130,15 +151,39 @@ export function NewUmbrellaButton({ choices, label = "New umbrella", variant = "
   const setRow = (id: number, patch: Partial<NewRow>) => setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const moving = cyclesToo ? ticked : new Set<string>();
   const summary = [making.length && plural(making.length, "new test cycle"), moving.size && `${moving.size} moved in`].filter(Boolean).join(" and ");
+  // Same name as an umbrella that's already here (ver_259): say so while typing, and offer Ask to join.
+  const [clash, setClash] = useState<Clash | null>(null);
+  const [asking, setAsking] = useState(false);
+  useEffect(() => {
+    const n = name.trim();
+    if (!open || n.length < 2) {
+      setClash(null);
+      return;
+    }
+    let live = true;
+    const t = setTimeout(async () => {
+      const r = await umbrellaNameCheck(n);
+      if (live && r.ok) setClash(r.clash);
+    }, 300);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [name, open]);
+  // The box opens on Product name, ready to type (showModal would otherwise focus the first button).
+  useEffect(() => {
+    if (open) requestAnimationFrame(() => document.getElementById("u-name")?.focus());
+  }, [open]);
+  const sameName = clash && clash.name.toLowerCase() === name.trim().toLowerCase() ? clash : null;
   return (
     <>
       {/* A small link on the home page of someone waiting to join a team. */}
       {variant === "link" ? (
-        <button type="button" onClick={() => setOpen(true)} className="font-medium text-accent-700 hover:underline">
+        <button type="button" onClick={show} data-howto="new-umbrella" className="font-medium text-accent-700 hover:underline">
           {label}
         </button>
       ) : (
-        <Button variant={variant} onClick={() => setOpen(true)} data-howto="new-umbrella" title="One home for a product's test cases, Jira and team, with a test cycle for each round of testing">
+        <Button variant={variant} onClick={show} data-howto="new-umbrella" title="One home for a product's test cases, Jira and team, with a test cycle for each round of testing">
           <UmbrellaIcon className="mr-1 inline size-4 align-[-3px]" />
           {label}
         </Button>
@@ -154,6 +199,42 @@ export function NewUmbrellaButton({ choices, label = "New umbrella", variant = "
             <Input id="u-key" value={shownKey} onChange={(e) => setKey(e.target.value.toUpperCase())} maxLength={10} />
           </Field>
         </div>
+        {sameName && (
+          <div role="status" data-testid="umbrella-clash" className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-200">
+            {!sameName.umbrella ? (
+              <>There&apos;s already a group called {sameName.name}. Pick another name.</>
+            ) : sameName.member ? (
+              <>
+                You already have an umbrella called {sameName.name}.{" "}
+                <Link href={`/g/${sameName.id}`} className="font-medium underline" onClick={() => setOpen(false)}>
+                  Open {sameName.name}
+                </Link>
+              </>
+            ) : sameName.asked ? (
+              <>There&apos;s already an umbrella called {sameName.name}, and you&apos;ve asked to join it. Its admins will see your request.</>
+            ) : (
+              <>
+                There&apos;s already an umbrella called {sameName.name}. Is it yours?{" "}
+                <button
+                  type="button"
+                  disabled={asking}
+                  className="font-medium underline"
+                  onClick={async () => {
+                    setAsking(true);
+                    const r = await askToJoin(`/g/${sameName.id}`);
+                    setAsking(false);
+                    if (!r.ok) return setError(r.error);
+                    setClash({ ...sameName, asked: true });
+                    router.refresh();
+                  }}
+                >
+                  {asking ? "Asking…" : `Ask to join ${sameName.name}`}
+                </button>{" "}
+                instead.
+              </>
+            )}
+          </div>
+        )}
         <button type="button" onClick={() => setMore((m) => !m)} aria-expanded={more} data-testid="u-more" data-howto="umbrella-more" className="mt-3 text-sm font-medium text-accent-700 hover:underline">
           {more ? "▾" : "▸"} More options: tools, description, first test cycles
         </button>
@@ -257,7 +338,7 @@ export function NewUmbrellaButton({ choices, label = "New umbrella", variant = "
           <Button
             data-howto="umbrella-make"
             variant="primary"
-            disabled={pending}
+            disabled={pending || !!sameName}
             onClick={() =>
               run(
                 () =>

@@ -17,6 +17,9 @@ import { requireUser, mySpelling } from "@/lib/session";
 import { NewUmbrellaButton } from "@/components/umbrella-ui";
 import { can } from "@/lib/permissions";
 import { WaitingToJoin } from "@/components/join-request";
+import { Avatar } from "@/components/avatar";
+import { AskToBeAdded, WelcomePractice } from "@/components/welcome";
+import { myPractice } from "@/lib/practice-data";
 import { LiveRefresh } from "@/components/live-refresh";
 import { adminsOf } from "@/lib/link-access-server";
 import { NOT_PRACTICE } from "@/lib/practice";
@@ -156,9 +159,9 @@ export default async function HomePage() {
       <TopBar user={user} />
       <main id="main" tabIndex={-1} className="page page-list px-4 py-8">
         {empty && !user.isAdmin ? (
-          <WaitingHome
-            userId={user.id}
-            make={maker ? <NewUmbrellaButton choices={choices} label="Make an umbrella" variant="link" /> : null}
+          <WelcomeHome
+            user={user}
+            make={maker ? <NewUmbrellaButton choices={choices} label="Make your first umbrella" guided /> : null}
           />
         ) : empty ? (
           <>
@@ -167,7 +170,7 @@ export default async function HomePage() {
               title="Start with an umbrella"
               action={
                 <span className="inline-flex flex-wrap items-center justify-center gap-2">
-                  {maker && <NewUmbrellaButton choices={choices} label="Make your first umbrella" />}
+                  {maker && <NewUmbrellaButton choices={choices} label="Make your first umbrella" guided />}
                   {/* ver_178: there's no left menu here yet, so the How-to guide gets its own button. */}
                   <HowToLink
                     task="first-ten-minutes"
@@ -258,32 +261,80 @@ export default async function HomePage() {
 }
 
 /**
- * Someone signed in who isn't on any team yet (audit findings #2 and #3): their
- * requests to join, or how to get added, with making an umbrella as a small link.
+ * Welcome (ver_259): someone signed in who isn't on any umbrella yet. Two plain choices, never a
+ * dead end: Join your team (names the workspace admins, one-tap Ask to be added) or Start a new
+ * product (Make your first umbrella, with the How-to guide walking them through it). Join comes
+ * first, since most new people belong to a team that's already here (persona audit, ver_113 #3).
+ * Requests to join a team from a shared link show in Join's place.
  */
-async function WaitingHome({ userId, make }: { userId: string; make: React.ReactNode }) {
-  const rows = await db.joinRequest.findMany({
-    where: { userId },
-    orderBy: { createdAt: "asc" },
-    select: { id: true, createdAt: true, projectId: true, project: { select: { name: true, hubOf: { select: { name: true } } } } },
-  });
+async function WelcomeHome({ user, make }: { user: { id: string; name: string | null; email: string }; make: React.ReactNode }) {
+  const [rows, asked, adminRows, practice] = await Promise.all([
+    db.joinRequest.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, createdAt: true, projectId: true, project: { select: { name: true, hubOf: { select: { name: true } } } } },
+    }),
+    db.workspaceJoinRequest.findUnique({ where: { userId: user.id }, select: { createdAt: true } }),
+    db.user.findMany({ where: { isAdmin: true }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, email: true, avatarAt: true } }),
+    myPractice(user.id),
+  ]);
   const requests = await Promise.all(
     rows.map(async (r) => ({ id: r.id, team: r.project.hubOf?.name ?? r.project.name, at: r.createdAt.toISOString(), admins: await adminsOf(r.projectId) })),
   );
+  const first = (user.name ?? "").trim().split(/\s+/)[0];
+  const shown = adminRows.slice(0, 4);
+  const card = "flex min-w-0 flex-col gap-2.5 rounded-lg border border-slate-200 bg-surface p-5 text-left shadow-sm";
   return (
-    <div className="mx-auto max-w-xl space-y-4 py-6">
-      <h1 className="sr-only">Your home page</h1>
+    <div className="mx-auto max-w-3xl space-y-5 py-6" data-testid="welcome-home">
       <LiveRefresh url="/api/live/me" />
-      {requests.length ? (
-        requests.map((r) => <WaitingToJoin key={r.id} request={r} />)
-      ) : (
-        <EmptyState title="Waiting to be added?">Ask whoever invited you for your invite link. Opening a link someone shared with you also lets you ask to join that team.</EmptyState>
-      )}
-      {make && (
-        <p className="text-center text-sm text-slate-500">
-          Starting a brand-new product instead? {make}
-        </p>
-      )}
+      <div className="text-center">
+        <h1 className="font-heading text-2xl font-semibold text-slate-900">{first ? `Welcome, ${first}` : "Welcome to Flaw Patrol"}</h1>
+        <p className="mt-1 text-slate-600">You&apos;re not on an umbrella yet. An umbrella is one product you test. Pick one:</p>
+      </div>
+      <div className={make ? "grid gap-4 sm:grid-cols-2" : "mx-auto max-w-md"}>
+        {requests.length ? (
+          <div className="min-w-0 space-y-3">
+            {requests.map((r) => (
+              <WaitingToJoin key={r.id} request={r} />
+            ))}
+          </div>
+        ) : (
+          <section className={card} aria-labelledby="welcome-join">
+            <h2 id="welcome-join" className="font-heading text-lg font-semibold text-slate-900">
+              Join your team
+            </h2>
+            <p className="text-sm text-slate-600">Your product is probably here already. {adminRows.length === 1 ? "This admin" : "These admins"} can add you:</p>
+            <ul className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-slate-800" aria-label="Admins">
+              {shown.map((a) => (
+                <li key={a.id} className="flex items-center gap-1.5">
+                  <Avatar person={a} size={24} />
+                  {a.name || a.email}
+                </li>
+              ))}
+              {adminRows.length > shown.length && <li className="text-slate-500">and {adminRows.length - shown.length} more</li>}
+            </ul>
+            <AskToBeAdded admins={adminRows.map((a) => a.name || a.email)} askedAt={asked?.createdAt.toISOString() ?? null} />
+          </section>
+        )}
+        {make && (
+          <section className={card} aria-labelledby="welcome-make">
+            <h2 id="welcome-make" className="font-heading text-lg font-semibold text-slate-900">
+              Start a new product
+            </h2>
+            <p className="text-sm text-slate-600">Testing something that isn&apos;t here yet? We&apos;ll walk you through it, one step at a time.</p>
+            <div className="mt-auto pt-1">{make}</div>
+          </section>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm">
+        <span className="inline-flex flex-wrap items-center gap-x-2">
+          <WelcomePractice resume={practice?.href ?? null} />
+          <span className="text-slate-500">Only you see it.</span>
+        </span>
+        <HowToLink task="no-umbrella" testId="welcome-how-to" className="font-medium text-accent-700 underline underline-offset-2 hover:text-accent-600">
+          Show me how it works
+        </HowToLink>
+      </div>
     </div>
   );
 }

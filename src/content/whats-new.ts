@@ -21,6 +21,15 @@ export type WhatsNewItem = {
 export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
+  {
+    version: 259,
+    date: "2026-11-15",
+    items: [
+      { kind: "new", title: "A welcome page for new people", text: "Someone who signs in before they're on an umbrella now sees two choices. Join your team names your workspace admins and has an Ask to be added button. Start a new product opens the New umbrella box with the How-to guide beside it, walking them through step by step. There's a practice run there too.", who: "lead" },
+      { kind: "better", title: "New umbrella catches a name that's taken", text: "Type the name of an umbrella that's already here and the box says so, with Ask to join it instead, so you don't end up with two of the same.", who: "lead" },
+      { kind: "new", title: "Add people who are waiting", text: "When someone presses Ask to be added, a red dot shows on your name. Workspace settings → Waiting to be added: pick their umbrella and role, then press Add.", who: "workspace", link: "/workspace#waiting" },
+    ],
+  },
   { version: 258, date: "2026-11-15", items: [{ kind: "better", title: "Sentry errors sorted by build", text: "On Results → Status, the Sentry card now shows a row for each build you're testing (results in the last 7 days, or a live bug bash), with its RC or Bug bash tag. Each row shows new errors and how many are already in bugs, and the card turns red only for new errors not in a bug yet. Other builds and No build show the last day's errors, with links to Sentry.", link: "/g/{umbrella}/status" }] },
   { version: 257, date: "2026-11-14", items: [{ kind: "better", title: "The bug audit updates itself", text: "Bugs → Audit refreshes every 15 seconds while it is on screen, so checks, who has which bug and the counts show up without reloading. Your open bug and anything you typed stay put. Labels changed straight in Jira take a minute or two.", link: "/g/{umbrella}/bugs/audit" }] },
   { version: 256, date: "2026-11-14", items: [{ kind: "better", title: "Smoother bug audit", text: "In Bugs → Audit, closing a bug or picking Needs info asks you why. Your note goes in Jira as the comment, signed with your name. Duplicate asks which bug and links the two in Jira. Verify and next is now Save and next, Release is now Put back, and a green line tells you what reached Jira. A bug stays yours for 30 minutes.", link: "/g/{umbrella}/bugs/audit" }] },
