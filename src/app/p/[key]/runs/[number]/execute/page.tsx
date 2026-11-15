@@ -238,8 +238,9 @@ export default async function ExecutePage({
       <aside className="lg:w-80 lg:shrink-0 xl:w-96 2xl:w-[28rem] bigtext:w-auto">
         <div className="flex flex-col gap-3 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] bigtext:static bigtext:max-h-none">
           <RunListFold done={selection ? selection.filter((e) => !isOpen(e.status)).length : done} total={selection ? selection.length : run.entries.length}>
-          <div className="shrink-0 rounded-lg border border-slate-200 bg-surface shadow-sm">
-            <div className="border-b border-slate-200 p-3">
+          {/* Shares the column with Execution history (ver_260): the list scrolls in less room so history isn't a sliver. */}
+          <div className="flex min-h-0 flex-col rounded-lg border border-slate-200 bg-surface shadow-sm">
+            <div className="shrink-0 border-b border-slate-200 p-3">
               <Link href={`/p/${project.key}/runs/${run.number}`} className="text-sm font-semibold text-slate-900 hover:underline">
                 <RunName run={run} spelling={spelling} />
               </Link>

@@ -83,8 +83,13 @@ export function RunnerHistory({
   const stillOccurs = (r: HistoryRun) => window.dispatchEvent(new CustomEvent<HistoryRun>(STILL_OCCURS_EVENT, { detail: r }));
 
   return (
-    <section aria-label="Execution history" className="flex min-h-0 flex-col rounded-lg border border-slate-200 bg-surface shadow-sm">
-      <div className={cx("p-3", open && "border-b border-slate-200")}>
+    <section aria-label="Execution history" className={cx(
+        "flex min-h-0 flex-col rounded-lg border border-slate-200 bg-surface shadow-sm",
+        // Open with runs to show (ver_260): a fair share of the column, so a run's details aren't squeezed into a sliver.
+        // The Run list above gives up room down to a few rows.
+        open && runs.length > 0 && "lg:min-h-[min(18rem,36vh)] bigtext:min-h-0",
+      )}>
+      <div className={cx("shrink-0 p-3", open && "border-b border-slate-200")}>
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-slate-900">Execution history</h2>
           {runs.length > 0 && (
@@ -132,7 +137,7 @@ export function RunnerHistory({
         )}
       </div>
 
-      <div className={cx("min-h-0 flex-1 overflow-y-auto", (!open || runs.length === 0) && "hidden")}>
+      <div className={cx("relative min-h-0 flex-1 overflow-y-auto", (!open || runs.length === 0) && "hidden")}>
         {selected ? (
           <Detail run={selected} projectKey={projectKey} canApply={canApply} onBack={() => setSelectedId(null)} onStillOccurs={() => stillOccurs(selected)} />
         ) : (
@@ -179,7 +184,7 @@ function Detail({
 }) {
   const bugs = [...new Map(run.defects.map((d) => [d.defect.id, d.defect])).values()];
   return (
-    <div className="space-y-3 p-3 text-xs">
+    <div className="space-y-4 p-4 text-xs leading-relaxed">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <Link href={`/p/${projectKey}/runs/${run.runNumber}/execute?entry=${run.entryId}`} className="text-sm font-medium text-slate-900 hover:underline">
@@ -197,16 +202,16 @@ function Detail({
       </div>
 
       {bugs.length > 0 && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-2">
-          <p className="font-medium text-red-800">{bugs.length === 1 ? "Bug found in this run" : `${bugs.length} bugs found in this run`}</p>
-          <ul className="mt-0.5 space-y-0.5 text-red-800">
+        <div className="rounded-md border border-red-200 bg-red-50 p-3">
+          <p className="text-sm font-medium text-red-800">{bugs.length === 1 ? "Bug found in this run" : `${bugs.length} bugs found in this run`}</p>
+          <ul className="mt-2 space-y-2 text-sm leading-snug text-red-800">
             {bugs.map((d) => (
               <li key={d.id}>
                 <BugLink bug={d} projectKey={projectKey} />
               </li>
             ))}
           </ul>
-          <Button size="sm" variant="primary" className="mt-2 w-full" disabled={!canApply} onClick={onStillOccurs}>
+          <Button size="sm" variant="primary" className="mt-3 w-full" disabled={!canApply} onClick={onStillOccurs}>
             Bug still occurs
           </Button>
           <p className="mt-1 text-[11px] text-red-700">Fills this case in with the same step results and links the same bugs.</p>
