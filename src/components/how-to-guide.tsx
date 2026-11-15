@@ -19,7 +19,7 @@ const EVENT = "fp:how-to";
 const STORE = "fp-how-to";
 
 /**
- * Opens the guide, on a task when one is named. With `at` (ver_258, How-to mode) it also starts
+ * Opens the guide, on a task when one is named. With `at` (ver_259, How-to mode) it also starts
  * on that step and makes its button glow, so a guided button can hold someone's hand from there.
  */
 export function openHowTo(task?: string, at?: number) {
@@ -264,7 +264,7 @@ export function HowToGuide({ startHidden = false }: { startHidden?: boolean }) {
         }
         advance(i);
       } else {
-        // ver_258: typed in the glowing box, then went straight for the next step's button (like
+        // ver_259: typed in the glowing box, then went straight for the next step's button (like
         // Make after the name). That does both steps, instead of stopping the glow.
         const n = task.steps.findIndex((x, k) => k > i && !!x.target);
         const next = n > 0 ? findTarget(task.steps[n].target!) : null;

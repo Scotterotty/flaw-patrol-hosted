@@ -1607,7 +1607,7 @@ model SisterLink {
   @@index([toCaseId])
 }
 
-/// Ask to be added (ver_258): someone signed in who isn't on any umbrella asks the workspace
+/// Ask to be added (ver_259): someone signed in who isn't on any umbrella asks the workspace
 /// admins to add them. One per person; it goes when an admin adds them or ignores it.
 model WorkspaceJoinRequest {
   id        String   @id @default(cuid())

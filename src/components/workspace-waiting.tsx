@@ -12,7 +12,7 @@ import { Button, Card, ErrorText, Select } from "./ui";
 export type WaitingPerson = { id: string; userId: string; name: string | null; email: string; avatarAt: string | null; at: string };
 
 /**
- * Workspace settings → Waiting to be added (ver_258): people who signed in, aren't on any
+ * Workspace settings → Waiting to be added (ver_259): people who signed in, aren't on any
  * umbrella, and pressed Ask to be added on the welcome page. Pick the umbrella and role, then Add.
  * Only shows while someone is waiting.
  */

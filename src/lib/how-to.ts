@@ -52,7 +52,7 @@ export type HowToGroup = (typeof HOW_TO_GROUPS)[number];
 export const HOW_TO: HowToTask[] = [
   // ───────────── Get started ─────────────
   // ver_216: the empty workspace's Show me how it works opens this one, since there's no left menu yet.
-  // ver_258: Make your first umbrella opens it on its own (How-to mode), on the Product name step.
+  // ver_259: Make your first umbrella opens it on its own (How-to mode), on the Product name step.
   {
     id: "first-ten-minutes",
     group: "Start here",
@@ -70,7 +70,7 @@ export const HOW_TO: HowToTask[] = [
     ],
     next: "find-your-way",
   },
-  // ver_258: the welcome page for someone who isn't on any umbrella yet.
+  // ver_259: the welcome page for someone who isn't on any umbrella yet.
   {
     id: "no-umbrella",
     group: "Start here",
@@ -1380,7 +1380,7 @@ export const HOW_TO: HowToTask[] = [
     ],
   },
   // ───────────── Settings ─────────────
-  // ver_258: answering Ask to be added from the welcome page.
+  // ver_259: answering Ask to be added from the welcome page.
   {
     id: "waiting-to-be-added",
     group: "Settings",
@@ -1740,5 +1740,5 @@ const STOP = new Set(["a", "an", "the", "i", "my", "to", "do", "in", "on", "of",
 /** Typing these in Search shows the guide first. */
 export const isHowToQuery = (q: string) => /^\s*(how\b|help\b|guide\b|tutorial\b)/i.test(q);
 
-/** ver_258 How-to mode: Make your first umbrella opens the guide here, with the Product name box glowing. */
+/** ver_259 How-to mode: Make your first umbrella opens the guide here, with the Product name box glowing. */
 export const GUIDED_MAKE = { task: "first-ten-minutes", at: howToById.get("first-ten-minutes")!.steps.findIndex((s) => s.target === "umbrella-name") };

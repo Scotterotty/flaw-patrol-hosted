@@ -47,7 +47,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
     pickablePeople("all"),
     readServerUpdate(),
     db.user.findMany({ where: { isAdmin: true }, orderBy: [{ name: "asc" }, { email: "asc" }], select: { id: true, name: true, email: true } }),
-    // Ask to be added (ver_258): people on no umbrella, and the umbrellas they can go in.
+    // Ask to be added (ver_259): people on no umbrella, and the umbrellas they can go in.
     db.workspaceJoinRequest.findMany({ orderBy: { createdAt: "asc" }, include: { user: { select: { id: true, name: true, email: true, avatarAt: true } } } }),
     db.projectGroup.findMany({ where: { hubProjectId: { not: null }, hub: { archivedAt: null } }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);

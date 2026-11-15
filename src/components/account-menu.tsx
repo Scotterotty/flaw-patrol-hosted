@@ -20,7 +20,7 @@ export function AccountMenu({
   admin?: boolean;
   signOut: () => Promise<void>;
   joins?: { count: number; href: string } | null;
-  /** ver_258: people on no umbrella who pressed Ask to be added (workspace admins only). */
+  /** ver_259: people on no umbrella who pressed Ask to be added (workspace admins only). */
   waiting?: number;
 }) {
   const [open, setOpen] = useState(false);

@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { expect, test, type Page } from "@playwright/test";
 import { signIn } from "./auth";
 
-// ver_258: someone signed in who isn't on any umbrella gets a welcome page with two choices.
+// ver_259: someone signed in who isn't on any umbrella gets a welcome page with two choices.
 // Join your team names the workspace admins and sends Ask to be added, which admins answer in
 // Workspace settings. Make your first umbrella opens the How-to guide on its own and walks
 // them through, and a name that's already taken offers Ask to join instead.

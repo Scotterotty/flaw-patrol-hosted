@@ -49,7 +49,7 @@ test("someone outside the team joins a live bash, asks to join, and an admin add
   const r = await ctx.newPage();
   await signIn(r, RILEY, `Riley ${TAG}`);
 
-  // Not on any team yet: the welcome page (ver_258) offers Join your team or Start a new product.
+  // Not on any team yet: the welcome page (ver_259) offers Join your team or Start a new product.
   await r.goto("/");
   await expect(r.getByRole("heading", { name: "Welcome, Riley" })).toBeVisible();
   await expect(r.getByRole("button", { name: "Ask to be added" })).toBeVisible();

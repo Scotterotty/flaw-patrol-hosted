@@ -261,7 +261,7 @@ export default async function HomePage() {
 }
 
 /**
- * Welcome (ver_258): someone signed in who isn't on any umbrella yet. Two plain choices, never a
+ * Welcome (ver_259): someone signed in who isn't on any umbrella yet. Two plain choices, never a
  * dead end: Join your team (names the workspace admins, one-tap Ask to be added) or Start a new
  * product (Make your first umbrella, with the How-to guide walking them through it). Join comes
  * first, since most new people belong to a team that's already here (persona audit, ver_113 #3).

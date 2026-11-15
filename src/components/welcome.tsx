@@ -8,7 +8,7 @@ import { startPracticeRun } from "@/server/practice";
 import { askToBeAdded, cancelAskToBeAdded } from "@/server/workspace-join";
 import { Button, ErrorText } from "./ui";
 
-// No umbrella yet (ver_258): the welcome page's Join your team button and practice run link.
+// No umbrella yet (ver_259): the welcome page's Join your team button and practice run link.
 
 /** Ask to be added, then "Sent to Scott and Katie" with Cancel request. */
 export function AskToBeAdded({ admins, askedAt }: { admins: string[]; askedAt: string | null }) {

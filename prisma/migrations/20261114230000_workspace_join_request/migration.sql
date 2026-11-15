@@ -1,4 +1,4 @@
--- Ask to be added (ver_258): someone on no umbrella asks the workspace admins to add them.
+-- Ask to be added (ver_259): someone on no umbrella asks the workspace admins to add them.
 CREATE TABLE "WorkspaceJoinRequest" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,

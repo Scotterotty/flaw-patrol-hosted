@@ -119,7 +119,7 @@ export function NewUmbrellaButton({
   choices: GroupChoice[];
   label?: string;
   variant?: "primary" | "secondary" | "link";
-  /** ver_258 How-to mode: opening the box also opens the How-to guide on its next step, glowing. */
+  /** ver_259 How-to mode: opening the box also opens the How-to guide on its next step, glowing. */
   guided?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -151,7 +151,7 @@ export function NewUmbrellaButton({
   const setRow = (id: number, patch: Partial<NewRow>) => setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const moving = cyclesToo ? ticked : new Set<string>();
   const summary = [making.length && plural(making.length, "new test cycle"), moving.size && `${moving.size} moved in`].filter(Boolean).join(" and ");
-  // Same name as an umbrella that's already here (ver_258): say so while typing, and offer Ask to join.
+  // Same name as an umbrella that's already here (ver_259): say so while typing, and offer Ask to join.
   const [clash, setClash] = useState<Clash | null>(null);
   const [asking, setAsking] = useState(false);
   useEffect(() => {

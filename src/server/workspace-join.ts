@@ -11,7 +11,7 @@ import { syncUmbrellaMembers } from "@/lib/umbrella";
 import { requireWorkspaceAdmin } from "./admin-guard";
 import { attempt, UserError } from "./result";
 
-// No umbrella yet (ver_258): the welcome page's Join your team. Someone signed in who isn't on
+// No umbrella yet (ver_259): the welcome page's Join your team. Someone signed in who isn't on
 // any umbrella asks the workspace admins to add them. Admins see a red dot on their name and the
 // request at the top of Workspace settings, where they pick the umbrella and role and press Add.
 

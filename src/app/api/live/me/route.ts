@@ -9,7 +9,7 @@ export async function GET() {
   const [teams, requests, asked] = await Promise.all([
     db.projectMember.count({ where: { userId: user.id } }),
     db.joinRequest.findMany({ where: { userId: user.id }, select: { id: true }, orderBy: { id: "asc" } }),
-    // Ask to be added on the welcome page (ver_258).
+    // Ask to be added on the welcome page (ver_259).
     db.workspaceJoinRequest.findUnique({ where: { userId: user.id }, select: { id: true } }),
   ]);
   return Response.json({ v: `${teams}|${requests.map((r) => r.id).join(",")}|${asked?.id ?? ""}` }, { headers: { "Cache-Control": "no-store" } });
