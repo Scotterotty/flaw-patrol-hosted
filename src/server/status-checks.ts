@@ -1,13 +1,13 @@
 import "server-only";
 
-import { NOT_BASH_RUN } from "@/lib/bash-cases";
+import { LIVE_BASH } from "@/lib/bash-cases";
 import { canOpen, open } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { GitHubClient } from "@/lib/github";
-import { runTitle, versionText } from "@/lib/run-label";
-import { SentryClient } from "@/lib/sentry";
-import { buildOf, release as sentryRelease } from "@/lib/sentry-build";
-import { cantReach, ciCard, githubCard, sentryCard, teamcityCard, type StatusCard, type StatusSource } from "@/lib/status-cards";
+import { runTitle } from "@/lib/run-label";
+import { parseSentryRefs, SentryClient } from "@/lib/sentry";
+import { buildOf } from "@/lib/sentry-build";
+import { cantReach, ciCard, githubCard, otherBuildsQuery, SENTRY_ROWS, sentryCard, teamcityCard, type SentryBuildIn, type StatusCard, type StatusSource } from "@/lib/status-cards";
 import { TeamCityClient, TeamCityError } from "@/lib/teamcity";
 import { parseBuildTypes } from "@/lib/teamcity-config";
 import type { Umbrella } from "@/lib/umbrella";
@@ -144,6 +144,9 @@ async function askTeamCity(u: Umbrella, src: StatusSource, buildTypeId: string, 
   }
 }
 
+/** "Being tested": a run with results in the last 7 days, or a live bug bash (ver_258). */
+const TESTED_DAYS = 7;
+
 async function askSentry(u: Umbrella, src: StatusSource, now: string): Promise<StatusCard> {
   const cfg = await db.sentryConfig.findUnique({ where: { projectId: u.hub.id } });
   if (!cfg) return cantReach(src, "Sentry isn't connected any more", "sentry", now);
@@ -151,33 +154,89 @@ async function askSentry(u: Umbrella, src: StatusSource, now: string): Promise<S
   const projects = (Array.isArray(cfg.projects) ? cfg.projects : []) as { id?: string }[];
   const ids = projects.map((p) => p?.id).filter((x): x is string => typeof x === "string");
   const client = new SentryClient(cfg.baseUrl, open(cfg.tokenEncrypted), cfg.org);
-  // Proves the token still works before saying anything about the build.
+  // Proves the token still works before saying anything about a build.
   await client.projects();
-  // The current release candidate: the newest run that names one.
-  const run = await db.testRun.findFirst({
-    where: { projectId: { in: visibleIds(u) }, release: { not: "" }, ...NOT_BASH_RUN },
-    orderBy: { createdAt: "desc" },
-    select: { release: true, build: true, fields: true, project: { select: { platform: true } } },
-  });
-  if (!run) return sentryCard(src, null, now);
-  const build = buildOf(run, cfg.buildField).trim();
-  const rel = await sentryRelease(client, cfg, run, ids).catch(() => null);
-  const [crashFree, fresh] = rel ? await Promise.all([client.crashFree(rel, ids), client.newInRelease(rel, ids)]) : [null, null];
-  const label = [[run.project.platform, versionText(run.build)].filter(Boolean).join(" "), run.release.trim()].filter(Boolean).join(" · ");
-  return sentryCard(
-    src,
-    {
-      release: run.release.trim(),
-      label,
-      build,
-      sentryRelease: rel,
-      fresh,
-      crashFree,
-      newUrl: rel ? client.searchUrl(`first-release:"${rel}"`, ids) : null,
-      releaseUrl: rel ? client.searchUrl(`release:"${rel}"`, ids) : null,
+
+  // The builds being tested: hand-run runs with results in the last 7 days, or in a live bug bash.
+  const at = new Date(now);
+  const since = new Date(at.getTime() - TESTED_DAYS * 86_400_000);
+  const runs = await db.testRun.findMany({
+    where: { projectId: { in: visibleIds(u) }, automated: false, OR: [{ results: { some: { createdAt: { gte: since } } } }, { bugBash: { is: LIVE_BASH(at) } }] },
+    select: {
+      id: true,
+      name: true,
+      number: true,
+      build: true,
+      fields: true,
+      release: true,
+      createdAt: true,
+      project: { select: { key: true, platform: true, rcName: true } },
+      bugBash: { select: { id: true, startsAt: true, endedAt: true, wrappedAt: true, endsAt: true } },
+      results: { orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true } },
     },
-    now,
+    take: 200,
+  });
+  const liveBash = (r: (typeof runs)[number]) => !!r.bugBash && !r.bugBash.endedAt && !r.bugBash.wrappedAt && r.bugBash.startsAt <= at && r.bugBash.endsAt > at;
+  // Newest activity first: the newest result, or when a live bash started.
+  const last = (r: (typeof runs)[number]) => Math.max(r.results[0]?.createdAt.getTime() ?? 0, liveBash(r) ? (r.bugBash?.startsAt.getTime() ?? 0) : 0);
+  runs.sort((a, b) => last(b) - last(a));
+
+  const builds = new Map<string, { platform: string; tags: Set<string>; runIds: string[] }>();
+  const noBuild: typeof runs = [];
+  for (const r of runs) {
+    const build = buildOf(r, cfg.buildField).trim();
+    if (!build) {
+      noBuild.push(r);
+      continue;
+    }
+    const b = builds.get(build) ?? { platform: r.project.platform, tags: new Set<string>(), runIds: [] };
+    const rc = r.release.trim() || r.project.rcName.trim();
+    if (rc && !r.bugBash) b.tags.add(rc);
+    if (liveBash(r)) b.tags.add("Bug bash");
+    b.runIds.push(r.id);
+    builds.set(build, b);
+  }
+
+  // Errors already in a bug: the Sentry errors saved on failed steps of results that have a bug.
+  const filed = builds.size
+    ? await db.testResult.findMany({ where: { runId: { in: [...builds.values()].flatMap((b) => b.runIds) }, defects: { some: {} } }, select: { runId: true, sentry: true } })
+    : [];
+  const filedIn = (runIds: string[]) => filed.filter((f) => runIds.includes(f.runId)).flatMap((f) => parseSentryRefs(f.sentry).map((x) => x.id));
+
+  // Up to three builds get Sentry's answer; the rest are only counted.
+  const list = [...builds.entries()];
+  const shown = await Promise.all(
+    list.slice(0, SENTRY_ROWS).map(async ([build, b]): Promise<SentryBuildIn> => {
+      const rel = await client.releaseFor(build, ids).catch(() => null);
+      const [crashFree, freshIds] = rel ? await Promise.all([client.crashFree(rel, ids), client.newIssueIds(rel, ids)]) : [null, null];
+      return {
+        build,
+        platform: b.platform,
+        tags: [...b.tags],
+        sentryRelease: rel,
+        freshIds,
+        inBugIds: filedIn(b.runIds),
+        crashFree,
+        newUrl: rel ? client.searchUrl(`first-release:"${rel}"`, ids) : null,
+        releaseUrl: rel ? client.searchUrl(`release:"${rel}"`, ids) : null,
+      };
+    }),
   );
+  const rest = list.slice(SENTRY_ROWS).map(([build, b]): SentryBuildIn => ({ build, platform: b.platform, tags: [...b.tags], sentryRelease: null, freshIds: null, inBugIds: [], crashFree: null, newUrl: null, releaseUrl: null }));
+
+  // Everything else in the last day. A Sentry server that can't answer these searches hides the row.
+  const tested = shown.map((b) => b.sentryRelease).filter((x): x is string => !!x);
+  const otherQ = otherBuildsQuery(tested);
+  const [other, none] = await Promise.all([
+    client.countIssues(otherQ, ids).then((count) => ({ count, url: client.searchUrl(otherQ, ids, "24h") }), () => null),
+    client.countIssues("!has:release", ids).then((count) => ({ count, url: client.searchUrl("!has:release", ids, "24h") }), () => null),
+  ]);
+
+  const m = noBuild[0];
+  const missing = m
+    ? { name: [m.project.platform, m.bugBash ? "bug bash" : m.release.trim() || m.project.rcName.trim(), "run"].filter(Boolean).join(" "), href: `/p/${m.project.key}/runs/${m.number}`, others: noBuild.length - 1 }
+    : null;
+  return sentryCard(src, { builds: [...shown, ...rest], other, none, missing }, now);
 }
 
 async function askCi(u: Umbrella, src: StatusSource, now: string): Promise<StatusCard> {

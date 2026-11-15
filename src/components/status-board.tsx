@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { relativeTime } from "@/lib/format";
-import { groupCards, summaryLine, writeBugHref, type StatusCard, type StatusDot, type StatusSource } from "@/lib/status-cards";
+import { groupCards, summaryLine, writeBugHref, type SentryBoard, type StatusCard, type StatusDot, type StatusSource } from "@/lib/status-cards";
 import { statusCheck, statusSummary } from "@/server/status";
 import { Button, Card, cx } from "./ui";
 
@@ -65,7 +65,7 @@ export function StatusBoard({ groupId, name, sources, canManage, canBug }: { gro
         <Header name={name} checked="" busy={false} onRefresh={null} />
         <Card className="space-y-3 p-6 text-sm text-slate-700" data-testid="status-empty">
           <p className="font-medium text-slate-900">Nothing is connected yet.</p>
-          <p>Status shows how your builds and tools are doing, all in one place: GitHub workflow runs, TeamCity builds, new Sentry errors in the current release, and results your pipeline uploads.</p>
+          <p>Status shows how your builds and tools are doing, all in one place: GitHub workflow runs, TeamCity builds, new Sentry errors in the builds you&apos;re testing, and results your pipeline uploads.</p>
           {canManage ? (
             <div className="flex flex-wrap gap-2">
               {[
@@ -119,7 +119,7 @@ export function StatusBoard({ groupId, name, sources, canManage, canBug }: { gro
             </h2>
             <Card className="divide-y divide-slate-100">
               {good.map((c) => (
-                <OkRow key={c.key} c={c} />
+                <OkRow key={c.key} c={c} groupId={groupId} canBug={canBug} />
               ))}
               {waiting.map((s) => (
                 <div key={s.key} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm text-slate-500">
@@ -234,6 +234,7 @@ function BigCard({ c, groupId, canBug }: { c: StatusCard; groupId: string; canBu
       </div>
       <p className="text-sm text-slate-800">{c.line}</p>
       <Meta c={c} />
+      {c.sentry && <SentryRows s={c.sentry} groupId={groupId} canBug={canBug} />}
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
         {c.open && (
           <a href={c.open.url} target="_blank" rel="noreferrer" className="font-medium text-accent-700 underline hover:no-underline">
@@ -255,7 +256,7 @@ function BigCard({ c, groupId, canBug }: { c: StatusCard; groupId: string; canBu
   );
 }
 
-function OkRow({ c }: { c: StatusCard }) {
+function OkRow({ c, groupId, canBug }: { c: StatusCard; groupId: string; canBug: boolean }) {
   return (
     <div className="space-y-1 px-4 py-2.5" data-testid={`status-card-${c.key}`}>
       <div className="flex items-start justify-between gap-3 text-sm">
@@ -282,6 +283,90 @@ function OkRow({ c }: { c: StatusCard }) {
         )}
       </p>
       <Meta c={c} />
+      {c.sentry && <SentryRows s={c.sentry} groupId={groupId} canBug={canBug} />}
+    </div>
+  );
+}
+
+const ROW_TONE = { bad: "text-red-700", good: "text-emerald-800", quiet: "text-slate-600" } as const;
+
+/** The Sentry card's builds (ver_258): one row per build being tested, then everything else in the last day. */
+function SentryRows({ s, groupId, canBug }: { s: SentryBoard; groupId: string; canBug: boolean }) {
+  const link = "font-medium text-accent-700 underline hover:no-underline";
+  const elseRows = [
+    { key: "other", name: "Other builds", hint: "not being tested", v: s.other },
+    { key: "none", name: "No build", hint: "editor, dev machines", v: s.none },
+  ].filter((r) => r.v);
+  return (
+    <div className="space-y-3 pt-1" data-testid="sentry-builds" data-howto="status-sentry-builds">
+      {s.rows.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-slate-600">
+            Builds you&apos;re testing <span className="font-normal text-slate-500">· tested in the last 7 days, or in a live bug bash</span>
+          </p>
+          <ul className="mt-1 divide-y divide-slate-100 rounded-md border border-slate-200">
+            {s.rows.map((r) => (
+              <li key={r.build} className="space-y-0.5 px-3 py-2 text-sm" data-testid="sentry-build-row">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                  <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+                    <span className="font-medium break-all text-slate-900">Build {r.build}</span>
+                    {r.platform && <span className="text-slate-600">· {r.platform}</span>}
+                    {r.tags.map((t) => (
+                      <span key={t} className={cx("rounded px-1.5 py-px text-xs font-semibold ring-1", t === "Bug bash" ? "bg-amber-50 text-amber-800 ring-amber-200" : "bg-sky-50 text-sky-800 ring-sky-200")}>
+                        {t}
+                      </span>
+                    ))}
+                  </span>
+                  <span className={cx("text-xs font-semibold whitespace-nowrap", ROW_TONE[r.state])}>{r.pill}</span>
+                </div>
+                <p className="flex flex-wrap gap-x-2 text-xs text-slate-700">
+                  {r.line && <span>{r.line}</span>}
+                  {r.open && (
+                    <a href={r.open.url} target="_blank" rel="noreferrer" className={link}>
+                      {r.open.label} ↗
+                    </a>
+                  )}
+                  {canBug && r.bug && (
+                    <Link href={writeBugHref(groupId, r.bug)} className={link} data-testid="status-write-bug">
+                      Write a bug
+                    </Link>
+                  )}
+                </p>
+                {r.sentryRelease && <p className="text-xs break-all text-slate-500">Sentry calls it {r.sentryRelease}</p>}
+              </li>
+            ))}
+          </ul>
+          {s.more > 0 && <p className="mt-1 text-xs text-slate-500">and {s.more} more {s.more === 1 ? "build" : "builds"} being tested</p>}
+        </div>
+      )}
+      {elseRows.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-slate-600">Everything else, last day</p>
+          <ul className="mt-1 space-y-1">
+            {elseRows.map((r) => (
+              <li key={r.key} className="flex flex-wrap items-center justify-between gap-x-3 text-xs text-slate-700" data-testid={`sentry-${r.key}`}>
+                <span>
+                  <span className="font-medium text-slate-900">{r.name}</span> <span className="text-slate-500">({r.hint})</span>
+                </span>
+                <span>
+                  {r.v!.count >= 100 ? "100+" : r.v!.count} {r.v!.count === 1 ? "error" : "errors"} ·{" "}
+                  <a href={r.v!.url} target="_blank" rel="noreferrer" className={link}>
+                    See them in Sentry ↗
+                  </a>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {s.missing && (
+        <p className="text-xs text-slate-600" data-testid="sentry-missing">
+          The newest {s.missing.name} has no build, so it&apos;s left out{s.missing.others > 0 ? ` (and ${s.missing.others} more ${s.missing.others === 1 ? "run" : "runs"})` : ""}.{" "}
+          <Link href={s.missing.href} className={link}>
+            Add its build
+          </Link>
+        </p>
+      )}
     </div>
   );
 }

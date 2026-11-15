@@ -140,15 +140,28 @@ export class SentryClient {
 
   /** How many issues first appeared in this release (up to 100). */
   async newInRelease(release: string, projectIds: string[]): Promise<number> {
+    return (await this.newIssueIds(release, projectIds)).length;
+  }
+
+  /** The issues that first appeared in this release (up to 100), by id, to check against errors already in bugs. */
+  async newIssueIds(release: string, projectIds: string[]): Promise<string[]> {
     const params = new URLSearchParams({ query: `first-release:"${release}"`, statsPeriod: "90d", limit: "100" });
     for (const p of projectIds) params.append("project", p);
     const list = await this.call<RawIssue[]>(`/organizations/${enc(this.org)}/issues/?${params}`).catch(() => []);
-    return list.length;
+    return list.map((i) => String(i.id));
   }
 
-  /** Link to an issue search in Sentry. */
-  searchUrl(query: string, projectIds: string[]) {
+  /** How many issues match a search with events in the last day (up to 100). Throws when Sentry can't answer it. */
+  async countIssues(query: string, projectIds: string[], statsPeriod = "24h"): Promise<number> {
+    const params = new URLSearchParams({ query, statsPeriod, limit: "100" });
+    for (const p of projectIds) params.append("project", p);
+    return (await this.call<RawIssue[]>(`/organizations/${enc(this.org)}/issues/?${params}`)).length;
+  }
+
+  /** Link to an issue search in Sentry, optionally over a period like "24h". */
+  searchUrl(query: string, projectIds: string[], statsPeriod?: string) {
     const params = new URLSearchParams({ query });
+    if (statsPeriod) params.set("statsPeriod", statsPeriod);
     for (const p of projectIds) params.append("project", p);
     return `${sentryBase(this.base)}/organizations/${enc(this.org)}/issues/?${params}`;
   }
