@@ -49,11 +49,11 @@ test("someone outside the team joins a live bash, asks to join, and an admin add
   const r = await ctx.newPage();
   await signIn(r, RILEY, `Riley ${TAG}`);
 
-  // Not on any team yet: the home page says how to get in, with Make an umbrella as a small link.
+  // Not on any team yet: the welcome page (ver_258) offers Join your team or Start a new product.
   await r.goto("/");
-  await expect(r.getByText("Waiting to be added?")).toBeVisible();
-  await expect(r.getByText("Ask whoever invited you for your invite link.")).toBeVisible();
-  await expect(r.getByRole("button", { name: "Make an umbrella" })).toBeVisible();
+  await expect(r.getByRole("heading", { name: "Welcome, Riley" })).toBeVisible();
+  await expect(r.getByRole("button", { name: "Ask to be added" })).toBeVisible();
+  await expect(r.getByRole("button", { name: "Make your first umbrella" })).toBeVisible();
   await expect(r.getByText("Start with an umbrella")).toHaveCount(0);
 
   // A live bug bash link: straight in, this bash only.
@@ -147,6 +147,6 @@ test("Ignore drops a request, and a bash that's over offers Ask to join", async 
 
   // Sam's home page no longer shows the request.
   await s.goto("/");
-  await expect(s.getByText("Waiting to be added?")).toBeVisible();
+  await expect(s.getByRole("heading", { name: "Join your team" })).toBeVisible();
   await ctx.close();
 });

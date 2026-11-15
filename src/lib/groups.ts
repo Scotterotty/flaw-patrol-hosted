@@ -7,7 +7,8 @@ type Viewer = { id: string; isAdmin: boolean };
 /** Admins, and anyone who is a member (not a Viewer) of at least one project, may make and change project groups. */
 export async function canManageGroups(user: Viewer) {
   if (user.isAdmin) return true;
-  return (await db.projectMember.count({ where: { userId: user.id, role: { in: ["ADMIN", "LEAD", "TESTER"] } } })) > 0;
+  // A practice run (ver_217) makes you a Member of your own sample project only: it doesn't count.
+  return (await db.projectMember.count({ where: { userId: user.id, role: { in: ["ADMIN", "LEAD", "TESTER"] }, project: NOT_PRACTICE } })) > 0;
 }
 
 /**

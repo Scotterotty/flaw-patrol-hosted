@@ -8,6 +8,7 @@ import { TopBar } from "@/components/top-bar";
 import { PageHeader } from "@/components/ui";
 import { WorkspaceBugTemplates } from "@/components/workspace-bug-templates";
 import { WorkspaceAdmins } from "@/components/workspace-admins";
+import { WorkspaceWaiting } from "@/components/workspace-waiting";
 import { WorkspaceEmail, type MailView } from "@/components/workspace-email";
 import { EmailGroupsCard } from "@/components/digest-card";
 import { emailGroupViews, pickablePeople } from "@/lib/digest-data";
@@ -31,7 +32,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
   if (!user.isAdmin) notFound();
   const { tested, ...filters } = await searchParams;
   await pruneActivity();
-  const [ws, rows, last, spelling, templates, sources, groups, people, updates, adminRows] = await Promise.all([
+  const [ws, rows, last, spelling, templates, sources, groups, people, updates, adminRows, waitingRows, umbrellaRows] = await Promise.all([
     db.workspace.upsert({ where: { id: 1 }, create: { id: 1 }, update: {} }),
     db.signInProvider.findMany(),
     db.projectPin.findFirst({
@@ -46,7 +47,11 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
     pickablePeople("all"),
     readServerUpdate(),
     db.user.findMany({ where: { isAdmin: true }, orderBy: [{ name: "asc" }, { email: "asc" }], select: { id: true, name: true, email: true } }),
+    // Ask to be added (ver_258): people on no umbrella, and the umbrellas they can go in.
+    db.workspaceJoinRequest.findMany({ orderBy: { createdAt: "asc" }, include: { user: { select: { id: true, name: true, email: true, avatarAt: true } } } }),
+    db.projectGroup.findMany({ where: { hubProjectId: { not: null }, hub: { archivedAt: null } }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
+  const waiting = waitingRows.map((r) => ({ id: r.id, userId: r.userId, name: r.user.name, email: r.user.email, avatarAt: r.user.avatarAt?.toISOString() ?? null, at: r.createdAt.toISOString() }));
   const admins = adminRows.map((u) => ({ id: u.id, name: u.name || u.email, email: u.email }));
   const env = envProviders();
   const providers: ProviderView[] = COMPANY_PROVIDERS.map((id) => {
@@ -97,6 +102,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
             <AccountTabs
               label="Workspace sections"
               tabs={[
+                ...(waiting.length ? ([["waiting", "Waiting"]] as [string, string][]) : []),
                 ["admins", "Admins"],
                 ["sign-in", "Sign-in"],
                 ["email", "Email"],
@@ -107,6 +113,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
               ]}
             />
             <div className="space-y-5">
+              {waiting.length > 0 && <WorkspaceWaiting people={waiting} umbrellas={umbrellaRows} />}
               <WorkspaceAdmins admins={admins} meId={user.id} />
               <WorkspaceSignIn
                 password={{ on: ws.passwordSignIn, joinDomains: ws.joinDomains, envDomains: domainList(process.env.AUTH_ALLOWED_DOMAINS).join(", ") }}

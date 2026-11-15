@@ -7,7 +7,22 @@ import { VersionLine } from "./version-line";
 import { GettingStartedItem } from "./first-day";
 
 /** Your name in the top bar: a small menu with your account, appearance, the mini game and Sign out. */
-export function AccountMenu({ children, label, admin, signOut, joins }: { children: ReactNode; label: string; admin?: boolean; signOut: () => Promise<void>; joins?: { count: number; href: string } | null }) {
+export function AccountMenu({
+  children,
+  label,
+  admin,
+  signOut,
+  joins,
+  waiting = 0,
+}: {
+  children: ReactNode;
+  label: string;
+  admin?: boolean;
+  signOut: () => Promise<void>;
+  joins?: { count: number; href: string } | null;
+  /** ver_258: people on no umbrella who pressed Ask to be added (workspace admins only). */
+  waiting?: number;
+}) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -43,12 +58,20 @@ export function AccountMenu({ children, label, admin, signOut, joins }: { childr
       {open && (
         <div ref={list} role="menu" style={place} onClick={() => setOpen(false)} className="absolute top-full right-0 z-40 w-52 rounded-lg border border-slate-200 bg-surface p-1 shadow-lg">
           {/* Ask to join: the dot on the avatar leads here. */}
-          {joins && (
+          {(joins || waiting > 0) && (
             <>
-              <Link role="menuitem" href={joins.href} className={`${item} font-medium text-accent-700`}>
-                <span aria-hidden className="mr-1.5 inline-block h-2 w-2 rounded-full bg-red-500" />
-                {joins.count === 1 ? "1 person asking to join" : `${joins.count} people asking to join`}
-              </Link>
+              {waiting > 0 && (
+                <Link role="menuitem" href="/workspace#waiting" className={`${item} font-medium text-accent-700`}>
+                  <span aria-hidden className="mr-1.5 inline-block h-2 w-2 rounded-full bg-red-500" />
+                  {waiting === 1 ? "1 person waiting to be added" : `${waiting} people waiting to be added`}
+                </Link>
+              )}
+              {joins && (
+                <Link role="menuitem" href={joins.href} className={`${item} font-medium text-accent-700`}>
+                  <span aria-hidden className="mr-1.5 inline-block h-2 w-2 rounded-full bg-red-500" />
+                  {joins.count === 1 ? "1 person asking to join" : `${joins.count} people asking to join`}
+                </Link>
+              )}
               <div className="my-1 h-px bg-slate-200" />
             </>
           )}
