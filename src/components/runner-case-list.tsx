@@ -59,7 +59,7 @@ export function RunnerCaseList({ items, empty, tuckDone = false }: { items: Item
       )}
       {/* relative (ver_260): the rows' screen-reader words are positioned, and without it they hung far below the
           list and stretched the page into a long empty scroll. */}
-      <ul aria-label="Run list" className="relative max-h-[40vh] min-h-0 divide-y divide-slate-100 overflow-y-auto lg:max-h-[calc(60vh-10rem)] lg:min-h-[10rem] bigtext:max-h-[40vh]">
+      <ul aria-label="Run list" className="relative max-h-[40vh] divide-y divide-slate-100 overflow-y-auto lg:max-h-[max(6rem,calc(45vh-8rem))] bigtext:max-h-[40vh]">
         {shown.map((i, n) => (
           <Fragment key={i.id}>
             {n === closeStart && (

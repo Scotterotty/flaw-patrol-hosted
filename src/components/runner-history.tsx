@@ -83,12 +83,7 @@ export function RunnerHistory({
   const stillOccurs = (r: HistoryRun) => window.dispatchEvent(new CustomEvent<HistoryRun>(STILL_OCCURS_EVENT, { detail: r }));
 
   return (
-    <section aria-label="Execution history" className={cx(
-        "flex min-h-0 flex-col rounded-lg border border-slate-200 bg-surface shadow-sm",
-        // Open with runs to show (ver_260): a fair share of the column, so a run's details aren't squeezed into a sliver.
-        // The Run list above gives up room down to a few rows.
-        open && runs.length > 0 && "lg:min-h-[min(18rem,36vh)] bigtext:min-h-0",
-      )}>
+    <section aria-label="Execution history" className="relative flex min-h-0 flex-col rounded-lg border border-slate-200 bg-surface shadow-sm">
       <div className={cx("shrink-0 p-3", open && "border-b border-slate-200")}>
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-slate-900">Execution history</h2>
