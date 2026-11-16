@@ -58,6 +58,7 @@ import { CyclePanel } from "@/components/cycle-panel";
 import { OtherSettings } from "@/components/other-settings";
 import { cycleHash } from "@/lib/cycle-hash";
 import { BugTemplatesSettings } from "@/components/bug-templates";
+import { ssoOnly } from "@/lib/sso-only";
 import { loadBugTemplates } from "@/lib/bug-templates-data";
 import { ToolsPanel } from "@/components/tools";
 import { BugAuditSettings } from "@/components/bug-audit-settings";
@@ -298,6 +299,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               me={user.id}
               canManage={can(cw, "members:manage")}
               canEmail={cycleInvites.canEmail}
+              passwords={!ssoOnly()}
               requests={requestsHere}
               team={p.name}
               members={people.map((m) => ({ userId: m.userId, email: m.user.email, name: m.user.name, role: m.role, signedIn: !!m.user.lastLoginAt, hasPassword: !!m.user.passwordSetAt, avatarAt: m.user.avatarAt, inviteSentAt: cycleInvites.sent.get(m.userId) ?? null, inviteUntil: cycleInvites.until.get(m.userId) ?? null, ...badgeOf(m.user) }))}
@@ -424,6 +426,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
                       me={user.id}
                       canManage={can(u.who, "members:manage")}
                       canEmail={invites.canEmail}
+                      passwords={!ssoOnly()}
                       requests={requests}
                       team={u.group.name}
                       nudge={!u.group.rolesChosenAt && <RolesNudge target={{ groupId: u.group.id }} href={`/g/${u.group.id}/settings#roles`} />}

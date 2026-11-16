@@ -15,6 +15,7 @@ These notes answer the "before deploying" list in the backend team's review
 | Secrets from Vault | `external-secret.yaml` (External Secrets Operator) |
 | Single replica until uploads stop waiting on local disk | `deployment.yaml` (`replicas: 1`, `strategy: Recreate`) |
 | Health endpoints | `/api/healthz` (liveness) and `/api/readyz` (readiness, runs `SELECT 1`) |
+| Turn password sign-in off, SSO only | `AUTH_SSO_ONLY=true`, `AUTH_ADMIN_EMAILS`, Microsoft from Vault (step 3, "Company sign-in only") |
 | Block internal addresses for Jira, Sentry and SSO (SSRF) | Built into the app; `OUTBOUND_ALLOW_HOSTS` for exceptions (below) |
 
 ## 1. Cloud SQL for PostgreSQL
@@ -57,7 +58,28 @@ Store these under one Vault path (the example uses `flaw-patrol`) and point
 | `MIGRATE_DATABASE_URL` | `postgresql://flawpatrol_migrator:PASSWORD@PRIVATE-IP:5432/flawpatrol?sslmode=require` |
 | `AUTH_SECRET` | 32 random bytes: `openssl rand -base64 32`. Moving data over from the old Docker server? Use **its** AUTH_SECRET, or saved Jira/Sentry/Slack tokens stop working. |
 
+| `AUTH_MICROSOFT_TENANT_ID` | The Entra ID directory (tenant) ID |
+| `AUTH_MICROSOFT_ID` | The app registration's Application (client) ID |
+| `AUTH_MICROSOFT_SECRET` | A client secret for that app registration. Note its expiry date. |
+
 Passwords in the addresses must be URL-safe (letters and numbers are simplest).
+
+### Company sign-in only
+
+`deployment.yaml` sets `AUTH_SSO_ONLY=true`: nobody, admins included, can use a password.
+The sign-in page shows only "Sign in with Microsoft", and password links, invite passwords and
+the Password card on Your account are gone. Invites still work: the invite email's button leads
+to the Microsoft button.
+
+- **Microsoft app registration:** a Web platform redirect URI of
+  `https://<your AUTH_URL host>/api/auth/callback/microsoft`, the `openid profile email`
+  scopes, and a client secret (store it in Vault as above).
+- **First admins:** put their emails in `AUTH_ADMIN_EMAILS`. They become workspace admins
+  when they sign in. With it set, the first person to sign in is *not* made admin
+  automatically (no race to sign up first).
+- **Who may sign in:** people at `AUTH_ALLOWED_DOMAINS`, plus anyone added to a team.
+- **Locked out?** There's no password back door. Fix the Microsoft settings in Vault, or
+  add an admin's email to `AUTH_ADMIN_EMAILS`, and redeploy.
 
 ## 4. Build and publish the image
 

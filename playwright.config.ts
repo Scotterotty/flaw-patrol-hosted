@@ -13,6 +13,11 @@ if (existsSync(".e2e-database")) process.env.DATABASE_URL = readFileSync(".e2e-d
 // Workspace settings → Updates talks to the update helper through this folder; ver239.spec.ts plays the helper.
 mkdirSync(SERVER_UPDATE_DIR, { recursive: true });
 
+// E2E_SSO_ONLY=1 starts the server as the hosted company-sign-in-only setup (sso-only.spec.ts).
+const ssoOnlyEnv: Record<string, string> = process.env.E2E_SSO_ONLY
+  ? { AUTH_SSO_ONLY: "true", AUTH_ADMIN_EMAILS: "boss-sso@example.com", AUTH_MICROSOFT_TENANT_ID: "4f2a1c3e-0b7d-4e21-9a55-1d2f3c4b5a6e", AUTH_MICROSOFT_ID: "flaw-patrol-e2e", AUTH_MICROSOFT_SECRET: "e2e-secret", AUTH_ALLOWED_DOMAINS: "example.com" }
+  : {};
+
 export default defineConfig({
   testDir: "tests/e2e",
   ...(server === "prod" ? { testIgnore: DEV_ONLY.map((f) => `**/${f}`) } : {}),
@@ -34,7 +39,7 @@ export default defineConfig({
       // Microsoft sign-in talks to the stand-in in mock-sso.mjs (ver_92).
       // AUTH_URL: sign-in sends people back to this server, not the 3000 one in .env.
       // A bigger heap, so next dev doesn't restart itself mid-run ("approaching the used memory threshold").
-      env: { AUTH_URL: "http://localhost:3100", OUTBOUND_ALLOW_HOSTS: "localhost,127.0.0.1", GITHUB_API_URL: "http://localhost:3196", QASE_API_URL: "http://localhost:3192/v1", FP_MICROSOFT_AUTHORITY: "http://localhost:3195", SERVER_UPDATE_DIR, NODE_OPTIONS: "--max-old-space-size=8192" },
+      env: { AUTH_URL: "http://localhost:3100", OUTBOUND_ALLOW_HOSTS: "localhost,127.0.0.1", GITHUB_API_URL: "http://localhost:3196", QASE_API_URL: "http://localhost:3192/v1", FP_MICROSOFT_AUTHORITY: "http://localhost:3195", SERVER_UPDATE_DIR, NODE_OPTIONS: "--max-old-space-size=8192", ...ssoOnlyEnv },
       url: "http://localhost:3100/signin",
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

@@ -5,6 +5,7 @@ import { ACCENTS, fontFor, isAccent, isBodyFont, isHeadingFont, isTextSize, isTh
 import { levelFor, titleLabel, totalXp } from "@/lib/game";
 import { gameStats } from "@/lib/xp";
 import { longDate, spellingFor } from "@/lib/spelling";
+import { ssoOnly } from "@/lib/sso-only";
 import { AccessibilitySettings, EasyReadFont } from "./accessibility";
 import type { ReactNode } from "react";
 import { isVision, shapesOn, VISIONS } from "@/lib/vision";
@@ -119,9 +120,12 @@ export async function ProfileSettings({ user }: { user: Me }) {
               <AccountForm name={user.name ?? ""} />
             </div>
           </AccountCard>
-          <AccountCard id="password" howto="account-password" title="Password" summary={user.passwordSetAt ? `Set · last changed ${longDate(user.passwordSetAt, spelling)}` : "Not set yet"}>
-            <ChangePasswordForm hasPassword={!!user.passwordSetAt} />
-          </AccountCard>
+          {/* Company sign-in only (hosted, AUTH_SSO_ONLY): no passwords, so no Password card. */}
+          {!ssoOnly() && (
+            <AccountCard id="password" howto="account-password" title="Password" summary={user.passwordSetAt ? `Set · last changed ${longDate(user.passwordSetAt, spelling)}` : "Not set yet"}>
+              <ChangePasswordForm hasPassword={!!user.passwordSetAt} />
+            </AccountCard>
+          )}
           <AccountCard id="jira" howto="account-jira" title="Jira" summary={user.jiraEmail ? `Uses ${user.jiraEmail}` : "Uses your sign-in email"}>
             <JiraEmailForm jiraEmail={user.jiraEmail} email={user.email} />
           </AccountCard>

@@ -6,6 +6,7 @@ import Google from "next-auth/providers/google";
 import { canOpen, open } from "./crypto";
 import { db } from "./db";
 import { domainList, emailInDomains, emailTrusted, GUID, type Profile } from "./sign-in-rules";
+import { envMicrosoft } from "./sso-only";
 
 export { domainList, emailInDomains, emailTrusted, GUID };
 
@@ -29,6 +30,7 @@ export const microsoftAuthority = () => (process.env.FP_MICROSOFT_AUTHORITY ?? "
 /** Which company sign-ins are set in .env (they can't be changed from the page). */
 export function envProviders(): Partial<Record<CompanyProvider | "github", true>> {
   return {
+    ...(envMicrosoft() ? { microsoft: true as const } : {}),
     ...(process.env.AUTH_GOOGLE_ID ? { google: true as const } : {}),
     ...(process.env.AUTH_GITHUB_ID ? { github: true as const } : {}),
   };
@@ -76,28 +78,34 @@ export function isComplete(p: SignInProvider) {
 }
 
 
+function microsoftProvider(tenantId: string, clientId: string, clientSecret: string): NextAuthConfig["providers"][number] {
+  return {
+    id: "microsoft",
+    name: "Microsoft",
+    type: "oidc",
+    issuer: `${microsoftAuthority()}/${tenantId}/v2.0`,
+    clientId,
+    clientSecret,
+    authorization: { params: { scope: "openid profile email" } },
+    // Entra leaves out "email" for some accounts; their sign-in name is their work email.
+    profile: (pr: Profile) => ({ id: pr.sub, name: pr.name ?? null, email: (pr.email ?? pr.preferred_username ?? "").toLowerCase() || null, image: null }),
+  };
+}
+
 /** Turn the saved rows into Auth.js providers. Incomplete or untested rows are still included so an admin can test them. */
 export function buildProviders(rows: SignInProvider[]): NextAuthConfig["providers"] {
   const env = envProviders();
   const out: NextAuthConfig["providers"] = [];
+  const ms = envMicrosoft();
+  if (ms) out.push(microsoftProvider(ms.tenantId, ms.clientId, ms.clientSecret));
   if (env.google) out.push(Google);
   if (env.github) out.push(GitHub);
   for (const p of rows) {
     if (!isComplete(p)) continue;
-    if (p.id === "google" && env.google) continue;
+    if ((p.id === "google" && env.google) || (p.id === "microsoft" && ms)) continue;
     const clientSecret = open(p.secretEncrypted!);
     if (p.id === "microsoft") {
-      out.push({
-        id: "microsoft",
-        name: "Microsoft",
-        type: "oidc",
-        issuer: `${microsoftAuthority()}/${p.tenantId}/v2.0`,
-        clientId: p.clientId,
-        clientSecret,
-        authorization: { params: { scope: "openid profile email" } },
-        // Entra leaves out "email" for some accounts; their sign-in name is their work email.
-        profile: (pr: Profile) => ({ id: pr.sub, name: pr.name ?? null, email: (pr.email ?? pr.preferred_username ?? "").toLowerCase() || null, image: null }),
-      });
+      out.push(microsoftProvider(p.tenantId, p.clientId, clientSecret));
     } else if (p.id === "google") {
       out.push(Google({ clientId: p.clientId, clientSecret }));
     } else if (p.id === "oidc") {
@@ -124,7 +132,8 @@ export async function signInButtons(): Promise<{ id: string; name: string }[]> {
   const buttons: { id: string; name: string }[] = [];
   for (const id of COMPANY_PROVIDERS) {
     const row = rows.find((r) => r.id === id);
-    if (id === "google" && env.google) buttons.push({ id, name: "Google" });
+    if (id === "microsoft" && env.microsoft) buttons.push({ id, name: "Microsoft" });
+    else if (id === "google" && env.google) buttons.push({ id, name: "Google" });
     else if (row?.enabled && isComplete(row)) buttons.push({ id, name: id === "oidc" ? row.label || "Company SSO" : PROVIDER_NAME[id] });
   }
   if (env.github) buttons.push({ id: "github", name: "GitHub" });

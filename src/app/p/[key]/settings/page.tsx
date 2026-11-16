@@ -35,6 +35,7 @@ import { OtherSettings } from "@/components/other-settings";
 import { loadUmbrella } from "@/lib/umbrella";
 import { BugTemplatesSettings } from "@/components/bug-templates";
 import { loadBugTemplates } from "@/lib/bug-templates-data";
+import { ssoOnly } from "@/lib/sso-only";
 
 export const metadata = { title: "Test cycle settings" };
 
@@ -116,6 +117,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ key: 
         me={user.id}
         canManage={canMembers}
         canEmail={invites.canEmail}
+        passwords={!ssoOnly()}
         requests={requests}
         team={project.name}
         nudge={!project.groupId && !project.rolesChosenAt && <RolesNudge target={{ projectId: project.id }} href={`/p/${project.key}/settings#roles`} />}
