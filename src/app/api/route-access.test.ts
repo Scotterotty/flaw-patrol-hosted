@@ -25,8 +25,22 @@ vi.mock("@/lib/link-access-server", () => ({ bashGuestOk: async (bashId: string,
 vi.mock("@/server/bashes", () => ({ bashTick: async () => {} }));
 vi.mock("@/lib/bash-live", () => ({ bashFinds: async (id: string) => (id === "b1" ? { projectId: "p1", finds: [] } : null), bashFindsVersion: async (id: string) => (id === "b1" ? { projectId: "p1", v: "v1" } : null) }));
 vi.mock("@/lib/live-rows-data", () => ({ liveRowsFor: async () => [] }));
+const files: Record<string, { id: string; projectId: string; uploadedById: string; bashItemId: null; contentType: string; fileName: string; data: Buffer }> = {
+  a1: { id: "a1", projectId: "p1", uploadedById: "someone", bashItemId: null, contentType: "image/png", fileName: "shot.png", data: Buffer.from("png") },
+};
 vi.mock("@/lib/db", () => ({
   db: {
+    // attachment-bytes.ts reads the file's size and slices with SQL.
+    $queryRaw: async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const sql = strings.join("?");
+      if (sql.includes("substring")) {
+        const [from, length, id] = values as [number, number, string];
+        const f = files[id];
+        return f ? [{ chunk: f.data.subarray(from - 1, from - 1 + length) }] : [];
+      }
+      const { data, ...f } = files[values[0] as string] ?? {};
+      return f.id ? [{ ...f, bytes: data!.length }] : [];
+    },
     user: {
       findUnique: async ({ where }: { where: { id: string } }) =>
         where.id === "pic" ? { avatar: Buffer.from("png"), avatarType: "image/png" } : (people[where.id] ?? null),

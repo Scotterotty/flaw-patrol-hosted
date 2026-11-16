@@ -28,7 +28,11 @@ These notes answer the "before deploying" list in the backend team's review
   database change, so PITR (or an on-demand backup right before a deploy) is the way back.
 - **Size:** uploaded videos, screenshots and Playwright traces are stored in the database
   for now (up to 100 MB each), so give storage room to grow and turn on automatic storage increase.
-  Start with 2 vCPU / 4 GB RAM / 50 GB SSD.
+  Start with 2 vCPU / 4 GB RAM / 50 GB SSD. Keep autovacuum on (the default); deleted
+  videos leave space that `VACUUM` reclaims, so a weekly `VACUUM (ANALYZE) "Attachment"` in
+  a quiet hour is a good idea once files pile up. PITR retention grows with these files too.
+- The app reads attachment files a slice at a time (1 MB), never whole, so playing or
+  scrubbing a video doesn't load the full file into the pod's memory.
 - A Cloud SQL Auth Proxy sidecar works too, if you prefer IAM over private IP. Then the
   addresses below point at `127.0.0.1:5432` and the proxy handles TLS.
 

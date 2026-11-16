@@ -151,6 +151,9 @@ function releaseScope(releases: string[]) {
   return quoted.length === 1 ? `fixVersion = ${quoted[0]}` : `fixVersion in (${quoted.join(",")})`;
 }
 
+/** A file going to Jira. Its bytes are read only when it's sent (attachEach), one file at a time. */
+export type JiraUpload = { fileName: string; contentType: string; size: number; load: () => Promise<Uint8Array> };
+
 export function normalizeSite(url: string) {
   return url.trim().replace(/\/+$/, "");
 }
@@ -893,19 +896,20 @@ export class JiraClient {
    * recording never stops the screenshots and logs. Jira's ids come back in the
    * files' order (null for a file that stayed in Flaw Patrol).
    */
-  async attachEach(key: string, files: { fileName: string; contentType: string; data: Uint8Array }[]) {
+  async attachEach(key: string, files: JiraUpload[]) {
     const limit = files.length ? await this.uploadLimit() : JIRA_FILE_LIMIT;
     const added: ({ id: string; filename: string } | null)[] = [];
     const tooBig: { fileName: string; size: number }[] = [];
     const failed: { fileName: string; why: string }[] = [];
     for (const f of files) {
-      if (tooBigForJira(f.data.length, limit)) {
-        tooBig.push({ fileName: f.fileName, size: f.data.length });
+      if (tooBigForJira(f.size, limit)) {
+        tooBig.push({ fileName: f.fileName, size: f.size });
         added.push(null);
         continue;
       }
       try {
-        added.push((await this.attach(key, [f]))[0] ?? null);
+        // One file's bytes in memory at a time, read just before it's sent.
+        added.push((await this.attach(key, [{ fileName: f.fileName, contentType: f.contentType, data: await f.load() }]))[0] ?? null);
       } catch (e) {
         failed.push({ fileName: f.fileName, why: e instanceof Error ? e.message : "upload failed" });
         added.push(null);
