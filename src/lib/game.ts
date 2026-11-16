@@ -3,6 +3,8 @@
 // worked out from the work itself (see src/lib/xp.ts), so it counts past
 // work too and can't drift out of step with it.
 
+import { funOff } from "./fun";
+
 export const XP_RULES = {
   verdict: {
     xp: 5,
@@ -186,7 +188,7 @@ export const isFrame = (id: string | null | undefined): id is FrameId => FRAMES.
 
 /** What others see next to someone's name: only when they play and picked one. */
 export function badgeOf(u: { gameEnabled?: boolean | null; gameTitle?: string | null; gameFrame?: string | null }) {
-  if (!u.gameEnabled) return { title: null, frame: null };
+  if (!u.gameEnabled || funOff()) return { title: null, frame: null };
   return {
     title: titleLabel(u.gameTitle),
     frame: isFrame(u.gameFrame) ? u.gameFrame : null,

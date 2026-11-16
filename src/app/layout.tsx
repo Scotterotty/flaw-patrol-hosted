@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { RadioProvider } from "@/components/radio-player";
 import { SpellingProvider } from "@/components/spelling";
 import { currentUser, mySpelling } from "@/lib/session";
+import { funOff } from "@/lib/fun";
 import { firstDay } from "@/lib/first-day";
 import { parseSpotifyLinks, validStation } from "@/lib/spotify";
 import { lookAttrs } from "@/lib/looks";
@@ -152,6 +153,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       data-font-heading={user?.fontHeading ?? "bungee"}
       data-text-size={user?.textSize ?? "100"}
       data-motion={user?.reduceMotion ? "reduce" : undefined}
+      // Hosted build: the How-to guide leaves out the radio when the server has the fun switched off.
+      data-fun={funOff() ? "off" : undefined}
       data-contrast={user?.strongContrast ? "more" : undefined}
       data-links={user?.underlineLinks ? "underline" : undefined}
       // Easier reading (ver_265): spacing, no all-caps or italics. See src/lib/easier-reading.ts.

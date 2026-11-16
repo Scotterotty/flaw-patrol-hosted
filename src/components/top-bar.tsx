@@ -11,6 +11,7 @@ import { Breadcrumbs } from "./breadcrumbs";
 import { GlobalSearch } from "./global-search";
 import { Logo } from "./logo";
 import { RadioPlayer } from "./radio-player";
+import { funOff } from "@/lib/fun";
 import { LiveBashPill } from "./bash";
 import { charterHome } from "@/lib/charter-data";
 import { liveBashOf } from "@/lib/umbrella";
@@ -54,6 +55,7 @@ export async function TopBar({ user, project }: { user: { id: string; name: stri
           joins={joins.count && joins.href ? { count: joins.count, href: joins.href } : null}
           waiting={joins.waiting}
           reading={!!me?.easierReading}
+          fun={!funOff()}
           signOut={async () => {
             "use server";
             await signOut({ redirectTo: "/signin" });

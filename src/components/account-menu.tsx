@@ -17,6 +17,7 @@ export function AccountMenu({
   joins,
   waiting = 0,
   reading = false,
+  fun = true,
 }: {
   children: ReactNode;
   label: string;
@@ -27,6 +28,8 @@ export function AccountMenu({
   waiting?: number;
   /** ver_265: Easier reading, switchable from here on any page. */
   reading?: boolean;
+  /** Hosted build: false when the server has the fun features switched off (src/lib/fun.ts). */
+  fun?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [easier, setEasier] = useState(reading);
@@ -111,9 +114,11 @@ export function AccountMenu({
           <Link role="menuitem" href="/whats-new" className={item} data-howto="account-whats-new">
             What&apos;s new
           </Link>
-          <Link role="menuitem" href="/account#game" className={item}>
-            Mini game and quests
-          </Link>
+          {fun && (
+            <Link role="menuitem" href="/account#game" className={item}>
+              Mini game and quests
+            </Link>
+          )}
           {admin && (
             <Link role="menuitem" href="/workspace" className={item} data-howto="account-workspace">
               Workspace settings

@@ -1,3 +1,5 @@
+import { funOff } from "@/lib/fun";
+import { notFound } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { TopBar } from "@/components/top-bar";
 import { Card, cx, PageHeader } from "@/components/ui";
@@ -16,6 +18,7 @@ const MEDALS = ["🥇", "🥈", "🥉"];
  * who play the mini game are listed.
  */
 export default async function LeaderboardPage() {
+  if (funOff()) notFound();
   const user = await requireUser();
   const players = await db.user.findMany({
     where: { gameEnabled: true },

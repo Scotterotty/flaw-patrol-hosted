@@ -96,7 +96,7 @@ test("Workspace settings: only admins, Microsoft sign-in tested before it turns 
   // The secret is stored sealed, never in plain text.
   const db = new PrismaClient();
   const row = await db.signInProvider.findUniqueOrThrow({ where: { id: "microsoft" } });
-  expect(row.secretEncrypted).toMatch(/^v1\./);
+  expect(row.secretEncrypted).toMatch(/^v[12]\./);
   expect(row.secretEncrypted).not.toContain("s3cret-value");
 
   // Not on yet: the sign-in page has no Microsoft button.

@@ -17,6 +17,7 @@ These notes answer the "before deploying" list in the backend team's review
 | Separate encryption key for saved tokens | `ENCRYPTION_KEY` in Vault (step 3, "Two keys") |
 | Trace viewer on a separate origin | `TRACE_VIEWER_ORIGIN` and a second Ingress host ("Replay address" below) |
 | Upload limits (upload DoS) | Built in: a few big uploads at once (`UPLOAD_CONCURRENCY`, default 3), one at a time and 30 an hour per person or CI token; waiting files capped at `STAGE_LIMIT_MB` (default 1024) |
+| Fun features behind a switch | `FUN_FEATURES=off` in `deployment.yaml` ("Fun features" below) |
 | Health endpoints | `/api/healthz` (liveness) and `/api/readyz` (readiness, runs `SELECT 1`) |
 | Turn password sign-in off, SSO only | `AUTH_SSO_ONLY=true`, `AUTH_ADMIN_EMAILS`, Microsoft from Vault (step 3, "Company sign-in only") |
 | Block internal addresses for Jira, Sentry and SSO (SSRF) | Built into the app; `OUTBOUND_ALLOW_HOSTS` for exceptions (below) |
@@ -113,6 +114,7 @@ Change in `deployment.yaml` before the first sync:
 - `AUTH_URL`: the address people will open, e.g. `https://flawpatrol.magnopus.global`.
 - `AUTH_ALLOWED_DOMAINS`: email domains allowed to sign in.
 - `TRACE_VIEWER_ORIGIN`: the replay address ("Replay address" below), or empty.
+- `FUN_FEATURES`: leave `off` for a work server ("Fun features" below).
 
 Add an Ingress (or Gateway route) to the `flaw-patrol` Service with:
 
@@ -137,6 +139,19 @@ app, replays open from a **second address** where nobody is signed in:
 On that address the app serves just the viewer and replay files, each through a signed link
 that names one file and stops working after 4 hours. The app's own address stops serving the
 viewer. Leave `TRACE_VIEWER_ORIGIN` empty to keep replays on the app's address (as on laptops).
+
+## Fun features
+
+Flaw Patrol has opt-in extras: a mini game (XP, levels, titles, a leaderboard), quest maps,
+and a radio that can play Spotify. `deployment.yaml` sets `FUN_FEATURES=off`, which:
+
+- hides them for everyone and refuses turning them on, and shows one line in their place on
+  Your account and in Workspace settings,
+- deletes nothing: set `FUN_FEATURES=on` (or remove the line) and sync, and everyone's
+  progress and choices come back.
+
+To switch them off in an emergency, set it back to `off` and sync; the change is live as soon as
+the new pod is ready (about a minute). Looks, colors and loading spinners aren't affected.
 
 ## Why one replica
 

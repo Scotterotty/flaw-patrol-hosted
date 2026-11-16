@@ -2,7 +2,7 @@
 
 import { ShowStartHereAgain } from "./first-day";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { findHowTo, HOW_TO, HOW_TO_GROUPS, HOW_TO_START, howToById, plainText, type HowToStep, type HowToTask } from "@/lib/how-to";
+import { findHowTo, howToShown, shownHowTo, HOW_TO_GROUPS, HOW_TO_START, howToById, plainText, type HowToStep, type HowToTask } from "@/lib/how-to";
 import { useSpell } from "./spelling";
 import { cx } from "./ui";
 import { pageScroller } from "@/lib/page-scroll";
@@ -381,7 +381,7 @@ export function HowToGuide({ startHidden = false }: { startHidden?: boolean }) {
     setShowing(false);
   };
 
-  const shown = useMemo(() => (q.trim() ? findHowTo(q) : HOW_TO), [q]);
+  const shown = useMemo(() => (q.trim() ? findHowTo(q, shownHowTo()) : shownHowTo()), [q]);
 
   if (!open) return null;
   return (
@@ -518,7 +518,7 @@ function TaskSteps({
   onShow: (i: number) => void;
   onNext: (id: string) => void;
 }) {
-  const next = task.next ? howToById.get(task.next) : undefined;
+  const next = task.next && howToShown(task.next) ? howToById.get(task.next) : undefined;
   const done = at >= task.steps.length;
   return (
     <div data-testid="how-to-task">

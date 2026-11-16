@@ -1,10 +1,12 @@
 import { FIRST_CLEAR_BONUS } from "@/lib/delve";
 import { dungeonsFor } from "@/lib/delve-data";
 import { db } from "@/lib/db";
+import { funOff } from "@/lib/fun";
 import { currentUser } from "@/lib/session";
 
 // First clear of a run's dungeon: pays the bonus once per run, however often it's asked.
 export async function POST(req: Request) {
+  if (funOff()) return new Response(null, { status: 404 });
   const user = await currentUser();
   if (!user) return new Response(null, { status: 401 });
   const body = await req.json().catch(() => null);

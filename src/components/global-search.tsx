@@ -6,7 +6,7 @@ import { CloseMatchesLabel } from "./close-matches";
 import { rememberOpened, searchEverything, searchStart, type RecentItem, type SearchGroup, type SearchHit, type SearchKind } from "@/server/search";
 import { cx } from "./ui";
 import { turnOnTool } from "@/server/tools";
-import { findHowTo, isHowToQuery } from "@/lib/how-to";
+import { findHowTo, isHowToQuery, shownHowTo } from "@/lib/how-to";
 import { openHowTo } from "./how-to-guide";
 import { useSpell } from "./spelling";
 
@@ -129,7 +129,7 @@ function SearchDialog({ scope: start, onClose }: { scope: { id: string; name: st
   // "how do I…" (or help, guide): the How-to guide's matching tasks come first, and Enter opens the guide.
   const guideRows: Row[] = useMemo(() => {
     if (!isHowToQuery(q) || (filter !== "all" && filter !== "pages")) return [];
-    const tasks = findHowTo(q).slice(0, 4);
+    const tasks = findHowTo(q, shownHowTo()).slice(0, 4);
     return [
       ...tasks.map((t) => ({ id: `${ids}-guide-${t.id}`, hit: { href: "#how-to-guide", label: spell(t.title), sub: `How-to guide · ${spell(t.sub)}` }, kind: "pages" as const, guide: t.id })),
       { id: `${ids}-guide-all`, hit: { href: "#how-to-guide", label: "Open the How-to guide", sub: "Every task, step by step, with Show me" }, kind: "pages" as const, guide: "" },

@@ -1,9 +1,12 @@
+import { funOff } from "@/lib/fun";
+import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
 import { DelveHost } from "@/components/delve-host";
 
 export const metadata = { title: "The Delve" };
 
 export default async function DelvePage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
+  if (funOff()) notFound();
   await requireUser();
   const { from } = await searchParams;
   // Back goes to the page the door was opened on, and only ever to a page inside the app.

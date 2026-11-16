@@ -1734,6 +1734,14 @@ export const HOW_TO: HowToTask[] = [
 
 export const howToById = new Map(HOW_TO.map((t) => [t.id, t]));
 
+/** Tasks for the fun features, left out when the server has them off (data-fun="off" on the page; src/lib/fun.ts). */
+const FUN_TASKS = new Set(["radio"]);
+const funOffHere = () => typeof document !== "undefined" && document.documentElement.dataset.fun === "off";
+/** Whether a task is shown on this server. */
+export const howToShown = (id: string) => !(FUN_TASKS.has(id) && funOffHere());
+/** Every task shown on this server. */
+export const shownHowTo = () => HOW_TO.filter((t) => howToShown(t.id));
+
 /** Every Show me target, for the tests that check each one is still on its page. */
 export const HOW_TO_TARGETS = [...new Set(HOW_TO.flatMap((t) => t.steps.flatMap((s) => (s.target ? [s.target] : []))))];
 
