@@ -11,11 +11,12 @@ import { updateMyAccessibility, updateMyBodyFont } from "@/server/account";
 import { Sp } from "./spelling";
 import { cx, ErrorText } from "./ui";
 
-type Settings = { textSize: TextSize; reduceMotion: boolean; strongContrast: boolean; underlineLinks: boolean; colorVision: Vision; visionShapes: boolean };
+type Settings = { textSize: TextSize; reduceMotion: boolean; strongContrast: boolean; underlineLinks: boolean; easierReading: boolean; colorVision: Vision; visionShapes: boolean };
 
 const SWATCH_STATUS: ResultStatus[] = ["PASSED", "FAILED", "BLOCKED", "RETEST", "SKIPPED"];
 
 const AIDS = [
+  { key: "easierReading", label: "Easier reading", help: "More space between letters, words and lines. Headings and labels in normal capitals, no italics, and a softer page." },
   { key: "strongContrast", label: "Stronger contrast", help: "Darker secondary text and clearer borders." },
   { key: "underlineLinks", label: "Underline links", help: "So links don't rely on color alone. Links in sentences are always underlined; this underlines the rest too." },
   { key: "reduceMotion", label: "Reduce motion", help: "Turns off animations and transitions." },
@@ -40,6 +41,8 @@ export function AccessibilitySettings({ initial }: { initial: Settings }) {
     else delete root.contrast;
     if (next.underlineLinks) root.links = "underline";
     else delete root.links;
+    if (next.easierReading) root.reading = "easier";
+    else delete root.reading;
     if (next.colorVision !== "standard") root.vision = next.colorVision;
     else delete root.vision;
     if (shapesOn(next.colorVision, next.visionShapes)) root.shapes = "on";
@@ -140,7 +143,7 @@ export function AccessibilitySettings({ initial }: { initial: Settings }) {
           ))}
         </div>
       </fieldset>
-      <div className="grid gap-3 sm:grid-cols-3" data-howto="access-aids">
+      <div className="grid gap-3 sm:grid-cols-2" data-howto="access-aids">
         {AIDS.map((o) => (
           <div key={o.key}>
             <label className="flex items-center gap-2 text-sm text-slate-800">

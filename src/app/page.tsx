@@ -14,6 +14,8 @@ import { startTiming } from "@/lib/timing";
 import { umbrellaCards } from "@/lib/umbrella-cards";
 import { canMakeUmbrellas, canManageGroups, visibleGroups } from "@/lib/groups";
 import { requireUser, mySpelling } from "@/lib/session";
+import { readingBannerDue } from "@/lib/easier-reading";
+import { ReadingBanner } from "@/components/reading-banner";
 import { NewUmbrellaButton } from "@/components/umbrella-ui";
 import { can } from "@/lib/permissions";
 import { WaitingToJoin } from "@/components/join-request";
@@ -158,6 +160,8 @@ export default async function HomePage() {
     <>
       <TopBar user={user} />
       <main id="main" tabIndex={-1} className="page page-list px-4 py-8">
+        {/* ver_265: offered once (and once more after Not now). */}
+        {readingBannerDue(user, new Date()) && <ReadingBanner />}
         {empty && !user.isAdmin ? (
           <WelcomeHome
             user={user}

@@ -18,6 +18,7 @@ import { fitsOf, isSlot, PAWN_COLORS, PAWNS, parseGear, pawnUnlocked } from "@/l
 import { questRecordFor } from "@/lib/quest-data";
 import { navOrderSchema } from "@/lib/nav-order";
 import { isSpelling } from "@/lib/spelling";
+import { nextReadingAsk } from "@/lib/easier-reading";
 import { isAccent, isBodyFont, isHeadingFont, isTextSize, isThemeMode } from "@/lib/theme";
 import { attempt, UserError } from "./result";
 
@@ -77,7 +78,7 @@ export async function updateMySpelling(spelling: string) {
 }
 
 /** Text size and display aids. */
-export async function updateMyAccessibility(a: { textSize: string; reduceMotion: boolean; strongContrast: boolean; underlineLinks: boolean; colorVision?: string; visionShapes?: boolean }) {
+export async function updateMyAccessibility(a: { textSize: string; reduceMotion: boolean; strongContrast: boolean; underlineLinks: boolean; easierReading?: boolean; colorVision?: string; visionShapes?: boolean }) {
   return attempt(async () => {
     const user = await requireUser();
     if (!isTextSize(a.textSize)) throw new UserError("Unknown text size.");
@@ -89,10 +90,30 @@ export async function updateMyAccessibility(a: { textSize: string; reduceMotion:
         reduceMotion: !!a.reduceMotion,
         strongContrast: !!a.strongContrast,
         underlineLinks: !!a.underlineLinks,
+        ...(a.easierReading !== undefined ? { easierReading: !!a.easierReading } : {}),
         ...(a.colorVision !== undefined ? { colorVision: a.colorVision } : {}),
         ...(a.visionShapes !== undefined ? { visionShapes: !!a.visionShapes } : {}),
       },
     });
+    return {};
+  });
+}
+
+/** Easier reading on or off, from the account menu or its banner (ver_265). Either way the banner is answered. */
+export async function setEasierReading(on: boolean) {
+  return attempt(async () => {
+    const user = await requireUser();
+    await db.user.update({ where: { id: user.id }, data: { easierReading: !!on, readingAsk: "done", readingAskAt: new Date() } });
+    return {};
+  });
+}
+
+/** The Easier reading banner's Not now (asked once more in two weeks) or × (never again). */
+export async function answerReadingBanner(answer: "later" | "done") {
+  return attempt(async () => {
+    const user = await requireUser();
+    if (answer !== "later" && answer !== "done") throw new UserError("Unknown answer.");
+    await db.user.update({ where: { id: user.id }, data: { readingAsk: nextReadingAsk(user.readingAsk, answer), readingAskAt: new Date() } });
     return {};
   });
 }

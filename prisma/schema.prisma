@@ -47,6 +47,11 @@ model User {
   reduceMotion         Boolean               @default(false)
   strongContrast       Boolean               @default(false)
   underlineLinks       Boolean               @default(false)
+  // Easier reading (ver_265): more letter, word and line spacing, no all-caps or italics.
+  easierReading        Boolean               @default(false)
+  // Its one-time banner: "" not answered yet, "later" (Not now, asked once more), "done".
+  readingAsk           String                @default("")
+  readingAskAt         DateTime?
   // Optional background radio, off until the person turns it on (src/lib/radio.ts).
   radioEnabled         Boolean               @default(false)
   radioStation         String                @default("fluid")

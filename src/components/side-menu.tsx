@@ -215,14 +215,15 @@ export function SideMenu({ label, head, groups, footer = [], active }: { label: 
       aria-current={active(i) ? "page" : undefined}
       title={i.tip}
       data-howto={guideName(i)}
+      // ver_265: medium weight and the bar's full text color (not its muted gray), so thin fonts read on dark bars.
       className={cx(
-        "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm",
+        "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm tracking-[0.01em]",
         (i.inner || i.small) && "py-1 text-[13px]",
         active(i)
           ? "bg-accent-100 font-semibold text-accent-700 ring-1 ring-accent-500 ring-inset"
           : i.sub || i.inner
-            ? "text-slate-600 hover:bg-slate-100"
-            : "text-slate-700 hover:bg-slate-100",
+            ? "font-medium text-slate-700 hover:bg-slate-100"
+            : "font-medium text-slate-800 hover:bg-slate-100",
       )}
     >
       {i.dot && <span aria-hidden className="size-1.5 flex-none rounded-full" style={{ background: i.dot }} />}
@@ -248,7 +249,7 @@ export function SideMenu({ label, head, groups, footer = [], active }: { label: 
       data-howto={guideName(i)}
       className={cx(
         "fp-chip flex min-h-6 max-w-full items-center gap-1 rounded-full px-1.5 py-0.5 text-xs ring-1 ring-inset focus-visible:outline-2 focus-visible:outline-accent-500",
-        active(i) ? "bg-accent-100 font-semibold text-accent-700 ring-accent-500" : "text-slate-700 ring-slate-200 hover:bg-slate-100",
+        active(i) ? "bg-accent-100 font-semibold text-accent-700 ring-accent-500" : "font-medium text-slate-800 ring-slate-200 hover:bg-slate-100",
       )}
     >
       {i.dot && <span aria-hidden className="size-1.5 flex-none rounded-full" style={{ background: i.dot }} />}
@@ -263,7 +264,7 @@ export function SideMenu({ label, head, groups, footer = [], active }: { label: 
       onClick={() => i.action === "how-to" && toggleHowTo()}
       data-testid={i.action === "how-to" ? "menu-how-to" : undefined}
       className={cx(
-        small ? "shrink-0 rounded-md px-2.5 py-1 text-xs text-slate-600" : "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-100",
+        small ? "shrink-0 rounded-md px-2.5 py-1 text-xs text-slate-600" : "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm font-medium tracking-[0.01em] text-slate-800 hover:bg-slate-100",
         "focus-visible:outline-2 focus-visible:outline-accent-500",
       )}
     >
@@ -340,7 +341,7 @@ export function SideMenu({ label, head, groups, footer = [], active }: { label: 
     <>
       {/* The background and border run the full height of the page; the links inside stay in view as you scroll. */}
       <div className="fp-bar relative hidden w-52 shrink-0 border-r border-slate-200 bg-surface md:block">
-        <nav ref={navRef} aria-label={label} className="sticky top-12 flex h-[calc(100vh-3rem)] flex-col overflow-y-auto px-2 py-4">
+        <nav ref={navRef} aria-label={label} className="fp-side sticky top-12 flex h-[calc(100vh-3rem)] flex-col overflow-y-auto px-2 py-4">
           {head}
           {arranging && (
             <p className="mb-1 rounded-md bg-accent-50 px-2.5 py-1.5 text-xs text-accent-800 ring-1 ring-accent-200 ring-inset">
@@ -418,7 +419,7 @@ export function SideMenu({ label, head, groups, footer = [], active }: { label: 
                       return (
                         <li key={i.href + i.label} className={cx((i.sub || i.inner) && "ml-3 border-l border-slate-200 pl-2", i.sub && !prev?.sub && !prev?.inner && "mt-0.5")}>
                           {i.heading ? (
-                            <p className="cursor-default px-2.5 pt-1.5 pb-0.5 text-[11px] font-semibold tracking-wide text-slate-500 uppercase select-none">{i.label}</p>
+                            <p className="cursor-default px-2.5 pt-1.5 pb-0.5 text-[11.5px] font-semibold tracking-wide text-slate-600 uppercase select-none">{i.label}</p>
                           ) : arranging && grp.label ? (
                             i.inner ? <div className="ml-3 border-l border-dashed border-slate-300 pl-1.5">{grip(i, grp.label, d)}</div> : grip(i, grp.label, d)
                           ) : i.inner ? (

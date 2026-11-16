@@ -154,6 +154,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       data-motion={user?.reduceMotion ? "reduce" : undefined}
       data-contrast={user?.strongContrast ? "more" : undefined}
       data-links={user?.underlineLinks ? "underline" : undefined}
+      // Easier reading (ver_265): spacing, no all-caps or italics. See src/lib/easier-reading.ts.
+      data-reading={user?.easierReading ? "easier" : undefined}
       // Color vision: another status palette, and shapes and patterns on statuses.
       data-vision={user && user.colorVision !== "standard" ? user.colorVision : undefined}
       data-shapes={looks.shapes ? "on" : undefined}

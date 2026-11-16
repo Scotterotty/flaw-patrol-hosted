@@ -53,6 +53,7 @@ export async function TopBar({ user, project }: { user: { id: string; name: stri
           admin={!!user.isAdmin}
           joins={joins.count && joins.href ? { count: joins.count, href: joins.href } : null}
           waiting={joins.waiting}
+          reading={!!me?.easierReading}
           signOut={async () => {
             "use server";
             await signOut({ redirectTo: "/signin" });

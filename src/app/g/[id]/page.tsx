@@ -15,6 +15,8 @@ import { can } from "@/lib/permissions";
 import { relativeTime } from "@/lib/format";
 import { canManageGroups } from "@/lib/groups";
 import { requireUser, mySpelling } from "@/lib/session";
+import { readingBannerDue } from "@/lib/easier-reading";
+import { ReadingBanner } from "@/components/reading-banner";
 import { loadUmbrella } from "@/lib/umbrella";
 import { MakeUmbrellaButton } from "@/components/umbrella-ui";
 import { Runs } from "./lists";
@@ -101,6 +103,7 @@ export default async function GroupPage({
     <>
       <TopBar user={user} />
       <main id="main" tabIndex={-1} className="page page-list px-4 py-8">
+        {readingBannerDue(user, new Date()) && <ReadingBanner />}
         <PageHeader
           title={
             <>
