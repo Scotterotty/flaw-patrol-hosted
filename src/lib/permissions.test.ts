@@ -8,7 +8,10 @@ describe("can (open by default, ver_96)", () => {
     expect(can("TESTER", "import")).toBe(true);
     expect(can("TESTER", "project:manage")).toBe(true);
     expect(can("TESTER", "cycle:create")).toBe(true);
-    expect(can("TESTER", "project:group")).toBe(true);
+    // Hosted build (review H1): only a test cycle's admins move it between umbrellas.
+    expect(can("TESTER", "project:group")).toBe(false);
+    expect(can("LEAD", "project:group")).toBe(false);
+    expect(can("ADMIN", "project:group")).toBe(true);
     expect(can("TESTER", "run:delete")).toBe(false);
     expect(can("TESTER", "case:archive")).toBe(false);
     expect(can("TESTER", "jira:manage")).toBe(false);

@@ -82,6 +82,13 @@ test("moving a test cycle into an umbrella needs Add test cycle there", async ({
     await db2.projectMember.update({ where: { projectId_userId: { projectId: ids.hubA, userId: tester.id } }, data: { role: "TESTER" } });
     expect(await callAction(tp, moveAction, [ids.looseA, ids.groupA])).toContain('"ok":true');
     expect((await db2.project.findUniqueOrThrow({ where: { id: ids.looseA } })).groupId).toBe(ids.groupA);
+    // Hosted build (review H1): a Tester on a test cycle can't give it away to an umbrella.
+    const admin = await db2.user.findUniqueOrThrow({ where: { email: "admin@example.com" } });
+    const theirs = await db2.project.create({
+      data: { key: `MC${TAG}`, name: `Not yours ${TAG}`, members: { create: [{ userId: admin.id, role: "ADMIN" }, { userId: tester.id, role: "TESTER" }] } },
+    });
+    expect(await callAction(tp, moveAction, [theirs.id, ids.groupA])).not.toContain('"ok":true');
+    expect((await db2.project.findUniqueOrThrow({ where: { id: theirs.id } })).groupId).toBeNull();
   } finally {
     await db2.$disconnect();
   }

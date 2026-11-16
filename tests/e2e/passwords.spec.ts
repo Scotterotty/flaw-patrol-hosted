@@ -93,3 +93,27 @@ test("passwords: first-time setup, wrong password, admin link, change", async ({
   await expect(m).not.toHaveURL(/signin/);
   await other.close();
 });
+
+// Hosted build (backend team review C1): a test cycle admin who isn't a workspace admin can't
+// see a colleague's password link (it would let them sign in as that colleague). With email
+// off, they're told to ask a workspace admin; an invite link can't be made for someone who joined.
+test("password links: only workspace admins see them", async ({ page }) => {
+  const { PrismaClient } = await import("@prisma/client");
+  const db = new PrismaClient();
+  const owner = `owner-${run.toLowerCase()}@example.com`;
+  const colleague = `colleague-${run.toLowerCase()}@example.com`;
+  try {
+    await db.workspace.upsert({ where: { id: 1 }, create: { id: 1, mailMode: "off" }, update: { mailMode: "off" } });
+    const o = await db.user.upsert({ where: { email: owner }, create: { email: owner, name: `Owner ${run}` }, update: {} });
+    const c = await db.user.upsert({ where: { email: colleague }, create: { email: colleague, name: `Colleague ${run}`, lastLoginAt: new Date() }, update: {} });
+    await db.project.create({ data: { key: `PO${run}`, name: `Owned ${run}`, members: { create: [{ userId: o.id, role: "ADMIN" }, { userId: c.id, role: "TESTER" }] } } });
+  } finally {
+    await db.$disconnect();
+  }
+  await signIn(page, owner, `Owner ${run}`);
+  await page.goto(`/p/PO${run}/settings`);
+  const row = page.getByRole("listitem").filter({ hasText: colleague });
+  await row.getByRole("button", { name: "Password link" }).click();
+  await expect(page.getByText("Password links go to the person's own email, and email isn't set up. Ask a workspace admin to make one.")).toBeVisible();
+  await expect(page.getByLabel("Password link")).toHaveCount(0);
+});

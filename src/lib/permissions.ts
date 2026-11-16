@@ -80,8 +80,10 @@ export const ROLE_ROWS: { id: string; group: string; label: string; actions: Act
   { id: "archcycles", group: "Archive and delete", label: "Archive test cycles and the umbrella", actions: ["cycle:archive", "umbrella:archive"], std: "ADMIN", tight: "ADMIN", archive: true },
 ];
 
-// Moving a test cycle into or out of a (pre-umbrella) project group: anyone.
-const NEEDS = { "project:group": "TESTER", "bash:join": "VIEWER", "case:flag": "VIEWER" } as Record<Action, Role>;
+// Moving a test cycle into or out of an umbrella or group: the test cycle's admins only
+// (hosted build, backend team review H1). Moving it hands it to the umbrella's admins and
+// role rules, so a tester could otherwise give away a cycle they don't run.
+const NEEDS = { "project:group": "ADMIN", "bash:join": "VIEWER", "case:flag": "VIEWER" } as Record<Action, Role>;
 for (const row of ROLE_ROWS) for (const a of row.actions) NEEDS[a] = row.std;
 
 /**
