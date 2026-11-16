@@ -14,6 +14,7 @@ These notes answer the "before deploying" list in the backend team's review
 | Migrations as an ArgoCD PreSync Job, not on app start | `migrate-job.yaml`, `MIGRATE_ON_START=false` in `deployment.yaml` |
 | Secrets from Vault | `external-secret.yaml` (External Secrets Operator) |
 | Single replica until uploads stop waiting on local disk | `deployment.yaml` (`replicas: 1`, `strategy: Recreate`) |
+| Separate encryption key for saved tokens | `ENCRYPTION_KEY` in Vault (step 3, "Two keys") |
 | Health endpoints | `/api/healthz` (liveness) and `/api/readyz` (readiness, runs `SELECT 1`) |
 | Turn password sign-in off, SSO only | `AUTH_SSO_ONLY=true`, `AUTH_ADMIN_EMAILS`, Microsoft from Vault (step 3, "Company sign-in only") |
 | Block internal addresses for Jira, Sentry and SSO (SSRF) | Built into the app; `OUTBOUND_ALLOW_HOSTS` for exceptions (below) |
@@ -56,13 +57,23 @@ Store these under one Vault path (the example uses `flaw-patrol`) and point
 |---|---|
 | `DATABASE_URL` | `postgresql://flawpatrol_app:PASSWORD@PRIVATE-IP:5432/flawpatrol?sslmode=require&connection_limit=10` |
 | `MIGRATE_DATABASE_URL` | `postgresql://flawpatrol_migrator:PASSWORD@PRIVATE-IP:5432/flawpatrol?sslmode=require` |
-| `AUTH_SECRET` | 32 random bytes: `openssl rand -base64 32`. Moving data over from the old Docker server? Use **its** AUTH_SECRET, or saved Jira/Sentry/Slack tokens stop working. |
-
+| `AUTH_SECRET` | 32 random bytes: `openssl rand -base64 32`. Signs sign-in sessions. Moving data over from the old Docker server? Use **its** AUTH_SECRET for the first start (see "Two keys" below). |
+| `ENCRYPTION_KEY` | 32 random bytes, made separately: `openssl rand -base64 32`. Encrypts saved Jira, GitHub, Qase, TeamCity, Sentry and Slack tokens. Back it up; never change it. |
 | `AUTH_MICROSOFT_TENANT_ID` | The Entra ID directory (tenant) ID |
 | `AUTH_MICROSOFT_ID` | The app registration's Application (client) ID |
 | `AUTH_MICROSOFT_SECRET` | A client secret for that app registration. Note its expiry date. |
 
 Passwords in the addresses must be URL-safe (letters and numbers are simplest).
+
+### Two keys
+
+- `AUTH_SECRET` only signs sign-in sessions. Changing it signs everyone out, and that's all.
+- `ENCRYPTION_KEY` locks the tokens people save for Jira, GitHub and the rest. Changing or losing
+  it means everyone pastes those tokens again, so keep it in Vault and never rotate it casually.
+- Data copied from the old Docker server has tokens locked with that server's `AUTH_SECRET`.
+  Start the new app once with the old `AUTH_SECRET` and the new `ENCRYPTION_KEY`: at start-up it
+  moves every saved token over to `ENCRYPTION_KEY` (the log says "Re-sealed saved secrets with
+  ENCRYPTION_KEY: ..."). After that, `AUTH_SECRET` can be changed freely.
 
 ### Company sign-in only
 
