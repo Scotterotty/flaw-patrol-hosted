@@ -16,6 +16,7 @@ These notes answer the "before deploying" list in the backend team's review
 | Single replica until uploads stop waiting on local disk | `deployment.yaml` (`replicas: 1`, `strategy: Recreate`) |
 | Separate encryption key for saved tokens | `ENCRYPTION_KEY` in Vault (step 3, "Two keys") |
 | Trace viewer on a separate origin | `TRACE_VIEWER_ORIGIN` and a second Ingress host ("Replay address" below) |
+| Upload limits (upload DoS) | Built in: a few big uploads at once (`UPLOAD_CONCURRENCY`, default 3), one at a time and 30 an hour per person or CI token; waiting files capped at `STAGE_LIMIT_MB` (default 1024) |
 | Health endpoints | `/api/healthz` (liveness) and `/api/readyz` (readiness, runs `SELECT 1`) |
 | Turn password sign-in off, SSO only | `AUTH_SSO_ONLY=true`, `AUTH_ADMIN_EMAILS`, Microsoft from Vault (step 3, "Company sign-in only") |
 | Block internal addresses for Jira, Sentry and SSO (SSRF) | Built into the app; `OUTBOUND_ALLOW_HOSTS` for exceptions (below) |
@@ -146,7 +147,11 @@ have the file. So:
 - `replicas: 1`, and `strategy: Recreate` so a deploy never runs old and new side by side.
   Expect a few seconds of downtime per deploy.
 - `/tmp` is an `emptyDir` with a 2 GiB limit, since the root filesystem is read-only.
-- Memory limit 2 GiB, because uploads are held in memory while they arrive.
+- Memory limit 2 GiB, because uploads are held in memory while they arrive. The app takes
+  at most 3 big uploads at once (`UPLOAD_CONCURRENCY`); others are asked to try again in a
+  minute. Raise both together if testers often see that.
+- Files waiting for Save use at most 1 GiB of `/tmp` (`STAGE_LIMIT_MB`); when it's full, the
+  oldest waiting uploads are cleared first.
 
 Moving uploads to a shared volume or a storage bucket (a later item in the review) lifts the
 one-replica rule.

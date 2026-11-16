@@ -1,5 +1,6 @@
 "use server";
 
+import { startUpload } from "@/lib/upload-gate";
 import { logActivity } from "@/lib/activity";
 import type { BuildSteps } from "@/lib/github-steps";
 import { revalidatePath } from "next/cache";
@@ -201,30 +202,41 @@ async function pulledRuns(repoId: string, ids: string[]) {
 export async function githubFetchResults(repoId: string, runId: string) {
   return attempt(async () => {
     const { repo, user } = await requireRepo(repoId, "run:import");
-    const client = clientOf(repo);
-    const run = await gh(() => client.run(runId));
-    const { files, media } = await gh(() => client.resultsWithMedia(runId, repo.resultsGlob, repo.bringFiles));
-    let read;
+    // Run downloads can be as big as an upload, so they count toward the same limits (upload-gate.ts).
+    const gate = startUpload(user.id);
+    if (!gate.ok) throw new UserError(gate.error);
     try {
-      read = mergeFiles(files);
-    } catch (e) {
-      throw new UserError(e instanceof Error ? e.message : "The results file couldn't be read.");
+      return await fetchResults(repo, user.id, runId);
+    } finally {
+      gate.done();
     }
-    if (!read.tests.length) throw new UserError("That run's results file has no tests in it.");
-    // Screenshots, videos and replays wait on the server until Save.
-    const stageId = await stageMedia(media, user.id);
-    return {
-      files,
-      stageId,
-      media: media.length ? { ...countMedia(media), unmatched: matchMedia(read.tests, media).unmatched } : null,
-      tests: read.tests.length,
-      // The file's own build wins; otherwise the GitHub run number.
-      build: read.build || String(run.number),
-      run: { id: run.id, number: run.number, url: run.url },
-      workflow: repo.workflowName,
-      groupId: repo.groupId,
-    };
   });
+}
+
+async function fetchResults(repo: Awaited<ReturnType<typeof requireRepo>>["repo"], userId: string, runId: string) {
+  const client = clientOf(repo);
+  const run = await gh(() => client.run(runId));
+  const { files, media } = await gh(() => client.resultsWithMedia(runId, repo.resultsGlob, repo.bringFiles));
+  let read;
+  try {
+    read = mergeFiles(files);
+  } catch (e) {
+    throw new UserError(e instanceof Error ? e.message : "The results file couldn't be read.");
+  }
+  if (!read.tests.length) throw new UserError("That run's results file has no tests in it.");
+  // Screenshots, videos and replays wait on the server until Save.
+  const stageId = await stageMedia(media, userId);
+  return {
+    files,
+    stageId,
+    media: media.length ? { ...countMedia(media), unmatched: matchMedia(read.tests, media).unmatched } : null,
+    tests: read.tests.length,
+    // The file's own build wins; otherwise the GitHub run number.
+    build: read.build || String(run.number),
+    run: { id: run.id, number: run.number, url: run.url },
+    workflow: repo.workflowName,
+    groupId: repo.groupId,
+  };
 }
 
 /** Settings → GitHub: also bring in screenshots, videos and replays from the same artifact. */
