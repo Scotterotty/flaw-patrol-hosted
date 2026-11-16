@@ -14,6 +14,7 @@ import { signInButtons } from "./sign-in-config";
 export const INVITE_DAYS = INVITE_LINK_DAYS;
 export const RESET_HOURS = 24;
 
+/** Where emailed links point. Hosted servers set AUTH_URL, so links never come from request headers. */
 export async function appOrigin() {
   if (process.env.AUTH_URL) return new URL(process.env.AUTH_URL).origin;
   const h = await headers();
