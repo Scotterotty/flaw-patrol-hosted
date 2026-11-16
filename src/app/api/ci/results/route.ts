@@ -4,6 +4,7 @@ import { saveAutomationRun } from "@/lib/automation-save";
 import { ciHash, CI_PREFIX } from "@/lib/ci-token";
 import { ciRateLimited } from "@/lib/ci-rate-limit";
 import { db } from "@/lib/db";
+import { startUpload } from "@/lib/upload-gate";
 import { readForm } from "@/lib/zip-limits";
 import { UserError } from "@/server/result";
 
@@ -24,10 +25,24 @@ export async function POST(req: Request) {
   const auth = req.headers.get("authorization") ?? "";
   const token = auth.match(/^Bearer\s+(\S+)$/i)?.[1] ?? "";
   if (!token.startsWith(CI_PREFIX)) return fail(401, "Send the token as: Authorization: Bearer fp_ci_…");
-  const row = await db.ciToken.findUnique({ where: { hash: ciHash(token) }, include: { group: { select: { id: true, name: true, archivedAt: true, hubProjectId: true } } } });
+  const row = await findToken(ciHash(token));
   if (!row) return fail(401, "That token isn't valid. It may have been revoked.");
   if (await ciRateLimited(row.id)) return fail(429, "Too many uploads with this token. Wait a minute and try again.");
   if (row.group.archivedAt) return fail(409, `${row.group.name} is archived. Restore it to send results.`);
+  // A few big uploads at a time on the server, one per token (upload-gate.ts).
+  const gate = startUpload(`ci:${row.id}`);
+  if (!gate.ok) return fail(gate.status, gate.error);
+  try {
+    return await receive(req, row);
+  } finally {
+    gate.done();
+  }
+}
+
+type TokenRow = NonNullable<Awaited<ReturnType<typeof findToken>>>;
+const findToken = (hash: string) => db.ciToken.findUnique({ where: { hash }, include: { group: { select: { id: true, name: true, archivedAt: true, hubProjectId: true } } } });
+
+async function receive(req: Request, row: TokenRow) {
   // Counted while reading, so a missing or wrong Content-Length can't get past the cap.
   let form: FormData | null;
   try {

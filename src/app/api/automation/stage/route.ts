@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { mergeFiles } from "@/lib/automation";
 import { countMedia, expandUpload, matchMedia } from "@/lib/automation-media";
 import { stageMedia } from "@/lib/media-stage";
+import { startUpload } from "@/lib/upload-gate";
 import { readForm } from "@/lib/zip-limits";
 
 // Upload automation results with pictures: the results file plus the
@@ -18,6 +19,17 @@ export async function POST(req: Request) {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) return fail(401, "Sign in first.");
+  // A few big uploads at a time, one per person, a limited number per hour (upload-gate.ts).
+  const gate = startUpload(userId);
+  if (!gate.ok) return fail(gate.status, gate.error);
+  try {
+    return await stage(req, userId);
+  } finally {
+    gate.done();
+  }
+}
+
+async function stage(req: Request, userId: string) {
   // Counted while reading, so a missing or wrong Content-Length can't get past the cap.
   let form: FormData | null;
   try {
