@@ -38,8 +38,9 @@ import {
   type TemplateBug,
   type TemplateSettings,
 } from "@/lib/bug-template";
-import { JiraClient, JiraError, jiraFor, jiraValue, normalizeSite, refreshDefectStatuses, type FieldValue, type JiraIssue, type JiraUser, type MetaField } from "@/lib/jira";
+import { JiraClient, JiraError, jiraFor, type JiraUpload, jiraValue, normalizeSite, refreshDefectStatuses, type FieldValue, type JiraIssue, type JiraUser, type MetaField } from "@/lib/jira";
 import { addRowToAdf, answersAdf, bugAdf, defaultSummary, importedAdf, parseIssueKey, sectionText, templateAdf, type BugContext, type FileRef } from "@/lib/jira-format";
+import { attachmentBytes } from "@/lib/attachment-bytes";
 import { jiraHostProblem } from "@/lib/outbound";
 import { requireProjectAction, requireUser } from "@/lib/session";
 import { DEFAULT_SEVERITY, PLAIN_SCALE, SEVERITIES, severitySchema, type SeverityConfig } from "@/lib/severity";
@@ -63,6 +64,10 @@ async function wrap<T extends object>(fn: () => Promise<T>) {
     }
   });
 }
+
+/** Attachments without their file: bytes are read one file at a time when sent (upload). */
+const FILE_META = { id: true, fileName: true, contentType: true, size: true } as const;
+const upload = (f: { id: string; fileName: string; contentType: string; size: number }): JiraUpload => ({ fileName: f.fileName, contentType: f.contentType, size: f.size, load: () => attachmentBytes(f.id) });
 
 /** "yourcompany.atlassian.net" from a site address, to tell whether it changed. */
 const siteHost = (url: string) => {
@@ -534,7 +539,7 @@ const asText = (v: FieldValue) => (Array.isArray(v) ? v.join(", ") : v);
  * description is written again to show them: screenshots and videos inline when
  * Jira gives their media ids, otherwise as links.
  */
-async function fileTemplateBug(client: JiraClient, b: TemplateBug, severity: Severity, account: JiraUser | null, tester: string, files: { fileName: string; contentType: string; data: Uint8Array }[], trace: { label: string; link: string | null }) {
+async function fileTemplateBug(client: JiraClient, b: TemplateBug, severity: Severity, account: JiraUser | null, tester: string, files: JiraUpload[], trace: { label: string; link: string | null }) {
   const meta = await client.fieldMeta().catch(() => null);
   const fields: Record<string, { name: string; value: unknown }> = {};
   const extra: { name: string; text: string }[] = [];
@@ -614,7 +619,7 @@ export async function fileJiraBug(projectId: string, entryId: string, input: z.i
     // The tester is the bug's Reporter in Jira. When that can't be set, their name goes in the description.
     const account = await jiraAccountOf(client, user);
     const tester = user.name ?? user.email;
-    const found = data.attachmentIds.length ? await db.attachment.findMany({ where: { id: { in: data.attachmentIds }, projectId } }) : [];
+    const found = data.attachmentIds.length ? await db.attachment.findMany({ where: { id: { in: data.attachmentIds }, projectId }, select: FILE_META }) : [];
     // In the order the tester ticked them.
     const files = data.attachmentIds.flatMap((id) => found.filter((f) => f.id === id));
     const template = data.template && (await templateOf(projectId)) ? data.template : null;
@@ -656,10 +661,10 @@ export async function fileJiraBug(projectId: string, entryId: string, input: z.i
         reporterId: account?.accountId,
         fields,
       }));
-      attachError = (await client.attachEach(key, files.map((f) => ({ fileName: f.fileName, contentType: f.contentType, data: f.data })))).note;
+      attachError = (await client.attachEach(key, files.map(upload))).note;
     } else if (template) {
       summary = templateTitle(template);
-      ({ key, reporterSet, attachError, linkError } = await fileTemplateBug(client, template, data.severity, account, tester, files, traceOf(ctx)));
+      ({ key, reporterSet, attachError, linkError } = await fileTemplateBug(client, template, data.severity, account, tester, files.map(upload), traceOf(ctx)));
       await rememberAnswers(user.id, user.bugProfile, template);
     } else {
       summary ||= defaultSummary(ctx);
@@ -669,7 +674,7 @@ export async function fileJiraBug(projectId: string, entryId: string, input: z.i
         severity: data.severity,
         reporterId: account?.accountId,
       }));
-      attachError = (await client.attachEach(key, files.map((f) => ({ fileName: f.fileName, contentType: f.contentType, data: f.data })))).note;
+      attachError = (await client.attachEach(key, files.map(upload))).note;
     }
     const reporterNote =
       account && !reporterSet
@@ -1136,7 +1141,7 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
     let answers = cleanAnswers(layout, data.answers);
     const sectionFileIds = answers.flatMap((a) => (a.files ?? []).map((f) => f.id));
     const ids = [...new Set([...data.attachmentIds, ...sectionFileIds])];
-    const found = ids.length ? await db.attachment.findMany({ where: { id: { in: ids }, projectId } }) : [];
+    const found = ids.length ? await db.attachment.findMany({ where: { id: { in: ids }, projectId }, select: FILE_META }) : [];
     const general = data.attachmentIds.flatMap((id) => found.filter((f) => f.id === id));
     // Files under a heading, named as stored (not as the browser said).
     answers = answers.map((a) => (a.files ? { ...a, files: a.files.flatMap((f) => found.filter((x) => x.id === f.id).map((x) => ({ id: x.id, fileName: x.fileName }))) } : a));
@@ -1196,7 +1201,7 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
     if (kept.oko) {
       // The OKO layout files exactly as the OKO form does: every answer into Jira's own field.
       const bug = draftToOko({ platform: data.platform, area: data.area, summary: data.summary, answers, fields: kept.fields });
-      ({ key, reporterSet, attachError, linkError } = await fileTemplateBug(client, bug, data.severity, account, tester, allFiles, trace));
+      ({ key, reporterSet, attachError, linkError } = await fileTemplateBug(client, bug, data.severity, account, tester, allFiles.map(upload), trace));
       // Write a bug remembers Context and User name & ID too, as a run's Report a bug does.
       await rememberAnswers(user.id, user.bugProfile, bug);
     } else {
@@ -1212,7 +1217,7 @@ export async function fileTemplatedBug(projectId: string, entryId: string, input
         reporterId: account?.accountId,
         fields,
       }));
-      attachError = (await client.attachEach(key, allFiles.map((f) => ({ fileName: f.fileName, contentType: f.contentType, data: f.data })))).note;
+      attachError = (await client.attachEach(key, allFiles.map(upload))).note;
     }
     const reporterNote =
       account && !reporterSet ? `Jira wouldn't let Flaw Patrol set you as the reporter of ${key}, so your name is in its description instead. Ask a Flaw Patrol admin to check Settings → Jira.` : null;
@@ -1271,7 +1276,7 @@ export async function addBugRow(projectId: string, input: z.input<typeof rowSche
     const at = answers.findIndex((a) => a.id === data.answerId && a.rows && a.columns && a.growing);
     if (at < 0) throw new UserError("This bug has no table to add a row to.");
     const a = answers[at];
-    const files = data.attachmentIds.length ? await db.attachment.findMany({ where: { id: { in: data.attachmentIds }, projectId } }) : [];
+    const files = data.attachmentIds.length ? await db.attachment.findMany({ where: { id: { in: data.attachmentIds }, projectId }, select: FILE_META }) : [];
     const row = a.columns!.map((c, i) => (c.fill === "files" ? files.map((f) => f.fileName).join("\n") || "None" : (data.cells[i] ?? "").trim()));
     if (!row.some((c) => c && c !== "None")) throw new UserError("Fill in at least one cell.");
     answers[at] = { ...a, rows: [...a.rows!, row].slice(-200) };
@@ -1280,7 +1285,7 @@ export async function addBugRow(projectId: string, input: z.input<typeof rowSche
       const client = await jiraFor(projectId);
       if (client) {
         try {
-          const sent = files.length ? await client.attachEach(defect.externalKey, files.map((f) => ({ fileName: f.fileName, contentType: f.contentType, data: f.data }))) : null;
+          const sent = files.length ? await client.attachEach(defect.externalKey, files.map(upload)) : null;
           if (sent?.note) jiraError = sent.note.replace(`${defect.externalKey} was created. `, "The row is saved. ");
           // Only the table changes: the rest of the description stays as Jira has it, edits made there included.
           const now = await client.getDescription(defect.externalKey);
