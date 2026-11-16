@@ -40,6 +40,7 @@ import {
 } from "@/lib/bug-template";
 import { JiraClient, JiraError, jiraFor, jiraValue, normalizeSite, refreshDefectStatuses, type FieldValue, type JiraIssue, type JiraUser, type MetaField } from "@/lib/jira";
 import { addRowToAdf, answersAdf, bugAdf, defaultSummary, importedAdf, parseIssueKey, sectionText, templateAdf, type BugContext, type FileRef } from "@/lib/jira-format";
+import { jiraHostProblem } from "@/lib/outbound";
 import { requireProjectAction, requireUser } from "@/lib/session";
 import { DEFAULT_SEVERITY, PLAIN_SCALE, SEVERITIES, severitySchema, type SeverityConfig } from "@/lib/severity";
 import { alertBugFiled } from "@/lib/slack";
@@ -63,6 +64,15 @@ async function wrap<T extends object>(fn: () => Promise<T>) {
   });
 }
 
+/** "yourcompany.atlassian.net" from a site address, to tell whether it changed. */
+const siteHost = (url: string) => {
+  try {
+    return new URL(normalizeSite(url)).host.toLowerCase();
+  } catch {
+    return url.trim().toLowerCase();
+  }
+};
+
 const configSchema = z.object({
   siteUrl: z.string().trim().url("Enter the site address, like https://yourcompany.atlassian.net"),
   email: z.string().trim().email("Enter the email of the Jira account"),
@@ -76,10 +86,15 @@ export async function saveJiraConfig(projectId: string, input: z.input<typeof co
     const { project, user } = await requireProjectAction(projectId, "jira:manage");
     const data = configSchema.parse(input);
     const existing = await db.jiraConfig.findUnique({ where: { projectId } });
+    const hostProblem = jiraHostProblem(normalizeSite(data.siteUrl));
+    if (hostProblem) throw new UserError(hostProblem);
     let token = data.token;
     if (!token) {
       if (!existing) throw new UserError("Paste an API token.");
-      token = (await jiraFor(projectId))!.creds.token;
+      const saved = (await jiraFor(projectId))!.creds;
+      // The saved token only goes back to the site it was made for (backend team review H2).
+      if (siteHost(saved.siteUrl) !== siteHost(data.siteUrl)) throw new UserError("You changed the site address, so paste the API token again.");
+      token = saved.token;
     }
     const client = new JiraClient({ ...data, siteUrl: normalizeSite(data.siteUrl), token });
     const who = await client.check();

@@ -11,4 +11,4 @@ resources:
 images:
   - name: flaw-patrol
     newName: REGISTRY/flaw-patrol # e.g. europe-docker.pkg.dev/PROJECT/apps/flaw-patrol
-    newTag: "0.4.0-alpha.1001"
+    newTag: "VERSION" # the app version, from package.json (e.g. 0.4.0-alpha.1002)

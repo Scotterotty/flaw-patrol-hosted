@@ -40,6 +40,10 @@ spec:
             - { name: AUTH_URL, value: "https://flawpatrol.example.com" }
             # Only these email domains may sign in.
             - { name: AUTH_ALLOWED_DOMAINS, value: "magnopus.com" }
+            # Jira, Sentry, TeamCity and company sign-in may only be reached on public
+            # https addresses. List internal hosts the app may call anyway (e.g. a TeamCity
+            # inside the company network), comma separated.
+            - { name: OUTBOUND_ALLOW_HOSTS, value: "" }
             # Database connections this pod keeps open (Cloud SQL has a limit per instance).
             - { name: DATABASE_POOL, value: "10" }
           resources:
