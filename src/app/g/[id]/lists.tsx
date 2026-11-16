@@ -1,3 +1,5 @@
+import { groupByPlan, PlanListRow } from "@/components/plan-list-row";
+import { plansByIds } from "@/lib/plan-data";
 import { mySpelling } from "@/lib/session";
 import { RunName } from "@/components/run-name";
 import { knownBugCounts } from "@/lib/known-bugs";
@@ -30,6 +32,8 @@ export async function Runs({ projectIds, state, kind, kinds = [], canStart = tru
     include: { project: { select: { key: true, name: true } }, suite: { select: { name: true } }, entries: { select: { status: true, kind: true } } },
   });
   const known = await knownBugCounts(runs.filter((r) => r.state === "ACTIVE" && !r.automated).map((r) => r.id));
+  // Test plans show as one row each, with their runs inside.
+  const plans = await plansByIds(runs.flatMap((r) => (r.planId ? [r.planId] : [])));
   const newsCounts = await caseNewsCounts(runs.filter((r) => r.state === "ACTIVE" || r.automated).slice(0, 30).map((r) => r.id));
   if (runs.length === 0)
     return state === "automated" ? (
@@ -39,7 +43,9 @@ export async function Runs({ projectIds, state, kind, kinds = [], canStart = tru
     );
   return (
     <Card className="divide-y divide-slate-100">
-      {runs.map((r) => {
+      {groupByPlan(runs, plans).map((item) => {
+        if (item.kind === "plan") return <PlanListRow key={item.plan.id} plan={item.plan} runs={item.runs} projectKey={item.runs[0].project.key} tag={item.runs[0].project.name} />;
+        const r = item.run;
         const c = countStatuses(r.entries.map((e) => e.status));
         const t = totals(c);
         return (

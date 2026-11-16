@@ -9,6 +9,8 @@ import { umbrellaOf } from "@/lib/umbrella";
 import Link from "next/link";
 import { fieldBits } from "@/lib/run-fields";
 import { StartRunBox } from "@/components/start-run-box";
+import { groupByPlan, PlanListRow } from "@/components/plan-list-row";
+import { plansByIds } from "@/lib/plan-data";
 import { StartBashButton } from "@/components/bash-start";
 import { BringInResults } from "@/components/automation-upload";
 import { StatusBar } from "@/components/status";
@@ -48,6 +50,8 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
   ]);
   const known = await knownBugCounts(runs.filter((r) => r.state === "ACTIVE" && !r.automated).map((r) => r.id));
   const newsCounts = await caseNewsCounts(runs.filter((r) => r.state === "ACTIVE" || r.automated).slice(0, 30).map((r) => r.id));
+  // Test plans show as one row each, with their runs inside.
+  const plans = await plansByIds(runs.flatMap((r) => (r.planId ? [r.planId] : [])));
   const autoCount = await db.testRun.count({ where: { projectId: project.id, automated: true } });
   const canStart = can(who, "run:create");
   const picker = canStart ? <StartRunBox scope={{ projectKey: project.key }} openParam="run" /> : null;
@@ -93,7 +97,9 @@ export default async function RunsPage({ params, searchParams }: { params: Promi
         </EmptyState>
       ) : (
         <Card className="divide-y divide-slate-100">
-          {runs.map((r) => {
+          {groupByPlan(runs, plans).map((item) => {
+            if (item.kind === "plan") return <PlanListRow key={item.plan.id} plan={item.plan} runs={item.runs} projectKey={project.key} />;
+            const r = item.run;
             const c = countStatuses(r.entries.map((e) => e.status));
             const t = totals(c);
             const mine = r.entries.filter((e) => e.assigneeId === user.id && isOpen(e.status)).length;

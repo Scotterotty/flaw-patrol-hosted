@@ -1,3 +1,6 @@
+import { PlanLine } from "@/components/plan-line";
+import { planLineFor } from "@/lib/plan-data";
+import { valuesLabel } from "@/lib/configurations";
 import { parseSisterFill } from "@/lib/sisters";
 import { runTag, runTitle } from "@/lib/run-label";
 import { rowsOfResult } from "@/lib/test-data-history";
@@ -83,6 +86,8 @@ export default async function ExecutePage({
     timing.step("Sentry", sentryConnected(project.id)),
   ]);
   if (!run) notFound();
+  // A test plan's run: the blue line naming the plan and its values.
+  const planLine = await planLineFor(run);
   if (!run.entries.length) redirect(`/p/${project.key}/runs/${run.number}`);
 
   // Sorting by priority also changes which case comes next.
@@ -232,6 +237,12 @@ export default async function ExecutePage({
   };
   const takeBar = <TakeCase {...take} session={!!entry.charter} />;
   return (
+    <>
+    {planLine && (
+      <div className="mx-auto max-w-[110rem]">
+        <PlanLine line={planLine} projectKey={project.key} tail="/execute" />
+      </div>
+    )}
     <div className="mx-auto flex max-w-[110rem] flex-col gap-5 lg:flex-row bigtext:flex-col">
       <LiveRefresh url={`/api/live/runs/${run.id}`} rows renderedAt={renderedAt} />
       <CrumbName href={`/p/${project.key}/runs/${run.number}`} label={runTitle(run, spelling)} />
@@ -358,6 +369,7 @@ export default async function ExecutePage({
         ) : (
           <Runner
           key={entry.id + (last?.id ?? "")}
+          planTag={planLine ? valuesLabel(planLine.values) : ""}
           canCloseRun={can(who, "run:manage")}
           justFinished={sp.finished === "1" && run.state === "ACTIVE" ? run.id : null}
           regression={regression}
@@ -425,5 +437,6 @@ export default async function ExecutePage({
         )}
       </div>
     </div>
+    </>
   );
 }

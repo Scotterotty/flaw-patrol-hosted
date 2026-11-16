@@ -7,6 +7,7 @@ import { forgivingFilter, tagHits } from "@/lib/fuzzy";
 import { CloseMatchesLabel } from "./close-matches";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { MAX_PLAN_RUNS, pairingCount, planCountLine } from "@/lib/configurations";
 import { PRIORITIES, PRIORITY_LABEL } from "@/lib/format";
 import { onStartRun, startKind, startPrefetch } from "@/lib/start-kind";
 import { prefetchOn } from "@/lib/use-lazy";
@@ -244,6 +245,8 @@ function Form({
   const [cycles, setCycles] = useState<string[]>(opts.hereId && opts.cycles.some((c) => c.id === opts.hereId) ? [opts.hereId] : onlyOne ? [onlyOne] : []);
   // "Also include the automated cases": off, automation's own cases stay out of the run.
   const [withAuto, setWithAuto] = useState(false);
+  // Configurations: values ticked under "Test on these Configurations", by Configuration id.
+  const [cfgTicks, setCfgTicks] = useState<Record<string, string[]>>({});
   const [q, setQ] = useState("");
   const [folder, setFolder] = useState("");
   const [tag, setTag] = useState("");
@@ -318,6 +321,9 @@ function Form({
   const older = opts.cycles.filter((c) => !c.current && !ticked.includes(c.id)).length;
 
   const runCount = ticked.length + (makingCycle ? 1 : 0);
+  // A test plan: one run per ticked value, or per pairing across Configurations.
+  const planPicks = session || isSheet ? [] : opts.configurations.map((c) => ({ name: c.name, values: c.values.filter((v) => cfgTicks[c.id]?.includes(v)) }));
+  const planRuns = pairingCount(planPicks);
   const pickKind = (id: string) => {
     // Release candidate and Bug bash have boxes of their own.
     if (id === "rc" || id === "bash") {
@@ -346,6 +352,7 @@ function Form({
             return where.length > 1 ? `One run in each: ${where.join(", ")}` : `Goes in ${where[0]}`;
           })(),
     ],
+    ...(planRuns > 0 ? [[planRuns <= MAX_PLAN_RUNS, planRuns <= MAX_PLAN_RUNS ? `Test plan: ${planRuns === 1 ? "1 run" : `${planRuns} runs`}${runCount > 1 ? " in each" : ""}` : `Untick some values: ${planRuns} runs is over ${MAX_PLAN_RUNS}`] as [boolean, string]] : []),
     ...missingFields.map((f): [boolean, string] => [false, `Fill in ${f.name}`]),
   ];
   const sheetTodo: [boolean, string][] = [
@@ -378,6 +385,7 @@ function Form({
         suiteId: what === "suite" ? suiteId : undefined,
         caseIds: what === "cases" ? picked : undefined,
         withAutomated: withAuto,
+        configs: planRuns ? opts.configurations.map((c) => ({ id: c.id, values: cfgTicks[c.id] ?? [] })).filter((c) => c.values.length) : [],
         name: name.trim() || autoName,
         release: release.trim(),
         cycleRelease: !release.trim() && cycleRelease,
@@ -391,6 +399,17 @@ function Form({
       });
       if (!res.ok) return setError(res.error);
       const [first] = res.runs;
+      // A test plan opens its plan page, or its first run with Create and test now.
+      const [plan] = res.plans;
+      if (plan) {
+        setOpening({ what: `${res.runs.length} runs`, cases: count, runs: res.runs.length });
+        const toPlan = res.plans.length > 1 ? (opts.umbrella ? `/g/${opts.umbrella.id}/runs` : `/p/${plan.key}/runs`) : goTest ? `/p/${plan.key}/runs/${plan.runs[0].number}/execute` : `/p/${plan.key}/plans/${plan.number}`;
+        if (toPlan.endsWith("/execute")) return window.location.assign(toPlan);
+        router.refresh();
+        router.push(toPlan);
+        if (toPlan === pathname) onClose();
+        return;
+      }
       // The box stays up with "Opening it…" until the next page shows.
       setOpening({ what: res.runs.length === 1 ? runTitle({ name: name.trim() || autoName, build }) : `${res.runs.length} ${session ? "sessions" : "runs"}`, cases: count, runs: res.runs.length });
       // Handed to someone else: land on the run page with a link to send them.
@@ -810,6 +829,10 @@ function Form({
         <RunFieldInputs fields={opts.runFields.filter((f) => f.required)} prefix="rb" />
       </div>
 
+      {!session && opts.configurations.length > 0 && (
+        <ConfigTicks configurations={opts.configurations} ticks={cfgTicks} onChange={setCfgTicks} runs={planRuns} cases={count} plans={Math.max(1, runCount)} />
+      )}
+
       <div>
         <button type="button" className="text-xs text-slate-600 hover:underline" aria-expanded={more} onClick={() => setMore((m) => !m)}>
           {more ? "▾" : "▸"} More details (optional): {[...opts.runFields.filter((f) => !f.required).map((f) => (f.id === "csp" ? "CSP" : f.name)), "environment, assign to, notes"].join(", ")}
@@ -877,7 +900,7 @@ function Form({
               </Button>
             ) : runCount > 1 ? (
               <Button variant="primary" disabled={busy || !ready} onClick={() => submit(false)} data-howto={session ? undefined : "run-go"}>
-                {busy ? <Working opening={!!opening} session={session} /> : session ? `Start ${runCount} sessions` : `Create ${runCount} runs`}
+                {busy ? <Working opening={!!opening} session={session} /> : session ? `Start ${runCount} sessions` : planRuns ? `Create ${runCount} test plans` : `Create ${runCount} runs`}
               </Button>
             ) : session ? (
               <Button variant="primary" disabled={busy || !ready} onClick={() => submit(true)}>
@@ -886,7 +909,7 @@ function Form({
             ) : (
               <>
                 <Button disabled={busy || !ready} onClick={() => submit(false)} data-howto={handed ? "run-go" : undefined}>
-                  {busy && pressed === "plain" ? <Working opening={!!opening} session={session} /> : kind ? `Create ${kind.name.toLowerCase()}` : "Create run"}
+                  {busy && pressed === "plain" ? <Working opening={!!opening} session={session} /> : planRuns ? "Create test plan" : kind ? `Create ${kind.name.toLowerCase()}` : "Create run"}
                 </Button>
                 {/* Handing every case to someone else: no "test now" for you. */}
                 {!handed && (
@@ -1086,6 +1109,70 @@ function KindStep({
           </div>
         </div>
       )}
+    </section>
+  );
+}
+
+/**
+ * "Test on these Configurations": tick values and get one run per
+ * value as a test plan. Leave everything unticked for one plain run.
+ */
+function ConfigTicks({
+  configurations,
+  ticks,
+  onChange,
+  runs,
+  cases,
+  plans,
+}: {
+  configurations: RunBoxOptions["configurations"];
+  ticks: Record<string, string[]>;
+  onChange: (t: Record<string, string[]>) => void;
+  runs: number;
+  cases: number;
+  plans: number;
+}) {
+  const set = (id: string, values: string[]) => onChange({ ...ticks, [id]: values });
+  return (
+    <section className="space-y-2.5 rounded-lg border border-slate-200 p-3" aria-labelledby="rb-cfg-h" data-howto="run-configurations">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 id="rb-cfg-h" className="text-sm font-semibold text-slate-900">
+          Test on these Configurations
+        </h3>
+        <span className="text-xs text-slate-500">Optional. Leave all unticked for one plain run.</span>
+      </div>
+      {configurations.map((c) => {
+        const on = ticks[c.id] ?? [];
+        return (
+          <fieldset key={c.id} className="space-y-1.5">
+            <legend className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-800">
+              {c.name}
+              <button type="button" className="text-xs font-normal text-accent-700 hover:underline" onClick={() => set(c.id, c.values)}>
+                Select all
+              </button>
+              <button type="button" className="text-xs font-normal text-accent-700 hover:underline" onClick={() => set(c.id, [])}>
+                None
+              </button>
+            </legend>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 sm:grid-cols-3">
+              {c.values.map((v) => (
+                <label key={v} className="flex min-w-0 items-center gap-2 text-sm text-slate-800">
+                  <input type="checkbox" className="shrink-0 accent-accent-600" checked={on.includes(v)} onChange={(e) => set(c.id, e.target.checked ? c.values.filter((x) => x === v || on.includes(x)) : on.filter((x) => x !== v))} />
+                  <span className="truncate" title={v}>
+                    {v}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        );
+      })}
+      {runs > 0 && (
+        <p className={cx("rounded-md px-3 py-1.5 text-sm font-medium", runs > MAX_PLAN_RUNS ? "bg-red-50 text-red-800" : "bg-accent-50 text-accent-800")} aria-live="polite" data-testid="plan-count">
+          {runs > MAX_PLAN_RUNS ? `That's ${runs} runs. A test plan holds up to ${MAX_PLAN_RUNS}, so untick some values.` : planCountLine(runs, cases, plans)}
+        </p>
+      )}
+      {configurations.filter((c) => (ticks[c.id] ?? []).length).length > 1 && runs <= MAX_PLAN_RUNS && <p className="text-xs text-slate-500">Values from two Configurations make every pairing, like {configurations.filter((c) => (ticks[c.id] ?? []).length).map((c) => ticks[c.id][0]).join(" · ")}.</p>}
     </section>
   );
 }
