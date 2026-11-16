@@ -88,6 +88,9 @@ test("passwords: first-time setup, wrong password, admin link, change", async ({
   await m.getByLabel("Confirm new password").fill("third password");
   await m.getByRole("button", { name: "Change password" }).click();
   await expect(m.getByText("Password saved")).toBeVisible();
+  // Changing your own password keeps this browser signed in (hosted build: other browsers are signed out).
+  await m.reload();
+  await expect(m).not.toHaveURL(/signin/);
   await signOut(m);
   await tryPassword(m, member, "third password");
   await expect(m).not.toHaveURL(/signin/);
@@ -116,4 +119,30 @@ test("password links: only workspace admins see them", async ({ page }) => {
   await row.getByRole("button", { name: "Password link" }).click();
   await expect(page.getByText("Password links go to the person's own email, and email isn't set up. Ask a workspace admin to make one.")).toBeVisible();
   await expect(page.getByLabel("Password link")).toHaveCount(0);
+});
+
+// Hosted build (backend team review: "Sessions aren't revoked"): a password set after you signed
+// in, somewhere else, signs this browser out.
+test("a new password signs out other browsers", async ({ page }) => {
+  const { PrismaClient } = await import("@prisma/client");
+  const email = `revoke-${run.toLowerCase()}@example.com`;
+  const db = new PrismaClient();
+  try {
+    await db.user.upsert({ where: { email }, create: { email, name: `Revoke ${run}` }, update: {} });
+  } finally {
+    await db.$disconnect();
+  }
+  await signIn(page, email, `Revoke ${run}`);
+  await page.goto("/account");
+  await expect(page).not.toHaveURL(/signin/);
+  const db2 = new PrismaClient();
+  try {
+    await db2.user.update({ where: { email }, data: { passwordSetAt: new Date(Date.now() + 1000) } });
+  } finally {
+    await db2.$disconnect();
+  }
+  // A brand-new password waits out a 10-second grace (PASSWORD_GRACE_MS in auth.ts) before it counts.
+  await page.waitForTimeout(12_000);
+  await page.goto("/account");
+  await expect(page).toHaveURL(/signin/);
 });
