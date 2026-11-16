@@ -143,6 +143,8 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
                         const res = await createPasswordLink(projectId, m.userId);
                         if (!res.ok) return setError(res.error);
                         setError(null);
+                        // Only workspace admins see the link; anyone else's goes to the person's email.
+                        if ("emailed" in res) return setSent(`Password link emailed to ${res.emailed}`);
                         setLink({ userId: m.userId, url: res.url, hours: res.hours });
                       })
                     }

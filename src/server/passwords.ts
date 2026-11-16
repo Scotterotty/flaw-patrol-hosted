@@ -91,10 +91,35 @@ async function memberFor(projectId: string, userId: string) {
 export async function createPasswordLink(projectId: string, userId: string) {
   return attempt(async () => {
     const { admin, project, member } = await memberFor(projectId, userId);
+    // Hosted build (backend team review C1): only a workspace admin may see a password link.
+    // Anyone else's goes straight to the person's own email, so a test cycle admin can't use
+    // it to sign in as a colleague they added.
+    if (!admin.isAdmin) {
+      if (!(await mailOn())) throw new UserError("Password links go to the person's own email, and email isn't set up. Ask a workspace admin to make one.");
+      const link = await newLink(userId, "reset", admin.id);
+      await mailPasswordLink(member.user.email, admin, link.url);
+      await db.passwordLink.update({ where: { id: link.id }, data: { emailedAt: new Date() } });
+      await logActivity({ actor: admin, kind: "signin", action: `Emailed a password link to ${member.user.name ?? member.user.email}`, project });
+      return { emailed: member.user.email };
+    }
     const link = await newLink(userId, "reset", admin.id);
     await logActivity({ actor: admin, kind: "signin", action: `Made a password link for ${member.user.name ?? member.user.email}`, project });
     return { url: link.url, hours: RESET_HOURS, canEmail: await mailOn() };
   });
+}
+
+async function mailPasswordLink(to: string, admin: { name: string | null; email: string }, url: string) {
+  try {
+    await sendMail({
+      to,
+      subject: "Set a new Flaw Patrol password",
+      lines: [`${admin.name ?? admin.email} made you a link to set a new Flaw Patrol password.`],
+      button: { label: "Set a new password", url },
+      footer: `It works once and expires in ${RESET_HOURS} hours. Your current password stops working once you use it.`,
+    });
+  } catch (e) {
+    throw new UserError(`Couldn't send it: ${(e as Error).message}`);
+  }
 }
 
 /** Password link → Email it to them, when Workspace settings → Email is set up. */
@@ -103,17 +128,7 @@ export async function emailPasswordLink(projectId: string, userId: string) {
     const { admin, project, member } = await memberFor(projectId, userId);
     if (!(await mailOn())) throw new UserError("Email isn't set up. A workspace admin can set it up in Workspace settings → Email.");
     const link = await newLink(userId, "reset", admin.id);
-    try {
-      await sendMail({
-        to: member.user.email,
-        subject: "Set a new Flaw Patrol password",
-        lines: [`${admin.name ?? admin.email} made you a link to set a new Flaw Patrol password.`],
-        button: { label: "Set a new password", url: link.url },
-        footer: `It works once and expires in ${RESET_HOURS} hours. Your current password stops working once you use it.`,
-      });
-    } catch (e) {
-      throw new UserError(`Couldn't send it: ${(e as Error).message} Copy the link instead.`);
-    }
+    await mailPasswordLink(member.user.email, admin, link.url);
     await db.passwordLink.update({ where: { id: link.id }, data: { emailedAt: new Date() } });
     await logActivity({ actor: admin, kind: "signin", action: `Emailed a password link to ${member.user.name ?? member.user.email}`, project });
     return { email: member.user.email };
@@ -138,7 +153,9 @@ export async function sendInvite(projectId: string, userId: string) {
 /** Copy invite link: a one-time link to paste into chat when email isn't set up (or didn't arrive). */
 export async function copyInviteLink(projectId: string, userId: string) {
   return attempt(async () => {
-    const { admin } = await memberFor(projectId, userId);
+    const { admin, member } = await memberFor(projectId, userId);
+    // An invite is only for someone who hasn't joined yet (review C1): it sets a first password.
+    if (member.user.passwordSetAt || member.user.lastLoginAt) throw new UserError("They've already joined, so there's no invite to send. If they forgot their password, use Password link.");
     const link = await newLink(userId, "invite", admin.id);
     const place = await placeName(projectId);
     // Same words as the message after Add.
@@ -189,7 +206,7 @@ export async function acceptInvite(token: string, input: { name: string; next: s
   const name = input.name.trim().slice(0, 80);
   const hasName = !!link.user.name?.trim();
   if (!hasName && !name) return { ok: false as const, error: "Type your name. Your team sees it on runs, bugs and bashes." };
-  const res = await resetWithLink(token, { next: input.next, confirm: input.confirm });
+  const res = await spendLink(token, { next: input.next, confirm: input.confirm }, "invite");
   if (!res.ok) return res;
   // Never overwrites a name someone already has.
   if (!hasName) await db.user.update({ where: { id: link.userId }, data: { name } });
@@ -202,10 +219,20 @@ export async function findPasswordLink(token: string) {
   return { email: link.user.email };
 }
 
+/** The reset page (/reset/[token]): sets a new password with a one-time password link. */
 export async function resetWithLink(token: string, input: { next: string; confirm: string }) {
+  return spendLink(token, input, "reset");
+}
+
+/**
+ * A link only does what it was made for (review C1): a password link resets a password, and
+ * an invite only sets the first password of someone who has never signed in.
+ */
+async function spendLink(token: string, input: { next: string; confirm: string }, kind: "reset" | "invite") {
   return attempt(async () => {
     const link = await db.passwordLink.findUnique({ where: { tokenHash: hashLinkToken(token) }, include: { user: true } });
-    if (!link || link.usedAt || link.expiresAt < new Date()) throw new UserError("This link has expired or was already used. Ask an admin for a new one.");
+    if (!link || link.kind !== kind || link.usedAt || link.expiresAt < new Date()) throw new UserError("This link has expired or was already used. Ask an admin for a new one.");
+    if (kind === "invite" && (link.user.passwordSetAt || link.user.lastLoginAt)) throw new UserError("You've already joined. Sign in instead, or ask an admin for a password link.");
     const problem = passwordProblem(input.next, link.user.email);
     if (problem) throw new UserError(problem);
     if (input.next !== input.confirm) throw new UserError("The two passwords don't match.");
