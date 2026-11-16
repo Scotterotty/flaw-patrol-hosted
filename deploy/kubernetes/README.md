@@ -15,6 +15,7 @@ These notes answer the "before deploying" list in the backend team's review
 | Secrets from Vault | `external-secret.yaml` (External Secrets Operator) |
 | Single replica until uploads stop waiting on local disk | `deployment.yaml` (`replicas: 1`, `strategy: Recreate`) |
 | Separate encryption key for saved tokens | `ENCRYPTION_KEY` in Vault (step 3, "Two keys") |
+| Trace viewer on a separate origin | `TRACE_VIEWER_ORIGIN` and a second Ingress host ("Replay address" below) |
 | Health endpoints | `/api/healthz` (liveness) and `/api/readyz` (readiness, runs `SELECT 1`) |
 | Turn password sign-in off, SSO only | `AUTH_SSO_ONLY=true`, `AUTH_ADMIN_EMAILS`, Microsoft from Vault (step 3, "Company sign-in only") |
 | Block internal addresses for Jira, Sentry and SSO (SSRF) | Built into the app; `OUTBOUND_ALLOW_HOSTS` for exceptions (below) |
@@ -110,6 +111,7 @@ Change in `deployment.yaml` before the first sync:
 
 - `AUTH_URL`: the address people will open, e.g. `https://flawpatrol.magnopus.global`.
 - `AUTH_ALLOWED_DOMAINS`: email domains allowed to sign in.
+- `TRACE_VIEWER_ORIGIN`: the replay address ("Replay address" below), or empty.
 
 Add an Ingress (or Gateway route) to the `flaw-patrol` Service with:
 
@@ -117,6 +119,23 @@ Add an Ingress (or Gateway route) to the `flaw-patrol` Service with:
 - Request bodies up to **210 MB** (nginx ingress: `nginx.ingress.kubernetes.io/proxy-body-size: 210m`).
   Testers upload screen recordings.
 - Read timeout of at least 120 seconds for those uploads.
+- A second host for replays, if `TRACE_VIEWER_ORIGIN` is set (below).
+
+## Replay address (trace viewer)
+
+Testers' Playwright replays open in Playwright's own viewer inside Flaw Patrol. A replay file
+holds captured web pages, so a crafted one could try to run script. To keep that away from the
+app, replays open from a **second address** where nobody is signed in:
+
+1. Pick a host, e.g. `flawpatrol-replays.magnopus.global`, and set `TRACE_VIEWER_ORIGIN` in
+   `deployment.yaml` to `https://` plus that host.
+2. Add it to the Ingress with its own TLS, pointing at the same `flaw-patrol` Service.
+   Route only the paths `/trace-viewer/` and `/api/replay/` for that host. The app refuses
+   everything else there anyway, but routing only those paths keeps it tidy.
+
+On that address the app serves just the viewer and replay files, each through a signed link
+that names one file and stops working after 4 hours. The app's own address stops serving the
+viewer. Leave `TRACE_VIEWER_ORIGIN` empty to keep replays on the app's address (as on laptops).
 
 ## Why one replica
 

@@ -17,9 +17,14 @@ if (existsSync(copyScript)) {
 // can't break a page: no other site may show Flaw Patrol in a frame, browsers stick to https
 // once they've seen it, links don't leak full addresses to other sites, and file types aren't guessed.
 // A full script Content-Security-Policy is a later step (the trace viewer and embeds need care).
-const SECURITY_HEADERS = [
+// Who may show these pages in a frame. The trace viewer sets its own in src/middleware.ts,
+// since on its separate address (TRACE_VIEWER_ORIGIN) the app's address frames it.
+const FRAME_HEADERS = [
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "Content-Security-Policy", value: "frame-ancestors 'self'; base-uri 'self'; object-src 'none'" },
+];
+
+const SECURITY_HEADERS = [
   { key: "Strict-Transport-Security", value: "max-age=31536000" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -28,7 +33,10 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   async headers() {
-    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+    return [
+      { source: "/:path*", headers: SECURITY_HEADERS },
+      { source: "/((?!trace-viewer/).*)", headers: FRAME_HEADERS },
+    ];
   },
   // `npm run release` packs this self-contained server into the ready-to-run build.
   // `node start.mjs --fast` runs `next start` instead, which doesn't need it (ver_129).

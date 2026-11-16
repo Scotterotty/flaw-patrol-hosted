@@ -158,6 +158,13 @@ test("a Playwright zip brings in screenshots and a replay that opens in Flaw Pat
   expect(href).toMatch(new RegExp(`/p/${KEY}/replay/`));
   await page.goto(href!);
   await expect(page.getByTestId("replay-frame")).toBeVisible();
+  // The viewer really opens the file: its list of actions fills in.
+  await expect(page.frameLocator('[data-testid="replay-frame"]').locator(".action-title").first()).toBeVisible({ timeout: 30_000 });
   const res = await page.request.get("/trace-viewer/index.html");
-  expect(res.ok()).toBe(true);
+  // Hosted build: with TRACE_VIEWER_ORIGIN set, the viewer lives only on that separate address.
+  const replays = process.env.TRACE_VIEWER_ORIGIN;
+  if (replays) {
+    expect(res.status()).toBe(404);
+    expect(await page.getByTestId("replay-frame").getAttribute("src")).toMatch(new RegExp(`^${replays}/trace-viewer/`));
+  } else expect(res.ok()).toBe(true);
 });

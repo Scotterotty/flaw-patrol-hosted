@@ -48,6 +48,10 @@ spec:
             # https addresses. List internal hosts the app may call anyway (e.g. a TeamCity
             # inside the company network), comma separated.
             - { name: OUTBOUND_ALLOW_HOSTS, value: "" }
+            # Step-by-step replays (Playwright traces) open from this second address, so a
+            # crafted replay file can't reach the app. See README "Replay address". Leave
+            # empty to show replays from the app's own address.
+            - { name: TRACE_VIEWER_ORIGIN, value: "https://flawpatrol-replays.magnopus.global" }
             # Database connections this pod keeps open (Cloud SQL has a limit per instance).
             - { name: DATABASE_POOL, value: "10" }
           resources:
