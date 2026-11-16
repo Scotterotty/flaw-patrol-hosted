@@ -15,6 +15,7 @@ These notes answer the "before deploying" list in the backend team's review
 | Secrets from Vault | `external-secret.yaml` (External Secrets Operator) |
 | Single replica until uploads stop waiting on local disk | `deployment.yaml` (`replicas: 1`, `strategy: Recreate`) |
 | Health endpoints | `/api/healthz` (liveness) and `/api/readyz` (readiness, runs `SELECT 1`) |
+| Block internal addresses for Jira, Sentry and SSO (SSRF) | Built into the app; `OUTBOUND_ALLOW_HOSTS` for exceptions (below) |
 
 ## 1. Cloud SQL for PostgreSQL
 
@@ -93,6 +94,25 @@ have the file. So:
 
 Moving uploads to a shared volume or a storage bucket (a later item in the review) lifts the
 one-replica rule.
+
+## Addresses the app may call (SSRF protection)
+
+People type addresses for Jira, Sentry, TeamCity and company sign-in (OpenID Connect) into
+the app's settings. The server only calls them when they are:
+
+- `https://`, with no name or password in the address,
+- on a public IP address. Loopback, private (10/8, 172.16/12, 192.168/16), link-local
+  (169.254/16, including the cloud metadata server), carrier-grade NAT (100.64/10), IPv6
+  private ranges, and names like `*.svc.cluster.local`, `*.internal`, `*.local` are refused,
+- and, for Jira, a Jira Cloud site (`*.atlassian.net` or `*.jira.com`).
+
+Redirects are never followed with a token attached. A saved token or client secret is only
+reused for the same address; changing the address means pasting it again.
+
+If a tool really lives inside the company network (say, a TeamCity server), list its host in
+`OUTBOUND_ALLOW_HOSTS` (comma separated, e.g. `teamcity.magnopus.internal,10.20.0.15`).
+As a second line of defence, an egress NetworkPolicy that blocks `169.254.169.254` and the
+cluster's service range for this namespace is a good idea.
 
 ## Health checks
 

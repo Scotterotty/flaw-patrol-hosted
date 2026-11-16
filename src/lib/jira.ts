@@ -3,6 +3,7 @@ import { db } from "./db";
 import type { Severity } from "@prisma/client";
 import { open } from "./crypto";
 import { richText } from "./jira-format";
+import { assertOutbound, jiraHostProblem, OutboundBlocked } from "./outbound";
 import { parseSeverity, parseSeverityConfig, scaleOf } from "./severity";
 import { foundInLine, parseFoundIn, type FoundInField, type JiraVersion } from "./found-in";
 import { jiraConfigFor } from "./umbrella";
@@ -201,19 +202,43 @@ export class JiraClient {
     return { ...d, content: [...lines, ...(d.content ?? []), ...this.tailBlocks] };
   }
 
+  /**
+   * The site address, once it's known to be a Jira Cloud site (or one IT allowed) on a public
+   * address. The saved token is only ever sent there (backend team review H2).
+   */
+  private async site() {
+    const site = normalizeSite(this.creds.siteUrl);
+    const problem = jiraHostProblem(site);
+    if (problem) throw new JiraError(problem);
+    try {
+      await assertOutbound(site, "Jira");
+    } catch (e) {
+      if (e instanceof OutboundBlocked) throw new JiraError(e.message);
+      throw e;
+    }
+    return site;
+  }
+
   private async call<T>(path: string, init: RequestInit = {}): Promise<T> {
     const auth = Buffer.from(`${this.creds.email}:${this.creds.token}`).toString("base64");
+    const site = await this.site();
     let res: Response;
     try {
-      res = await fetch(`${normalizeSite(this.creds.siteUrl)}${path}`, {
+      res = await fetch(`${site}${path}`, {
         ...init,
         headers: { Authorization: `Basic ${auth}`, Accept: "application/json", ...(init.headers ?? {}) },
         // Uploads pass their own, longer timeout: a 20 MB recording takes a while on a slow line.
         signal: init.signal ?? AbortSignal.timeout(20_000),
         cache: "no-store",
+        // Never follow Jira somewhere else with the token.
+        redirect: "manual",
       });
     } catch {
       throw new JiraError("Couldn't reach Jira. Check the site address.");
+    }
+    if (res.status >= 300 && res.status < 400) {
+      await res.body?.cancel();
+      throw new JiraError("Jira sent Flaw Patrol to another address. Check the site address, like https://yourcompany.atlassian.net.");
     }
     if (res.status === 401 || res.status === 403) throw new JiraError("Jira rejected the email or API token, or it lacks permission.");
     if (res.status === 404) throw new JiraError("Not found in Jira.");
@@ -521,11 +546,27 @@ export class JiraClient {
   /** A Jira attachment's file, for showing it to people without a Jira login (bug board, ver_211). */
   async attachment(id: string) {
     const auth = Buffer.from(`${this.creds.email}:${this.creds.token}`).toString("base64");
-    const res = await fetch(`${normalizeSite(this.creds.siteUrl)}/rest/api/3/attachment/content/${encodeURIComponent(id)}`, {
+    const site = await this.site();
+    let res = await fetch(`${site}/rest/api/3/attachment/content/${encodeURIComponent(id)}`, {
       headers: { Authorization: `Basic ${auth}` },
       signal: AbortSignal.timeout(60_000),
       cache: "no-store",
+      redirect: "manual",
     }).catch(() => null);
+    // Jira Cloud answers with a short-lived link to its file store. Follow it once, without the
+    // token, and only to a public address.
+    const to = res && res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+    if (res && to) {
+      await res.body?.cancel();
+      const next = new URL(to, site).href;
+      try {
+        await assertOutbound(next, "Jira");
+      } catch (e) {
+        if (e instanceof OutboundBlocked) throw new JiraError(e.message);
+        throw e;
+      }
+      res = await fetch(next, { signal: AbortSignal.timeout(60_000), cache: "no-store", redirect: "manual" }).catch(() => null);
+    }
     if (!res) throw new JiraError("Couldn't reach Jira. Check the site address.");
     if (res.status === 401 || res.status === 403) throw new JiraError("Jira rejected the email or API token, or it lacks permission.");
     if (!res.ok) throw new JiraError("Not found in Jira.");
@@ -804,7 +845,7 @@ export class JiraClient {
   async mediaId(attachmentId: string): Promise<string | null> {
     const auth = Buffer.from(`${this.creds.email}:${this.creds.token}`).toString("base64");
     try {
-      const res = await fetch(`${normalizeSite(this.creds.siteUrl)}/rest/api/3/attachment/content/${encodeURIComponent(attachmentId)}`, {
+      const res = await fetch(`${await this.site()}/rest/api/3/attachment/content/${encodeURIComponent(attachmentId)}`, {
         headers: { Authorization: `Basic ${auth}` },
         redirect: "manual",
         signal: AbortSignal.timeout(15_000),

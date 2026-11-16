@@ -1,4 +1,5 @@
 import "server-only";
+import { assertOutbound, OutboundBlocked } from "./outbound";
 
 // TeamCity (ver_228): read builds for the Status page with an access token.
 // Read-only: only GET requests, and never anything about who started a build.
@@ -88,6 +89,12 @@ export class TeamCityClient {
   ) {}
 
   private async get<T>(path: string): Promise<T> {
+    try {
+      await assertOutbound(this.base, "TeamCity");
+    } catch (e) {
+      if (e instanceof OutboundBlocked) throw new TeamCityError(e.message);
+      throw e;
+    }
     let res: Response;
     try {
       res = await fetch(`${this.base}${path}`, {

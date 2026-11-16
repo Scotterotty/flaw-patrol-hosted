@@ -1,4 +1,5 @@
 import "server-only";
+import { assertOutbound, OutboundBlocked } from "./outbound";
 
 // Sentry for testers: Flaw Patrol only reads from Sentry with a read-only token
 // (Project, Issue & Event and Organization read), so it works before Flaw Patrol is hosted.
@@ -53,15 +54,27 @@ export class SentryClient {
   ) {}
 
   private async call<T>(path: string): Promise<T> {
+    // The token only goes to a public https address (backend team review H2).
+    try {
+      await assertOutbound(sentryBase(this.base), "Sentry");
+    } catch (e) {
+      if (e instanceof OutboundBlocked) throw new SentryError(e.message);
+      throw e;
+    }
     let res: Response;
     try {
       res = await fetch(`${sentryBase(this.base)}/api/0${path}`, {
         headers: { Authorization: `Bearer ${this.token}`, Accept: "application/json" },
         signal: AbortSignal.timeout(15_000),
         cache: "no-store",
+        redirect: "manual",
       });
     } catch {
       throw new SentryError(`Couldn't reach Sentry at ${sentryBase(this.base)}. Check the address.`);
+    }
+    if (res.status >= 300 && res.status < 400) {
+      await res.body?.cancel();
+      throw new SentryError(`Sentry at ${sentryBase(this.base)} sent Flaw Patrol to another address. Check the address.`);
     }
     if (res.status === 401) throw new SentryError("Sentry didn't accept the token. Make a new one and paste it again.");
     if (res.status === 403) throw new SentryError("The token can't read that. Give it Project, Issue & Event and Organization read.");

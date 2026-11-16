@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { MAIL_PRESETS, MAIL_SECURITY, sendMail } from "@/lib/mail";
 import { requireUser } from "@/lib/session";
 import { COMPANY_PROVIDERS, domainList, forgetSavedProviders, GUID, isComplete, microsoftAuthority, PROVIDER_NAME, type CompanyProvider } from "@/lib/sign-in-config";
+import { assertOutbound, OutboundBlocked } from "@/lib/outbound";
 import { attempt, UserError } from "./result";
 import { requireWorkspaceAdmin } from "./admin-guard";
 
@@ -46,8 +47,12 @@ export async function saveSignInProvider(id: string, input: z.input<typeof provi
     const data = providerSchema.parse(input);
     if (pid === "microsoft" && !GUID.test(data.tenantId)) throw new UserError("Enter the directory (tenant) ID. It looks like 4f2a1c3e-0b7d-4e21-9a55-1d2f3c4b5a6e.");
     if (pid === "oidc" && !/^https:\/\/\S+$/.test(data.issuer) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/\S*)?$/.test(data.issuer)) throw new UserError("Enter the issuer URL. It starts with https://.");
+    if (pid === "oidc") await outboundOk(data.issuer.replace(/\/+$/, ""), "the sign-in service");
     const old = await db.signInProvider.findUnique({ where: { id: pid } });
     if (!data.secret && !old?.secretEncrypted) throw new UserError("Paste the client secret.");
+    // The saved secret only goes to the service it was made for (backend team review H2).
+    const newPlace = !!old && (old.issuer !== (pid === "oidc" ? data.issuer.replace(/\/+$/, "") : "") || old.tenantId !== (pid === "microsoft" ? data.tenantId.toLowerCase() : ""));
+    if (!data.secret && newPlace) throw new UserError("You changed where sign-in goes, so paste the client secret again.");
     const expires = data.secretExpires ? new Date(`${data.secretExpires}T12:00:00Z`) : null;
     if (expires && Number.isNaN(expires.getTime())) throw new UserError("Pick a real date for when the secret expires.");
     const moved = !old || old.clientId !== data.clientId || old.tenantId !== data.tenantId || old.issuer !== data.issuer.replace(/\/+$/, "") || !!data.secret;
@@ -82,6 +87,16 @@ async function keepSomeoneAbleToSignIn() {
   if (!on) await db.workspace.update({ where: { id: 1 }, data: { passwordSignIn: true } });
 }
 
+/** Company sign-in addresses must be public (no cluster-internal addresses), unless IT allowed them. */
+async function outboundOk(url: string, service: string) {
+  try {
+    await assertOutbound(url, service);
+  } catch (e) {
+    if (e instanceof OutboundBlocked) throw new UserError(e.message);
+    throw e;
+  }
+}
+
 /** Ask the sign-in service for its settings, so a wrong tenant ID or issuer shows up before anyone tries it. */
 export async function checkSignInProvider(id: string) {
   return attempt(async () => {
@@ -90,9 +105,10 @@ export async function checkSignInProvider(id: string) {
     const row = await db.signInProvider.findUnique({ where: { id: pid } });
     if (!row || !isComplete(row)) throw new UserError("Save the settings first.");
     const issuer = pid === "microsoft" ? `${microsoftAuthority()}/${row.tenantId}/v2.0` : pid === "google" ? "https://accounts.google.com" : row.issuer;
+    await outboundOk(issuer, pid === "microsoft" ? "Microsoft sign-in" : "the sign-in service");
     let res: Response;
     try {
-      res = await fetch(`${issuer}/.well-known/openid-configuration`, { signal: AbortSignal.timeout(10_000), cache: "no-store" });
+      res = await fetch(`${issuer}/.well-known/openid-configuration`, { signal: AbortSignal.timeout(10_000), cache: "no-store", redirect: "manual" });
     } catch {
       throw new UserError(`Couldn't reach ${new URL(issuer).host}. Check the address, and that this computer can reach it.`);
     }

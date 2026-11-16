@@ -41,17 +41,25 @@ const wrap = <T extends object>(fn: () => Promise<T>) =>
     }
   });
 
+const CHANGED_ADDRESS = "You changed the Sentry address, so paste the token again.";
+
+/**
+ * The saved token, when the address is the one it was saved for. A token is never sent to a
+ * new address without being pasted again (backend team review H2).
+ */
+async function savedToken(projectId: string, baseUrl: string) {
+  const saved = await db.sentryConfig.findUnique({ where: { projectId } });
+  if (!saved || !canOpen(saved.tokenEncrypted)) throw new UserError("Paste a Sentry token.");
+  if (saved.baseUrl !== sentryBase(baseUrl)) throw new UserError(CHANGED_ADDRESS);
+  return open(saved.tokenEncrypted);
+}
+
 /** Step 1 of Connect to Sentry: check the token and list the organizations it can see. */
 export async function checkSentry(projectId: string, input: { baseUrl: string; token: string }) {
   return wrap(async () => {
     await requireProjectAction(projectId, "jira:manage");
-    let token = input.token.trim();
-    // Reconnecting can keep the saved token.
-    if (!token) {
-      const saved = await db.sentryConfig.findUnique({ where: { projectId } });
-      if (!saved || !canOpen(saved.tokenEncrypted)) throw new UserError("Paste a Sentry token.");
-      token = open(saved.tokenEncrypted);
-    }
+    // Reconnecting can keep the saved token, for the same Sentry address only.
+    const token = input.token.trim() || (await savedToken(projectId, input.baseUrl));
     const c = new SentryClient(sentryBase(input.baseUrl), token);
     const orgs = await c.organizations();
     if (!orgs.length) throw new UserError("That token can't see any organization. Give it Organization read.");
@@ -63,12 +71,7 @@ export async function checkSentry(projectId: string, input: { baseUrl: string; t
 export async function sentryProjects(projectId: string, input: { baseUrl: string; token: string; org: string }) {
   return wrap(async () => {
     await requireProjectAction(projectId, "jira:manage");
-    let token = input.token.trim();
-    if (!token) {
-      const saved = await db.sentryConfig.findUnique({ where: { projectId } });
-      if (!saved || !canOpen(saved.tokenEncrypted)) throw new UserError("Paste a Sentry token.");
-      token = open(saved.tokenEncrypted);
-    }
+    const token = input.token.trim() || (await savedToken(projectId, input.baseUrl));
     const c = new SentryClient(sentryBase(input.baseUrl), token, input.org);
     const projects = await c.projects();
     const envs = new Set<string>();
@@ -95,6 +98,7 @@ export async function saveSentry(projectId: string, input: z.input<typeof saveSc
     const d = saveSchema.parse(input);
     const saved = await db.sentryConfig.findUnique({ where: { projectId } });
     if (!d.token && !saved) throw new UserError("Paste a Sentry token.");
+    if (!d.token && saved && saved.baseUrl !== sentryBase(d.baseUrl)) throw new UserError(CHANGED_ADDRESS);
     const tokenEncrypted = d.token ? seal(d.token) : saved!.tokenEncrypted;
     const data = { baseUrl: sentryBase(d.baseUrl), org: d.org, tokenEncrypted, connectedAs: d.as, projects: d.projects, environment: d.environment, buildField: d.buildField, onlyTester: d.onlyTester };
     await db.sentryConfig.upsert({ where: { projectId }, create: { projectId, ...data }, update: data });

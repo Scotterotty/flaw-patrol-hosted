@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
+// Tests never look up real addresses: let the stand-in Jira site through the outbound check.
+process.env.OUTBOUND_ALLOW_HOSTS = "x.atlassian.net";
 import { JiraClient, jiraMessage, needsMessage, requiredName, type MetaField } from "./jira";
 
 const field = (id: string, name: string, later = false): MetaField => ({ id, name, required: true, schema: { type: "string" }, options: [], later });
