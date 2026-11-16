@@ -79,8 +79,9 @@ export async function slackSummaryFor(projectId: string) {
   return (await channelRows(projectId)).map((r) => ({ name: r.name, alerts: parseAlerts(r.alerts) }));
 }
 
-/** Where links in messages point: the Flaw Patrol the person was using. */
+/** Where links in messages point: AUTH_URL when set, else the Flaw Patrol the person was using. */
 export async function origin() {
+  if (process.env.AUTH_URL) return new URL(process.env.AUTH_URL).origin;
   try {
     const h = await headers();
     return h.get("origin") ?? (h.get("host") ? `http://${h.get("host")}` : "http://localhost:3000");

@@ -27,13 +27,19 @@ type Entry = NonNullable<Awaited<ReturnType<typeof findEntry>>>;
  * It has no case, steps or run, so everything a run would fill starts blank; the
  * release comes from the test cycle, and the link points at the Bugs page.
  */
+/** Where links in bug reports point: AUTH_URL when set (backend review: link origin from headers). */
+async function linkOrigin() {
+  if (process.env.AUTH_URL) return new URL(process.env.AUTH_URL).origin;
+  const h = await headers();
+  return h.get("origin") ?? (h.get("host") ? `https://${h.get("host")}` : null);
+}
+
 async function writtenContext(projectId: string, actual: string) {
   const project = await db.project.findUnique({ where: { id: projectId } });
   if (!project) throw new UserError("That test cycle isn't here anymore.");
   const run = { id: "", number: 0, name: "", build: "", release: "", environment: "", cspVersion: "", project };
   const entry = { id: "", title: "", kind: "MANUAL", steps: [], testData: null, preconditions: "", charter: null, run, testCase: { number: 0, tags: [], project: { key: project.key, groupId: project.groupId, hubOf: null } } } as unknown as Entry;
-  const h = await headers();
-  const origin = h.get("origin") ?? (h.get("host") ? `https://${h.get("host")}` : null);
+  const origin = await linkOrigin();
   const ctx: BugContext = { caseKey: "", caseTitle: "", runLabel: "", build: "", environment: "", preconditions: "", steps: [], failedIndex: null, actual, link: origin ? `${origin}/p/${project.key}/bugs` : null, titleTags: [] };
   return { ctx, entry };
 }
@@ -61,8 +67,7 @@ export async function bugContext(projectId: string, entryId: string, stepIndex: 
   const shown = row === null ? steps : steps.filter((s) => s.row === row);
   const failedIndex = at === null ? null : row === null ? at : shown.indexOf(steps[at]);
   const testRow = data && row !== null ? `Test data row ${row + 1} of ${data.rows.length}: ${rowSummary(data, row)}` : undefined;
-  const h = await headers();
-  const origin = h.get("origin") ?? (h.get("host") ? `https://${h.get("host")}` : null);
+  const origin = await linkOrigin();
   const key = entry.run.project.key;
   const ctx: BugContext = {
     caseKey: caseKey(entry.testCase.project.key, entry.testCase.number),
