@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { ReplayFrame } from "@/components/replay-frame";
 import { db } from "@/lib/db";
 import { caseKey } from "@/lib/format";
+import { replayToken } from "@/lib/replay-link";
+import { replayOrigin } from "@/lib/replay-origin";
 import { projectAccess } from "@/lib/session";
 
 export const metadata = { title: "Step-by-step replay" };
@@ -11,7 +13,8 @@ export const metadata = { title: "Step-by-step replay" };
 /**
  * A Playwright replay (trace), opened inside Flaw Patrol with Playwright's own
  * viewer, copied into public/trace-viewer after npm install (scripts/copy-trace-viewer.mjs).
- * The file never leaves this server.
+ * The file never leaves this server. With TRACE_VIEWER_ORIGIN set, the viewer and a short-lived
+ * link to this one file come from that separate address (src/lib/replay-origin.ts).
  */
 export default async function ReplayPage({ params }: { params: Promise<{ key: string; id: string }> }) {
   const { key, id } = await params;
@@ -23,6 +26,8 @@ export default async function ReplayPage({ params }: { params: Promise<{ key: st
   if (!file?.result) notFound();
   const { run, entry } = file.result;
   const runHref = `/p/${project.key}/runs/${run.number}`;
+  const replays = replayOrigin();
+  const viewerUrl = replays && `${replays}/trace-viewer/index.html?trace=${encodeURIComponent(`${replays}/api/replay/${replayToken(file.id)}`)}`;
   return (
     <div className="flex h-[calc(100dvh-7rem)] flex-col">
       <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
@@ -37,7 +42,7 @@ export default async function ReplayPage({ params }: { params: Promise<{ key: st
         </a>
         <span className="text-xs text-slate-500">Left: every action. Right: the page before and after it, plus the error, console and network calls.</span>
       </div>
-      <ReplayFrame fileId={file.id} />
+      <ReplayFrame fileId={file.id} viewerUrl={viewerUrl} />
     </div>
   );
 }
