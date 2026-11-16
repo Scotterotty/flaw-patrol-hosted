@@ -177,6 +177,8 @@ async function checkJiraTokens() {
     await db.$disconnect();
     const key = createHash("sha256").update(`secret-box:${secret}`).digest();
     const bad = rows.filter((r) => {
+      // "v2." tokens use ENCRYPTION_KEY (hosted servers), not AUTH_SECRET; nothing to check here.
+      if (!r.tokenEncrypted.startsWith("v1.")) return false;
       try {
         const [, iv, tag, data] = r.tokenEncrypted.split(".");
         const d = createDecipheriv("aes-256-gcm", key, Buffer.from(iv, "base64"));
