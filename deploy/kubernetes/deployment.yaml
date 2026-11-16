@@ -1,0 +1,77 @@
+# The Flaw Patrol app. Keep ONE replica: uploads wait on the pod's own disk (/tmp) between
+# "upload" and "Save", so a second pod wouldn't find them. "Recreate" stops the old pod
+# before the new one starts, so there are never two at once (a few seconds of downtime
+# per deploy). See README.md, "Why one replica".
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flaw-patrol
+  labels: { app: flaw-patrol }
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: { app: flaw-patrol }
+  template:
+    metadata:
+      labels: { app: flaw-patrol }
+    spec:
+      # Emails, Slack, Qase sync and webhooks finish in the background after a request;
+      # this gives them time to finish when the pod is stopped.
+      terminationGracePeriodSeconds: 45
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+        - name: app
+          image: flaw-patrol
+          ports:
+            - { name: http, containerPort: 6767 }
+          envFrom:
+            - secretRef:
+                name: flaw-patrol-secrets
+          env:
+            # Database changes run in the PreSync Job (migrate-job.yaml), not here.
+            - { name: MIGRATE_ON_START, value: "false" }
+            # The address people open. Sign-in, invite and reset links use it.
+            - { name: AUTH_URL, value: "https://flawpatrol.example.com" }
+            # Only these email domains may sign in.
+            - { name: AUTH_ALLOWED_DOMAINS, value: "magnopus.com" }
+            # Database connections this pod keeps open (Cloud SQL has a limit per instance).
+            - { name: DATABASE_POOL, value: "10" }
+          resources:
+            # Uploads up to 210 MB are held in memory while they arrive.
+            requests: { cpu: 250m, memory: 1Gi }
+            limits: { memory: 2Gi }
+          # "Is the process alive?" Never touches the database.
+          livenessProbe:
+            httpGet: { path: /api/healthz, port: http }
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # "Can it serve people?" Runs SELECT 1 against the database.
+          readinessProbe:
+            httpGet: { path: /api/readyz, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet: { path: /api/healthz, port: http }
+            periodSeconds: 5
+            failureThreshold: 24
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            # Uploads waiting for Save, unpacked automation results, and Next.js's page cache.
+            - { name: tmp, mountPath: /tmp }
+            - { name: next-cache, mountPath: /app/.next/cache }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 2Gi }
+        - name: next-cache
+          emptyDir: { sizeLimit: 512Mi }

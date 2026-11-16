@@ -1,0 +1,10 @@
+# Flaw Patrol inside the cluster on port 80. Point your Ingress / Gateway at it, and allow
+# request bodies of at least 210 MB there (nginx: client_max_body_size 210m) for video uploads.
+apiVersion: v1
+kind: Service
+metadata:
+  name: flaw-patrol
+spec:
+  selector: { app: flaw-patrol }
+  ports:
+    - { name: http, port: 80, targetPort: http }

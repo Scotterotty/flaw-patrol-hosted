@@ -1,6 +1,8 @@
 # Production image: `next build` in one stage, `next start` (the standalone server)
 # in a small final stage that runs as a non-root user. Set DATABASE_URL and
-# AUTH_SECRET when running it; schema changes are applied on every start.
+# AUTH_SECRET when running it. Schema changes are applied on start, unless
+# MIGRATE_ON_START=false (Kubernetes runs `sh ./docker-migrate.sh` as its own step instead;
+# see deploy/kubernetes/).
 #   docker build -t flaw-patrol .
 #   docker run -p 6767:6767 --env-file flaw-patrol.env flaw-patrol
 # On a shared server behind nginx-proxy, use docker-compose.hosting.yml instead (README: Host it on a server).
@@ -40,12 +42,13 @@ COPY --from=build /app/node_modules/.prisma/client ./node_modules/.prisma/client
 COPY --from=build /app/prisma/schema.prisma ./prisma/schema.prisma
 COPY --from=build /app/prisma/migrations ./prisma/migrations
 COPY --from=migrator /migrator/node_modules /migrator/node_modules
-COPY scripts/docker-start.sh ./docker-start.sh
+COPY scripts/docker-start.sh scripts/docker-migrate.sh ./
 USER flawpatrol
 EXPOSE 6767
-# Docker marks the app unhealthy when the sign-in page stops answering. The first start
-# can take a minute while database changes apply, so checks wait 2 minutes.
+# Docker marks the app unhealthy when it can't reach its database (/api/readyz runs SELECT 1).
+# The first start can take a minute while database changes apply, so checks wait 2 minutes.
+# Kubernetes ignores this and uses the probes in deploy/kubernetes/ (/api/healthz, /api/readyz).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
-  CMD ["node", "-e", "fetch('http://127.0.0.1:' + (process.env.PORT || 6767) + '/signin').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
-# Applies new database changes (through Neon's direct address), then starts the server.
+  CMD ["node", "-e", "fetch('http://127.0.0.1:' + (process.env.PORT || 6767) + '/api/readyz').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+# Applies new database changes (unless MIGRATE_ON_START=false), then starts the server.
 CMD ["sh", "./docker-start.sh"]

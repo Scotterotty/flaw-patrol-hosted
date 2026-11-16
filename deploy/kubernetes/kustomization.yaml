@@ -1,0 +1,14 @@
+# Flaw Patrol on Kubernetes (GKE), deployed by ArgoCD. IT setup notes: README.md here.
+# Change the image tag, host name and namespace for each environment (or overlay them).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: flaw-patrol
+resources:
+  - external-secret.yaml
+  - migrate-job.yaml
+  - deployment.yaml
+  - service.yaml
+images:
+  - name: flaw-patrol
+    newName: REGISTRY/flaw-patrol # e.g. europe-docker.pkg.dev/PROJECT/apps/flaw-patrol
+    newTag: "0.4.0-alpha.1001"
