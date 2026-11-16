@@ -115,10 +115,20 @@ export type SentryBuildIn = {
   freshIds: string[] | null;
   /** Sentry issue ids already in a bug (saved on failed steps that have a bug). */
   inBugIds: string[];
+  /** The new errors themselves, from the same Sentry call as freshIds, for the preview (ver_263). */
+  issues?: SentryIssueIn[];
+  /** Which bug each filed Sentry issue id is in. */
+  bugOf?: Record<string, { key: string; href: string }>;
   crashFree: number | null;
   newUrl: string | null;
   releaseUrl: string | null;
 };
+
+/** One new error as Sentry lists it. */
+export type SentryIssueIn = { id: string; shortId: string; title: string; culprit: string; url: string; count: number; users: number; lastSeen: string };
+
+/** One error in a build's preview: in a bug (and which one), or not yet. */
+export type SentryIssueRow = SentryIssueIn & { bug: { key: string; href: string } | null; filed: boolean };
 
 /** One row on the Sentry card. */
 export type SentryRow = {
@@ -135,6 +145,10 @@ export type SentryRow = {
   notInBug: number;
   open?: { url: string; label: string };
   bug?: { title: string; build: string; note: string };
+  /** Its new errors, not in a bug first, then most events (up to SENTRY_ISSUES_MAX). */
+  issues?: SentryIssueRow[];
+  /** How many new errors Sentry has for the build, when more than the preview holds. */
+  issueTotal?: number;
 };
 
 /** "Other builds" and "No build": errors in the last day outside the tested builds. Null when Sentry can't answer. */
@@ -152,6 +166,18 @@ export type SentryBoard = {
 
 /** Up to three tested builds on the card; the rest are "and N more". */
 export const SENTRY_ROWS = 3;
+/** Errors shown per build before "Show all", and the most "Show all" opens on the card (ver_263). */
+export const SENTRY_ISSUES = 3;
+export const SENTRY_ISSUES_MAX = 20;
+
+/** A build's new errors for the preview: not in a bug yet first, then most events, then newest. */
+export function sentryIssueRows(issues: SentryIssueIn[], inBugIds: string[], bugOf: Record<string, { key: string; href: string }> = {}): SentryIssueRow[] {
+  const filed = new Set(inBugIds);
+  return issues
+    .map((i) => ({ ...i, filed: filed.has(i.id), bug: bugOf[i.id] ?? null }))
+    .sort((a, b) => Number(a.filed) - Number(b.filed) || b.count - a.count || b.lastSeen.localeCompare(a.lastSeen))
+    .slice(0, SENTRY_ISSUES_MAX);
+}
 
 /** Sentry search for errors in releases that aren't being tested. */
 export function otherBuildsQuery(releases: string[]) {
@@ -174,9 +200,10 @@ function sentryRow(b: SentryBuildIn): SentryRow {
   const line = [notInBug ? `${notInBug} not in a bug yet` : "", inBugs ? `${inBugs} already in ${inBugs === 1 ? "a bug" : "bugs"}` : "", crash].filter(Boolean).join(" · ");
   const open = b.newUrl ? { url: b.newUrl, label: "Open in Sentry" } : undefined;
   const pill = `${fresh.length >= 100 ? "100+" : fresh.length} new ${fresh.length === 1 ? "error" : "errors"}`;
-  if (!notInBug) return { ...base, state: "good", pill, line: `${inBugs === 1 ? "It's" : "All"} already in ${inBugs === 1 ? "a bug" : "bugs"}${crash ? ` · ${crash}` : ""}`, notInBug: 0, open };
+  const preview = b.issues?.length ? { issues: sentryIssueRows(b.issues, b.inBugIds, b.bugOf), issueTotal: fresh.length } : {};
+  if (!notInBug) return { ...base, state: "good", pill, line: `${inBugs === 1 ? "It's" : "All"} already in ${inBugs === 1 ? "a bug" : "bugs"}${crash ? ` · ${crash}` : ""}`, notInBug: 0, open, ...preview };
   const said = `${plural(notInBug, "new Sentry error")} not in a bug yet in ${name}${about ? ` (${about})` : ""}.`;
-  return { ...base, state: "bad", pill, line, notInBug, open, bug: { title: `New Sentry errors in ${name}${about ? ` (${about})` : ""}`, build: b.build, note: [said, b.newUrl].filter(Boolean).join("\n") } };
+  return { ...base, state: "bad", pill, line, notInBug, open, ...preview, bug: { title: `New Sentry errors in ${name}${about ? ` (${about})` : ""}`, build: b.build, note: [said, b.newUrl].filter(Boolean).join("\n") } };
 }
 
 /**

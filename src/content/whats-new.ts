@@ -21,6 +21,7 @@ export type WhatsNewItem = {
 export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
+  { version: 264, date: "2026-11-16", items: [{ kind: "new", title: "See the Sentry errors on Status", text: "On Status, the Sentry card now lists the top new errors under each build you're testing: what the error is, where it happened, how many events and people, and when it was last seen. Errors not in a bug yet come first, and errors already in a bug say which bug. Show all opens the rest right on the card, and each error links to Sentry." }] },
   {
     version: 263,
     date: "2026-11-16",
