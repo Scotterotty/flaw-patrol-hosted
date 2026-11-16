@@ -20,7 +20,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   for (const a of result.attachments) {
     // Retried tests: each attempt's files go in their own folder.
     const tries = new Set(result.attachments.map((x) => x.attempt ?? 1)).size;
-    let name = tries > 1 && a.attempt ? `attempt-${a.attempt}/${a.fileName}` : a.fileName;
+    // Only the file's own name, never a folder path from an upload (review: zip-slip).
+    const own = a.fileName.split(/[\\/]/).filter((p) => p && p !== "." && p !== "..").pop() || "file";
+    let name = tries > 1 && a.attempt ? `attempt-${a.attempt}/${own}` : own;
     for (let i = 2; seen.has(name); i++) name = name.replace(/(-\d+)?(\.[^.]+)?$/, `-${i}$2`);
     seen.add(name);
     zip.file(name, a.data);

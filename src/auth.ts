@@ -18,6 +18,8 @@ export class SignInProblem extends CredentialsSignin {
 
 const LOCK_AFTER = 10;
 const LOCK_MINUTES = 15;
+/** A password set this recently doesn't sign out older sessions yet (see the jwt callback). */
+const PASSWORD_GRACE_MS = 10_000;
 
 /** Whether email and password sign-in is on for everyone (admins can always use it). */
 export async function passwordSignInOn() {
@@ -159,7 +161,7 @@ async function startsAsAdmin(email: string) {
 const isCompany = (id: string): id is CompanyProvider => (COMPANY_PROVIDERS as readonly string[]).includes(id);
 
 // The config is read per request, so a sign-in an admin saves on Workspace settings works at once.
-export const { handlers, auth, signIn, signOut } = NextAuth(async (): Promise<NextAuthConfig> => {
+export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth(async (): Promise<NextAuthConfig> => {
   const rows = await savedProviders();
   return {
     providers: [...buildProviders(rows), ...(ssoOnly() ? [] : [passwordProvider])],
@@ -201,15 +203,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth(async (): Promise<Ne
         await logActivity({ actor: admitted, kind: "signin", action: `Signed in with ${label}`, detail: testing ? "Test sign-in" : "" });
         return true;
       },
-      async jwt({ token, user }) {
+      async jwt({ token, user, trigger }) {
         if (user?.email) {
           const dbUser = await db.user.findUnique({ where: { email: user.email.toLowerCase() } });
-          if (dbUser) token.uid = dbUser.id;
+          if (dbUser) {
+            token.uid = dbUser.id;
+            token.pwd = dbUser.passwordSetAt?.getTime() ?? 0;
+          }
+        }
+        // Changing your own password keeps you signed in on this browser (changeMyPassword).
+        if (trigger === "update" && token.uid) {
+          const me = await db.user.findUnique({ where: { id: token.uid as string }, select: { passwordSetAt: true } });
+          token.pwd = me?.passwordSetAt?.getTime() ?? 0;
+        } else if (!user && token.uid && typeof token.pwd === "number") {
+          // Hosted build (review: "Sessions aren't revoked"): a password set after this sign-in
+          // (a reset, or a change in another browser) signs this one out. Sessions from before
+          // this check carry no stamp and are left alone. A password set in the last few seconds
+          // doesn't count yet: the page that changed it is still drawn with the old stamp before
+          // the browser gets the new one, and that shouldn't sign the person out.
+          const me = await db.user.findUnique({ where: { id: token.uid as string }, select: { passwordSetAt: true } });
+          const setAt = me?.passwordSetAt?.getTime() ?? 0;
+          if (!me || (setAt > token.pwd && Date.now() - setAt > PASSWORD_GRACE_MS)) return null;
         }
         return token;
       },
       session({ session, token }) {
         if (token.uid && session.user) session.user.id = token.uid as string;
+        if (session.user && typeof token.pwd === "number") (session.user as { pwd?: number }).pwd = token.pwd;
         return session;
       },
     },

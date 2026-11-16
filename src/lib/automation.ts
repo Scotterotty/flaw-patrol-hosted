@@ -46,6 +46,15 @@ const seconds = (v: string) => {
   return Number.isFinite(n) ? n : null;
 };
 
+/**
+ * JUnit reports never declare a DOCTYPE. Taking it out means no custom entities can be
+ * defined, so an uploaded report can't expand into gigabytes (hosted build, backend team
+ * review: XML entities). The standard ones (&amp; &lt; and so on) still read as before.
+ */
+export function withoutDoctype(xml: string) {
+  return xml.replace(/<!DOCTYPE[^>[]*(\[[\s\S]*?\])?\s*>/gi, "").replace(/<!ENTITY[\s\S]*?>/gi, "");
+}
+
 function parser() {
   return new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "", textNodeName: "#text", parseAttributeValue: false, parseTagValue: false, trimValues: false, processEntities: true });
 }
@@ -209,7 +218,7 @@ export function parseResultsFile(xml: string, fileName = ""): AutoFile {
   }
   let root: Node;
   try {
-    root = parser().parse(xml) as Node;
+    root = parser().parse(withoutDoctype(xml)) as Node;
   } catch {
     throw new Error(`${fileName || "That file"} isn't readable XML.`);
   }

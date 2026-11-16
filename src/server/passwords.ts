@@ -2,7 +2,7 @@
 
 import { AuthError } from "next-auth";
 import { unstable_rethrow } from "next/navigation";
-import { mayJoin, passwordSignInOn, signIn } from "@/auth";
+import { mayJoin, passwordSignInOn, signIn, unstable_update } from "@/auth";
 import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
 import { emailInvite, newLink, placeName, RESET_HOURS } from "@/lib/invites";
@@ -80,6 +80,8 @@ export async function changeMyPassword(input: { current: string; next: string; c
     if (problem) throw new UserError(problem);
     if (input.next !== input.confirm) throw new UserError("The two new passwords don't match.");
     await db.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(input.next), passwordSetAt: new Date(), failedLogins: 0, lockedUntil: null } });
+    // Other browsers signed in as you are signed out; this one gets a fresh stamp and stays in.
+    await unstable_update({});
     return {};
   });
 }
