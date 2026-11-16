@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   // A query with include/select of related rows is one database trip instead of one per relation.
   previewFeatures = ["relationJoins"]
 }
@@ -12,109 +12,109 @@ datasource db {
 // Workspace-level person. isAdmin is a workspace admin who can create projects
 // and see every project; project access otherwise comes from ProjectMember.
 model User {
-  id                String          @id @default(cuid())
-  email             String          @unique
-  name              String?
-  image             String?
-  isAdmin           Boolean         @default(false)
-  lastLoginAt       DateTime?
-  createdAt         DateTime        @default(now())
-  memberships       ProjectMember[]
-  projectPins       ProjectPin[]
-  groupPins         GroupPin[]
+  id                   String                @id @default(cuid())
+  email                String                @unique
+  name                 String?
+  image                String?
+  isAdmin              Boolean               @default(false)
+  lastLoginAt          DateTime?
+  createdAt            DateTime              @default(now())
+  memberships          ProjectMember[]
+  projectPins          ProjectPin[]
+  groupPins            GroupPin[]
   // scrypt hash (see src/lib/password.ts). Null until the person sets one,
   // which they do the first time they sign in.
   // Email of their Jira account when it differs from this one; used to set them as a bug's Reporter.
-  jiraEmail         String?
+  jiraEmail            String?
   // Bug template answers remembered per client tag (Context, User name & ID,
   // tenant), see src/lib/bug-template.ts.
-  bugProfile        Json            @default("{}")
-  passwordHash      String?
-  passwordSetAt     DateTime?
+  bugProfile           Json                  @default("{}")
+  passwordHash         String?
+  passwordSetAt        DateTime?
   // Repeated wrong passwords lock the account for a while.
-  failedLogins      Int             @default(0)
-  lockedUntil       DateTime?
-  passwordLinks     PasswordLink[]
+  failedLogins         Int                   @default(0)
+  lockedUntil          DateTime?
+  passwordLinks        PasswordLink[]
   // Appearance, see src/lib/theme.ts.
-  themeMode         String          @default("light")
-  accent            String          @default("violet")
+  themeMode            String                @default("light")
+  accent               String                @default("violet")
   // App-wide look (src/lib/looks.ts, ver_202): Classic, Mission control, High contrast…
-  look              String          @default("classic")
-  fontBody          String          @default("poppins")
-  fontHeading       String          @default("bungee")
+  look                 String                @default("classic")
+  fontBody             String                @default("poppins")
+  fontHeading          String                @default("bungee")
   // Accessibility: text size as a percentage, and opt-in display aids.
-  textSize          String          @default("100")
-  reduceMotion      Boolean         @default(false)
-  strongContrast    Boolean         @default(false)
-  underlineLinks    Boolean         @default(false)
+  textSize             String                @default("100")
+  reduceMotion         Boolean               @default(false)
+  strongContrast       Boolean               @default(false)
+  underlineLinks       Boolean               @default(false)
   // Optional background radio, off until the person turns it on (src/lib/radio.ts).
-  radioEnabled      Boolean         @default(false)
-  radioStation      String          @default("fluid")
+  radioEnabled         Boolean               @default(false)
+  radioStation         String                @default("fluid")
   // Spotify playlists, albums and podcasts this person saved: { id: "playlist:abc", name }[].
-  spotifyLinks      Json            @default("[]")
+  spotifyLinks         Json                  @default("[]")
   // RC status page: the release last shown and the runs picked for each release (src/lib/rc-status.ts).
-  rcReport          Json            @default("{}")
+  rcReport             Json                  @default("{}")
   // Bugs page (ver_232): the view, Found in testing and the Jira board picked per Jira project (src/lib/bugs-view.ts).
-  bugsPicks         Json            @default("{}")
+  bugsPicks            Json                  @default("{}")
   // The time zone their browser last reported (src/lib/zone.ts), so digest emails show their own clock.
-  timeZone          String?
+  timeZone             String?
   // The newest build whose What's new window this person has closed (src/content/whats-new.ts).
   // Null for people who signed in before ver_88: they see the newest entries once.
-  whatsNewSeen      Int?
+  whatsNewSeen         Int?
   // Opt-in mini game (src/lib/game.ts): the title and avatar frame they show.
-  gameEnabled       Boolean         @default(false)
-  gameTitle         String?
-  gameFrame         String?
+  gameEnabled          Boolean               @default(false)
+  gameTitle            String?
+  gameFrame            String?
   // Opt-in quest maps for test runs (src/lib/quest.ts); needs the mini game on.
-  questMap          Boolean         @default(false)
+  questMap             Boolean               @default(false)
   // Seasonal scenery on quest maps (src/lib/seasons.ts): on unless they turn it off.
-  seasonalMaps      Boolean         @default(true)
+  seasonalMaps         Boolean               @default(true)
   // Loading spinners (src/lib/spinners.ts): the ones ticked in Account → Appearance; long waits play one at random.
-  spinners          String[]        @default(["ring"])
+  spinners             String[]              @default(["ring"])
   // Risk board look (src/lib/risk-looks.ts): null follows the app look (User.look, ver_202).
-  riskLook          String?
+  riskLook             String?
   // Quest pawn and worn gear (src/lib/quest-gear.ts): looks only, cleared with the satchel on an XP reset.
-  questPawn         String          @default("classic")
-  questColor        String          @default("accent") @map("questColour")
-  questGear         Json            @default("{}")
+  questPawn            String                @default("classic")
+  questColor           String                @default("accent") @map("questColour")
+  questGear            Json                  @default("{}")
   // Auto-equip: slots the player emptied or changed by hand never fill on their own again,
   // and slots the game filled itself, so the Gear tab can mark them. Cleared with the gear on an XP reset.
-  questGearTouched  String[]        @default([])
-  questGearAuto     String[]        @default([])
+  questGearTouched     String[]              @default([])
+  questGearAuto        String[]              @default([])
   // "us" or "uk" English for the app's words and dates; null means American (src/lib/spelling.ts).
-  spelling          String?
+  spelling             String?
   // XP only counts work from this moment on; an admin sets it to reset someone.
-  xpSince           DateTime?
+  xpSince              DateTime?
   // Signed in before launch (see Workspace.launchedAt); unlocks the Early Adopter title.
-  earlyAdopter      Boolean         @default(false)
+  earlyAdopter         Boolean               @default(false)
   // Profile picture: a small square WebP/PNG/JPEG, served by /api/avatars/[id].
-  avatar            Bytes?
-  avatarType        String?
-  avatarAt          DateTime?
+  avatar               Bytes?
+  avatarType           String?
+  avatarAt             DateTime?
   // Ctrl+K search: the last 5 things this person opened from it, { href, label, kind }[].
-  searchRecent      Json            @default("[]")
+  searchRecent         Json                  @default("[]")
   // Arrange menu order: this person's own left menu order (src/lib/nav-order.ts); {} is the default.
-  navOrder          Json            @default("{}")
+  navOrder             Json                  @default("{}")
   // Color vision: "standard" | "redgreen" | "blueyellow" | "none" status colors, and
   // shapes and patterns on statuses (always on for "none"). See src/lib/vision.ts.
-  colorVision       String          @default("standard")
-  visionShapes      Boolean         @default(false)
+  colorVision          String                @default("standard")
+  visionShapes         Boolean               @default(false)
   // Folding cards: ids of the Account cards and Mini game sections this person keeps open.
-  openCards         String[]        @default([])
+  openCards            String[]              @default([])
   /// Emails I get: { runs: "tested"|"all"|"none", bashes: "joined"|"all"|"none", rc: boolean }, see src/lib/digest-settings.ts.
-  digestPrefs       Json            @default("{}")
+  digestPrefs          Json                  @default("{}")
   // Mini game crowns: crowns this person held when last told, so take/lose toasts show once.
-  crownsSeen        String[]        @default([])
+  crownsSeen           String[]              @default([])
   // The title worn before putting on a crown, so losing the crown puts it back.
-  gameTitleBefore   String?
+  gameTitleBefore      String?
   // Activity log entries this person made.
-  activity          ActivityEntry[]
+  activity             ActivityEntry[]
   // Glossary: dotted underlines under known terms all over the app; off hides them for this person only.
-  glossaryUnderline Boolean         @default(true)
+  glossaryUnderline    Boolean               @default(true)
   // Ask to join: teams this person asked to be added to from a shared link.
-  joinRequests      JoinRequest[]
+  joinRequests         JoinRequest[]
   workspaceJoinRequest WorkspaceJoinRequest?
-  delveSave         DelveSave?
+  delveSave            DelveSave?
 }
 
 // Workspace-wide settings, one row (id 1). launchedAt is when an admin launched
@@ -299,6 +299,9 @@ model Project {
   /// Practice run (ver_217): the person this private practice space belongs to. Only they see it;
   /// it stays out of lists, reports, search, Jira and Slack, and is removed after 7 days.
   practiceFor          String?           @unique
+  /// Test plans (Configurations): the last plan number used here.
+  planSeq              Int               @default(0)
+  plans                TestPlan[]
 
   @@index([groupId])
 }
@@ -309,19 +312,19 @@ model Project {
  * ungroups its projects.
  */
 model ProjectGroup {
-  id              String         @id @default(cuid())
+  id              String          @id @default(cuid())
   name            String
-  description     String         @default("")
-  createdAt       DateTime       @default(now())
+  description     String          @default("")
+  createdAt       DateTime        @default(now())
   projects        Project[]
   pins            GroupPin[]
   /// Umbrellas: the hub project holding the shared library, Jira and team.
-  hub             Project?       @relation("UmbrellaHub", fields: [hubProjectId], references: [id], onDelete: SetNull)
-  hubProjectId    String?        @unique
+  hub             Project?        @relation("UmbrellaHub", fields: [hubProjectId], references: [id], onDelete: SetNull)
+  hubProjectId    String?         @unique
   /// Up to 6 shortcuts on the umbrella's Projects-page card, same for everyone.
-  shortcuts       Json           @default("[]")
+  shortcuts       Json            @default("[]")
   /// Platforms the umbrella tests on, each with the hub suites a new RC runs.
-  platforms       Json           @default("[]")
+  platforms       Json            @default("[]")
   /// Umbrellas: archived with its projects. Nothing is deleted.
   archivedAt      DateTime?
   /// Roles card: what each role can do in the umbrella and all its test cycles.
@@ -329,19 +332,21 @@ model ProjectGroup {
   /// When an admin last saved "What can they do" or pressed Keep everyone open; null shows the before-invite nudge.
   rolesChosenAt   DateTime?
   /// Run fields: extra details runs ask for, beyond Release, Build and Environment. See src/lib/run-fields.ts.
-  runFields       Json           @default("[]")
+  runFields       Json            @default("[]")
   /// Umbrellas made before ver_89 keep the OKO bug layout choice in Jira settings.
-  okoLayout       Boolean        @default(false)
+  okoLayout       Boolean         @default(false)
   /// Regression flag: { on, compare, label, slack }, see src/lib/regression.ts. {} = defaults (on).
-  regression      Json           @default("{}")
+  regression      Json            @default("{}")
   /// Screenshots, videos and replays from automation: { keep: "failed" | "all", maxMb }, see src/lib/test-files.ts.
-  automationFiles Json           @default("{}")
+  automationFiles Json            @default("{}")
   /// Run kinds: built-in Smoke test / Release candidate / Bug bash plus custom ones, see src/lib/run-kinds.ts.
-  runKinds        Json           @default("[]")
+  runKinds        Json            @default("[]")
   /// Tools: { off: [...] } names the tools this umbrella doesn't use, see src/lib/tools.ts. {} = every tool.
-  tools           Json           @default("{}")
+  tools           Json            @default("{}")
   /// Email digests: who gets a summary when a run finishes or a bug bash ends, see src/lib/digest-settings.ts. {} = off.
-  emailDigest     Json           @default("{}")
+  emailDigest     Json            @default("{}")
+  /// Configurations: named sets of values, like Songs or Platforms. [{ id, name, values }], see src/lib/configurations.ts.
+  configurations  Json            @default("[]")
   slackChannels   SlackChannel[]
   githubRepos     GitHubRepo[]
   ciTokens        CiToken[]
@@ -379,7 +384,9 @@ model BugAudit {
   @@index([groupId])
 }
 
-/** One bug in an audit: who has it now (a claim) and, once checked, what they found. */
+/**
+ * One bug in an audit: who has it now (a claim) and, once checked, what they found.
+ */
 model BugAuditCheck {
   id          String    @id @default(cuid())
   audit       BugAudit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
@@ -905,12 +912,43 @@ model TestRun {
   results        TestResult[]
   bugBash        BugBash?
   defectChecks   DefectCheck[]
+  /// Test plans: the plan this run belongs to, and its values, like [{ name: "Songs", value: "Neverender" }].
+  plan           TestPlan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
+  planId         String?
+  planValues     Json          @default("[]")
 
   @@unique([projectId, number])
+  @@index([planId])
   @@index([projectId, createdAt])
   @@index([projectId, release])
   @@index([sourceHash])
   @@index([githubRepoId, githubRunId])
+}
+
+/**
+ * A test plan: one run per Configuration value (or per pairing when two are ticked), made
+ * together from Create a run. Each run is a normal run with planId set. See src/lib/configurations.ts.
+ */
+model TestPlan {
+  id          String    @id @default(cuid())
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  number      Int
+  name        String
+  /// The Configurations ticked, copied when the plan was made: [{ name, values }]. Later edits never change it.
+  configs     Json      @default("[]")
+  /// What its runs test, for Add a run and Copy: { what, suiteId?, caseIds?, withAutomated }.
+  source      Json
+  /// Run details its runs share: { release, build, cspVersion, environment, description, runKind, fields }.
+  details     Json      @default("{}")
+  state       RunState  @default(ACTIVE)
+  createdById String?
+  createdBy   String    @default("")
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+  runs        TestRun[]
+
+  @@unique([projectId, number])
 }
 
 // A case inside a run. Steps are snapshotted when the run starts (shared steps
@@ -1255,40 +1293,40 @@ model CharterTemplate {
  * `areas` is [{ id, name, caseId, template }], see src/lib/bash.ts.
  */
 model BugBash {
-  id           String       @id @default(cuid())
-  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  projectId    String
-  run          TestRun?     @relation(fields: [runId], references: [id], onDelete: SetNull)
-  runId        String?      @unique
-  name         String
-  release      String       @default("")
-  minutes      Int
-  startsAt     DateTime
-  endsAt       DateTime
+  id            String       @id @default(cuid())
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId     String
+  run           TestRun?     @relation(fields: [runId], references: [id], onDelete: SetNull)
+  runId         String?      @unique
+  name          String
+  release       String       @default("")
+  minutes       Int
+  startsAt      DateTime
+  endsAt        DateTime
   /// Ended early by whoever started it (time-up bashes just pass endsAt).
-  endedAt      DateTime?
+  endedAt       DateTime?
   /// Wrap-up done: bugs filed and sessions saved to the run.
-  wrappedAt    DateTime?
-  areas        Json         @default("[]")
+  wrappedAt     DateTime?
+  areas         Json         @default("[]")
   /// Links for the whole bash: Jira issues, GitHub PRs, web pages. Each area has its own in `areas`.
-  links        Json         @default("[]")
+  links         Json         @default("[]")
   /// Collect bugs here first and file them at wrap-up (the default), or straight to Jira.
-  collectFirst Boolean      @default(true)
-  slack        Boolean      @default(true)
-  funExtras    Boolean      @default(false)
+  collectFirst  Boolean      @default(true)
+  slack         Boolean      @default(true)
+  funExtras     Boolean      @default(false)
   /// The bug template bugs use; null means the plain one-line bug.
   bugTemplateId String?
   /// Platforms people can say they're on when they join (ver_146). Empty means nobody is asked.
-  platforms    String[]     @default([])
+  platforms     String[]     @default([])
   /// When the start post, the 10-minute warning and the summary went to Slack.
-  slackStartAt DateTime?
-  slackWarnAt  DateTime?
-  slackDoneAt  DateTime?
-  createdById  String?
-  createdBy    String       @default("")
-  createdAt    DateTime     @default(now())
-  people       BashPerson[]
-  items        BashItem[]
+  slackStartAt  DateTime?
+  slackWarnAt   DateTime?
+  slackDoneAt   DateTime?
+  createdById   String?
+  createdBy     String       @default("")
+  createdAt     DateTime     @default(now())
+  people        BashPerson[]
+  items         BashItem[]
 
   @@index([projectId, createdAt])
 }

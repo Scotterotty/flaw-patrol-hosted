@@ -21,8 +21,9 @@ import { libraryProjectIds, loadUmbrella, platformColor, umbrellaOf } from "@/li
 import { attempt, UserError } from "./result";
 import { addUmbrellaProject } from "./umbrella";
 import { createRun } from "./runs";
-import { ONLY_AUTOMATED } from "@/lib/automated-cases";
 import { NOT_BASH_RUN } from "@/lib/bash-cases";
+import { MAX_CONFIGURATIONS, MAX_PLAN_RUNS, MAX_VALUE_LENGTH, MAX_VALUES, pairingCount, parseConfigurations, type PlanConfig } from "@/lib/configurations";
+import { makePlan, runSourceFor, type PlanSource } from "@/lib/plans-server";
 
 // The Create a run box: pick what to run from the library (all of it, a
 // suite, or ticked cases), then the test cycles to run it in, one run in each.
@@ -137,6 +138,8 @@ export async function runBoxOptions(scope: RunBoxScope) {
       // The latest release-candidate test cycle, for the kind's line ("carries over from Demo RC 1").
       lastCycle: umbrella ? (umbrella.current.find((p) => p.rcName)?.rcName || umbrella.current[0]?.name || "") : "",
       meId: user.id,
+      // Configurations: "Test on these Configurations" ticks, umbrellas only.
+      configurations: umbrella ? parseConfigurations(umbrella.group.configurations).filter((c) => c.values.length) : [],
       // Run fields: the umbrella's, or CSP version for a test cycle outside one.
       runFields: umbrella ? parseRunFields(umbrella.group.runFields) : [CSP_FIELD],
       cycles: cycles.map((c, i): RunBoxCycle => ({ id: c.id, key: c.key, name: c.name, color: colorOf(c.platform), current: c.current, rcName: c.rcName, members: assignable(members[i]).map((m) => ({ id: m.id, name: m.name })) })),
@@ -183,41 +186,25 @@ const startSchema = z.object({
   runKind: z.string().trim().max(40).default(""),
   /** "Also include the automated cases". Off, Whole Case library and suites leave them out. */
   withAutomated: z.boolean().default(false),
+  /** Configurations: values ticked under "Test on these Configurations", by Configuration id. */
+  configs: z.array(z.object({ id: z.string().max(40), values: z.array(z.string().max(MAX_VALUE_LENGTH)).max(MAX_VALUES) })).max(MAX_CONFIGURATIONS).default([]),
 });
 
-/** Start one run in each ticked test cycle. Each test cycle's own release only when asked for. */
+/** Start one run in each ticked test cycle, or a test plan in each when Configuration values are ticked. */
 export async function startRuns(input: z.input<typeof startSchema>) {
   return attempt(async () => {
     const data = startSchema.parse(input);
     if (data.what === "suite" && !data.suiteId) throw new UserError("Pick a suite to run.");
     if (data.what === "cases" && !data.caseIds?.length) throw new UserError("Tick at least one case to run.");
+    const spec: PlanSource = { what: data.what, suiteId: data.suiteId, caseIds: data.caseIds, withAutomated: data.withAutomated };
+    const picks = await pickedConfigs(data.cycleIds[0], data.configs);
     const started: { key: string; number: number; name: string }[] = [];
+    const plans: { key: string; number: number; runs: { number: number }[] }[] = [];
     for (const cycleId of [...new Set(data.cycleIds)]) {
-      const { project } = await requireProjectAction(cycleId, "run:create");
-      let source: Parameters<typeof createRun>[1];
-      // Whole Case library and suites leave out automated-only cases unless asked;
-      // cases ticked one by one always go in.
-      if (data.what === "suite") source = { kind: "suite", suiteId: data.suiteId! };
-      else {
-        const u = await umbrellaOf(project);
-        // The whole library is the umbrella's Case library; outside an umbrella, the project's own cases.
-        const ids = data.what === "all" ? (u && !u.isHub ? [u.hub.id] : [project.id]) : await libraryProjectIds(project);
-        const cases = await db.testCase.findMany({
-          // The whole library never takes in a bug bash's area charters.
-          where: { projectId: { in: ids }, archived: false, ...(data.what === "cases" ? { id: { in: data.caseIds } } : { ...NOT_BASH_CASE, ...(data.withAutomated ? {} : { type: { not: "AUTOMATED" as const } }) }) },
-          orderBy: [{ projectId: "asc" }, { number: "asc" }],
-          select: { id: true },
-        });
-        const order = data.what === "cases" ? new Map(data.caseIds!.map((id, i) => [id, i])) : null;
-        const caseIds = cases.map((c) => c.id).sort((a, b) => (order ? order.get(a)! - order.get(b)! : 0));
-        if (!caseIds.length && data.what === "all" && !data.withAutomated) throw new UserError(ONLY_AUTOMATED);
-        if (!caseIds.length) throw new UserError(started.length ? stopped(started, project.name, "it has none of these cases") : `${project.name} has none of these cases to run.`);
-        source = { kind: "cases", caseIds };
-      }
+      const { project, user } = await requireProjectAction(cycleId, "run:create");
       // Cases go to the chosen tester only where they're on the team.
       const member = data.assigneeId ? await db.projectMember.findUnique({ where: { projectId_userId: { projectId: cycleId, userId: data.assigneeId } } }) : null;
-      const res = await createRun(cycleId, source, {
-        name: data.name,
+      const details = {
         description: data.description,
         build: data.build,
         cspVersion: data.cspVersion,
@@ -226,13 +213,56 @@ export async function startRuns(input: z.input<typeof startSchema>) {
         release: data.release || (data.cycleRelease ? project.rcName : ""),
         runKind: data.runKind,
         withAutomated: data.withAutomated,
-        assigneeId: member ? data.assigneeId : null,
-      });
+      };
+      if (picks.length) {
+        // Configurations ticked: a test plan here, one run per value or pairing.
+        try {
+          const plan = await makePlan(project, user, { name: data.name, configs: picks, source: spec, details, assigneeId: member ? data.assigneeId : null });
+          plans.push({ key: project.key, number: plan.planNumber, runs: plan.runs });
+          started.push(...plan.runs.map((r) => ({ key: project.key, number: r.number, name: project.name })));
+        } catch (e) {
+          if (e instanceof UserError && started.length) throw new UserError(stopped(started, project.name, e.message));
+          throw e;
+        }
+        revalidatePath(`/p/${project.key}`, "layout");
+        continue;
+      }
+      let source: Parameters<typeof createRun>[1];
+      try {
+        // Whole Case library and suites leave out automated-only cases unless asked;
+        // cases ticked one by one always go in.
+        source = await runSourceFor(project, spec);
+      } catch (e) {
+        if (e instanceof UserError && started.length) throw new UserError(stopped(started, project.name, "it has none of these cases"));
+        throw e;
+      }
+      const res = await createRun(cycleId, source, { ...details, name: data.name, assigneeId: member ? data.assigneeId : null });
       if (!res.ok) throw new UserError(started.length ? stopped(started, project.name, res.error) : `${project.name}: ${res.error}`);
       started.push({ key: project.key, number: res.number, name: project.name });
     }
-    return { runs: started };
+    return { runs: started, plans };
   });
+}
+
+/** The ticked values, checked against the umbrella's Configurations, in its order. */
+async function pickedConfigs(cycleId: string | undefined, ticks: { id: string; values: string[] }[]): Promise<PlanConfig[]> {
+  if (!cycleId || !ticks.some((t) => t.values.length)) return [];
+  const project = await db.project.findUnique({ where: { id: cycleId }, select: { id: true, groupId: true } });
+  const u = project ? await umbrellaOf(project) : null;
+  if (!u) throw new UserError("Configurations are set up in an umbrella. This test cycle isn't in one.");
+  const configs = parseConfigurations(u.group.configurations);
+  const out: PlanConfig[] = [];
+  for (const c of configs) {
+    const t = ticks.find((x) => x.id === c.id);
+    if (!t?.values.length) continue;
+    const want = new Set(t.values);
+    const values = c.values.filter((v) => want.has(v));
+    if (values.length) out.push({ name: c.name, values });
+  }
+  if (!out.length) throw new UserError("Those values aren't in the umbrella's Configurations anymore. Close the box and try again.");
+  const runs = pairingCount(out);
+  if (runs > MAX_PLAN_RUNS) throw new UserError(`That makes ${runs} runs. A test plan holds up to ${MAX_PLAN_RUNS}, so untick some values.`);
+  return out;
 }
 
 function stopped(started: { name: string }[], name: string, why: string) {

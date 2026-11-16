@@ -17,6 +17,8 @@ import { fieldsOrFail } from "./run-field-input";
 import { parseFieldValues } from "@/lib/run-fields";
 import { suiteForCases } from "@/lib/suite-match";
 import { automatedIn, ONLY_AUTOMATED } from "@/lib/automated-cases";
+import { fillPlanBlanks, type PlanValue } from "@/lib/configurations";
+import type { ExpandedStep } from "@/lib/steps";
 
 const runSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
@@ -45,7 +47,13 @@ const source = z.discriminatedUnion("kind", [
   }),
 ]);
 
-export async function createRun(projectId: string, from: z.input<typeof source>, input: RunInput) {
+/**
+ * plan: this run is one of a test plan's runs. Its values fill {{blanks}} named after their
+ * Configuration ({{song}} gets the run's song), and quiet leaves the start alerts to the plan.
+ */
+export type RunPlanPart = { planId: string; values: PlanValue[]; quiet?: boolean };
+
+export async function createRun(projectId: string, from: z.input<typeof source>, input: RunInput, plan?: RunPlanPart) {
   return attempt(async () => {
     const { project, user } = await requireProjectAction(projectId, "run:create");
     const data = runSchema.parse(input);
@@ -99,6 +107,7 @@ export async function createRun(projectId: string, from: z.input<typeof source>,
         const clients = project.clients ?? [];
         const entries = await buildEntries(tx, library, caseIds, data.assigneeId, { clients });
         if (!entries.length) throw new UserError("There are no active cases to run.");
+        if (plan?.values.length) for (const e of entries) fillEntryForPlan(e, plan.values);
         if (carry && !data.assigneeId) {
           const team = new Set((await tx.projectMember.findMany({ where: { projectId }, select: { userId: true } })).map((m) => m.userId));
           for (const e of entries) {
@@ -138,18 +147,40 @@ export async function createRun(projectId: string, from: z.input<typeof source>,
             createdById: user.id,
             createdBy: user.name ?? user.email,
             entries: { create: entries.map(({ assigneeId, ...e }) => ({ ...e, assigneeId })) },
+            ...(plan ? { planId: plan.planId, planValues: plan.values as unknown as Prisma.InputJsonValue } : {}),
           },
         });
       },
       { timeout: 60_000 },
     );
+    if (plan?.quiet) {
+      await fillNewRun(run.id, { id: user.id, name: user.name ?? user.email }).catch((e) => console.warn("Sister fill failed", e));
+      return { number: run.number, id: run.id };
+    }
     await logActivity({ actor: user, kind: "run", action: `Started run "${runTitle(run)}"`, project, detail: run.release ? `Release ${run.release}` : "" });
     revalidatePath(`/p/${project.key}`, "layout");
     await alertRunStarted(project, run.id, user.name ?? user.email).catch(() => {});
     // Sister cases: steps the dry run already tested fill in straight away.
     await fillNewRun(run.id, { id: user.id, name: user.name ?? user.email }).catch((e) => console.warn("Sister fill failed", e));
-    return { number: run.number };
+    return { number: run.number, id: run.id };
   });
+}
+
+type BuiltEntry = Awaited<ReturnType<typeof buildEntries>>[number];
+
+/** A plan run's values go into its steps' {{blanks}}, title and preconditions, shown in blue like test data. */
+function fillEntryForPlan(e: BuiltEntry, values: PlanValue[]) {
+  e.title = fillPlanBlanks(e.title, values).text;
+  e.preconditions = fillPlanBlanks(e.preconditions, values).text;
+  const steps = e.steps as unknown as ExpandedStep[];
+  if (!Array.isArray(steps)) return;
+  e.steps = steps.map((s) => {
+    const a = fillPlanBlanks(s.action ?? "", values);
+    const x = fillPlanBlanks(s.expected ?? "", values);
+    const used = [...new Set([...a.used, ...x.used])];
+    if (!used.length) return s;
+    return { ...s, action: a.text, expected: x.text, vals: [...new Set([...(s.vals ?? []), ...used])] };
+  }) as unknown as Prisma.InputJsonValue;
 }
 
 /** Change a run's name, release, build, environment or notes. Anyone who can start runs can. */

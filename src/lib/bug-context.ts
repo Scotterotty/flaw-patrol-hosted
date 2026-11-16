@@ -2,6 +2,7 @@
 // moved it here from server/jira.ts so bug templates use the same one). Server only.
 
 import { runTitle } from "./run-label";
+import { parsePlanValues, valuesLabel } from "./configurations";
 import { headers } from "next/headers";
 import { missionLine, parseCharter } from "@/lib/charter";
 import { db } from "@/lib/db";
@@ -82,6 +83,7 @@ export async function bugContext(projectId: string, entryId: string, stepIndex: 
     actual,
     link: origin ? `${origin}/p/${key}/runs/${entry.run.number}/execute?entry=${entry.id}` : null,
     titleTags,
+    planTag: valuesLabel(parsePlanValues(entry.run.planValues)) || undefined,
   };
   return { ctx, entry };
 }

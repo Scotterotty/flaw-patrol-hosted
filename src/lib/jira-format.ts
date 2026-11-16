@@ -30,6 +30,8 @@ export type BugContext = {
   reportedBy?: string | null;
   /** Bracket tags the summary puts back in front, like [WEB]. */
   titleTags?: string[];
+  /** Test plans: the run's Configuration values, like "Neverender", put in front of the summary as [Neverender]. */
+  planTag?: string;
 };
 
 /** The first line of a step or note, trimmed to a readable length. */
@@ -65,10 +67,13 @@ export function bugTitle(caseTitle: string, step: { action: string; expected: st
   return [caseTitle.trim(), action, what].filter(Boolean).join(": ").slice(0, 250);
 }
 
-export function defaultSummary(ctx: Pick<BugContext, "caseTitle" | "steps" | "failedIndex" | "actual" | "titleTags" | "rowName">): string {
+export function defaultSummary(ctx: Pick<BugContext, "caseTitle" | "steps" | "failedIndex" | "actual" | "titleTags" | "rowName" | "planTag">): string {
   const step = ctx.failedIndex === null ? null : (ctx.steps[ctx.failedIndex] ?? null);
   const title = bugTitle(ctx.caseTitle, step, ctx.actual ?? "");
-  return withBracketTags(ctx.titleTags ?? [], ctx.rowName ? `${title} (${ctx.rowName})` : title).slice(0, 250);
+  const withRow = ctx.rowName ? `${title} (${ctx.rowName})` : title;
+  // A test plan's run: the developer sees which value broke without asking.
+  const withPlan = ctx.planTag ? `[${ctx.planTag}] ${withRow}` : withRow;
+  return withBracketTags(ctx.titleTags ?? [], withPlan).slice(0, 250);
 }
 
 /** Plain-text version, shown as the preview in the dialog. */

@@ -9,6 +9,8 @@ import { notFound } from "next/navigation";
 import { Fragment, type ReactNode } from "react";
 import { EditGroupButton, type GroupChoice } from "@/components/group-dialogs";
 import { Card, PageHeader } from "@/components/ui";
+import { ConfigurationsPanel } from "@/components/configurations-settings";
+import { parseConfigurations } from "@/lib/configurations";
 import { AddUmbrellaProject } from "@/components/umbrella-add-project";
 import { ArchiveCard } from "@/components/archive-project";
 import { RolesCard } from "@/components/roles-card";
@@ -185,6 +187,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
   const canTemplates = can(u.who, "bugtemplate:edit");
   const templatesText = `${bugTemplates.templates.length + 1} ${bugTemplates.templates.length ? "templates" : "template"} · default: ${bugTemplates.templates.find((t) => t.id === bugTemplates.defaultId)?.name ?? bugTemplates.current.name}`;
   const runFields = parseRunFields(u.group.runFields);
+  const configurations = parseConfigurations(u.group.configurations);
   const runKinds = parseRunKinds(u.group.runKinds);
   const reg = parseRegressionSettings(u.group.regression);
   const fileSettings = parseFileSettings(u.group.automationFiles);
@@ -472,6 +475,19 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
               </ExpandRow>
               )}
               </>)}
+              {keep(can(u.who, "umbrella:fields"), <>
+              {on("runs") && (
+              <ExpandRow howto="settings-configurations"
+                id="configurations"
+                hashes={["configurations"]}
+                title="Configurations"
+                text={configurations.length ? configurations.map((c) => `${c.name} (${c.values.length})`).join(", ") : "Test the same cases on each platform, language or other value, as one test plan."}
+                label={can(u.who, "umbrella:fields") ? (configurations.length ? "Change" : "Set up") : "View"}
+              >
+                <ConfigurationsPanel groupId={u.group.id} umbrella={name} configurations={configurations} canEdit={can(u.who, "umbrella:fields") && !u.group.archivedAt} />
+              </ExpandRow>
+              )}
+              </>)}
               {keep(canTemplates, <>
               <ExpandRow id="bug-templates" howto="settings-bug-templates" hashes={["bug-templates", "template", "import-template"]} title="Bug templates" text={templatesText} label={canTemplates ? "Change" : "Open"}>
                 <BugTemplatesSettings
@@ -706,7 +722,7 @@ export default async function UmbrellaSettingsPage({ params }: { params: Promise
         {foldLookOnly && lookOnly.length > 0 && (
           <Card className="mb-6">
             <ul>
-              <FoldedRows title="Team setup · Admins change these" sub={lookOnly.length === 1 ? "1 setting you can look at" : `${lookOnly.length} settings you can look at`} hashes={["tools", "jira", "stories", "slack", "email-digests", "sentry", "github", "ci-uploads", "teamcity", "qase", "run-fields", "run-kinds", "regression", "automation-files", "crowns", "bug-templates", "bug-audit"]}>
+              <FoldedRows title="Team setup · Admins change these" sub={lookOnly.length === 1 ? "1 setting you can look at" : `${lookOnly.length} settings you can look at`} hashes={["tools", "jira", "stories", "slack", "email-digests", "sentry", "github", "ci-uploads", "teamcity", "qase", "run-fields", "configurations", "run-kinds", "regression", "automation-files", "crowns", "bug-templates", "bug-audit"]}>
                 {lookOnly}
               </FoldedRows>
             </ul>
