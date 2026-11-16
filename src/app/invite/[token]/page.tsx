@@ -4,6 +4,7 @@ import { LogoBanner } from "@/components/logo";
 import { AcceptInviteForm } from "@/components/accept-invite";
 import { Button, Card } from "@/components/ui";
 import { signInButtons } from "@/lib/sign-in-config";
+import { ssoOnly } from "@/lib/sso-only";
 import { findInviteLink } from "@/server/passwords";
 
 export const metadata = { title: "Accept invite" };
@@ -13,7 +14,8 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const { token } = await params;
   const invite = await findInviteLink(token);
   const buttons = invite ? await signInButtons() : [];
-  const password = invite && (!buttons.length || (await passwordSignInOn()));
+  // Company sign-in only (hosted): the invite just says which button to use.
+  const password = invite && !ssoOnly() && (!buttons.length || (await passwordSignInOn()));
   return (
     <main id="main" tabIndex={-1} className="flex min-h-screen items-center justify-center px-4">
       <Card className="w-full max-w-sm overflow-hidden p-6">

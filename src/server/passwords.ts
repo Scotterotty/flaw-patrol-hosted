@@ -11,6 +11,7 @@ import { inviteTitle } from "@/lib/invite-title";
 import { mailOn, sendMail } from "@/lib/mail";
 import { hashLinkToken, hashPassword, passwordProblem, verifyPassword } from "@/lib/password";
 import { requireProjectAction, requireUser } from "@/lib/session";
+import { ssoOnly, SSO_ONLY_MESSAGE } from "@/lib/sso-only";
 import { attempt, UserError } from "./result";
 
 const NO_PASSWORD = "You don't have a password yet. Use the invite link in your email to choose one, or ask an Admin for a new link.";
@@ -21,13 +22,20 @@ const SIGN_IN_ERRORS: Record<string, string> = {
   "not-invited": "That email hasn't been invited yet. Ask an admin to add you.",
   weak: "Pick a stronger password.",
   "sso-only": "Email and password sign-in is off. Use one of the sign-in buttons instead.",
+
   "no-password": NO_PASSWORD,
 };
+
+/** Company sign-in only (hosted, AUTH_SSO_ONLY): every password action stops here. */
+function noPasswords() {
+  if (ssoOnly()) throw new UserError(SSO_ONLY_MESSAGE);
+}
 
 /** Step one of signing in: does this person sign in with a password, set one up, or neither? */
 export async function checkEmail(rawEmail: string): Promise<{ ok: true; next: "password" | "create" } | { ok: false; error: string }> {
   const email = rawEmail.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+$/.test(email)) return { ok: false, error: "Enter a valid email address." };
+  if (ssoOnly()) return { ok: false, error: SIGN_IN_ERRORS["sso-only"] };
   const user = await db.user.findUnique({ where: { email }, select: { passwordHash: true, isAdmin: true } });
   if (!user?.isAdmin && !(await passwordSignInOn()) && (await db.user.count()) > 0) return { ok: false, error: SIGN_IN_ERRORS["sso-only"] };
   // An existing account chooses its first password only from an invite or password link.
@@ -36,6 +44,7 @@ export async function checkEmail(rawEmail: string): Promise<{ ok: true; next: "p
 }
 
 export async function passwordSignIn(input: { email: string; password: string; confirm?: string; name?: string; mode: "password" | "create"; redirectTo: string }) {
+  if (ssoOnly()) return { ok: false as const, error: SIGN_IN_ERRORS["sso-only"] };
   if (input.mode === "create") {
     const problem = passwordProblem(input.password, input.email);
     if (problem) return { ok: false as const, error: problem };
@@ -63,6 +72,7 @@ export async function passwordSignIn(input: { email: string; password: string; c
 /** Change your own password. People who signed in with Google or GitHub and have none can set one. */
 export async function changeMyPassword(input: { current: string; next: string; confirm: string }) {
   return attempt(async () => {
+    noPasswords();
     const { id } = await requireUser();
     const user = await db.user.findUniqueOrThrow({ where: { id }, omit: { passwordHash: false } });
     if (user.passwordHash && !(await verifyPassword(input.current, user.passwordHash))) throw new UserError("Your current password isn't right.");
@@ -90,6 +100,7 @@ async function memberFor(projectId: string, userId: string) {
  */
 export async function createPasswordLink(projectId: string, userId: string) {
   return attempt(async () => {
+    noPasswords();
     const { admin, project, member } = await memberFor(projectId, userId);
     // Hosted build (backend team review C1): only a workspace admin may see a password link.
     // Anyone else's goes straight to the person's own email, so a test cycle admin can't use
@@ -125,6 +136,7 @@ async function mailPasswordLink(to: string, admin: { name: string | null; email:
 /** Password link → Email it to them, when Workspace settings → Email is set up. */
 export async function emailPasswordLink(projectId: string, userId: string) {
   return attempt(async () => {
+    noPasswords();
     const { admin, project, member } = await memberFor(projectId, userId);
     if (!(await mailOn())) throw new UserError("Email isn't set up. A workspace admin can set it up in Workspace settings → Email.");
     const link = await newLink(userId, "reset", admin.id);
@@ -153,6 +165,7 @@ export async function sendInvite(projectId: string, userId: string) {
 /** Copy invite link: a one-time link to paste into chat when email isn't set up (or didn't arrive). */
 export async function copyInviteLink(projectId: string, userId: string) {
   return attempt(async () => {
+    noPasswords();
     const { admin, member } = await memberFor(projectId, userId);
     // An invite is only for someone who hasn't joined yet (review C1): it sets a first password.
     if (member.user.passwordSetAt || member.user.lastLoginAt) throw new UserError("They've already joined, so there's no invite to send. If they forgot their password, use Password link.");
@@ -214,6 +227,7 @@ export async function acceptInvite(token: string, input: { name: string; next: s
 }
 
 export async function findPasswordLink(token: string) {
+  if (ssoOnly()) return null;
   const link = await db.passwordLink.findUnique({ where: { tokenHash: hashLinkToken(token) }, include: { user: { select: { email: true } } } });
   if (!link || link.kind !== "reset" || link.usedAt || link.expiresAt < new Date()) return null;
   return { email: link.user.email };
@@ -230,6 +244,7 @@ export async function resetWithLink(token: string, input: { next: string; confir
  */
 async function spendLink(token: string, input: { next: string; confirm: string }, kind: "reset" | "invite") {
   return attempt(async () => {
+    noPasswords();
     const link = await db.passwordLink.findUnique({ where: { tokenHash: hashLinkToken(token) }, include: { user: true } });
     if (!link || link.kind !== kind || link.usedAt || link.expiresAt < new Date()) throw new UserError("This link has expired or was already used. Ask an admin for a new one.");
     if (kind === "invite" && (link.user.passwordSetAt || link.user.lastLoginAt)) throw new UserError("You've already joined. Sign in instead, or ask an admin for a password link.");

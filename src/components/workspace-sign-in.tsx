@@ -67,7 +67,7 @@ export function WorkspaceSignIn({
   callbackBase,
   tested,
 }: {
-  password: { on: boolean; joinDomains: string; envDomains: string };
+  password: { on: boolean; ssoOnly?: boolean; joinDomains: string; envDomains: string };
   providers: ProviderView[];
   githubFromEnv: boolean;
   callbackBase: string;
@@ -95,11 +95,17 @@ export function WorkspaceSignIn({
         <Row
           logo={LOGO.password}
           title="Email and password"
-          status={password.on ? "On" : "Off for everyone except workspace admins"}
+          status={password.ssoOnly ? "Off for everyone, admins too. Your server is set to company sign-in only." : password.on ? "On" : "Off for everyone except workspace admins"}
           right={
             <>
-              <InfoTip text="Can only be turned off once another way to sign in is on and tested, so nobody gets locked out. Workspace admins can always use Admin sign-in." />
-              <Switch on={password.on} label="Email and password sign-in" disabled={pending || (password.on && !working)} onChange={(on) => run(() => setPasswordSignIn(on))} />
+              {password.ssoOnly ? (
+                <InfoTip text="IT set this on the server (AUTH_SSO_ONLY), so it can't be changed here. Everyone signs in with the company buttons below." />
+              ) : (
+                <>
+                  <InfoTip text="Can only be turned off once another way to sign in is on and tested, so nobody gets locked out. Workspace admins can always use Admin sign-in." />
+                  <Switch on={password.on} label="Email and password sign-in" disabled={pending || (password.on && !working)} onChange={(on) => run(() => setPasswordSignIn(on))} />
+                </>
+              )}
               <Button size="sm" onClick={() => setOpen(open === "password" ? null : "password")} aria-expanded={open === "password"}>
                 Who can join
               </Button>

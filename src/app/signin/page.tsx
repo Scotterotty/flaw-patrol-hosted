@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth, passwordSignInOn, signIn } from "@/auth";
+import { ssoOnly } from "@/lib/sso-only";
 import { LogoBanner } from "@/components/logo";
 import { PasswordSignIn } from "@/components/password-sign-in";
 import { Button, Card, ErrorText } from "@/components/ui";
@@ -26,7 +27,9 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
   if ((await auth())?.user) redirect(redirectTo);
   const oauth = await signInButtons();
   // With email and password off, only the company buttons show, plus Admin sign-in for emergencies.
-  const showPassword = admin === "1" || !oauth.length || (await passwordSignInOn());
+  // Company sign-in only (hosted, AUTH_SSO_ONLY): no password form or Admin sign-in link at all.
+  const sso = ssoOnly();
+  const showPassword = !sso && (admin === "1" || !oauth.length || (await passwordSignInOn()));
 
   return (
     <main id="main" tabIndex={-1} className="flex min-h-screen items-center justify-center px-4">
@@ -54,7 +57,9 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
             </form>
           ))}
         </div>
-        {showPassword ? (
+        {sso ? (
+          !oauth.length && <p className="mt-2 text-center text-sm text-slate-600">Sign-in isn&apos;t set up on this server yet. Ask IT to add the company sign-in.</p>
+        ) : showPassword ? (
           <div className={oauth.length ? "mt-4 border-t border-slate-200 pt-4" : ""}>
             <PasswordSignIn redirectTo={redirectTo} initialEmail={email ?? ""} />
           </div>

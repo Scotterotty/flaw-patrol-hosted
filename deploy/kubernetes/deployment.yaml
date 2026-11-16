@@ -38,6 +38,10 @@ spec:
             - { name: MIGRATE_ON_START, value: "false" }
             # The address people open. Sign-in, invite and reset links use it.
             - { name: AUTH_URL, value: "https://flawpatrol.example.com" }
+            # Company sign-in only: no passwords for anyone, admins included.
+            - { name: AUTH_SSO_ONLY, value: "true" }
+            # Workspace admins, made admin when they first sign in (comma separated).
+            - { name: AUTH_ADMIN_EMAILS, value: "first.admin@magnopus.com" }
             # Only these email domains may sign in.
             - { name: AUTH_ALLOWED_DOMAINS, value: "magnopus.com" }
             # Jira, Sentry, TeamCity and company sign-in may only be reached on public

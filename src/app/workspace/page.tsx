@@ -23,6 +23,7 @@ import { db } from "@/lib/db";
 import { mySpelling, requireUser } from "@/lib/session";
 import { sharedTemplateList, shareSources } from "@/lib/shared-template-data";
 import { COMPANY_PROVIDERS, domainList, envProviders, PROVIDER_NAME } from "@/lib/sign-in-config";
+import { ssoOnly } from "@/lib/sso-only";
 
 export const metadata = { title: "Workspace settings" };
 
@@ -59,7 +60,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
     return {
       id,
       name: PROVIDER_NAME[id],
-      fromEnv: id === "google" && !!env.google,
+      fromEnv: (id === "google" && !!env.google) || (id === "microsoft" && !!env.microsoft),
       saved: r
         ? {
             clientId: r.clientId,
@@ -116,7 +117,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
               {waiting.length > 0 && <WorkspaceWaiting people={waiting} umbrellas={umbrellaRows} />}
               <WorkspaceAdmins admins={admins} meId={user.id} />
               <WorkspaceSignIn
-                password={{ on: ws.passwordSignIn, joinDomains: ws.joinDomains, envDomains: domainList(process.env.AUTH_ALLOWED_DOMAINS).join(", ") }}
+                password={{ on: ws.passwordSignIn && !ssoOnly(), ssoOnly: ssoOnly(), joinDomains: ws.joinDomains, envDomains: domainList(process.env.AUTH_ALLOWED_DOMAINS).join(", ") }}
                 providers={providers}
                 githubFromEnv={!!env.github}
                 callbackBase={callbackBase}

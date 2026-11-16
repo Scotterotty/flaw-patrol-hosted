@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/activity";
 import { db } from "@/lib/db";
 import { hashPassword, passwordProblem, verifyPassword } from "@/lib/password";
 import { buildProviders, COMPANY_PROVIDERS, domainList, emailInDomains, emailTrusted, PROVIDER_NAME, savedProviders, type CompanyProvider } from "@/lib/sign-in-config";
+import { adminEmails, ssoOnly } from "@/lib/sso-only";
 import { BUILD } from "@/lib/whats-new";
 
 /** Reasons a password sign-in fails, shown on the sign-in form. */
@@ -20,6 +21,7 @@ const LOCK_MINUTES = 15;
 
 /** Whether email and password sign-in is on for everyone (admins can always use it). */
 export async function passwordSignInOn() {
+  if (ssoOnly()) return false;
   const ws = await db.workspace.findUnique({ where: { id: 1 }, select: { passwordSignIn: true } }).catch(() => null);
   return ws?.passwordSignIn ?? true;
 }
@@ -58,6 +60,8 @@ export async function authorizePassword(c: Partial<Record<"email" | "password" |
   const name = String(c?.name ?? "").trim().slice(0, 100) || null;
   const creating = c?.mode === "create";
   if (!/^[^@\s]+@[^@\s]+$/.test(email) || !password) throw new SignInProblem("wrong");
+  // Company sign-in only (hosted): no passwords, not even for admins or the very first person.
+  if (ssoOnly()) throw new SignInProblem("sso-only");
 
   const user = await db.user.findUnique({ where: { email }, omit: { passwordHash: false } });
   // With email and password turned off, only workspace admins (and the very first person) may use it.
@@ -70,7 +74,7 @@ export async function authorizePassword(c: Partial<Record<"email" | "password" |
     if (passwordProblem(password, email)) throw new SignInProblem("weak");
     if (!(await mayJoin(email))) throw new SignInProblem("not-invited");
     const saved = await db.user.create({
-      data: { email, name: name ?? email.split("@")[0], isAdmin: (await db.user.count()) === 0, passwordHash: await hashPassword(password), passwordSetAt: new Date(), whatsNewSeen: BUILD },
+      data: { email, name: name ?? email.split("@")[0], isAdmin: await startsAsAdmin(email), passwordHash: await hashPassword(password), passwordSetAt: new Date(), whatsNewSeen: BUILD },
     });
     await logActivity({ actor: saved, kind: "signin", action: "Chose a password and signed in" });
     return { id: saved.id, email: saved.email, name: saved.name };
@@ -112,7 +116,8 @@ async function usedInvite(userId: string) {
 
 /** Whether someone without an account may create one: the very first person, or an allowed email domain. */
 export async function mayJoin(email: string, providerDomains?: string) {
-  if ((await db.user.count()) === 0) return true;
+  // The very first person may join, unless the server names its admins (AUTH_ADMIN_EMAILS).
+  if (!adminEmails().size && (await db.user.count()) === 0) return true;
   const ws = providerDomains === undefined ? await db.workspace.findUnique({ where: { id: 1 }, select: { joinDomains: true } }).catch(() => null) : null;
   const domains = [...domainList(process.env.AUTH_ALLOWED_DOMAINS), ...domainList(providerDomains ?? ws?.joinDomains)];
   return emailInDomains(email, domains);
@@ -126,14 +131,29 @@ async function admitUser(email: string, name?: string | null, image?: string | n
   const existing = await db.user.findUnique({ where: { email } });
   if (existing) {
     await usedInvite(existing.id);
-    return db.user.update({
+    // Admins named on the server (AUTH_ADMIN_EMAILS) are made admin when they sign in.
+    const promote = !existing.isAdmin && adminEmails().has(email);
+    const updated = await db.user.update({
       where: { id: existing.id },
-      data: { name: existing.name ?? name ?? undefined, image: image ?? existing.image, lastLoginAt: new Date() },
+      data: { name: existing.name ?? name ?? undefined, image: image ?? existing.image, lastLoginAt: new Date(), ...(promote && { isAdmin: true }) },
     });
+    if (promote) await logActivity({ actor: updated, kind: "settings", action: "Made a workspace admin", detail: "Named in the server's AUTH_ADMIN_EMAILS" });
+    return updated;
   }
-  const isFirst = (await db.user.count()) === 0;
-  if (!(await mayJoin(email, providerDomains))) return null;
-  return db.user.create({ data: { email, name, image, isAdmin: isFirst, lastLoginAt: new Date(), whatsNewSeen: BUILD } });
+  const isAdmin = await startsAsAdmin(email);
+  if (!isAdmin && !(await mayJoin(email, providerDomains))) return null;
+  return db.user.create({ data: { email, name, image, isAdmin, lastLoginAt: new Date(), whatsNewSeen: BUILD } });
+}
+
+/**
+ * Whether a new account starts as workspace admin. With AUTH_ADMIN_EMAILS set, only those
+ * people (review: "bootstrap the admin from an env var", no first-sign-up race). Otherwise
+ * the very first person, as before.
+ */
+async function startsAsAdmin(email: string) {
+  const named = adminEmails();
+  if (named.size) return named.has(email);
+  return (await db.user.count()) === 0;
 }
 
 const isCompany = (id: string): id is CompanyProvider => (COMPANY_PROVIDERS as readonly string[]).includes(id);
@@ -142,7 +162,7 @@ const isCompany = (id: string): id is CompanyProvider => (COMPANY_PROVIDERS as r
 export const { handlers, auth, signIn, signOut } = NextAuth(async (): Promise<NextAuthConfig> => {
   const rows = await savedProviders();
   return {
-    providers: [...buildProviders(rows), passwordProvider],
+    providers: [...buildProviders(rows), ...(ssoOnly() ? [] : [passwordProvider])],
     session: { strategy: "jwt" },
     logger: {
       // A cookie from an older copy of the app (different AUTH_SECRET) just means
@@ -176,7 +196,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth(async (): Promise<Ne
         // Domains set for this sign-in; .env-only Google and GitHub use the workspace list.
         const admitted = await admitUser(email, user.name, user.image, row ? row.joinDomains : undefined);
         if (!admitted) return "/signin?error=NotInvited";
-        const label = row ? (row.id === "oidc" ? row.label || PROVIDER_NAME.oidc : PROVIDER_NAME[row.id as CompanyProvider]) : providerId === "github" ? "GitHub" : "Google";
+        const label = row ? (row.id === "oidc" ? row.label || PROVIDER_NAME.oidc : PROVIDER_NAME[row.id as CompanyProvider]) : providerId === "github" ? "GitHub" : providerId === "microsoft" ? "Microsoft" : "Google";
         if (row) await db.signInProvider.update({ where: { id: row.id }, data: { testedAt: new Date(), testedEmail: email } });
         await logActivity({ actor: admitted, kind: "signin", action: `Signed in with ${label}`, detail: testing ? "Test sign-in" : "" });
         return true;

@@ -19,7 +19,7 @@ import { Button, Card, ErrorText, Field, Input, Label, Select, Textarea } from "
 type Member = { userId: string; email: string; name: string | null; role: Role; signedIn: boolean; hasPassword: boolean; avatarAt: Date | null; inviteSentAt?: Date | null; inviteUntil?: Date | null; title: string | null; frame: string | null };
 
 
-export function MembersPanel({ projectId, members, canManage, me, canEmail = false, nudge, requests = [], team = "" }: { projectId: string; members: Member[]; canManage: boolean; me: string; canEmail?: boolean; nudge?: ReactNode; requests?: JoinRequestRow[]; team?: string }) {
+export function MembersPanel({ projectId, members, canManage, me, canEmail = false, passwords = true, nudge, requests = [], team = "" }: { projectId: string; members: Member[]; canManage: boolean; me: string; canEmail?: boolean; /** False on a company-sign-in-only server: no invite or password links. */ passwords?: boolean; nudge?: ReactNode; requests?: JoinRequestRow[]; team?: string }) {
   const router = useRouter();
   const zone = useZone();
   const [error, setError] = useState<string | null>(null);
@@ -111,7 +111,7 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
                     Resend
                   </Button>
                 )}
-                {!m.signedIn && (
+                {!m.signedIn && passwords && (
                   <Button
                     size="sm"
                     variant="ghost"
@@ -132,7 +132,7 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
                     Copy invite link
                   </Button>
                 )}
-                {m.userId !== me && m.signedIn && (
+                {m.userId !== me && m.signedIn && passwords && (
                   <Button
                     size="sm"
                     variant="ghost"
@@ -224,7 +224,7 @@ export function MembersPanel({ projectId, members, canManage, me, canEmail = fal
                 setError(res.ok ? null : res.error);
                 if (res.ok) {
                   setEmail("");
-                  if (res.emailed) setSent(`Invite sent to ${res.email}. Not there? Use Copy invite link on their row.`);
+                  if (res.emailed) setSent(passwords ? `Invite sent to ${res.email}. Not there? Use Copy invite link on their row.` : `Invite sent to ${res.email}.`);
                   else setInvited({ email: res.email, role: res.role, hasPassword: res.hasPassword, failed: !!res.emailError, message: res.message });
                 }
                 router.refresh();

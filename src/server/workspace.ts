@@ -10,6 +10,7 @@ import { MAIL_PRESETS, MAIL_SECURITY, sendMail } from "@/lib/mail";
 import { requireUser } from "@/lib/session";
 import { COMPANY_PROVIDERS, domainList, forgetSavedProviders, GUID, isComplete, microsoftAuthority, PROVIDER_NAME, type CompanyProvider } from "@/lib/sign-in-config";
 import { assertOutbound, OutboundBlocked } from "@/lib/outbound";
+import { ssoOnly, SSO_ONLY_MESSAGE } from "@/lib/sso-only";
 import { attempt, UserError } from "./result";
 import { requireWorkspaceAdmin } from "./admin-guard";
 
@@ -157,6 +158,7 @@ export async function removeSignInProvider(id: string) {
 export async function setPasswordSignIn(on: boolean) {
   return attempt(async () => {
     const admin = await requireWorkspaceAdmin();
+    if (ssoOnly()) throw new UserError(SSO_ONLY_MESSAGE);
     if (!on) {
       const working = await db.signInProvider.count({ where: { enabled: true, testedAt: { not: null } } });
       if (!working) throw new UserError("Turn on another way to sign in first, so nobody gets locked out.");
