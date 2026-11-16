@@ -17,4 +17,4 @@ export function middleware(req: NextRequest) {
   return NextResponse.next({ request: { headers } });
 }
 
-export const config = { matcher: ["/((?!api/auth|api/ci/|api/qase/hook/|signin|_next|favicon.ico|icon|apple-icon|brand/|reset/|invite/|stop-emails).*)"] };
+export const config = { matcher: ["/((?!api/healthz|api/readyz|api/auth|api/ci/|api/qase/hook/|signin|_next|favicon.ico|icon|apple-icon|brand/|reset/|invite/|stop-emails).*)"] };

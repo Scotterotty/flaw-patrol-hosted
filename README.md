@@ -172,6 +172,18 @@ prints after "Seeded project SHOP" (or set `SEED_PASSWORD` to choose it).
 This uses `Dockerfile.dev`, which runs the app in development mode (slower,
 detailed error pages). It's for trying Flaw Patrol out, not for hosting.
 
+## Host it on Kubernetes (Cloud SQL, ArgoCD, Vault)
+
+The hosted build for the backend team's setup (review: `docs/reviews/flaw-patrol-review.md`).
+Everything IT needs is in `deploy/kubernetes/` and its README:
+
+- Cloud SQL Postgres with two logins: `docs/hosting/cloud-sql-roles.sql` (a migrator that may
+  change tables, and an app login that may only read and write rows).
+- Database changes run as an ArgoCD PreSync Job (`sh ./docker-migrate.sh`), not when the app
+  starts (`MIGRATE_ON_START=false`).
+- Secrets come from Vault through External Secrets.
+- One replica, `/api/healthz` for liveness and `/api/readyz` (runs `SELECT 1`) for readiness.
+
 ## Host it on a server (Docker)
 
 One always-on copy that everyone opens in the browser, instead of a copy on

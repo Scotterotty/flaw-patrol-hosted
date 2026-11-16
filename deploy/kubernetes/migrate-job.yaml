@@ -1,0 +1,42 @@
+# Applies new database changes BEFORE the new version starts. ArgoCD runs this Job first on
+# every sync (PreSync hook) and only rolls out the app when it succeeds. The app itself never
+# changes tables (MIGRATE_ON_START=false in deployment.yaml).
+# Prisma has no "undo" for database changes: take a Cloud SQL backup before each deploy
+# (or rely on point-in-time recovery, which IT turns on; README.md).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: flaw-patrol-migrate-
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 1800
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+      containers:
+        - name: migrate
+          image: flaw-patrol
+          command: ["sh", "./docker-migrate.sh"]
+          envFrom:
+            - secretRef:
+                name: flaw-patrol-secrets
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }

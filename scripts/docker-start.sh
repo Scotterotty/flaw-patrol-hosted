@@ -1,5 +1,8 @@
 #!/bin/sh
 # The Docker image's start command (see Dockerfile): apply new database changes, then start Flaw Patrol.
+# In Kubernetes, set MIGRATE_ON_START=false: changes run in their own step before the app
+# starts (scripts/docker-migrate.sh as an ArgoCD PreSync Job), and the app's own database
+# login only needs to read and write rows, not change tables.
 set -e
 
 if [ -z "$DATABASE_URL" ]; then
@@ -11,10 +14,9 @@ if [ -z "$AUTH_SECRET" ]; then
   exit 1
 fi
 
-# Neon's pooled address ("-pooler") can't hold the lock that database changes need, and the start
-# can get stuck there, so changes go through the direct address. The app itself is fine on either
-# (start.mjs does the same).
-MIGRATE_URL=$(printf '%s' "$DATABASE_URL" | sed 's/-pooler\././')
-DATABASE_URL="$MIGRATE_URL" node /migrator/node_modules/prisma/build/index.js migrate deploy --schema prisma/schema.prisma
+case "$MIGRATE_ON_START" in
+  false|0|no|off) echo "Skipping database changes at start (MIGRATE_ON_START=$MIGRATE_ON_START)." ;;
+  *) sh ./docker-migrate.sh ;;
+esac
 
 exec node server.js
