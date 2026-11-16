@@ -21,6 +21,14 @@ export type WhatsNewItem = {
 export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
+  {
+    version: 265,
+    date: "2026-11-16",
+    items: [
+      { kind: "new", title: "Easier reading", text: "A new setting that spaces out letters, words and lines, shows headings and labels in normal capitals instead of ALL CAPS, drops italics and softens the page. Switch it on or off from your account menu, or in Your account → Accessibility. It works with every look and font, and pairs well with the easy-to-read fonts.", link: "/account#accessibility" },
+      { kind: "better", title: "Clearer left menu", text: "Menu items are a little bolder and brighter, so they're easier to read on dark menus and with thin fonts. Counts stay quieter than the names." },
+    ],
+  },
   { version: 264, date: "2026-11-16", items: [{ kind: "new", title: "See the Sentry errors on Status", text: "On Status, the Sentry card now lists the top new errors under each build you're testing: what the error is, where it happened, how many events and people, and when it was last seen. Errors not in a bug yet come first, and errors already in a bug say which bug. Show all opens the rest right on the card, and each error links to Sentry." }] },
   {
     version: 263,

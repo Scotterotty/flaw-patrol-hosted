@@ -2078,3 +2078,46 @@ a[href]:is(.text-accent-600, .text-accent-700).hover\:underline {
     max-width: none;
   }
 }
+
+/* ───────── Easier reading (ver_265, src/lib/easier-reading.ts) ─────────
+   Spacing has the best evidence for easier reading (British Dyslexia Association style guide):
+   wider letters, words and lines; no blocks of ALL CAPS or italics; a softer page than stark white.
+   Fonts stay each person's own, except all-caps display heading fonts (Bungee), which switch to
+   the text font so headings can use normal capitals. looks.css loads after this, hence !important. */
+:root[data-reading="easier"] {
+  --text-xs--line-height: 1.6;
+  --text-sm--line-height: 1.7;
+  --text-base--line-height: 1.75;
+  --text-lg--line-height: 1.7;
+  --leading-tight: 1.4;
+  --leading-snug: 1.55;
+  --leading-normal: 1.7;
+  --leading-relaxed: 1.8;
+}
+:root[data-reading="easier"] body {
+  letter-spacing: 0.03em;
+  word-spacing: 0.12em;
+}
+:root[data-reading="easier"] :is(h1, h2, h3, h4, .font-heading) {
+  font-family: var(--font-sans) !important;
+  font-weight: 600 !important;
+  font-size-adjust: none !important;
+  text-transform: none !important;
+  letter-spacing: 0.01em !important;
+}
+:root[data-reading="easier"] .uppercase {
+  text-transform: none !important;
+  letter-spacing: 0.02em !important;
+}
+:root[data-reading="easier"] :is(em, i, cite, .italic) {
+  font-style: normal !important;
+}
+/* Light mode on the Classic look: a soft cream page instead of near-white. Colored themes keep their own page. */
+:root[data-reading="easier"][data-theme="light"]:not([data-look]) body {
+  background: var(--page, #fbf7ee);
+}
+/* The left menu gets a little more room per row too. */
+:root[data-reading="easier"] .fp-side a:not(.fp-chip) {
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+}

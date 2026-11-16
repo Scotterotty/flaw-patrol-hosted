@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useEffect, type ReactNode } from "react";
+import { useRef, useState, useEffect, useTransition, type ReactNode } from "react";
+import { setEasierReading } from "@/server/account";
+import { applyReading } from "./reading-banner";
 import { useMenuPlace } from "./menu-place";
 import { VersionLine } from "./version-line";
 import { GettingStartedItem } from "./first-day";
@@ -14,6 +16,7 @@ export function AccountMenu({
   signOut,
   joins,
   waiting = 0,
+  reading = false,
 }: {
   children: ReactNode;
   label: string;
@@ -22,8 +25,24 @@ export function AccountMenu({
   joins?: { count: number; href: string } | null;
   /** ver_259: people on no umbrella who pressed Ask to be added (workspace admins only). */
   waiting?: number;
+  /** ver_265: Easier reading, switchable from here on any page. */
+  reading?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [easier, setEasier] = useState(reading);
+  const [, start] = useTransition();
+  const toggleReading = () => {
+    const next = !easier;
+    setEasier(next);
+    applyReading(next);
+    start(async () => {
+      const res = await setEasierReading(next);
+      if (!res.ok) {
+        setEasier(!next);
+        applyReading(!next);
+      }
+    });
+  };
   const box = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const place = useMenuPlace(open, box, list);
@@ -81,6 +100,12 @@ export function AccountMenu({
           <Link role="menuitem" href="/account#appearance" className={item} data-howto="account-appearance">
             Appearance and accessibility
           </Link>
+          <button type="button" role="menuitemcheckbox" aria-checked={easier} onClick={toggleReading} className={`${item} flex items-center justify-between gap-2`} data-testid="menu-easier-reading">
+            Easier reading
+            <span aria-hidden className={easier ? "rounded-full bg-accent-600 px-1.5 text-[11px] font-semibold text-white" : "rounded-full px-1.5 text-[11px] font-medium text-slate-500 ring-1 ring-slate-300 ring-inset"}>
+              {easier ? "On" : "Off"}
+            </span>
+          </button>
           {/* ver_216: Start here again, after ✕ Hide for now. */}
           <GettingStartedItem className={item} />
           <Link role="menuitem" href="/whats-new" className={item} data-howto="account-whats-new">

@@ -53,6 +53,7 @@ type Me = {
   reduceMotion: boolean;
   strongContrast: boolean;
   underlineLinks: boolean;
+  easierReading: boolean;
   spelling: string | null;
   isAdmin: boolean;
   openCards?: string[];
@@ -82,7 +83,7 @@ export async function ProfileSettings({ user }: { user: Me }) {
   ]
     .filter(Boolean)
     .join(" · ");
-  const aids = [user.strongContrast && "stronger contrast", user.underlineLinks && "underlined links", user.reduceMotion && "less motion"].filter(Boolean);
+  const aids = [user.easierReading && "easier reading", user.strongContrast && "stronger contrast", user.underlineLinks && "underlined links", user.reduceMotion && "less motion"].filter(Boolean);
   const vision = VISIONS.find((v) => v.id === user.colorVision);
   const access = [
     `${label(TEXT_SIZES, user.textSize)} text`,
@@ -148,6 +149,7 @@ export async function ProfileSettings({ user }: { user: Me }) {
                 reduceMotion: user.reduceMotion,
                 strongContrast: user.strongContrast,
                 underlineLinks: user.underlineLinks,
+                easierReading: user.easierReading,
                 colorVision: isVision(user.colorVision) ? user.colorVision : "standard",
                 visionShapes: user.visionShapes,
               }}
