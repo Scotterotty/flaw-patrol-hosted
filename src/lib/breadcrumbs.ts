@@ -36,6 +36,8 @@ export function crumbsFor(path: string, project?: { key: string; name: string; g
   // An umbrella's hub pages read as the umbrella's: Umbrellas › OKO › Case library.
   crumbs.push({ label: project.name, href: project.hub ? `/g/${project.hub}` : base });
   const [section, id, sub, subId] = path.slice(base.length).split("/").filter(Boolean);
+  // Test plans live with the runs: Test runs › Creatures pass.
+  if (section === "plans" && id) return [...crumbs, { label: "Test runs", href: `${base}/runs` }, { label: names[`${base}/plans/${id}`] ?? "Test plan" }];
   if (!section || !SECTIONS[section]) return crumbs;
   crumbs.push({ label: project.hub && section === "cases" ? "Case library" : SECTIONS[section], href: `${base}/${section}` });
   if (!id) return crumbs;

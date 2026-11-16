@@ -249,6 +249,14 @@ Keep the server's copy of the code unchanged: if the new code changes a file you
 edited on the server (like the web address in `docker-compose.hosting.yml`), the
 update stops before changing anything and says so.
 
+Each update also clears Docker's leftovers: untagged images nothing uses (any app's on this server), and
+build cache older than a week. Without that, every build left its old image behind
+and the disk filled up. If a build still fails with "no space left on device", the
+helper clears all build cache and tries once more, then says the disk is full. To free
+space by hand: `df -h` shows what's left, then `docker image prune -f` and
+`docker builder prune -f`. Never add `--volumes`: the database lives in a volume.
+`FP_DOCKER_CLEANUP=0` turns the clearing off.
+
 If the backup fails with "too many clients", the database has no free connections.
 The helper tries 5 times, 15 seconds apart, then stops without changing anything.
 Restart Flaw Patrol (`docker restart flaw-patrol`) and press Update now again.

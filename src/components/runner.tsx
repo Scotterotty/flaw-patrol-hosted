@@ -130,7 +130,10 @@ export function Runner({
   startClient = null,
   openBug = false,
   onlyClient = null,
+  planTag = "",
 }: {
+  /** Test plans: the run's values, put in front of a bug's summary as [Neverender]. */
+  planTag?: string;
   /** Clients: open on this client's tab (from a cell on the run page's grid). */
   startClient?: string | null;
   /** With startClient: open Report bug for that client straight away ("Write a bug for Unreal"). */
@@ -502,6 +505,8 @@ export function Runner({
   // Report bug for case (persona audit #4): start from the first failed step, not the
   // case's title. Other failed steps and the case comment go in What happened too.
   // Test data: a bug's title says which row, like "(Safari · viewer)".
+  // A test plan's run: the bug's summary starts with its value, like [Neverender]. Editable like the rest.
+  const withPlan = (title: string) => (planTag && title && !title.startsWith(`[${planTag}]`) ? `[${planTag}] ${title}`.slice(0, 250) : title);
   const withRow = (title: string, i: number) => {
     const r = entry.steps[i]?.row;
     return data && r !== undefined ? `${title} (${byClient ? clientRowLabel(data, r) : rowLabel(data, r)})`.slice(0, 250) : title;
@@ -1615,7 +1620,7 @@ export function Runner({
         onKnownStill={(b) => checkKnown(b, "still")}
         stepLabel={bugFor === null || bugFor === undefined ? "whole case" : lowerLabel(entry.steps[bugFor])}
         actual={bugFor === null || bugFor === undefined ? caseBug.actual : actuals[bugFor]}
-        suggested={bugFor === null || bugFor === undefined ? caseBug.suggested : withRow(bugTitle(entry.title, entry.steps[bugFor] ?? null, actuals[bugFor] ?? ""), bugFor)}
+        suggested={withPlan(bugFor === null || bugFor === undefined ? caseBug.suggested : withRow(bugTitle(entry.title, entry.steps[bugFor] ?? null, actuals[bugFor] ?? ""), bugFor))}
         focus={bugFor === null ? caseBug.focus : null}
         attachments={attachments.filter((a) => (bugFor === null ? true : a.stepIndex === bugFor)).map((a) => ({ ...a, label: fileLabel(a.stepIndex) }))}
         others={attachments.filter((a) => bugFor !== null && a.stepIndex !== bugFor).map((a) => ({ ...a, label: fileLabel(a.stepIndex) }))}

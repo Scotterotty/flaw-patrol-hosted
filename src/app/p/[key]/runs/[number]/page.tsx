@@ -1,3 +1,5 @@
+import { PlanLine } from "@/components/plan-line";
+import { planLineFor } from "@/lib/plan-data";
 import type { ResultStatus } from "@prisma/client";
 import { runTitle } from "@/lib/run-label";
 import { RunName } from "@/components/run-name";
@@ -84,6 +86,8 @@ export default async function RunPage({ params, searchParams }: { params: Promis
     },
   }));
   if (!run) notFound();
+  // A test plan's run: the blue line naming the plan and its values.
+  const planLine = await planLineFor(run);
   // Qase: opening a run brings in its test cycle's Qase results, at most once a minute.
   if (run.kind !== "bash" && project.groupId) queueQasePull(project.id);
   // A suite renamed since this run shows the name the run used, next to today's name.
@@ -201,6 +205,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
     <div className="page page-list">
       <LiveRefresh url={`/api/live/runs/${run.id}`} rows renderedAt={renderedAt} />
       <CrumbName href={`/p/${project.key}/runs/${run.number}`} label={runTitle(run, spelling)} />
+      {planLine && <PlanLine line={planLine} projectKey={project.key} />}
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-xl tracking-tight">

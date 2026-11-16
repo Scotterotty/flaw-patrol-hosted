@@ -21,7 +21,16 @@ export type WhatsNewItem = {
 export type WhatsNewEntry = { version: number; date: string; items: WhatsNewItem[] };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
-  { version: 263, date: "2026-11-15", items: [{ kind: "new", title: "See the Sentry errors on Status", text: "On Status, the Sentry card now lists the top new errors under each build you're testing: what the error is, where it happened, how many events and people, and when it was last seen. Errors not in a bug yet come first, and errors already in a bug say which bug. Show all opens the rest right on the card, and each error links to Sentry." }] },
+  { version: 264, date: "2026-11-16", items: [{ kind: "new", title: "See the Sentry errors on Status", text: "On Status, the Sentry card now lists the top new errors under each build you're testing: what the error is, where it happened, how many events and people, and when it was last seen. Errors not in a bug yet come first, and errors already in a bug say which bug. Show all opens the rest right on the card, and each error links to Sentry." }] },
+  {
+    version: 263,
+    date: "2026-11-16",
+    items: [
+      { kind: "new", title: "Test plans: one run for each value", text: "In Create a run, tick values under Test on these Configurations, like Windows, Mac and iPhone. Flaw Patrol makes one test plan with a normal run for each value (or each pairing, when you tick two Configurations). It shows as one row in Test runs. The plan page has a summary, each run's progress and bugs, a Grid of every case on every value, and tools to share out the runs, add a value, copy the plan to the next test cycle and close it. Steps that say a blank like {{platform}} get each run's value, and bug summaries start with it." },
+      { kind: "new", title: "Configurations", text: "Umbrella Settings → Configurations: make named sets of values, like Platforms or Languages, once. Paste the values from a sheet, one per line.", who: "lead", link: "/g/{umbrella}/settings#configurations" },
+    ],
+  },
+  { version: 262, date: "2026-11-15", items: [{ kind: "fix", title: "Updates clean up after themselves", text: "Each update now clears Docker's old Flaw Patrol images and old build cache, so the server's disk no longer slowly fills up. If the disk is full anyway, the update clears all build cache and tries again, and if that still fails it says plainly that the disk is full. Run the update helper's install once on the server to pick this up." }] },
   { version: 261, date: "2026-11-15", items: [{ kind: "fix", title: "Run list no longer covers Execution history", text: "On shorter screens the Run list could spill down over Execution history while you ran a test. The list is now a little shorter and stays in its own box, and history gets the rest of the column." }] },
   { version: 260, date: "2026-11-15", items: [{ kind: "fix", title: "Roomier Execution history, no empty scroll", text: "While you run a test, Execution history gets a fair share of the left column, so a run's details and bugs have room to read, and the Run list scrolls in a little less space. The run page also no longer scrolls on into a long empty area below everything." }] },
   {
