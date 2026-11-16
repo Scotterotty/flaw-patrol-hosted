@@ -193,6 +193,8 @@ model ActivityEntry {
 
   @@index([at])
   @@index([kind, at])
+  // Hosted build (review §3): foreign keys get an index, so cascade deletes and lookups don't scan the table.
+  @@index([actorId])
 }
 
 // One-time link an admin hands someone to set a new password. Only a hash of
@@ -558,6 +560,8 @@ model GroupPin {
   hidden   Boolean      @default(false)
 
   @@id([userId, groupId])
+  // Hosted build (review §3): foreign keys get an index, so cascade deletes and lookups don't scan the table.
+  @@index([groupId])
 }
 
 /**
@@ -576,6 +580,8 @@ model ProjectPin {
   hidden    Boolean   @default(false)
 
   @@id([userId, projectId])
+  // Hosted build (review §3): foreign keys get an index, so cascade deletes and lookups don't scan the table.
+  @@index([projectId])
 }
 
 /**
@@ -609,6 +615,8 @@ model ProjectMember {
   fromUmbrella Boolean  @default(false)
 
   @@id([projectId, userId])
+  // Hosted build (review §3): foreign keys get an index, so cascade deletes and lookups don't scan the table.
+  @@index([userId])
 }
 
 model Folder {
@@ -624,6 +632,8 @@ model Folder {
 
   @@unique([projectId, parentId, name])
   @@index([projectId])
+  // Hosted build (review §3): foreign keys get an index, so cascade deletes and lookups don't scan the table.
+  @@index([parentId])
 }
 
 enum Priority {
@@ -710,6 +720,9 @@ model TestCase {
   @@index([projectId, folderId])
   // Last activity on the Umbrellas page.
   @@index([projectId, updatedAt])
+  // Hosted build (review §3): foreign keys get an index, so cascade deletes and lookups don't scan the table.
+  @@index([folderId])
+  @@index([personaId])
 }
 
 // Immutable snapshot. `steps` is CaseStepItem[] (see src/lib/steps.ts): plain
@@ -830,6 +843,8 @@ model SuiteCase {
   position Int
 
   @@id([suiteId, caseId])
+  // Hosted build (review §3): foreign keys get an index, so cascade deletes and lookups don't scan the table.
+  @@index([caseId])
 }
 
 enum RunState {
@@ -928,6 +943,8 @@ model TestRun {
   @@index([projectId, release])
   @@index([sourceHash])
   @@index([githubRepoId, githubRunId])
+  // Hosted build (review §3): foreign keys get an index, so cascade deletes and lookups don't scan the table.
+  @@index([suiteId])
 }
 
 /**
@@ -1139,6 +1156,8 @@ model DefectLink {
   stepIndex Int?
 
   @@id([defectId, resultId])
+  // Hosted build (review §3): foreign keys get an index, so cascade deletes and lookups don't scan the table.
+  @@index([resultId])
 }
 
 /**
@@ -1189,6 +1208,8 @@ model Attachment {
   @@index([resultId])
   @@index([bashItemId])
   @@index([defectId])
+  // Hosted build (review §3): foreign keys get an index, so cascade deletes and lookups don't scan the table.
+  @@index([projectId])
 }
 
 // A named set of report filters (the Reports page query string). Shared views
@@ -1249,6 +1270,9 @@ model JiraConfig {
   /// Found-in version: { field: "versions" | "fixVersions" }; null = off. See src/lib/found-in.ts.
   foundIn          Json?
   updatedAt        DateTime           @updatedAt
+
+  // Hosted build (review §3): foreign keys get an index, so cascade deletes and lookups don't scan the table.
+  @@index([sharedTemplateId])
 }
 
 /**
