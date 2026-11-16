@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { auth } from "@/auth";
 import { db } from "./db";
+import { withFun } from "./fun";
 import { can, parseRoleRules, type Action, type RoleRules, type Who } from "./permissions";
 import { spellingFor, type Spelling } from "./spelling";
 import { bashGuestPath, safeInside } from "./link-access";
@@ -19,7 +20,9 @@ export const currentUser = cache(async () => {
   const session = await auth();
   const id = session?.user?.id;
   if (!id) return null;
-  return db.user.findUnique({ where: { id } });
+  const user = await db.user.findUnique({ where: { id } });
+  // FUN_FEATURES=off: everyone is treated as not playing and not listening (src/lib/fun.ts).
+  return user && withFun(user);
 });
 
 /** How the signed-in person reads the app: their own pick, else US English. */

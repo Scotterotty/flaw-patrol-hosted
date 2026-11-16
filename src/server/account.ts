@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
+import { FUN_OFF_MESSAGE, funOff } from "@/lib/fun";
 import { FRAMES, isUnlocked, levelFor, titleLabel, TITLES, totalXp } from "@/lib/game";
 import { isRadioStation } from "@/lib/radio";
 import { isSpotifyStation, KIND_LABEL, MAX_SPOTIFY_LINKS, parseSpotifyLinks, parseSpotifyUrl, SPOTIFY_PREFIX, spotifyKind, spotifyPage } from "@/lib/spotify";
@@ -158,6 +159,7 @@ export async function updateMyRiskLook(look: string) {
 /** Turn the background radio on or off, or change station. */
 export async function updateMyRadio(r: { enabled: boolean; station: string }) {
   return attempt(async () => {
+    if (funOff()) throw new UserError(FUN_OFF_MESSAGE);
     const user = await requireUser();
     const known = isRadioStation(r.station) || (isSpotifyStation(r.station) && parseSpotifyLinks(user.spotifyLinks).some((l) => SPOTIFY_PREFIX + l.id === r.station));
     if (!known) throw new UserError("Unknown station.");
@@ -182,6 +184,7 @@ async function spotifyTitle(id: string): Promise<string | null> {
 /** Save a Spotify link to the radio and switch to it. */
 export async function addSpotifyLink(raw: string) {
   return attempt(async () => {
+    if (funOff()) throw new UserError(FUN_OFF_MESSAGE);
     const user = await requireUser();
     const id = parseSpotifyUrl(z.string().max(500).parse(raw));
     if (!id) throw new UserError("That isn't a Spotify playlist, album, artist, song or podcast link. In Spotify, use Share > Copy link.");
@@ -201,6 +204,7 @@ export async function addSpotifyLink(raw: string) {
 
 export async function removeSpotifyLink(id: string) {
   return attempt(async () => {
+    if (funOff()) throw new UserError(FUN_OFF_MESSAGE);
     const user = await requireUser();
     const links = parseSpotifyLinks(user.spotifyLinks).filter((l) => l.id !== id);
     const station = user.radioStation === SPOTIFY_PREFIX + id ? "fluid" : user.radioStation;
@@ -213,6 +217,7 @@ export async function removeSpotifyLink(id: string) {
 /** Join or leave the mini game, or pick a title and avatar frame you've unlocked. */
 export async function updateMyGame(g: { enabled: boolean; title: string | null; frame: string | null }) {
   return attempt(async () => {
+    if (funOff()) throw new UserError(FUN_OFF_MESSAGE);
     const user = await requireUser();
     // A crown is worn through wearCrown, which checks you still hold it.
     if (g.title?.startsWith("crown|")) {
@@ -237,6 +242,7 @@ export async function updateMyGame(g: { enabled: boolean; title: string | null; 
 /** Wear a crown you hold. Losing it later puts back the title you wore before. */
 export async function wearCrown(titleId: string) {
   return attempt(async () => {
+    if (funOff()) throw new UserError(FUN_OFF_MESSAGE);
     const user = await requireUser();
     const [, groupId, key] = titleId.split("|");
     const held = await db.crown.findFirst({ where: { groupId, key, userId: user.id } });
@@ -264,6 +270,7 @@ export async function ackCrowns(shown: { took: string[]; lost: string[] }) {
 /** Show or hide quest maps, and the Quest map item in each project's menu. */
 export async function setQuestMap(enabled: boolean) {
   return attempt(async () => {
+    if (funOff()) throw new UserError(FUN_OFF_MESSAGE);
     const user = await requireUser();
     // Quest maps are part of the mini game, so turning them on turns it on too.
     await db.user.update({
@@ -288,6 +295,7 @@ export async function setSeasonalMaps(enabled: boolean) {
 /** Wear an item from your satchel in a slot, or take it off (itemId null). Looks only. */
 export async function setQuestGear(slot: string, itemId: string | null) {
   return attempt(async () => {
+    if (funOff()) throw new UserError(FUN_OFF_MESSAGE);
     const user = await requireUser();
     if (!isSlot(slot)) throw new UserError("Unknown slot.");
     const gear = parseGear(user.questGear);
@@ -326,6 +334,7 @@ export async function setQuestGear(slot: string, itemId: string | null) {
 /** Choose your quest pawn and its color. The last four pawns unlock from the quests themselves. */
 export async function setQuestPawn(pawn: string, color: string) {
   return attempt(async () => {
+    if (funOff()) throw new UserError(FUN_OFF_MESSAGE);
     const user = await requireUser();
     if (!PAWNS.some((p) => p.id === pawn)) throw new UserError("Unknown pawn.");
     if (!(PAWN_COLORS as readonly string[]).includes(color)) throw new UserError("Unknown color.");

@@ -1,3 +1,5 @@
+import { funOff } from "@/lib/fun";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { runTag, runTitle } from "@/lib/run-label";
 import { RunName } from "@/components/run-name";
@@ -23,6 +25,7 @@ export const metadata = { title: "Quest map" };
 const RECENT_PAST = 4;
 
 export default async function QuestsPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ gear?: string }> }) {
+  if (funOff()) notFound();
   const { key } = await params;
   const { gear: openGear } = await searchParams;
   const { project, user } = await projectAccess(key);

@@ -3,6 +3,7 @@ import { isSpelling } from "@/lib/spelling";
 import { viewerZone } from "@/lib/zone-server";
 import { ACCENTS, fontFor, isAccent, isBodyFont, isHeadingFont, isTextSize, isThemeMode, TEXT_SIZES, THEME_MODES, THEMES } from "@/lib/theme";
 import { levelFor, titleLabel, totalXp } from "@/lib/game";
+import { FUN_OFF_MESSAGE, funOff } from "@/lib/fun";
 import { gameStats } from "@/lib/xp";
 import { longDate, spellingFor } from "@/lib/spelling";
 import { ssoOnly } from "@/lib/sso-only";
@@ -176,16 +177,25 @@ export async function ProfileSettings({ user }: { user: Me }) {
           </AccountCard>
         </AccountGroup>
         <AccountGroup title="Just for fun">
-          <AccountCard
-            id="game"
-            title="Mini game"
-            summary={user.gameEnabled ? [`Level ${level}`, titleLabel(user.gameTitle) ? `wearing ${titleLabel(user.gameTitle)}` : "", `quest maps ${user.questMap ? "on" : "off"}`].filter(Boolean).join(" · ") : "Off"}
-          >
-            <GameCard user={user} stats={stats} />
-          </AccountCard>
-          <AccountCard id="radio" howto="account-radio" title="Radio" summary={user.radioEnabled ? "On" : "Off"}>
-            <RadioSettings enabled={user.radioEnabled} station={validStation(user.radioStation, parseSpotifyLinks(user.spotifyLinks))} spotify={parseSpotifyLinks(user.spotifyLinks)} />
-          </AccountCard>
+          {/* Hosted build: FUN_FEATURES=off on the server hides these for everyone (src/lib/fun.ts). */}
+          {funOff() ? (
+            <p className="text-sm text-slate-600" data-testid="fun-off">
+              {FUN_OFF_MESSAGE}
+            </p>
+          ) : (
+            <>
+            <AccountCard
+              id="game"
+              title="Mini game"
+              summary={user.gameEnabled ? [`Level ${level}`, titleLabel(user.gameTitle) ? `wearing ${titleLabel(user.gameTitle)}` : "", `quest maps ${user.questMap ? "on" : "off"}`].filter(Boolean).join(" · ") : "Off"}
+            >
+              <GameCard user={user} stats={stats} />
+            </AccountCard>
+            <AccountCard id="radio" howto="account-radio" title="Radio" summary={user.radioEnabled ? "On" : "Off"}>
+              <RadioSettings enabled={user.radioEnabled} station={validStation(user.radioStation, parseSpotifyLinks(user.spotifyLinks))} spotify={parseSpotifyLinks(user.spotifyLinks)} />
+            </AccountCard>
+            </>
+          )}
           <SpinnerPicker card initial={cleanSpinners(user.spinners)} pawn={pawnEmoji(user.questPawn)} />
         </AccountGroup>
       </div>

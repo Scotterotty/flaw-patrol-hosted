@@ -1,6 +1,7 @@
 import { cleanKeys } from "@/lib/delve";
 import { dungeonsFor } from "@/lib/delve-data";
 import { db } from "@/lib/db";
+import { funOff } from "@/lib/fun";
 import { currentUser } from "@/lib/session";
 
 const NO_STORE = { "Cache-Control": "no-store" };
@@ -8,6 +9,7 @@ const NO_STORE = { "Cache-Control": "no-store" };
 // The hidden page's save and dungeons. Everything here is the signed-in person's own: there is no
 // way to ask for someone else's, and nothing reads it for reports, activity or admins.
 export async function GET() {
+  if (funOff()) return new Response(null, { status: 404 });
   const user = await currentUser();
   if (!user) return new Response(null, { status: 401 });
   const [save, dungeons] = await Promise.all([db.delveSave.findUnique({ where: { userId: user.id } }), dungeonsFor(user)]);
@@ -15,6 +17,7 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
+  if (funOff()) return new Response(null, { status: 404 });
   const user = await currentUser();
   if (!user) return new Response(null, { status: 401 });
   const body = await req.json().catch(() => null);

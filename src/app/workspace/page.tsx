@@ -1,3 +1,4 @@
+import { funOff } from "@/lib/fun";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { AccountTabs } from "@/components/account-tabs";
@@ -100,6 +101,11 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
         <main id="main" tabIndex={-1} className="min-w-0 flex-1 px-4 pt-6 pb-16 sm:px-6 md:pb-6">
           <div className="page page-settings">
             <PageHeader title="Workspace settings" subtitle="Only workspace admins see this page." />
+            {funOff() && (
+              <p className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700" data-testid="fun-off-admin">
+                <span className="font-semibold">Fun features: off.</span> IT switched off the mini game, quest maps and radio on this server. Everyone&apos;s progress is kept.
+              </p>
+            )}
             <AccountTabs
               label="Workspace sections"
               tabs={[
@@ -109,7 +115,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
                 ["email", "Email"],
                 ["bug-templates", "Bug templates"],
                 ["activity", "Activity log"],
-                ["game-admin", "Game admin"],
+                ...(funOff() ? [] : ([["game-admin", "Game admin"]] as [string, string][])),
                 ["updates", "Updates"],
               ]}
             />
@@ -127,7 +133,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
               <EmailGroupsCard groups={groups} people={people} isAdmin={user.isAdmin} />
               <WorkspaceBugTemplates list={templates} sources={sources} joinDomains={ws.joinDomains} />
               <ActivityLog filters={filters} spelling={spelling} />
-              <GameAdminCard />
+              {!funOff() && <GameAdminCard />}
               <WorkspaceUpdates initial={{ ...updates, running: APP_VERSION }} />
             </div>
           </div>

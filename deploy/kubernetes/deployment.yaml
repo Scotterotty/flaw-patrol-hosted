@@ -52,6 +52,9 @@ spec:
             # crafted replay file can't reach the app. See README "Replay address". Leave
             # empty to show replays from the app's own address.
             - { name: TRACE_VIEWER_ORIGIN, value: "https://flawpatrol-replays.magnopus.global" }
+            # The mini game, quest maps and radio (with Spotify): "off" hides them for everyone
+            # and keeps their data. Remove the line, or set "on", to bring them back.
+            - { name: FUN_FEATURES, value: "off" }
             # Database connections this pod keeps open (Cloud SQL has a limit per instance).
             - { name: DATABASE_POOL, value: "10" }
           resources:

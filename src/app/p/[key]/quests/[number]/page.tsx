@@ -1,3 +1,4 @@
+import { funOff } from "@/lib/fun";
 import Link from "next/link";
 import { RunName } from "@/components/run-name";
 import { notFound } from "next/navigation";
@@ -22,6 +23,7 @@ export const metadata = { title: "Quest" };
 const chance = (p: number) => (p < 0.0001 ? "less than a 0.01%" : `a ${(p * 100).toFixed(p >= 0.01 ? 0 : p >= 0.001 ? 1 : 2)}%`);
 
 export default async function QuestPage({ params }: { params: Promise<{ key: string; number: string }> }) {
+  if (funOff()) notFound();
   const { key, number } = await params;
   const { project, user } = await projectAccess(key);
   if (!(user.gameEnabled && user.questMap)) return <QuestOff />;
